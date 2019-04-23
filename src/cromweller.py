@@ -19,39 +19,35 @@ import sys
 from cromweller_backend import CromwellerBackend
 from cromweller_uri import CromwellerURI
 from logged_bash_cli import bash_run_cmd
+import pyhocon
 
 
 class Cromweller(object):
     """Cromwell/WDL wrapper
     """
-    _backend_json = {
-        # HOCON (/backend.conf) need to be converted into JSON here
-    }
-
-    _mysql_json = {
-    }
-
-    _backend_hocon_header = 'include required(classpath("application"))'
 
     def __init__(self, args):
+        self.__init_backend(args)
+        self.__download_cromwell_jar(args)
+
         # configure CromwellerURI
-        self.__init_backends(args)
+        self._backend_file = 
+        c = CromwellerBackendConfs(args)
+
         self.__download_cromwell_jar(args)
 
         self._wdl = args.wdl
         self._input_json_file = args.inputs
         self._workflow_opts_file = args.options
 
-    def __init_backends(self, args):
-        self.backends = {}
-        self.backends['local'] = CromwellerBackend('local', args.out_dir, args.tmp_dir)
-        self.backends['gc'] = CromwellerBackend('gc', args.out_gcs_bucket, args.tmp_gcs_bucket)
-        self.backends['aws'] = CromwellerBackend('aws', args.out_s3_bucket, args.tmp_s3_bucket)
+    def __init_backend(self, args):
+        self._backend_conf = CromwellerBackendConfs(args)
+        s = self._backend_conf.get_backend_str()
 
-    def __create_backend_file(self, args):
-        # use _backend_json and _mysql_json (if mysql options are defined)
-        # convert JSON to HOCONF
-        self._backend_file = CromwellerURI('backend.conf').get_local_file()
+    # def __create_backend_file(self, args):
+    #     # use _backend_json and _mysql_json (if mysql options are defined)
+    #     # convert JSON to HOCONF
+    #     self._backend_file = CromwellerURI('backend.conf').get_local_file()
 
     def __download_cromwell_jar(self, args):
         self._cromwell_jar = CromwellerURI(args.cromwell).get_local_file()
