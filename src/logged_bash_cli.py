@@ -37,5 +37,5 @@ def bash_run_cmd(cmd):
             raise OSError(err_str)
     else:
         logger.info(err_str)
-    return stdout.strip('\n')
 
+    return stdout.strip('\n')

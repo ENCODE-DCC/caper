@@ -3,154 +3,9 @@
 Cromweller backend
 """
 
-import json
-from copy import deepcopy
-from pyhocon import ConfigFactory, HOCONConverter
-
-from cromweller_uri import CromwellerURI
-from logged_bash_cli import bash_run_cmd
-
-
-class CromwellerBackends(object):
-    """CromwellerBackend manager
-
-    This manager initializes the following backend stanzas,
-    which are defined in "backend" {} in a Cromwell's backend
-    file:
-        1) local: local backend
-        2) gc: Google Cloud backend (optional)
-        3) aws: AWS backend (optional)
-        4) slurm: SLURM (optional)
-        5) sge: SGE (optional)
-        6) pbs: PBS (optional)
-
-    Also, it initializes the following common non-backend stanzas:
-        a) common: base backend
-        b) mysql: connect to MySQL (optional)
-    """
-
-    RE_PATTERN_CONF_HEADER = '^[\s]*include\s'
-    BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
-    DEFAULT_BACKEND = 'local'
-
-    def __init__(self, args):
-        """Parses parameters from argparse and then initializes backend
-        configuration dict and convert it to HOCON string
-        """
-
-        def merge_dict(a, b, path=None):
-            """Merge b into a recursively. This mutates a and overwrites
-            items in b on a for conflicts.            
-
-            Ref: https://stackoverflow.com/questions/7204805/dictionaries-of-dictionaries-merge/7205107#7205107                
-            """
-            if path is None: path = []
-            for key in b:
-                if key in a:
-                    if isinstance(a[key], dict) and isinstance(b[key], dict):
-                        merge_dict(a[key], b[key], path + [str(key)])
-                    elif a[key] == b[key]:
-                        pass
-                    else:
-                        a[key] = b[key]
-                else:
-                    a[key] = b[key]
-
-        # init backend dict
-        self._backend_dict = {}
-
-        # local backend
-        merge_dict(self._backend_dict, CromwellerBackendLocal(
-            out_dir=args.get('out_dir'),
-            concurrent_job_limit=args.get('num_concurrent_tasks')))
-
-        # GC
-        if args.get('gc_project') and args.get('gc_project is not None'):
-            merge_dict(self._backend_dict, CromwellerBackendGC(
-                gc_project=args.get('gc_project'),
-                out_gcs_bucket=args.get('out_gcs_bucket'),
-                concurrent_job_limit=args.get('num_concurrent_tasks')))
-
-        # AWS
-        if args.get('aws_batch_arn') and args.get('aws_region'):
-            merge_dict(self._backend_dict, CromwellerBackendAWS(
-                aws_batch_arn=args.get('aws_batch_arn'),
-                aws_region=args.get('aws_region'),
-                concurrent_job_limit=args.get('num_concurrent_tasks')))
-
-        # SLURM
-        merge_dict(self._backend_dict, CromwellerBackendSLURM(
-            partition=args.get('slurm_partition'),
-            account=args.get('slurm_account'),
-            extra_param=args.get('slurm_extra_param'),
-            concurrent_job_limit=args.get('num_concurrent_tasks')))
-
-        # SGE
-        merge_dict(self._backend_dict, CromwellerBackendSGE(
-            pe=args.get('sge_pe'),
-            queue=args.get('sge_queue'),
-            extra_param=args.get('sge_extra_param'),
-            concurrent_job_limit=args.get('num_concurrent_tasks')))
-
-        # PBS
-        merge_dict(self._backend_dict, CromwellerBackendPBS(
-            queue=args.get('pbs_queue'),
-            extra_param=args.get('pbs_extra_param'),
-            concurrent_job_limit=args.get('num_concurrent_tasks')))
-
-        # MySQL is optional
-        if args.get('mysql_db_user') and args.get('mysql_db_password'):
-            merge_dict(self._backend_dict, CromwellerBackendMySQL(
-                ip=args.get('mysql_db_ip'),
-                port=args.get('mysql_db_port'),
-                user=args.get('mysql_db_user'),
-                password=args.get('mysql_db_password')))
-
-        # set header for conf ("include ...")
-        assert(CromwellerBackends.BACKEND_CONF_HEADER.endswith('\n'))
-        lines_header = [CromwellerBackends.BACKEND_CONF_HEADER]
-
-        # override with user-specified backend.conf if exists
-        if args.get('backend_conf') is not None:
-            lines_wo_header = []
-
-            with open(args.get('backend_conf'), 'r') as fp:
-                for line in fp.readlines():
-                    # find header and exclude
-                    if re.findall(CromwellerBackends.RE_PATTERN_CONF_HEADER, line):
-                        if not line in lines_header:
-                            lines_header.append(line)
-                    else:
-                        lines_wo_header.append(line)
-
-            # parse HOCON to JSON to dict
-            c = ConfigFactory.parse_string(''.join(lines_wo_header))
-            j = HOCONConverter.to_json(c)
-            d = json.loads(j)
-            # apply to backend conf
-            merge_dict(self._backend_dict, d)
-
-        # use default backend (local) if not specified
-        if args.get('backend') is not None:
-            self._backend_dict['backend']['default'] = args.get('backend')
-        else:
-            self._backend_dict['backend']['default'] = CromwellerBackends.DEFAULT_BACKEND
-
-        # dict to HOCON (excluding header)
-        self._backend_hocon = ConfigFactory.from_dict(self._backend_dict)
-        # write header to HOCON string
-        self._backend_str = ''.join(lines_header)
-        # convert HOCON to string
-        self._backend_str += HOCONConverter.to_hocon(self._backend_hocon)
-
-        # save string as a final backend.conf file passed to cromwell.jar
-
-    def get_backend_str(self):
-        return self._backend_str
-
 
 class CromwellerBackendCommon(dict):
-    """Dict of common stanzas for all Cromweller backends
+    """Common stanzas for all Cromweller backends
     """
     TEMPLATE = {
         "backend": {
@@ -196,7 +51,7 @@ class CromwellerBackendCommon(dict):
         
 
 class CromwellerBackendMySQL(dict):
-    """Backend for MySQL
+    """Common stanzas for MySQL
     """
     TEMPLATE = {
         "database": {
@@ -227,7 +82,7 @@ class CromwellerBackendMySQL(dict):
         
 
 class CromwellerBackendGC(dict):
-    """Dict for Cromweller backend GC
+    """Google Cloud backend
     """
     TEMPLATE = {
         "backend": {
@@ -286,7 +141,7 @@ class CromwellerBackendGC(dict):
 
 
 class CromwellerBackendAWS(dict):
-    """Dict for Cromweller backend AWS
+    """AWS backend
     """
     TEMPLATE = {
         "backend": {
@@ -350,6 +205,8 @@ class CromwellerBackendAWS(dict):
 
 
 class CromwellerBackendLocal(dict):
+    """Local backend
+    """
     TEMPLATE = {
         "backend": {
             "providers": {
@@ -430,6 +287,8 @@ class CromwellerBackendSLURM(dict):
 
 
 class CromwellerBackendSGE(dict):
+    """SGE backend
+    """
     TEMPLATE = {
         "backend": {
             "providers": {
@@ -475,6 +334,8 @@ class CromwellerBackendSGE(dict):
 
 
 class CromwellerBackendPBS(dict):
+    """PBS backend
+    """
     TEMPLATE = {
         "backend": {
             "providers": {
