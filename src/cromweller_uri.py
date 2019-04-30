@@ -116,12 +116,26 @@ class CromwellerURI(object):
         return s
 
     def file_exists(self):
-        return CromwellerURI.__file_exists(self._uri, self._uri_type)
+        return CromwellerURI.__file_exists(self._uri)
 
-    def write_file(self):
+    def write_file(self, s):
         """This cannot overwrite on existing files.
         """
         assert(not self.file_exists())
+        if self._uri_type == URI_LOCAL:
+            with open(self._uri, 'w') as fp:
+                fp.write(s)
+        elif self._uri_type == URI_GCS or \
+            self._uri_type == URI_S3 and \
+                CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
+            subprocess.run(['gsutil', 'cp', '-', self._uri],
+                    input=s, encoding='ascii')
+        elif self._uri_type == URI_S3:
+            subprocess.run(['aws', 's3', 'cp', '-', self._uri],
+                    input=s, encoding='ascii')
+        else:
+            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
+
         return self._uri
 
     def get_local_file(self, deepcopy_uri_type=None, deepcopy_uri_exts=()):
@@ -178,7 +192,7 @@ class CromwellerURI(object):
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
 
-        assert(CromwellerURI.__file_exists(path, URI_GCS))
+        assert(CromwellerURI.__file_exists(path))
         deepcopied = self.__deepcopy(deepcopy_uri_type, deepcopy_uri_exts)
 
         if deepcopied is None:
@@ -215,7 +229,7 @@ class CromwellerURI(object):
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
 
-        assert(CromwellerURI.__file_exists(path, URI_S3))
+        assert(CromwellerURI.__file_exists(path))
         deepcopied = self.__deepcopy(deepcopy_uri_type, deepcopy_uri_exts)
 
         if deepcopied is None:

@@ -17,6 +17,8 @@ import os
 import sys
 import json
 import subprocess
+import re
+import time
 from datetime import datetime
 
 import cromweller_backend as cb
@@ -271,9 +273,10 @@ class Cromweller(object):
 
     BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
     DEFAULT_BACKEND = cb.BACKEND_LOCAL
-    RE_PATTERN_BACKEND_CONF_HEADER = '^[\s]*include\s'
-    RE_PATTERN_WDL_COMMENT_DOCKER = '^\s*\#\s*CROMWELLER\s+docker\s(.+)'
-    RE_PATTERN_WDL_COMMENT_SINGULARITY = '^\s*\#\s*CROMWELLER\s+singularity\s(.+)'
+    RE_PATTERN_BACKEND_CONF_HEADER = r'^[\s]*include\s'
+    RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CROMWELLER\s+docker\s(.+)'
+    RE_PATTERN_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CROMWELLER\s+singularity\s(.+)'
+    RE_PATTERN_WORKFLOW_ID = r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
     DEEPCOPY_EXTS_IN_INPUT_JSON = ('.json', '.tsv', '.csv')
 
     def __init__(self, args):
@@ -310,26 +313,6 @@ class Cromweller(object):
         if self._backend is None:
             self._backend = Cromweller.DEFAULT_BACKEND
 
-    def __generate_workflow_label(self):
-        """Random label for workflow, which is used for a label
-        specified by --labels in Cromwell's command line. With this
-        Cromweller will be able to distinguish between workflows.
-
-        This is different from UUID (a.k.a workflow ID) generated
-        from Cromwell itself.
-
-        We cannot use Cromwell's UUID as a label since UUID can only
-        be known after communicating with Cromwell.
-
-        We use a milliseconded timestamp instead of Cromwell's UUID.
-        """
-        timestamp = Cromweller.__get_time_str()
-        if self._wdl is not None:
-            wdl, _ = os.path.splitext(self._wdl)
-            return os.path.basename(wdl) + '_' + timestamp
-        else:
-            return timestamp
-
     def run(self):
         """Run a workflow using Cromwell run mode
         """
@@ -347,7 +330,7 @@ class Cromweller(object):
         
         # metadata JSON file is an output from Cromwell
         #   place it on the tmp dir
-        out_metadata_file = self.__get_metadata_json_file(tmp_dir)
+        metadata_file = self.__get_metadata_json_file(tmp_dir)
 
         cmd = ['java', '-jar',
             '-Dconfig.file={}'.format(backend_file),
@@ -356,63 +339,92 @@ class Cromweller(object):
             cu.CromwellerURI(self._wdl).get_local_file(),
             '-i', input_file,
             '-o', workflow_opts_file,
-            '-m', out_metadata_file]
-        print(cmd)
+            '-m', metadata_file]
+        print('RUN: ',cmd)
 
         try:
-            rc = subprocess.check_call(cmd)
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
+            workflow_id = None
+            rc = None
+            while p.poll() is None:
+                stdout = p.stdout.readline().strip()
+                if workflow_id is None:
+                    workflow_id = Cromweller.__get_workflow_id_from_cromwell_stdout(
+                                    stdout)
+                print(stdout)
+            rc = p.poll()
         except subprocess.CalledProcessError as e:
             rc = e.returncode
+        except KeyboardInterrupt:
+            while p.poll() is None:
+                stdout = p.stdout.readline().strip()
+                print(stdout)
+        print("RC: ", rc)
+        print("WORKFLOW_ID: ", workflow_id)
 
-        print("rc: {}".format(rc))
-        # parse out_metadata_file
+        # move metadata_file to backend's output storage
+        with open(metadata_file, 'r') as fp:
+            # read metadata contents first locally
+            metadata = fp.read()
+            target_metadata_file = self.__write_metadata_json_file(
+                metadata, workflow_id)
+        
+            # delete original metadata file
+            os.remove(metadata_file)
+        print("CROMWELL_METADATA_JSON_FILE: ", target_metadata_file)
+
+    def __write_metadata_json_file(self, metadata, workflow_id):
+        """Write metadata.json (Cromwell's final output) to
+        corresponding output storage for a workflow
+        """
+        # get absolute path on target storage
+        target_metadata_file = os.path.join(
+            self.__get_workflow_output_dir(workflow_id),
+            'metadata.json')
+        # write on target storage (possible remote buckets)
+        return cu.CromwellerURI(target_metadata_file).write_file(
+            metadata)
 
     def server(self):
         """Run a Cromwell server
         """
-        # make a timestamped temp directory to store all input files 
         tmp_dir = self.__mkdir_tmp_dir()
-
-        # all input files
         backend_file = self.__create_backend_conf_file(tmp_dir)
 
-        # metadata JSON file is an output from Cromwell
-        out_metadata_file = self.__get_metadata_json_file(tmp_dir)
+        cmd = ['java', '-jar',
+            '-Dconfig.file={}'.format(backend_file),
+            cu.CromwellerURI(self._cromwell).get_local_file(),
+            'server']
+        print('SERVER: ',cmd)
 
-        cmd = 'java -jar -Dconfig.file={backend_file} {cromwell_jar} server'
-        '-m {out_metadata_file}'
-        cmd = cmd.format(
-            backend_file=backend_file,
-            cromwell_jar=cu.CromwellerURI(
-                self._cromwell).get_local_file(),
-            input_file=input_file,
-            workflow_opts_file=workflow_opts_file,
-            out_metadata_file=out_metadata_file)
-
-        p = subprocess.Popen(cmd, shell=True)
-
+        workflow_ids = set()
         try:
-            # server mode
-            # uuid = new_uuid()
-            # label_json = { 'cromweller-workflow-uuid' : uuid }        
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                universal_newlines=True)
             rc = None
-            while rc is None:
-                time.sleep(5)
-                # GET: get list of all workflows
-                # check if metadata.json exists
-                # GET: find by uuid
-                rc = p.poll()
-            # move_metadata()
-            # parse_metadata()
+            while p.poll() is None:
+                stdout = p.stdout.readline().strip()
+                workflow_id = Cromweller.__get_workflow_id_from_cromwell_stdout(
+                                stdout)
+                if workflow_id is not None and not workflow_id in workflow_ids:
+                    workflow_ids.add(workflow_id)
+                print(stdout)
 
+        except subprocess.CalledProcessError as e:
+            rc = e.returncode
         except KeyboardInterrupt:
-            try:
-               p.terminate()
-            except OSError:
-               raise
-            p.wait()
+            while p.poll() is None:
+                stdout = p.stdout.readline().strip()
+                print(stdout)
+        print("RC: ", rc)
+        print("WORKFLOWS: ", workflow_ids)
 
-        raise NotImplemented
+    def __query_cromwell_server(self):
+        try:
+            pass
+        except:
+            pass
+        return
 
     def submit(self):
         """Submit a workflow to Cromwell server
@@ -712,6 +724,57 @@ class Cromweller(object):
         tmp_dir = os.path.join(self._tmp_dir, label)
         os.makedirs(tmp_dir, exist_ok=True)
         return tmp_dir
+
+    def __get_workflow_output_dir(self, workflow_id=''):
+        wdl = self.__get_wdl_basename()
+        if self._backend==cb.BACKEND_GCP:
+            out_dir = self._out_gcs_bucket
+        if self._backend==cb.BACKEND_AWS:
+            out_dir = self._out_aws_bucket
+        else:
+            out_dir = self._out_dir
+        if wdl is None:
+            return os.path.join(out_dir,
+                workflow_id)
+        else:
+            return os.path.join(out_dir,
+                os.path.basename(wdl),
+                workflow_id)
+
+    def __generate_workflow_label(self):
+        """Random label for workflow, which is used for a label
+        specified by --labels in Cromwell's command line. With this
+        Cromweller will be able to distinguish between workflows.
+
+        This is different from UUID (a.k.a workflow ID) generated
+        from Cromwell itself.
+
+        We cannot use Cromwell's UUID as a label since UUID can only
+        be known after communicating with Cromwell.
+
+        We use a milliseconded timestamp instead of Cromwell's UUID.
+        """
+        timestamp = Cromweller.__get_time_str()
+        wdl = self.__get_wdl_basename()
+        if wdl is not None:
+            return wdl + '_' + timestamp
+        else:
+            return timestamp
+
+    def __get_wdl_basename(self):
+        if self._wdl is not None:
+            wdl, _ = os.path.splitext(self._wdl)
+            return os.path.basename(wdl)
+        else:
+            return None
+
+    @staticmethod
+    def __get_workflow_id_from_cromwell_stdout(stdout):
+        for line in stdout.split('\n'):
+            r = re.findall(Cromweller.RE_PATTERN_WORKFLOW_ID, line)
+            if len(r)>0:
+                return r[0].strip()
+        return None
 
     @staticmethod
     def __get_time_str():
