@@ -105,3 +105,5 @@ venv.bak/
 
 # dev
 src/test_dev
+src/cromweller_tmp_dir
+cromweller_tmp_dir

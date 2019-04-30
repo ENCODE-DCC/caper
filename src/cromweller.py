@@ -1,7 +1,6 @@
-#!/usr/bin/env python
-"""
-Cromweller: Cromwell/WDL wrapper python script
-    for multiple backends (local, gc, aws)
+#!/usr/bin/env python3
+"""Cromweller: Cromwell/WDL wrapper python script
+for multiple backends (local, gc, aws)
 
 (Optional)
 Add the following comments to your WDL script to specify container images
@@ -17,11 +16,11 @@ import configparser
 import os
 import sys
 import json
+import subprocess
 from datetime import datetime
 
 import cromweller_backend as cb
-from cromweller_uri import CromwellerURI, init_cromweller_uri, mkdir_p
-from logged_bash_cli import bash_run_cmd
+import cromweller_uri as cu
 from pyhocon import ConfigFactory, HOCONConverter
 
 
@@ -40,8 +39,7 @@ def parse_cromweller_arguments():
     conf_parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        add_help=False
-        )
+        add_help=False)
     conf_parser.add_argument('-c', '--conf',
         help='Specify config file',
         metavar='FILE',
@@ -140,6 +138,13 @@ def parse_cromweller_arguments():
         help='Workflow inputs JSON file')
     parent_submit.add_argument('-o', '--options',
         help='Workflow options JSON file')
+    parent_submit.add_argument('--deep-copy',
+        help='Deep-copy for JSON (.json), TSV (.tsv) and CSV (.csv) '
+            'files specified in an input JSON file (--inputs). '
+            'Find all string values in an input JSON file '
+            'and make copies of files on a local/remote storage '
+            'for a target backend. Make sure that you have installed '
+            'gsutil for GCS and aws for S3.')
 
     group_dep = parent_submit.add_argument_group(
         title='dependency resolver for all backends',
@@ -235,6 +240,7 @@ def parse_cromweller_arguments():
         parser.exit()
     # parse all args
     args = parser.parse_args(remaining_argv)
+
     # convert to dict
     args_d = vars(args)
 
@@ -264,12 +270,15 @@ class Cromweller(object):
     """
 
     BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
-    DEFAULT_BACKEND = 'local'
-    RE_PATTERN_CONF_HEADER = '^[\s]*include\s'
-    RE_PATTERN_WDL_COMMENT_DOCKER = '^\s*\#CROMWELLER\s+docker\s(.+)'
-    RE_PATTERN_WDL_COMMENT_SINGULARITY = '^\s*\#CROMWELLER\s+singularity\s(.+)'
+    DEFAULT_BACKEND = cb.BACKEND_LOCAL
+    RE_PATTERN_BACKEND_CONF_HEADER = '^[\s]*include\s'
+    RE_PATTERN_WDL_COMMENT_DOCKER = '^\s*\#\s*CROMWELLER\s+docker\s(.+)'
+    RE_PATTERN_WDL_COMMENT_SINGULARITY = '^\s*\#\s*CROMWELLER\s+singularity\s(.+)'
+    DEEPCOPY_EXTS_IN_INPUT_JSON = ('.json', '.tsv', '.csv')
 
     def __init__(self, args):
+        """Initializes from args dict
+        """
         self._num_concurrent_tasks = args.get('num_concurrent_tasks')
         self._tmp_dir = args.get('tmp_dir')
         self._out_dir = args.get('out_dir')
@@ -294,14 +303,42 @@ class Cromweller(object):
         self._use_docker = args.get('use_docker')
         self._wdl = args.get('wdl')
         self._inputs = args.get('inputs')
-        self._backend = args.get('backend')
         self._cromwell = args.get('cromwell')
+        self._backend = args.get('backend')
+        self._deepcopy = args.get('deepcopy')
+        
+        if self._backend is None:
+            self._backend = Cromweller.DEFAULT_BACKEND
+
+    def __generate_workflow_label(self):
+        """Random label for workflow, which is used for a label
+        specified by --labels in Cromwell's command line. With this
+        Cromweller will be able to distinguish between workflows.
+
+        This is different from UUID (a.k.a workflow ID) generated
+        from Cromwell itself.
+
+        We cannot use Cromwell's UUID as a label since UUID can only
+        be known after communicating with Cromwell.
+
+        We use a milliseconded timestamp instead of Cromwell's UUID.
+        """
+        timestamp = Cromweller.__get_time_str()
+        if self._wdl is not None:
+            wdl, _ = os.path.splitext(self._wdl)
+            return os.path.basename(wdl) + '_' + timestamp
+        else:
+            return timestamp
 
     def run(self):
         """Run a workflow using Cromwell run mode
         """
-        # make a timestamped temp directory to store all input files 
-        tmp_dir = self.__mkdir_tmp_dir_timestamped()
+        # compose label for workflow
+        #   label = WDL filename + timestamp
+        label = self.__generate_workflow_label()
+
+        # make temp directory to store inputs
+        tmp_dir = self.__mkdir_tmp_dir(label)
 
         # all input files
         backend_file = self.__create_backend_conf_file(tmp_dir)
@@ -309,33 +346,32 @@ class Cromweller(object):
         workflow_opts_file = self.__create_workflow_opts_json_file(tmp_dir)
         
         # metadata JSON file is an output from Cromwell
+        #   place it on the tmp dir
         out_metadata_file = self.__get_metadata_json_file(tmp_dir)
 
-        cmd = 'java -jar -Dconfig.file={backend_file} {cromwell_jar} run '
-        '{wdl} -i {input_file} -o {workflow_opts_file} '
-        '-m {out_metadata_file}'
-        cmd = cmd.format(
-            backend_file=backend_file,
-            cromwell_jar=CromwellerURI(
-                self._cromwell).get_local_file(),
-            wdl=CromwellerURI(
-                self._wdl).get_local_file(),
-            input_file=input_file,
-            workflow_opts_file=workflow_opts_file,
-            out_metadata_file=out_metadata_file)
-        bash_run_cmd(cmd)
+        cmd = ['java', '-jar',
+            '-Dconfig.file={}'.format(backend_file),
+            cu.CromwellerURI(self._cromwell).get_local_file(),
+            'run',
+            cu.CromwellerURI(self._wdl).get_local_file(),
+            '-i', input_file,
+            '-o', workflow_opts_file,
+            '-m', out_metadata_file]
+        print(cmd)
 
+        try:
+            rc = subprocess.check_call(cmd)
+        except subprocess.CalledProcessError as e:
+            rc = e.returncode
+
+        print("rc: {}".format(rc))
         # parse out_metadata_file
-        raise NotImplemented        
-
-    def __get_metadata_json_file(self, directory=None):
-        return None
 
     def server(self):
         """Run a Cromwell server
         """
         # make a timestamped temp directory to store all input files 
-        tmp_dir = self.__mkdir_tmp_dir_timestamped()
+        tmp_dir = self.__mkdir_tmp_dir()
 
         # all input files
         backend_file = self.__create_backend_conf_file(tmp_dir)
@@ -347,7 +383,7 @@ class Cromweller(object):
         '-m {out_metadata_file}'
         cmd = cmd.format(
             backend_file=backend_file,
-            cromwell_jar=CromwellerURI(
+            cromwell_jar=cu.CromwellerURI(
                 self._cromwell).get_local_file(),
             input_file=input_file,
             workflow_opts_file=workflow_opts_file,
@@ -376,45 +412,69 @@ class Cromweller(object):
                raise
             p.wait()
 
-        raise NotImplemented        
+        raise NotImplemented
 
     def submit(self):
+        """Submit a workflow to Cromwell server
+        """
         raise NotImplemented
 
     def cancel(self):
+        """Send Cromwell server a request to Cancel running/pending
+        workflows
+        """
         raise NotImplemented
 
     def list(self):
+        """Get list of running/pending workflows from Cromwell server
+        """
         raise NotImplemented
         
-    def __create_backend_conf_file(self, directory=None,
+    def __create_backend_conf_file(self, directory,
         fname='backend.conf'):
-        """Creates Cromwell's backend.conf
+        """Creates Cromwell's backend conf file
         """
         backend_str = self.__get_backend_conf_str()
-        if directory is not None:
-            backend_file = os.path.join(directory, fname)
-        else:
-            backend_file = os.path.join(fname)
+        backend_file = os.path.join(directory, fname)
         with open(backend_file, 'w') as fp:
             fp.write(backend_str)
         return backend_file
 
-    def __get_input_json_file(self, directory=None,
+    def __get_metadata_json_file(self, directory,
+        fname='metadata.json'):
+        metadata_file = os.path.join(directory, fname)
+        return metadata_file       
+
+    def __get_input_json_file(self, directory,
         fname='inputs.json'):
-        if self._inputs is None:
-            input_file = None
-        else:
-            # check if input file has all files on the specified backend
-            # using self._backend
-            if True:
-                input_file = self._inputs
+        """Make a copy of input JSON file.
+        Deepcopy to specified storage if required.
+        """
+        if self._inputs is not None:
+            # init parameters for deepcopying
+            if self._backend == cb.BACKEND_GCP:
+                uri_type = cu.URI_GCS
+            elif self._backend == cb.BACKEND_AWS:
+                uri_type = cu.URI_S3
             else:
-                input_file = None
+                uri_type = cu.URI_LOCAL
 
-        return input_file
+            # deepcopy to backend if required
+            if self._deepcopy:
+                uri_exts = Cromweller.DEEPCOPY_EXTS_IN_INPUT_JSON
+            else:
+                uri_exts = ()
 
-    def __create_workflow_opts_json_file(self, directory=None,
+            return cu.CromwellerURI(self._inputs).get_local_file(
+                deepcopy_uri_type=uri_type,
+                deepcopy_uri_exts=uri_exts)
+        else:            
+            input_file = os.path.join(directory, fname)
+            with open(input_file, 'w') as fp:
+                fp.write('{}')
+            return input_file
+
+    def __create_workflow_opts_json_file(self, directory,
         fname='workflow_opts.json'):
         """Creates Cromwell's workflow options JSON file
         
@@ -441,94 +501,90 @@ class Cromweller(object):
             pbs_extra_param
         """
         template = {
-            'default-runtime-attributes' : {}
+            'default_runtime_attributes' : {}
         }
 
         if self._backend is not None:
-            template['default-runtime-attributes']['backend'] = \
+            template['default_runtime_attributes']['backend'] = \
                 self._backend
 
         # find docker/singularity from WDL or command line args
         if self._use_docker:
             if self._docker is None:
-                docker = self.__detect_docker_from_wdl()
+                docker = self.__find_docker_from_wdl()
             else:
                 docker = self._docker
             if docker is not None:
-                template['default-runtime-attributes']['docker'] = \
+                template['default_runtime_attributes']['docker'] = \
                     docker
                 
         elif self._use_singularity:
             if self._singularity is None:
-                singularity = self.__detect_singularity_from_wdl()
+                singularity = self.__find_singularity_from_wdl()
             else:
                 singularity = self._singularity
             if singularity is not None:            
-                template['default-runtime-attributes']['singularity'] = \
+                template['default_runtime_attributes']['singularity'] = \
                     singularity
 
         if self._slurm_partition is not None:
-            template['default-runtime-attributes']['slurm_partition'] = \
+            template['default_runtime_attributes']['slurm_partition'] = \
             self._slurm_partition
         if self._slurm_account is not None:
-            template['default-runtime-attributes']['slurm_account'] = \
+            template['default_runtime_attributes']['slurm_account'] = \
             self._slurm_account
         if self._slurm_extra_param is not None:
-            template['default-runtime-attributes']['slurm_extra_param'] = \
+            template['default_runtime_attributes']['slurm_extra_param'] = \
             self._slurm_extra_param
 
         if self._pbs_queue is not None:
-            template['default-runtime-attributes']['pbs_queue'] = \
+            template['default_runtime_attributes']['pbs_queue'] = \
             self._pbs_queue
         if self._pbs_extra_param is not None:
-            template['default-runtime-attributes']['pbs_extra_param'] = \
+            template['default_runtime_attributes']['pbs_extra_param'] = \
             self._pbs_extra_param
 
         if self._sge_pe is not None:
-            template['default-runtime-attributes']['sge_pe'] = \
+            template['default_runtime_attributes']['sge_pe'] = \
             self._sge_pe
         if self._sge_queue is not None:
             template['default-runtime-attributes']['sge_queue'] = \
             self._sge_queue
         if self._sge_extra_param is not None:
-            template['default-runtime-attributes']['sge_extra_param'] = \
+            template['default_runtime_attributes']['sge_extra_param'] = \
             self._sge_extra_param
 
         # write it
-        if directory is not None:
-            workflow_opts_file = os.path.join(directory, fname)
-        else:
-            workflow_opts_file = os.path.join(fname)
-        
+        workflow_opts_file = os.path.join(directory, fname)        
         with open(workflow_opts_file, 'w') as fp:
             fp.write(json.dumps(template, indent=4))
+
         return workflow_opts_file
 
-    def __detect_singularity_from_wdl(self):
-        if self._wdl is not None:
-            with open(CromwellerURI(self._wdl).get_local_file(),'r') as fp:
-                for line in fp.readlines():
-                    r = re.findall(Cromweller.RE_PATTERN_WDL_COMMENT_SINGULARITY,
-                        line)
-                    if len(r)>0:
-                        return r[0].strip()
-        return None
+    def __find_docker_from_wdl(self):
+        return self.__find_var_from_wdl(
+            Cromweller.RE_PATTERN_WDL_COMMENT_DOCKER)
 
-    def __detect_docker_from_wdl(self):
+    def __find_singularity_from_wdl(self):
+        return self.__find_var_from_wdl(
+            Cromweller.RE_PATTERN_WDL_COMMENT_SINGULARITY)
+
+    def __find_var_from_wdl(self, regex_var):
         if self._wdl is not None:
-            with open(CromwellerURI(self._wdl).get_local_file(),'r') as fp:
+            with open(cu.CromwellerURI(self._wdl).get_local_file(),'r') as fp:
                 for line in fp.readlines():
-                    r = re.findall(Cromweller.RE_PATTERN_WDL_COMMENT_DOCKER,
-                        line)
+                    r = re.findall(regex_var, line)
                     if len(r)>0:
-                        return r[0].strip()
+                        ret = r[0].strip()
+                        if len(ret)>0:
+                            return ret
         return None
 
     def __get_backend_conf_str(self):
         """
         Initializes the following backend stanzas,
         which are defined in "backend" {} in a Cromwell's backend
-        file:
+        configuration file:
             1) local: local backend
             2) gc: Google Cloud backend (optional)
             3) aws: AWS backend (optional)
@@ -536,8 +592,8 @@ class Cromweller(object):
             5) sge: SGE (optional)
             6) pbs: PBS (optional)
 
-        Also, initializes the following common non-backend stanzas:
-            a) common: base backend
+        Also, initializes the following common non-"backend" stanzas:
+            a) common: base stanzas
             b) mysql: connect to MySQL (optional)
 
         Then converts it to a HOCON string
@@ -619,10 +675,10 @@ class Cromweller(object):
         if self._backend_conf is not None:
             lines_wo_header = []
 
-            with open(CromwellerURI(self._backend_conf).get_local_file(), 'r') as fp:
+            with open(cu.CromwellerURI(self._backend_conf).get_local_file(), 'r') as fp:
                 for line in fp.readlines():
                     # find header and exclude
-                    if re.findall(Cromweller.RE_PATTERN_CONF_HEADER, line):
+                    if re.findall(Cromweller.RE_PATTERN_BACKEND_CONF_HEADER, line):
                         if not line in lines_header:
                             lines_header.append(line)
                     else:
@@ -637,7 +693,7 @@ class Cromweller(object):
 
         # use default backend (local) if not specified
         if self._backend is not None:
-            backend_dict['backend']['default'] = backend
+            backend_dict['backend']['default'] = self._backend
         else:
             backend_dict['backend']['default'] = Cromweller.DEFAULT_BACKEND
 
@@ -650,23 +706,16 @@ class Cromweller(object):
 
         return backend_str
 
-    def __mkdir_tmp_dir(self):
-        """Create a temporary directory
+    def __mkdir_tmp_dir(self, label=''):
+        """Create a temporary directory (self._tmp_dir/label)
         """
-        mkdir_p(self._tmp_dir)
-        return self._tmp_dir
-
-    def __mkdir_tmp_dir_timestamped(self):
-        """Create a timestamped temporary directory
-        """
-        def get_time_str():
-            return datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-
-        tmp_dir = os.path.join(
-            self._tmp_dir,
-            get_time_str())
-        mkdir_p(tmp_dir)
+        tmp_dir = os.path.join(self._tmp_dir, label)
+        os.makedirs(tmp_dir, exist_ok=True)
         return tmp_dir
+
+    @staticmethod
+    def __get_time_str():
+        return datetime.now().strftime('%Y%m%d_%H%M%S_%f')
 
 
 def main():
@@ -676,7 +725,7 @@ def main():
 
     # init cromweller uri to transfer files across various storages
     #   e.g. gs:// to s3://, http:// to local, ...
-    init_cromweller_uri(
+    cu.init_cromweller_uri(
         tmp_dir=args.get('tmp_dir'),
         tmp_s3_bucket=args.get('tmp_s3_bucket'),
         tmp_gcs_bucket=args.get('tmp_gcs_bucket'),
@@ -684,11 +733,9 @@ def main():
         http_password=args.get('http_password'),
         use_gsutil_over_aws_s3=args.get('use_gsutil_over_aws_s3'))
 
-    # init cromweller
-    #   taking all args at init step
+    # init cromweller: taking all args at init step
     c = Cromweller(args)
 
-    # do for specifid action
     action = args['action']
     if action=='run':
         c.run()
@@ -701,7 +748,7 @@ def main():
     elif action=='list':
         c.list()
     else:
-        raise Exception('Action not specified in cmd line args.')
+        raise Exception('Unsupported or unspecified action.')
 
 if __name__ == '__main__':
     main()

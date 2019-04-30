@@ -1,15 +1,20 @@
-#!/usr/bin/env python
-"""
-Cromweller backend
+#!/usr/bin/env python3
+"""Cromweller backend
 """
 
+BACKEND_GCP = 'gcp'
+BACKEND_AWS = 'aws'
+BACKEND_LOCAL = 'local'
+BACKEND_SLURM = 'slurm'
+BACKEND_SGE = 'sge'
+BACKEND_PBS = 'pbs'
 
 class CromwellerBackendCommon(dict):
     """Common stanzas for all Cromweller backends
     """
     TEMPLATE = {
         "backend": {
-            "default": "local"
+            "default": BACKEND_LOCAL
         },
         "webservice" : {
             "port" : 8000
@@ -74,20 +79,20 @@ class CromwellerBackendMySQL(dict):
         super(CromwellerBackendMySQL, self).__init__(
             CromwellerBackendMySQL.TEMPLATE)
 
-        db = ['database']['db']
+        db = self['database']['db']
         db['user'] = user
         db['password'] = password
         db['url'] = db['url'].replace('localhost:3306',
             '{ip}:{port}'.format(ip, port))
         
 
-class CromwellerBackendGC(dict):
+class CromwellerBackendGCP(dict):
     """Google Cloud backend
     """
     TEMPLATE = {
         "backend": {
             "providers": {
-                "gc": {
+                BACKEND_GCP: {
                     "actor-factory": "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
@@ -128,10 +133,10 @@ class CromwellerBackendGC(dict):
         out_gcs_bucket,
         concurrent_job_limit=None):
 
-        super(CromwellerBackendGC, self).__init__(
-            CromwellerBackendGC.TEMPLATE)        
+        super(CromwellerBackendGCP, self).__init__(
+            CromwellerBackendGCP.TEMPLATE)        
 
-        config = self['backend']['providers']['gc']['config']
+        config = self['backend']['providers'][BACKEND_GCP]['config']
         config['project'] = gc_project
         config['root'] = out_gcs_bucket
         assert(out_gcs_bucket.startswith('gs://'))
@@ -146,7 +151,7 @@ class CromwellerBackendAWS(dict):
     TEMPLATE = {
         "backend": {
             "providers": {
-                "aws": {
+                BACKEND_AWS: {
                     "actor-factory": "cromwell.backend.impl.aws.AwsBatchBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
@@ -194,8 +199,8 @@ class CromwellerBackendAWS(dict):
         super(CromwellerBackendAWS, self).__init__(
             CromwellerBackendAWS.TEMPLATE)
 
-        self['aws']['region'] = aws_region
-        config = self['backend']['providers']['aws']['config']
+        self[BACKEND_AWS]['region'] = aws_region
+        config = self['backend']['providers'][BACKEND_AWS]['config']
         config['default-runtime-attributes']['queueArn'] = aws_batch_arn
         config['root'] = out_s3_bucket
         assert(out_s3_bucket.startswith('s3://'))
@@ -210,7 +215,7 @@ class CromwellerBackendLocal(dict):
     TEMPLATE = {
         "backend": {
             "providers": {
-                "local": {
+                BACKEND_LOCAL: {
                     "actor-factory": "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes" : {                            
@@ -233,7 +238,7 @@ class CromwellerBackendLocal(dict):
         super(CromwellerBackendLocal, self).__init__(
             CromwellerBackendLocal.TEMPLATE)
 
-        config = self['backend']['providers']['local']['config']        
+        config = self['backend']['providers'][BACKEND_LOCAL]['config']        
         config['root'] = out_dir
 
         if concurrent_job_limit is not None:
@@ -245,7 +250,7 @@ class CromwellerBackendSLURM(dict):
     TEMPLATE = {
         "backend": {
             "providers": {
-                "slurm": {
+                BACKEND_SLURM: {
                     "actor-factory": "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes" : {                            
@@ -257,7 +262,7 @@ class CromwellerBackendSLURM(dict):
                         "kill": "scancel ${job_id}",
                         "exit-code-timeout-seconds": 180,
                         "check-alive": "CHK_ALIVE=$(squeue --noheader -j ${job_id}); if [ -z $CHK_ALIVE ]; then /bin/bash -c 'exit 1'; else echo $CHK_ALIVE; fi",
-                        "job-id-regex": "Submitted batch job (\d+).*"
+                        "job-id-regex": "Submitted batch job (\\\\d+).*"
                     }
                 }
             }
@@ -273,7 +278,7 @@ class CromwellerBackendSLURM(dict):
         super(CromwellerBackendSLURM, self).__init__(
             CromwellerBackendSLURM.TEMPLATE)
 
-        config = self['backend']['providers']['slurm']['config']
+        config = self['backend']['providers'][BACKEND_SLURM]['config']
         key = 'default-runtime-attributes'
 
         if partition is not None:
@@ -292,7 +297,7 @@ class CromwellerBackendSGE(dict):
     TEMPLATE = {
         "backend": {
             "providers": {
-                "sge": {
+                BACKEND_SGE: {
                     "actor-factory": "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes" : {                            
@@ -304,7 +309,7 @@ class CromwellerBackendSGE(dict):
                         "exit-code-timeout-seconds": 180,
                         "kill": "qdel ${job_id}",
                         "check-alive": "qstat -j ${job_id}",
-                        "job-id-regex": "(\d+)"
+                        "job-id-regex": "(\\\\d+)"
                     }
                 }
             }
@@ -320,7 +325,7 @@ class CromwellerBackendSGE(dict):
         super(CromwellerBackendSGE, self).__init__(
             CromwellerBackendSGE.TEMPLATE)
 
-        config = self['backend']['providers']['sge']['config']
+        config = self['backend']['providers'][BACKEND_SGE]['config']
         key = 'default-runtime-attributes'
         
         if pe is not None:
@@ -339,7 +344,7 @@ class CromwellerBackendPBS(dict):
     TEMPLATE = {
         "backend": {
             "providers": {
-                "pbs": {
+                BACKEND_PBS: {
                     "actor-factory": "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes" : {                            
@@ -351,7 +356,7 @@ class CromwellerBackendPBS(dict):
                         "exit-code-timeout-seconds": 180,
                         "kill": "qdel ${job_id}",
                         "check-alive": "qstat -j ${job_id}",
-                        "job-id-regex": "(\d+)"
+                        "job-id-regex": "(\\\\d+)"
                     }
                 }
             }
@@ -365,7 +370,7 @@ class CromwellerBackendPBS(dict):
 
         super(CromwellerBackendPBS, self).__init__(
             CromwellerBackendPBS.TEMPLATE)
-        config = self['backend']['providers']['pbs']['config']
+        config = self['backend']['providers'][BACKEND_PBS]['config']
         key = 'default-runtime-attributes'
         
         if queue is not None:
