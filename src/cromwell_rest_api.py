@@ -53,17 +53,50 @@ class CromwellRestAPI(object):
                 '{{ "{key}":"{val}" }}'.format(
                     key=CromwellRestAPI._KEY_LABEL,
                     val=string_label))
-        return self.__query_post(CromwellRestAPI._ENDPOINT_SUBMIT,
+        r = self.__query_post(CromwellRestAPI._ENDPOINT_SUBMIT,
             manifest)
+        print("submit: ", str(r))
+        return r
 
     def abort(self, workflow_id):
         """Abort a workflow
         """
         if workflow_id is None:
             return None
-        return self.__query_get(            
+        r = self.__query_get(            
             CromwellRestAPI._ENDPOINT_ABORT.format(
                 wf_id=workflow_id))
+        print("abort: ", str(r))
+        return r
+
+    def list(self, workflow_ids=None, str_labels=None):
+        """List workflows matching conditions (workflow_ids, string_labels)
+        Args:
+            workflow_ids: list of workflow IDs (UUIDs)
+            string_labels: list of plain string labels
+                            (not Cromwell's labels JSON)
+        """
+        workflows = self.get_workflows()
+        print('\t'.join(['name', 'status',
+            'workflow_id', 'str_label', 'submit', 'start', 'end']))
+        for w in workflows['results']:            
+            workflow_id = w['id'] if 'id' in w else None
+            name = w['name'] if 'name' in w else None
+            status = w['status'] if 'status' in w else None
+            submission = w['submission'] if 'submission' in w else None
+            start = w['start'] if 'start' in w else None
+            end = w['end'] if 'end' in w else None
+            label = self.get_string_label(workflow_id)
+
+            if workflow_ids is not None:
+                if not workflow_id in workflow_ids:
+                    continue
+            if str_labels is not None:
+                if not label in str_labels:
+                    continue
+
+            print('\t'.join([str(s) for s in [name, status, workflow_id, label,
+                submission, start, end]]))
 
     def get_workflows(self):
         """Get dict of all workflows

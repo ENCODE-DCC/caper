@@ -209,13 +209,21 @@ def parse_cromweller_arguments():
     parent_wf_id = argparse.ArgumentParser(add_help=False)
     parent_wf_id.add_argument('-w', '--workflow-id',
         nargs='+',
-        help='Workflow IDs to commit a specified action')
+        help='List of workflow IDs to commit a specified action '
+            '(list and abort). ')
 
     # submit, list, abort
     parent_label = argparse.ArgumentParser(add_help=False)
     parent_label.add_argument('-l', '--label',
         nargs='+',
-        help='Workflow labels to commit a specified action')
+        help='List of Workflow string labels to commit a specified '
+            'action (list, submit and abort). '
+            'Multiple labels are not allowed for action "submit". '
+            'DO NOT USE IRREGULAR CHARACTERS (e.g. whitespace, ...) '
+            'in labels since this label is used to compose a path for '
+            'workflow\'s temporary directory (tmp_dir/label/timestamp/). '
+            'It is also written to Cromwell\'s labels JSON file '
+            'submitted to Cromwell server via REST API')
 
     parent_server_client = argparse.ArgumentParser(add_help=False)
     parent_server_client.add_argument('--server-port',
@@ -349,7 +357,7 @@ class Cromweller(object):
         self._labels = args.get('label')
         self._workflow_ids = args.get('workflow_id')
 
-        # REST API
+        # init REST API
         self._cromwell_rest_api = CromwellRestAPI(
             server_ip=args.get('server_ip'),
             server_port=args.get('server_port'))
@@ -439,7 +447,7 @@ class Cromweller(object):
             '-Dconfig.file={}'.format(backend_file),
             CromwellerURI(self._cromwell).get_local_file(),
             'server']
-        print('SERVER: ',cmd)
+        print('SERVER: ', cmd)
 
         workflow_ids = set()
         try:
@@ -466,42 +474,40 @@ class Cromweller(object):
 
     def submit(self):
         """Submit a workflow to Cromwell server
-        """
-        # compose label for workflow
-        #   label = WDL filename + timestamp
-        label = self.__generate_workflow_label()
+        """        
+        if self._labels is not None:
+            # if label is given by user
+            if len(self._labels)>1:
+                raise Exception('Multiple labels are not allowed for "submit"')
+            label = self._labels[0].strip()
+        else:
+            # otherwise, use WDL basename
+            label = self.__get_wdl_basename()
+          
+        timestamp = Cromweller.__get_time_str()
 
-        # make temp directory to store inputs
-        tmp_dir = self.__mkdir_tmp_dir(label)
+        # temp dir = tmp_dir/label/timestamp
+        tmp_dir = self.__mkdir_tmp_dir(os.path.join(
+            label, timestamp))
 
         # all input files
         input_file = self.__get_input_json_file(tmp_dir)
         workflow_opts_file = self.__create_workflow_opts_json_file(tmp_dir)
  
-        if self._labels is not None:
-            if len(self._labels)>0:
-                raise Exception('Multiple labels are not allowed for "submit"')
-            string_label = self._labels[0].strip()
-        else:
-            string_label = label
-
-        r = self._cromwell_rest_api.submit(
+        return self._cromwell_rest_api.submit(
             source=CromwellerURI(self._wdl).get_local_file(),
             dependencies=None,
             inputs_file=input_file,
             options_file=workflow_opts_file,
             string_label=string_label)
-        print("WORKFLOW_ID: ", r['id'])
-        print("STATUS: ", r['status'])
-        return r
 
     def abort(self):
         """Send Cromwell server a request to abort running/pending
         workflows
         """
         workflow_ids = []
-        if self._workflow_ids:
-            workflow_ids.extends(self._workflow_ids)
+        if self._workflow_ids is not None:
+            workflow_ids.extend(self._workflow_ids)
         if self._labels:
             for l in self._labels:
                 found_wf_id = find_by_string_label(l)
@@ -509,33 +515,13 @@ class Cromweller(object):
                     workflow_ids.append(found_wf_id)
 
         for w in workflow_ids:
-            self._cromwell_rest_api.abort(w)            
+            self._cromwell_rest_api.abort(w)
+        return
 
     def list(self):
         """Get list of running/pending workflows from Cromwell server
         """
-        workflows = self._cromwell_rest_api.get_workflows()        
-        print('\t'.join(['name', 'status',
-            'workflow_id', 'label', 'submit', 'start', 'end']))
-        for w in workflows['results']:            
-            workflow_id = w['id'] if 'id' in w else None
-            name = w['name'] if 'name' in w else None
-            status = w['status'] if 'status' in w else None
-            submission = w['submission'] if 'submission' in w else None
-            start = w['start'] if 'start' in w else None
-            end = w['end'] if 'end' in w else None
-
-            label = self._cromwell_rest_api.get_string_label(workflow_id)
-
-            if self._workflow_ids is not None:
-                if not workflow_id in self._workflow_ids:
-                    continue
-            if self._labels is not None:
-                if not label in self._labels:
-                    continue
-
-            print('\t'.join([str(s) for s in [name, status, workflow_id, label,
-                submission, start, end]]))
+        return self._cromwell_rest_api.list(self._workflow_ids, self._labels)
 
     def __create_backend_conf_file(self, directory,
         fname='backend.conf'):
@@ -824,25 +810,25 @@ class Cromweller(object):
                 os.path.basename(wdl),
                 workflow_id)
 
-    def __generate_workflow_label(self):
-        """Random label for workflow, which is used for a label
-        specified by --labels in Cromwell's command line. With this
-        Cromweller will be able to distinguish between workflows.
+    # def __generate_workflow_label(self):
+    #     """Random label for workflow, which is used for a label
+    #     specified by --labels in Cromwell's command line. With this
+    #     Cromweller will be able to distinguish between workflows.
 
-        This is different from UUID (a.k.a workflow ID) generated
-        from Cromwell itself.
+    #     This is different from UUID (a.k.a workflow ID) generated
+    #     from Cromwell itself.
 
-        We cannot use Cromwell's UUID as a label since UUID can only
-        be known after communicating with Cromwell.
+    #     We cannot use Cromwell's UUID as a label since UUID can only
+    #     be known after communicating with Cromwell.
 
-        We use a milliseconded timestamp instead of Cromwell's UUID.
-        """
-        timestamp = Cromweller.__get_time_str()
-        wdl = self.__get_wdl_basename()
-        if wdl is not None:
-            return wdl + '_' + timestamp
-        else:
-            return timestamp
+    #     We use a milliseconded timestamp instead of Cromwell's UUID.
+    #     """
+    #     timestamp = Cromweller.__get_time_str()
+    #     wdl = self.__get_wdl_basename()
+    #     if wdl is not None:
+    #         return wdl + '_' + timestamp
+    #     else:
+    #         return timestamp
 
     def __get_wdl_basename(self):
         if self._wdl is not None:
