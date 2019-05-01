@@ -11,18 +11,20 @@ Example:
 #CROMWELLER singularity docker://quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
 """
 
+import cromweller_backend as cb
+from cromwell_rest_api import CromwellRestAPI
+from cromweller_uri import URI_URL, URI_S3, URI_GCS, URI_LOCAL, init_cromweller_uri, CromwellerURI
+
 import argparse
-import configparser
 import os
 import sys
 import json
-import subprocess
 import re
-import time
+import requests
+from configparser import ConfigParser
+from time import sleep
+from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
-
-import cromweller_backend as cb
-import cromweller_uri as cu
 from pyhocon import ConfigFactory, HOCONConverter
 
 
@@ -130,6 +132,13 @@ def parse_cromweller_arguments():
     group_aws.add_argument('--use-gsutil-over-aws-s3',
         action='store_true',
         help='Use gsutil instead of aws s3 CLI even for S3 buckets.')
+    
+    group_http = parent_host.add_argument_group(
+        title='HTTP/HTTPS authentication arguments')
+    group_http.add_argument('--http-user',
+        help='Username to directly download data from URLs')
+    group_http.add_argument('--http-password',
+        help='Password to directly download data from URLs')
 
     # run, submit
     parent_submit = argparse.ArgumentParser(add_help=False)
@@ -196,17 +205,17 @@ def parse_cromweller_arguments():
     group_pbs.add_argument('--pbs-extra-param',
         help='PBS extra parameters. Must be double-quoted')
 
-    # list, cancel
+    # list, abort
     parent_wf_id = argparse.ArgumentParser(add_help=False)
-    parent_wf_id.add_argument('-w', '--workflow-ids',
+    parent_wf_id.add_argument('-w', '--workflow-id',
         nargs='+',
-        help='Workflow IDs')
+        help='Workflow IDs to commit a specified action')
 
-    # submit, list, cancel
+    # submit, list, abort
     parent_label = argparse.ArgumentParser(add_help=False)
-    parent_label.add_argument('-l', '--labels',
+    parent_label.add_argument('-l', '--label',
         nargs='+',
-        help='Labels')
+        help='Workflow labels to commit a specified action')
 
     parent_server_client = argparse.ArgumentParser(add_help=False)
     parent_server_client.add_argument('--server-port',
@@ -216,6 +225,10 @@ def parse_cromweller_arguments():
     parent_client.add_argument('--server-ip',
         default=DEFAULT_SERVER_IP,
         help='IP address for Cromweller server')
+    # parent_client.add_argument('--server-user',
+    #     help='Username for auth to connect to Cromwell server')
+    # parent_client.add_argument('--server-password',
+    #     help='Password for auth to connect to Cromwell server')
 
     p_run = subparser.add_parser('run',
         help='Run a single workflow without server',
@@ -227,14 +240,14 @@ def parse_cromweller_arguments():
         help='Submit a workflow to a Cromwell server',
         parents=[parent_server_client, parent_client, parent_submit, parent_label,
             parent_backend])
-    p_cancel = subparser.add_parser('cancel',
-        help='Cancel a workflow running on a Cromwell server',
+    p_abort = subparser.add_parser('abort',
+        help='Abort a workflow running on a Cromwell server',
         parents=[parent_server_client, parent_client, parent_wf_id, parent_label])
     p_list = subparser.add_parser('list',
         help='List workflows running on a Cromwell server',
         parents=[parent_server_client, parent_client, parent_wf_id, parent_label])
 
-    for p in [p_run, p_server, p_submit, p_cancel, p_list]:
+    for p in [p_run, p_server, p_submit, p_abort, p_list]:
         p.set_defaults(**defaults)
 
     if len(sys.argv[1:])==0:
@@ -247,6 +260,9 @@ def parse_cromweller_arguments():
     args_d = vars(args)
 
     # init some important path variables
+    if args_d.get('out_dir') is None:
+        args_d['out_dir'] = os.getcwd()
+
     if args_d.get('tmp_dir') is None:
         args_d['tmp_dir'] = os.path.join(
             args_d['out_dir'],
@@ -265,6 +281,24 @@ def parse_cromweller_arguments():
                 'cromweller_tmp_dir')
     
     return args_d
+
+def merge_dict(a, b, path=None):
+    """Merge b into a recursively. This mutates a and overwrites
+    items in b on a for conflicts.            
+
+    Ref: https://stackoverflow.com/questions/7204805/dictionaries-of-dictionaries-merge/7205107#7205107                
+    """
+    if path is None: path = []
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                merge_dict(a[key], b[key], path + [str(key)])
+            elif a[key] == b[key]:
+                pass
+            else:
+                a[key] = b[key]
+        else:
+            a[key] = b[key]
 
 
 class Cromweller(object):
@@ -309,7 +343,17 @@ class Cromweller(object):
         self._cromwell = args.get('cromwell')
         self._backend = args.get('backend')
         self._deepcopy = args.get('deepcopy')
-        
+        self._workflow_opts = args.get('options')
+
+        # list
+        self._labels = args.get('label')
+        self._workflow_ids = args.get('workflow_id')
+
+        # REST API
+        self._cromwell_rest_api = CromwellRestAPI(
+            server_ip=args.get('server_ip'),
+            server_port=args.get('server_port'))
+
         if self._backend is None:
             self._backend = Cromweller.DEFAULT_BACKEND
 
@@ -334,16 +378,16 @@ class Cromweller(object):
 
         cmd = ['java', '-jar',
             '-Dconfig.file={}'.format(backend_file),
-            cu.CromwellerURI(self._cromwell).get_local_file(),
+            CromwellerURI(self._cromwell).get_local_file(),
             'run',
-            cu.CromwellerURI(self._wdl).get_local_file(),
+            CromwellerURI(self._wdl).get_local_file(),
             '-i', input_file,
             '-o', workflow_opts_file,
             '-m', metadata_file]
         print('RUN: ',cmd)
 
         try:
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
+            p = Popen(cmd, stdout=PIPE, universal_newlines=True)
             workflow_id = None
             rc = None
             while p.poll() is None:
@@ -353,7 +397,7 @@ class Cromweller(object):
                                     stdout)
                 print(stdout)
             rc = p.poll()
-        except subprocess.CalledProcessError as e:
+        except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
             while p.poll() is None:
@@ -382,7 +426,7 @@ class Cromweller(object):
             self.__get_workflow_output_dir(workflow_id),
             'metadata.json')
         # write on target storage (possible remote buckets)
-        return cu.CromwellerURI(target_metadata_file).write_file(
+        return CromwellerURI(target_metadata_file).write_file(
             metadata)
 
     def server(self):
@@ -393,13 +437,13 @@ class Cromweller(object):
 
         cmd = ['java', '-jar',
             '-Dconfig.file={}'.format(backend_file),
-            cu.CromwellerURI(self._cromwell).get_local_file(),
+            CromwellerURI(self._cromwell).get_local_file(),
             'server']
         print('SERVER: ',cmd)
 
         workflow_ids = set()
         try:
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+            p = Popen(cmd, stdout=PIPE,
                 universal_newlines=True)
             rc = None
             while p.poll() is None:
@@ -410,7 +454,7 @@ class Cromweller(object):
                     workflow_ids.add(workflow_id)
                 print(stdout)
 
-        except subprocess.CalledProcessError as e:
+        except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
             while p.poll() is None:
@@ -418,30 +462,81 @@ class Cromweller(object):
                 print(stdout)
         print("RC: ", rc)
         print("WORKFLOWS: ", workflow_ids)
-
-    def __query_cromwell_server(self):
-        try:
-            pass
-        except:
-            pass
-        return
+        return rc
 
     def submit(self):
         """Submit a workflow to Cromwell server
         """
-        raise NotImplemented
+        # compose label for workflow
+        #   label = WDL filename + timestamp
+        label = self.__generate_workflow_label()
 
-    def cancel(self):
-        """Send Cromwell server a request to Cancel running/pending
+        # make temp directory to store inputs
+        tmp_dir = self.__mkdir_tmp_dir(label)
+
+        # all input files
+        input_file = self.__get_input_json_file(tmp_dir)
+        workflow_opts_file = self.__create_workflow_opts_json_file(tmp_dir)
+ 
+        if self._labels is not None:
+            if len(self._labels)>0:
+                raise Exception('Multiple labels are not allowed for "submit"')
+            string_label = self._labels[0].strip()
+        else:
+            string_label = label
+
+        r = self._cromwell_rest_api.submit(
+            source=CromwellerURI(self._wdl).get_local_file(),
+            dependencies=None,
+            inputs_file=input_file,
+            options_file=workflow_opts_file,
+            string_label=string_label)
+        print("WORKFLOW_ID: ", r['id'])
+        print("STATUS: ", r['status'])
+        return r
+
+    def abort(self):
+        """Send Cromwell server a request to abort running/pending
         workflows
         """
-        raise NotImplemented
+        workflow_ids = []
+        if self._workflow_ids:
+            workflow_ids.extends(self._workflow_ids)
+        if self._labels:
+            for l in self._labels:
+                found_wf_id = find_by_string_label(l)
+                if found_wf_id is not None:
+                    workflow_ids.append(found_wf_id)
+
+        for w in workflow_ids:
+            self._cromwell_rest_api.abort(w)            
 
     def list(self):
         """Get list of running/pending workflows from Cromwell server
         """
-        raise NotImplemented
-        
+        workflows = self._cromwell_rest_api.get_workflows()        
+        print('\t'.join(['name', 'status',
+            'workflow_id', 'label', 'submit', 'start', 'end']))
+        for w in workflows['results']:            
+            workflow_id = w['id'] if 'id' in w else None
+            name = w['name'] if 'name' in w else None
+            status = w['status'] if 'status' in w else None
+            submission = w['submission'] if 'submission' in w else None
+            start = w['start'] if 'start' in w else None
+            end = w['end'] if 'end' in w else None
+
+            label = self._cromwell_rest_api.get_string_label(workflow_id)
+
+            if self._workflow_ids is not None:
+                if not workflow_id in self._workflow_ids:
+                    continue
+            if self._labels is not None:
+                if not label in self._labels:
+                    continue
+
+            print('\t'.join([str(s) for s in [name, status, workflow_id, label,
+                submission, start, end]]))
+
     def __create_backend_conf_file(self, directory,
         fname='backend.conf'):
         """Creates Cromwell's backend conf file
@@ -465,11 +560,11 @@ class Cromweller(object):
         if self._inputs is not None:
             # init parameters for deepcopying
             if self._backend == cb.BACKEND_GCP:
-                uri_type = cu.URI_GCS
+                uri_type = URI_GCS
             elif self._backend == cb.BACKEND_AWS:
-                uri_type = cu.URI_S3
+                uri_type = URI_S3
             else:
-                uri_type = cu.URI_LOCAL
+                uri_type = URI_LOCAL
 
             # deepcopy to backend if required
             if self._deepcopy:
@@ -477,7 +572,7 @@ class Cromweller(object):
             else:
                 uri_exts = ()
 
-            return cu.CromwellerURI(self._inputs).get_local_file(
+            return CromwellerURI(self._inputs).get_local_file(
                 deepcopy_uri_type=uri_type,
                 deepcopy_uri_exts=uri_exts)
         else:            
@@ -566,6 +661,13 @@ class Cromweller(object):
             template['default_runtime_attributes']['sge_extra_param'] = \
             self._sge_extra_param
 
+        # if workflow opts file is given by a user, merge it to template
+        if self._workflow_opts is not None:
+            f = CromwellerURI(self._workflow_opts).get_local_file()
+            with open(f, 'r') as fp:
+                d = json.loads(fp.read())
+                merge_dict(template, d)
+
         # write it
         workflow_opts_file = os.path.join(directory, fname)        
         with open(workflow_opts_file, 'w') as fp:
@@ -583,7 +685,7 @@ class Cromweller(object):
 
     def __find_var_from_wdl(self, regex_var):
         if self._wdl is not None:
-            with open(cu.CromwellerURI(self._wdl).get_local_file(),'r') as fp:
+            with open(CromwellerURI(self._wdl).get_local_file(),'r') as fp:
                 for line in fp.readlines():
                     r = re.findall(regex_var, line)
                     if len(r)>0:
@@ -610,25 +712,6 @@ class Cromweller(object):
 
         Then converts it to a HOCON string
         """
-
-        def merge_dict(a, b, path=None):
-            """Merge b into a recursively. This mutates a and overwrites
-            items in b on a for conflicts.            
-
-            Ref: https://stackoverflow.com/questions/7204805/dictionaries-of-dictionaries-merge/7205107#7205107                
-            """
-            if path is None: path = []
-            for key in b:
-                if key in a:
-                    if isinstance(a[key], dict) and isinstance(b[key], dict):
-                        merge_dict(a[key], b[key], path + [str(key)])
-                    elif a[key] == b[key]:
-                        pass
-                    else:
-                        a[key] = b[key]
-                else:
-                    a[key] = b[key]
-
         # init backend dict
         backend_dict = {}
 
@@ -687,7 +770,7 @@ class Cromweller(object):
         if self._backend_conf is not None:
             lines_wo_header = []
 
-            with open(cu.CromwellerURI(self._backend_conf).get_local_file(), 'r') as fp:
+            with open(CromwellerURI(self._backend_conf).get_local_file(), 'r') as fp:
                 for line in fp.readlines():
                     # find header and exclude
                     if re.findall(Cromweller.RE_PATTERN_BACKEND_CONF_HEADER, line):
@@ -788,7 +871,7 @@ def main():
 
     # init cromweller uri to transfer files across various storages
     #   e.g. gs:// to s3://, http:// to local, ...
-    cu.init_cromweller_uri(
+    init_cromweller_uri(
         tmp_dir=args.get('tmp_dir'),
         tmp_s3_bucket=args.get('tmp_s3_bucket'),
         tmp_gcs_bucket=args.get('tmp_gcs_bucket'),
@@ -806,8 +889,8 @@ def main():
         c.server()
     elif action=='submit':
         c.submit()
-    elif action=='cancel':
-        c.cancel()
+    elif action=='abort':
+        c.abort()
     elif action=='list':
         c.list()
     else:

@@ -4,9 +4,9 @@
 
 import os
 import json
-import copy
-import collections
-import subprocess
+from copy import deepcopy
+from collections import OrderedDict
+from subprocess import Popen, check_call, check_output, PIPE, CalledProcessError
 
 
 URI_URL = 'url' # URL (http, https, ftp)
@@ -94,7 +94,7 @@ class CromwellerURI(object):
         """Get file contents
         """
         if self._uri_type == URI_URL:
-            s = subprocess.check_output(['curl',
+            s = check_output(['curl',
                 '-u', '{}:{}'.format(CromwellerURI.HTTP_USER,
                     CromwellerURI.HTTP_PASSWORD),
                 '-f', self._uri])
@@ -102,10 +102,10 @@ class CromwellerURI(object):
         elif self._uri_type == URI_GCS or \
             self._uri_type == URI_S3 and \
                 CromwellerURI.USE_GSUTIL_OVER_AWS_S3:            
-            s = subprocess.check_output(['gsutil', 'cat', self._uri])
+            s = check_output(['gsutil', 'cat', self._uri])
 
         elif self._uri_type == URI_S3:
-            s = subprocess.check_output(['aws', 's3', 'cp', self._uri, '-'])
+            s = check_output(['aws', 's3', 'cp', self._uri, '-'])
 
         elif self._uri_type == URI_LOCAL:
             with open(self._uri,'r') as fp:
@@ -128,10 +128,10 @@ class CromwellerURI(object):
         elif self._uri_type == URI_GCS or \
             self._uri_type == URI_S3 and \
                 CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
-            subprocess.run(['gsutil', 'cp', '-', self._uri],
+            run(['gsutil', 'cp', '-', self._uri],
                     input=s, encoding='ascii')
         elif self._uri_type == URI_S3:
-            subprocess.run(['aws', 's3', 'cp', '-', self._uri],
+            run(['aws', 's3', 'cp', '-', self._uri],
                     input=s, encoding='ascii')
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
@@ -148,7 +148,7 @@ class CromwellerURI(object):
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
         if self._uri_type == URI_URL:
-            subprocess.check_call(['wget', '--no-check-certificate' ,'-qc',
+            check_call(['wget', '--no-check-certificate' ,'-qc',
                 '--user', str(CromwellerURI.HTTP_USER),
                 '--password', str(CromwellerURI.HTTP_PASSWORD),
                 self._uri,'-O', path])
@@ -156,10 +156,10 @@ class CromwellerURI(object):
         elif self._uri_type == URI_GCS or \
             self._uri_type == URI_S3 and \
                 CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
-            subprocess.check_call(['gsutil', 'cp', '-n', self._uri, path])
+            check_call(['gsutil', 'cp', '-n', self._uri, path])
 
         elif self._uri_type == URI_S3:
-            subprocess.check_call(['aws', 's3', 'cp', self._uri, path])
+            check_call(['aws', 's3', 'cp', self._uri, path])
 
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
@@ -180,14 +180,14 @@ class CromwellerURI(object):
             return path
 
         if self._uri_type == URI_URL:
-            ps = subprocess.Popen(['curl',
+            ps = Popen(['curl',
                 '-u', '{}:{}'.format(CromwellerURI.HTTP_USER,
                     CromwellerURI.HTTP_PASSWORD),
-                '-f', self._uri, ], stdout=subprocess.PIPE)
-            subprocess.check_call(['gsutil', 'cp', '-n', '-', path], stdin=ps.stdout)
+                '-f', self._uri, ], stdout=PIPE)
+            check_call(['gsutil', 'cp', '-n', '-', path], stdin=ps.stdout)
 
         elif self._uri_type == URI_S3 or self._uri_type == URI_LOCAL:
-            subprocess.check_call(['gsutil', 'cp', '-n', self._uri, path])
+            check_call(['gsutil', 'cp', '-n', self._uri, path])
 
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
@@ -208,23 +208,23 @@ class CromwellerURI(object):
             return path
 
         if self._uri_type == URI_URL:
-            ps = subprocess.Popen(['curl',
+            ps = Popen(['curl',
                 '-u', '{}:{}'.format(CromwellerURI.HTTP_USER,
                     CromwellerURI.HTTP_PASSWORD),
-                '-f', self._uri, ], stdout=subprocess.PIPE)
+                '-f', self._uri, ], stdout=PIPE)
             if CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
-                subprocess.check_call(['gsutil', 'cp', '-n', '-', path], stdin=ps.stdout)
+                check_call(['gsutil', 'cp', '-n', '-', path], stdin=ps.stdout)
             else:
-                subprocess.check_call(['aws', 's3', 'cp', '-', path], stdin=ps.stdout)
+                check_call(['aws', 's3', 'cp', '-', path], stdin=ps.stdout)
 
         elif self._uri_type == URI_GCS:
-            subprocess.check_call(['gsutil', 'cp', '-n', self._uri, path])
+            check_call(['gsutil', 'cp', '-n', self._uri, path])
 
         elif self._uri_type == URI_LOCAL:
             if CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
-                subprocess.check_call(['gsutil', 'cp', '-n', self._uri, path])
+                check_call(['gsutil', 'cp', '-n', self._uri, path])
             else:
-                subprocess.check_call(['aws', 's3', 'cp', self._uri, path])
+                check_call(['aws', 's3', 'cp', self._uri, path])
 
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
@@ -374,9 +374,9 @@ class CromwellerURI(object):
                             else:
                                 raise ValueError('Recursion failed.')
                 
-                org_d = json.loads(contents, object_pairs_hook=collections.OrderedDict)
+                org_d = json.loads(contents, object_pairs_hook=OrderedDict)
                 # make a copy to compare to original later
-                new_d = copy.deepcopy(org_d)
+                new_d = deepcopy(org_d)
                 # recurse for all values in new_d
                 recurse_dict(new_d, uri_type)
 
@@ -430,7 +430,7 @@ class CromwellerURI(object):
         else:
             try:
                 if uri_type == URI_URL:
-                    rc = subprocess.check_call(['curl',
+                    rc = check_call(['curl',
                         '--head', '--silent', '--fail',
                         '-u', '{}:{}'.format(CromwellerURI.HTTP_USER,
                             CromwellerURI.HTTP_PASSWORD),
@@ -438,12 +438,12 @@ class CromwellerURI(object):
                 elif uri_type == URI_GCS or \
                     uri_type == URI_S3 and \
                         CromwellerURI.USE_GSUTIL_OVER_AWS_S3:            
-                    rc = subprocess.check_call(['gsutil', 'ls', uri])
+                    rc = check_call(['gsutil', 'ls', uri])
                 elif uri_type == URI_S3:
-                    rc = subprocess.check_call(['aws', 's3', 'ls', path])
+                    rc = check_call(['aws', 's3', 'ls', path])
                 else:
                     raise NotImplementedError('uri_type: {}'.format(self._uri_type))
-            except subprocess.CalledProcessError as e:
+            except CalledProcessError as e:
                 rc = e.returncode
 
             return rc==0
