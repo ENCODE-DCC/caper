@@ -25,16 +25,20 @@ def init_cromweller_uri(
     """Initialize static members in CromwellerURI class
     """
     assert(tmp_dir is not None)
-    CromwellerURI.TMP_DIR = tmp_dir
-    CromwellerURI.TMP_S3_BUCKET = tmp_s3_bucket
-    CromwellerURI.TMP_GCS_BUCKET = tmp_gcs_bucket
+    path = os.path.abspath(os.path.expanduser(tmp_dir))
+    # adds slash (/) to the end of string if missing
+    CromwellerURI.TMP_DIR = path.rstrip('/') + '/'
+    if tmp_s3_bucket is not None:
+        CromwellerURI.TMP_S3_BUCKET = tmp_s3_bucket.rstrip('/') + '/'
+    if tmp_gcs_bucket is not None:
+        CromwellerURI.TMP_GCS_BUCKET = tmp_gcs_bucket.rstrip('/') + '/'
     CromwellerURI.HTTP_USER = http_user
     CromwellerURI.HTTP_PASSWORD = http_password
     CromwellerURI.USE_GSUTIL_OVER_AWS_S3 = use_gsutil_over_aws_s3
 
 
 class CromwellerURI(object):
-    """URI or local path for a file used in Cromweller
+    """URI or local path for a file (not a directory) used in Cromweller.
 
     Supported URI's:
         URL:
@@ -47,10 +51,18 @@ class CromwellerURI(object):
             must be an absolute path starting with "/" or "~"
 
     Deepcopy makes a copy of the original file with uri_type as
-    a suffix. URI path extentions to be deep-copied 
+    a suffix. For example, if any URIs (in gs://somewhere/input.json) need to be
+    deepcopied to S3 bucket, then s3://tmp_s3_bucket/somewhere/input.s3.json will be
+    created with all URIs in it deepcopied to s3://tmp_s3_bucket/.
+
+    URI path extentions to be deep-copied 
     (with deepcopy=True):
         .json: recursively find all URIs in values
         .tsv, .csv: find all URIs in all columns and rows
+
+
+    TMP_DIR, TMP_S3_BUCKET and TMP_GCS_BUCKET = None must be absolute
+    paths with a trailing "/" at the end.
     """
 
     TMP_DIR = None
@@ -67,9 +79,21 @@ class CromwellerURI(object):
             raise Exception('Call init_cromweller_uri() first '
                 'to initialize CromwellerURI. TMP_DIR must be '
                 'specified.')
+        elif not CromwellerURI.TMP_DIR.endswith('/'):
+            raise Exception('CromwellerURI.TMP_DIR must ends '
+                'with a slash (/).')
+        if CromwellerURI.TMP_S3_BUCKET is not None and \
+            not CromwellerURI.TMP_S3_BUCKET.endswith('/'):
+            raise Exception('CromwellerURI.TMP_S3_BUCKET must ends '
+                'with a slash (/).')
+        if CromwellerURI.TMP_GCS_BUCKET is not None and \
+            not CromwellerURI.TMP_GCS_BUCKET.endswith('/'):
+            raise Exception('CromwellerURI.TMP_GCS_BUCKET must ends '
+                'with a slash (/).')
+
         self._uri = uri_or_path
         self._uri_type = CromwellerURI.__get_uri_type(uri_or_path)
-        self.__init_can_deepcopy()
+        self.__init_uri()
 
     @property
     def uri_type(self):
@@ -81,8 +105,7 @@ class CromwellerURI(object):
         if self._uri_type==value:
             return
         self._uri = self.get_file(value)
-        self._uri_type=value
-        self.__init_can_deepcopy()
+        self._uri_type = value
 
     def get_uri(self):
         return self._uri
@@ -111,15 +134,16 @@ class CromwellerURI(object):
             with open(self._uri,'r') as fp:
                 s = fp.read()
         else:
-            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
         
         return s
 
     def file_exists(self):
         return CromwellerURI.__file_exists(self._uri)
 
-    def write_file(self, s):
-        """This cannot overwrite on existing files.
+    def write_str_to_file(self, s):
+        """This cannot overwrite on an existing file.
         """
         assert(not self.file_exists())
         if self._uri_type == URI_LOCAL:
@@ -134,7 +158,8 @@ class CromwellerURI(object):
             run(['aws', 's3', 'cp', '-', self._uri],
                     input=s, encoding='ascii')
         else:
-            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
 
         return self._uri
 
@@ -162,7 +187,8 @@ class CromwellerURI(object):
             check_call(['aws', 's3', 'cp', self._uri, path])
 
         else:
-            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
 
         assert(os.path.isfile(path))
         deepcopied = self.__deepcopy(deepcopy_uri_type, deepcopy_uri_exts)
@@ -190,7 +216,8 @@ class CromwellerURI(object):
             check_call(['gsutil', 'cp', '-n', self._uri, path])
 
         else:
-            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
 
         assert(CromwellerURI.__file_exists(path))
         deepcopied = self.__deepcopy(deepcopy_uri_type, deepcopy_uri_exts)
@@ -227,7 +254,8 @@ class CromwellerURI(object):
                 check_call(['aws', 's3', 'cp', self._uri, path])
 
         else:
-            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
 
         assert(CromwellerURI.__file_exists(path))
         deepcopied = self.__deepcopy(deepcopy_uri_type, deepcopy_uri_exts)
@@ -244,12 +272,13 @@ class CromwellerURI(object):
             return self._uri
         elif self._uri_type == URI_GCS:
             return 'http://storage.googleapis.com/{}'.format(
-                self._uri.lstrip('gs://'))
+                self._uri.replace('gs://', '', 1))
         elif self._uri_type == URI_S3:
             return 'http://s3.amazonaws.com/{}'.format(
-                self._uri.lstrip('s3://'))
+                self._uri.replace('s3://', '', 1))
         else:
-            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
 
     def get_file(self, uri_type, deepcopy_uri_type=None, deepcopy_uri_exts=()):
         """Get a URI on a specified storage. Make a copy if required
@@ -269,74 +298,88 @@ class CromwellerURI(object):
                 deepcopy_uri_type=deepcopy_uri_type,
                 deepcopy_uri_exts=deepcopy_uri_exts)
         else:
-            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
+
+    def __get_rel_uri(self):
+        if self._uri_type == URI_LOCAL:
+            if CromwellerURI.TMP_DIR is None or \
+                not self._uri.startswith(
+                    CromwellerURI.TMP_DIR):
+                rel_uri = self._uri.replace('/', '', 1)
+            else:
+                rel_uri = self._uri.replace(
+                    CromwellerURI.TMP_DIR, '', 1)            
+
+        elif self._uri_type == URI_GCS:
+            if CromwellerURI.TMP_GCS_BUCKET is None or \
+                not self._uri.startswith(
+                    CromwellerURI.TMP_GCS_BUCKET):
+                rel_uri = self._uri.replace('gs://', '', 1)
+            else:
+                rel_uri = self._uri.replace(
+                    CromwellerURI.TMP_GCS_BUCKET, '', 1)
+
+        elif self._uri_type == URI_S3:
+            if CromwellerURI.TMP_S3_BUCKET is None or \
+                not self._uri.startswith(
+                    CromwellerURI.TMP_S3_BUCKET):
+                rel_uri = self._uri.replace('s3://', '', 1)
+            else:
+                rel_uri = self._uri.replace(
+                    CromwellerURI.TMP_S3_BUCKET, '', 1)
+
+        elif self._uri_type == URI_URL:
+            rel_uri = os.path.basename(self._uri)
+        else:
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
+        return rel_uri
 
     def __get_local_file_name(self):
         if self._uri_type == URI_LOCAL:
-            return os.path.expanduser(self._uri)
+            return self._uri
 
-        if self._uri_type == URI_URL:
-            path = os.path.join(
-                os.path.expanduser(CromwellerURI.TMP_DIR),
-                os.path.basename(self._uri))
-        elif self._uri_type == URI_GCS:
-            path = os.path.join(
-                os.path.expanduser(CromwellerURI.TMP_DIR),
-                self._uri.lstrip('gs://'))
-        elif self._uri_type == URI_S3:
-            path = os.path.join(
-                os.path.expanduser(CromwellerURI.TMP_DIR),
-                self._uri.lstrip('s3://'))
+        elif self._uri_type in (URI_GCS, URI_S3, URI_URL):
+            return os.path.join(CromwellerURI.TMP_DIR,
+                self.__get_rel_uri())
         else:
-            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
-        return path
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
 
     def __get_gcs_file_name(self):
         if self._uri_type == URI_GCS:
             return self._uri
 
-        if self._uri_type == URI_URL:
-            path = os.path.join(
-                CromwellerURI.TMP_GCS_BUCKET,
-                os.path.basename(self._uri))
-        elif self._uri_type == URI_S3:
-            path = os.path.join(
-                CromwellerURI.TMP_GCS_BUCKET,
-                self._uri.lstrip('s3://'))
-        elif self._uri_type == URI_LOCAL:
-            path = os.path.join(
-                CromwellerURI.TMP_GCS_BUCKET,
-                os.path.abspath(self._uri))
+        elif self._uri_type == (URI_LOCAL, URI_S3, URI_URL):
+            return os.path.join(CromwellerURI.TMP_GCS_BUCKET,
+                self.__get_rel_uri())
         else:
-            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
-        return path
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
 
     def __get_s3_file_name(self):
         if self._uri_type == URI_S3:
             return self._uri
 
-        if self._uri_type == URI_URL:
-            path = os.path.join(
-                CromwellerURI.TMP_S3_BUCKET,
-                os.path.basename(self._uri))
-        elif self._uri_type == URI_GCS:
-            path = os.path.join(
-                CromwellerURI.TMP_S3_BUCKET,
-                self._uri.lstrip('gs://'))
-        elif self._uri_type == URI_LOCAL:
-            path = os.path.join(
-                CromwellerURI.TMP_S3_BUCKET,
-                os.path.abspath(self._uri))
+        elif self._uri_type == (URI_LOCAL, URI_GCS, URI_URL):
+            return os.path.join(CromwellerURI.TMP_S3_BUCKET,
+                self.__get_rel_uri())
         else:
-            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
-        return path
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
 
-    def  __init_can_deepcopy(self):
+    def __init_uri(self):
         if self._uri_type == URI_LOCAL:
-            # replace tilde (~)
+            # replace tilde (~) and get absolute path
             path = os.path.expanduser(self._uri)
-            # absolute path
-            self._can_deepcopy = os.path.isabs(path) and os.path.isfile(path)
+            # local URI can be deepcopied only when
+            #   absolute path is given and it's a file
+            if os.path.isabs(path) and os.path.isfile(path):
+                self._can_deepcopy = True
+            else:
+                self._can_deepcopy = False
+            self._uri = os.path.abspath(path)
         else:
             self._can_deepcopy = True
 
@@ -352,10 +395,12 @@ class CromwellerURI(object):
             updated = False
 
             if ext=='.json':
-                def recurse_dict(d, uri_type, d_parent=None, d_parent_key=None, l=None, l_idx=None):
+                def recurse_dict(d, uri_type, d_parent=None,
+                    d_parent_key=None, l=None, l_idx=None):
                     if isinstance(d, dict):
                         for k, v in d.items():                
-                            recurse_dict(v, uri_type, d_parent=d, d_parent_key=k)
+                            recurse_dict(v, uri_type,
+                                d_parent=d, d_parent_key=k)
                     elif isinstance(d, list):
                         for i, v in enumerate(d):
                             recurse_dict(v, uri_type, l=d, l_idx=i)
@@ -383,7 +428,7 @@ class CromwellerURI(object):
                 if updated:
                     new_uri = '{}.{}.json'.format(fname_wo_ext, uri_type)
                     j = json.dumps(new_d, indent=4)
-                    return CromwellerURI(new_uri).write_file(j)
+                    return CromwellerURI(new_uri).write_str_to_file(j)
 
             elif ext=='.tsv' or ext=='.csv':
                 new_contents = []
@@ -394,6 +439,7 @@ class CromwellerURI(object):
                         c = CromwellerURI(v)
                         if c.can_deepcopy() and c.uri_type != uri_type:
                             updated = True
+                            # copy file to target storage
                             new_file = c.get_file(uri_type,
                                 deepcopy_uri_type=uri_type,
                                 deepcopy_uri_exts=uri_exts)
@@ -404,7 +450,7 @@ class CromwellerURI(object):
 
                 if updated:
                     new_uri = '{}.{}.json'.format(fname_wo_ext, uri_type)                    
-                    return CromwellerURI(new_uri).write_file('\n'.join(new_contents))
+                    return CromwellerURI(new_uri).write_str_to_file('\n'.join(new_contents))
             else:
                 NotImplementedError('ext: {}.'.format(ext))
 
@@ -442,7 +488,8 @@ class CromwellerURI(object):
                 elif uri_type == URI_S3:
                     rc = check_call(['aws', 's3', 'ls', path])
                 else:
-                    raise NotImplementedError('uri_type: {}'.format(self._uri_type))
+                    raise NotImplementedError('uri_type: {}'.format(
+                        self._uri_type))
             except CalledProcessError as e:
                 rc = e.returncode
 

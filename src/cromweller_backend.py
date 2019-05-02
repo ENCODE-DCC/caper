@@ -53,7 +53,7 @@ class CromwellerBackendCommon(dict):
             self['call-caching']['enabled'] = use_call_caching
         if use_call_caching is not None:
             self['system']['max-concurrent-workflows'] = max_concurrent_workflows
-        
+
 
 class CromwellerBackendMySQL(dict):
     """Common stanzas for MySQL

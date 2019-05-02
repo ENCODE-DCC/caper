@@ -149,10 +149,22 @@ def parse_cromweller_arguments():
         help='Workflow inputs JSON file')
     parent_submit.add_argument('-o', '--options',
         help='Workflow options JSON file')
+    parent_submit.add_argument('-l', '--label',
+        help='String label to identify a workflow submitted to '
+            'Cromwell server. This is not Cromwell\'s JSON labels file. '
+            'This label is written to Cromwell\'s JSON labels file as '
+            'one of the values in it and then later used to find '
+            'matching workflows for subcommands "list", "metadata" and '
+            '"abort". '
+            'DO NOT USE IRREGULAR CHARACTERS. USE LETTERS, NUMBERS, '
+            'DASHES AND UNDERSCORES ONLY (^[A-Za-z0-9\-\_]+$) '
+            'since this label is used to compose a path for '
+            'workflow\'s temporary directory (tmp_dir/label/timestamp/)')
+
     parent_submit.add_argument('--deep-copy',
         help='Deep-copy for JSON (.json), TSV (.tsv) and CSV (.csv) '
             'files specified in an input JSON file (--inputs). '
-            'Find all string values in an input JSON file '
+            'Find all path/URI string values in an input JSON file '
             'and make copies of files on a local/remote storage '
             'for a target backend. Make sure that you have installed '
             'gsutil for GCS and aws for S3.')
@@ -205,25 +217,13 @@ def parse_cromweller_arguments():
     group_pbs.add_argument('--pbs-extra-param',
         help='PBS extra parameters. Must be double-quoted')
 
-    # list, abort
-    parent_wf_id = argparse.ArgumentParser(add_help=False)
-    parent_wf_id.add_argument('-w', '--workflow-id',
-        nargs='+',
-        help='List of workflow IDs to commit a specified action '
-            '(list and abort). ')
-
-    # submit, list, abort
-    parent_label = argparse.ArgumentParser(add_help=False)
-    parent_label.add_argument('-l', '--label',
-        nargs='+',
-        help='List of Workflow string labels to commit a specified '
-            'action (list, submit and abort). '
-            'Multiple labels are not allowed for action "submit". '
-            'DO NOT USE IRREGULAR CHARACTERS (e.g. whitespace, ...) '
-            'in labels since this label is used to compose a path for '
-            'workflow\'s temporary directory (tmp_dir/label/timestamp/). '
-            'It is also written to Cromwell\'s labels JSON file '
-            'submitted to Cromwell server via REST API')
+    # list, metadata, abort
+    parent_search_wf = argparse.ArgumentParser(add_help=False)
+    parent_search_wf.add_argument('wf_id_or_label',
+        nargs='*',
+        help='List of workflow IDs to find matching workflows to '
+            ' commit a specified action (list, metadata and abort). '
+            'Wildcards (* and ?) are allowed.')
 
     parent_server_client = argparse.ArgumentParser(add_help=False)
     parent_server_client.add_argument('--server-port',
@@ -246,14 +246,17 @@ def parse_cromweller_arguments():
         parents=[parent_server_client, parent_host, parent_backend])
     p_submit = subparser.add_parser('submit',
         help='Submit a workflow to a Cromwell server',
-        parents=[parent_server_client, parent_client, parent_submit, parent_label,
+        parents=[parent_server_client, parent_client, parent_submit,
             parent_backend])
     p_abort = subparser.add_parser('abort',
-        help='Abort a workflow running on a Cromwell server',
-        parents=[parent_server_client, parent_client, parent_wf_id, parent_label])
+        help='Abort workflows running/pending on a Cromwell server',
+        parents=[parent_server_client, parent_client, parent_search_wf])
     p_list = subparser.add_parser('list',
-        help='List workflows running on a Cromwell server',
-        parents=[parent_server_client, parent_client, parent_wf_id, parent_label])
+        help='List workflows running/pending on a Cromwell server',
+        parents=[parent_server_client, parent_client, parent_search_wf])
+    p_metadata = subparser.add_parser('metadata',
+        help='Retrieve metadata JSON for a workflow from a Cromwell server',
+        parents=[parent_server_client, parent_client, parent_search_wf])
 
     for p in [p_run, p_server, p_submit, p_abort, p_list]:
         p.set_defaults(**defaults)
@@ -319,11 +322,19 @@ class Cromweller(object):
     RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CROMWELLER\s+docker\s(.+)'
     RE_PATTERN_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CROMWELLER\s+singularity\s(.+)'
     RE_PATTERN_WORKFLOW_ID = r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
+    RE_PATTERN_VALID_LABEL = r'^[A-Za-z0-9\-\_]+$'
     DEEPCOPY_EXTS_IN_INPUT_JSON = ('.json', '.tsv', '.csv')
 
     def __init__(self, args):
         """Initializes from args dict
         """
+        # init REST API
+        self._cromwell_rest_api = CromwellRestAPI(
+            server_ip=args.get('server_ip'),
+            server_port=args.get('server_port'),
+            verbose=True)
+
+        # init others
         self._num_concurrent_tasks = args.get('num_concurrent_tasks')
         self._tmp_dir = args.get('tmp_dir')
         self._out_dir = args.get('out_dir')
@@ -352,15 +363,10 @@ class Cromweller(object):
         self._backend = args.get('backend')
         self._deepcopy = args.get('deepcopy')
         self._workflow_opts = args.get('options')
+        self._label = args.get('label')
 
-        # list
-        self._labels = args.get('label')
-        self._workflow_ids = args.get('workflow_id')
-
-        # init REST API
-        self._cromwell_rest_api = CromwellRestAPI(
-            server_ip=args.get('server_ip'),
-            server_port=args.get('server_port'))
+        # list of values
+        self._wf_id_or_label = args.get('wf_id_or_label')
 
         if self._backend is None:
             self._backend = Cromweller.DEFAULT_BACKEND
@@ -368,12 +374,11 @@ class Cromweller(object):
     def run(self):
         """Run a workflow using Cromwell run mode
         """
-        # compose label for workflow
-        #   label = WDL filename + timestamp
-        label = self.__generate_workflow_label()
-
-        # make temp directory to store inputs
-        tmp_dir = self.__mkdir_tmp_dir(label)
+        timestamp = Cromweller.__get_time_str()
+        suffix = os.path.join(
+            self.__get_wdl_basename(),
+            timestamp)
+        tmp_dir = self.__mkdir_tmp_dir(suffix)
 
         # all input files
         backend_file = self.__create_backend_conf_file(tmp_dir)
@@ -392,6 +397,10 @@ class Cromweller(object):
             '-i', input_file,
             '-o', workflow_opts_file,
             '-m', metadata_file]
+
+        # if label is given by user
+        # cmd += ['-l', labels_file]
+
         print('RUN: ',cmd)
 
         try:
@@ -417,25 +426,13 @@ class Cromweller(object):
         # move metadata_file to backend's output storage
         with open(metadata_file, 'r') as fp:
             # read metadata contents first locally
-            metadata = fp.read()
+            metadata_str = fp.read()
             target_metadata_file = self.__write_metadata_json_file(
-                metadata, workflow_id)
+                metadata_str, workflow_id)
         
             # delete original metadata file
             os.remove(metadata_file)
         print("CROMWELL_METADATA_JSON_FILE: ", target_metadata_file)
-
-    def __write_metadata_json_file(self, metadata, workflow_id):
-        """Write metadata.json (Cromwell's final output) to
-        corresponding output storage for a workflow
-        """
-        # get absolute path on target storage
-        target_metadata_file = os.path.join(
-            self.__get_workflow_output_dir(workflow_id),
-            'metadata.json')
-        # write on target storage (possible remote buckets)
-        return CromwellerURI(target_metadata_file).write_file(
-            metadata)
 
     def server(self):
         """Run a Cromwell server
@@ -475,20 +472,21 @@ class Cromweller(object):
     def submit(self):
         """Submit a workflow to Cromwell server
         """        
-        if self._labels is not None:
-            # if label is given by user
-            if len(self._labels)>1:
-                raise Exception('Multiple labels are not allowed for "submit"')
-            label = self._labels[0].strip()
+        timestamp = Cromweller.__get_time_str()
+        if self._label is not None:
+            # check if label is valid
+            r = re.findall(Cromweller.RE_PATTERN_VALID_LABEL)
+            if len(r)!=1:
+                raise ValueError('Invalid label.')
+            suffix = os.path.join(
+                self._label,
+                timestamp)
         else:
             # otherwise, use WDL basename
-            label = self.__get_wdl_basename()
-          
-        timestamp = Cromweller.__get_time_str()
-
-        # temp dir = tmp_dir/label/timestamp
-        tmp_dir = self.__mkdir_tmp_dir(os.path.join(
-            label, timestamp))
+            suffix = os.path.join(
+                self.__get_wdl_basename(),
+                timestamp)
+        tmp_dir = self.__mkdir_tmp_dir(suffix)
 
         # all input files
         input_file = self.__get_input_json_file(tmp_dir)
@@ -499,29 +497,35 @@ class Cromweller(object):
             dependencies=None,
             inputs_file=input_file,
             options_file=workflow_opts_file,
-            string_label=string_label)
+            str_label=self._label)
 
     def abort(self):
         """Send Cromwell server a request to abort running/pending
         workflows
         """
-        workflow_ids = []
-        if self._workflow_ids is not None:
-            workflow_ids.extend(self._workflow_ids)
-        if self._labels:
-            for l in self._labels:
-                found_wf_id = find_by_string_label(l)
-                if found_wf_id is not None:
-                    workflow_ids.append(found_wf_id)
+        return self._cromwell_rest_api.abort(self._wf_id_or_label)
 
-        for w in workflow_ids:
-            self._cromwell_rest_api.abort(w)
-        return
+    def metadata(self):
+        """Retriive metadata for a workflow from Cromwell server
+        """
+        return self._cromwell_rest_api.metadata(self._wf_id_or_label)
 
     def list(self):
         """Get list of running/pending workflows from Cromwell server
         """
-        return self._cromwell_rest_api.list(self._workflow_ids, self._labels)
+        return self._cromwell_rest_api.list(self._wf_id_or_label)
+
+    def __write_metadata_json_file(self, metadata_str, workflow_id):
+        """Write metadata.json (Cromwell's final output) to
+        corresponding output storage for a workflow
+        """
+        # get absolute path on target storage
+        target_metadata_file = os.path.join(
+            self.__get_workflow_output_dir(workflow_id),
+            'metadata.json')
+        # write on target storage (possible remote buckets)
+        return CromwellerURI(target_metadata_file).write_str_to_file(
+            metadata_str)
 
     def __create_backend_conf_file(self, directory,
         fname='backend.conf'):
@@ -787,21 +791,22 @@ class Cromweller(object):
 
         return backend_str
 
-    def __mkdir_tmp_dir(self, label=''):
-        """Create a temporary directory (self._tmp_dir/label)
+    def __mkdir_tmp_dir(self, suffix=''):
+        """Create a temporary directory (self._tmp_dir/suffix)
         """
-        tmp_dir = os.path.join(self._tmp_dir, label)
+        tmp_dir = os.path.join(self._tmp_dir, suffix)
         os.makedirs(tmp_dir, exist_ok=True)
         return tmp_dir
 
     def __get_workflow_output_dir(self, workflow_id=''):
-        wdl = self.__get_wdl_basename()
         if self._backend==cb.BACKEND_GCP:
             out_dir = self._out_gcs_bucket
         if self._backend==cb.BACKEND_AWS:
             out_dir = self._out_aws_bucket
         else:
             out_dir = self._out_dir
+
+        wdl = self.__get_wdl_basename()
         if wdl is None:
             return os.path.join(out_dir,
                 workflow_id)
@@ -809,26 +814,6 @@ class Cromweller(object):
             return os.path.join(out_dir,
                 os.path.basename(wdl),
                 workflow_id)
-
-    # def __generate_workflow_label(self):
-    #     """Random label for workflow, which is used for a label
-    #     specified by --labels in Cromwell's command line. With this
-    #     Cromweller will be able to distinguish between workflows.
-
-    #     This is different from UUID (a.k.a workflow ID) generated
-    #     from Cromwell itself.
-
-    #     We cannot use Cromwell's UUID as a label since UUID can only
-    #     be known after communicating with Cromwell.
-
-    #     We use a milliseconded timestamp instead of Cromwell's UUID.
-    #     """
-    #     timestamp = Cromweller.__get_time_str()
-    #     wdl = self.__get_wdl_basename()
-    #     if wdl is not None:
-    #         return wdl + '_' + timestamp
-    #     else:
-    #         return timestamp
 
     def __get_wdl_basename(self):
         if self._wdl is not None:
@@ -879,6 +864,8 @@ def main():
         c.abort()
     elif action=='list':
         c.list()
+    elif action=='metadata':
+        c.metadata()
     else:
         raise Exception('Unsupported or unspecified action.')
 
