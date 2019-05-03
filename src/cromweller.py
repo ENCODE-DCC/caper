@@ -31,14 +31,15 @@ from cromweller_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
 
 
 DEFAULT_CROMWELLER_CONF = '~/.cromweller/default.conf'
-DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases'
-'/download/38/cromwell-38.jar'
+DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases'\
+    '/download/38/cromwell-38.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
-DEFAULT_NUM_CONCURRENT_WORKFLOWS = 40
-DEFAULT_NUM_CONCURRENT_TASKS = 1000
+DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
+DEFAULT_MAX_CONCURRENT_TASKS = 1000
 DEFAULT_SERVER_PORT = 8000
 DEFAULT_SERVER_IP = 'localhost'
+DEFAULT_FORMAT = 'name,status,id,str_label,submit,start,end'
 
 
 def parse_cromweller_arguments():
@@ -90,12 +91,12 @@ def parse_cromweller_arguments():
         '--cromwell', default=DEFAULT_CROMWELL_JAR,
         help='Path or URL for Cromwell JAR file')
     group_cromwell.add_argument(
-        '--num-concurrent-tasks', default=DEFAULT_NUM_CONCURRENT_TASKS,
+        '--max-concurrent-tasks', default=DEFAULT_MAX_CONCURRENT_TASKS,
         help='Number of concurrent tasks. '
              '"config.concurrent-job-limit" in Cromwell backend configuration '
              'for each backend')
     group_cromwell.add_argument(
-        '--num-concurrent-workflows', default=DEFAULT_NUM_CONCURRENT_WORKFLOWS,
+        '--max-concurrent-workflows', default=DEFAULT_MAX_CONCURRENT_WORKFLOWS,
         help='Number of concurrent workflows. '
              '"system.max-concurrent-workflows" in backend configuration')
     group_cromwell.add_argument(
@@ -253,6 +254,14 @@ def parse_cromweller_arguments():
     #     help='Username for auth to connect to Cromwell server')
     # parent_client.add_argument('--server-password',
     #     help='Password for auth to connect to Cromwell server')
+    parent_list = argparse.ArgumentParser(add_help=False)
+    parent_list.add_argument(
+        '--format',
+        default=DEFAULT_FORMAT,
+        help='Comma-separated list of items to be shown for "list" '
+        'subcommand. Any key name in workflow JSON from Cromwell '
+        'server\'s response is allowed. There is a special key '
+        '"str_label". See help context of "--label" for details')
 
     p_run = subparser.add_parser(
         'run',
@@ -274,7 +283,8 @@ def parse_cromweller_arguments():
     p_list = subparser.add_parser(
         'list',
         help='List workflows running/pending on a Cromwell server',
-        parents=[parent_server_client, parent_client, parent_search_wf])
+        parents=[parent_server_client, parent_client, parent_search_wf,
+                 parent_list])
     p_metadata = subparser.add_parser(
         'metadata',
         help='Retrieve metadata JSON for a workflow from a Cromwell server',
@@ -344,10 +354,10 @@ class Cromweller(object):
     DEFAULT_BACKEND = BACKEND_LOCAL
     RE_PATTERN_BACKEND_CONF_HEADER = r'^[\s]*include\s'
     RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CROMWELLER\s+docker\s(.+)'
-    RE_PATTERN_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CROMWELLER\s+'
-    r'singularity\s(.+)'
-    RE_PATTERN_WORKFLOW_ID = r'started WorkflowActor-(\b[0-9a-f]{8}\b-'
-    '[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
+    RE_PATTERN_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CROMWELLER\s+'\
+        r'singularity\s(.+)'
+    RE_PATTERN_WORKFLOW_ID = r'started WorkflowActor-(\b[0-9a-f]{8}\b-'\
+        '[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
     RE_PATTERN_VALID_LABEL = r'^[A-Za-z0-9\-\_]+$'
     DEEPCOPY_EXTS_IN_INPUT_JSON = ('.json', '.tsv', '.csv')
 
@@ -355,13 +365,17 @@ class Cromweller(object):
         """Initializes from args dict
         """
         # init REST API
+        self._server_port = args.get('server_port')
         self._cromwell_rest_api = CromwellRestAPI(
             server_ip=args.get('server_ip'),
-            server_port=args.get('server_port'),
-            verbose=True)
+            server_port=self._server_port,
+            verbose=False)
 
         # init others
-        self._num_concurrent_tasks = args.get('num_concurrent_tasks')
+        self._format = args.get('format')
+        self._use_call_caching = args.get('use_call_caching')
+        self._max_concurrent_workflows = args.get('max_concurrent_workflows')
+        self._max_concurrent_tasks = args.get('max_concurrent_tasks')
         self._tmp_dir = args.get('tmp_dir')
         self._out_dir = args.get('out_dir')
         self._gc_project = args.get('gc_project')
@@ -479,7 +493,7 @@ class Cromweller(object):
 
         cmd = ['java', '-jar', '-Dconfig.file={}'.format(backend_file),
                CromwellerURI(self._cromwell).get_local_file(), 'server']
-        print('SERVER: ', cmd)
+        print('cmd: ', cmd)
 
         workflow_ids = set()
         try:
@@ -499,9 +513,8 @@ class Cromweller(object):
             while p.poll() is None:
                 stdout = p.stdout.readline().strip()
                 print(stdout)
-        print("RC: ", rc)
-        print("WORKFLOWS: ", workflow_ids)
-        return rc
+        print('server: ', rc, workflow_ids)
+        return workflow_ids
 
     def submit(self):
         """Submit a workflow to Cromwell server
@@ -524,28 +537,55 @@ class Cromweller(object):
         input_file = self.__get_input_json_file(tmp_dir)
         workflow_opts_file = self.__create_workflow_opts_json_file(tmp_dir)
 
-        return self._cromwell_rest_api.submit(
+        r = self._cromwell_rest_api.submit(
             source=CromwellerURI(self._wdl).get_local_file(),
             dependencies=None,
             inputs_file=input_file,
             options_file=workflow_opts_file,
             str_label=self._label)
+        print("submit: ", r)
+        return r
 
     def abort(self):
         """Send Cromwell server a request to abort running/pending
         workflows
         """
-        return self._cromwell_rest_api.abort(self._wf_id_or_label)
+        r = self._cromwell_rest_api.abort(self._wf_id_or_label,
+                                          self._wf_id_or_label)
+        print("abort: ", r)
+        return r
 
     def metadata(self):
         """Retriive metadata for a workflow from Cromwell server
         """
-        return self._cromwell_rest_api.metadata(self._wf_id_or_label)
+        m = self._cromwell_rest_api.get_metadata(self._wf_id_or_label,
+                                                 self._wf_id_or_label)
+        print(json.dumps(m, indent=4))
+        return m
 
     def list(self):
         """Get list of running/pending workflows from Cromwell server
         """
-        return self._cromwell_rest_api.list(self._wf_id_or_label)
+        workflows = self._cromwell_rest_api.find(self._wf_id_or_label,
+                                                 self._wf_id_or_label)
+        formats = self._format.split(',')
+        print('\t'.join(formats))
+
+        if workflows is None:
+            return None
+        for w in workflows:
+            row = []
+            workflow_id = w['id'] if 'id' in w else None
+            for f in formats:
+                if f == 'workflow_id':
+                    row.append(workflow_id)
+                elif f == 'str_label':
+                    lbl = self.__cromwell_rest_api.get_str_label(workflow_id)
+                    row.append(lbl)
+                else:
+                    row.append(w[f] if f in w else None)
+            print('\t'.join(row))
+        return workflows
 
     def __write_metadata_json_file(self, metadata_str, workflow_id):
         """Write metadata JSON file (Cromwell's final output) to
@@ -745,7 +785,7 @@ class Cromweller(object):
             backend_dict,
             CromwellerBackendLocal(
                 out_dir=self._out_dir,
-                concurrent_job_limit=self._num_concurrent_tasks))
+                concurrent_job_limit=self._max_concurrent_tasks))
 
         # GC
         if self._gc_project is not None:
@@ -754,7 +794,7 @@ class Cromweller(object):
                 CromwellerBackendGCP(
                     gc_project=self._gc_project,
                     out_gcs_bucket=self._out_gcs_bucket,
-                    concurrent_job_limit=self._num_concurrent_tasks))
+                    concurrent_job_limit=self._max_concurrent_tasks))
 
         # AWS
         if self._aws_batch_arn is not None and self._aws_region is not None:
@@ -763,7 +803,7 @@ class Cromweller(object):
                 CromwellerBackendAWS(
                     aws_batch_arn=self._aws_batch_arn,
                     aws_region=self._aws_region,
-                    concurrent_job_limit=self._num_concurrent_tasks))
+                    concurrent_job_limit=self._max_concurrent_tasks))
 
         # SLURM
         merge_dict(
@@ -772,7 +812,7 @@ class Cromweller(object):
                 partition=self._slurm_partition,
                 account=self._slurm_account,
                 extra_param=self._slurm_extra_param,
-                concurrent_job_limit=self._num_concurrent_tasks))
+                concurrent_job_limit=self._max_concurrent_tasks))
 
         # SGE
         merge_dict(
@@ -781,7 +821,7 @@ class Cromweller(object):
                 pe=self._sge_pe,
                 queue=self._sge_queue,
                 extra_param=self._sge_extra_param,
-                concurrent_job_limit=self._num_concurrent_tasks))
+                concurrent_job_limit=self._max_concurrent_tasks))
 
         # PBS
         merge_dict(
@@ -789,7 +829,7 @@ class Cromweller(object):
             CromwellerBackendPBS(
                 queue=self._pbs_queue,
                 extra_param=self._pbs_extra_param,
-                concurrent_job_limit=self._num_concurrent_tasks))
+                concurrent_job_limit=self._max_concurrent_tasks))
 
         # MySQL is optional
         if self._mysql_db_user is not None \

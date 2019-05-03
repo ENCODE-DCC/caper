@@ -198,7 +198,7 @@ class CromwellerURI(object):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             if self._uri_type == URI_URL:
                 check_call([
-                    'wget', '--no-check-certificate', '-qc',
+                    'wget', '--no-check-certificate', '-c',
                     '--user', str(CromwellerURI.HTTP_USER),
                     '--password', str(CromwellerURI.HTTP_PASSWORD),
                     self._uri, '-O', path])
