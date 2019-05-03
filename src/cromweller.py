@@ -18,6 +18,7 @@ import os
 import sys
 import json
 import re
+import time
 from subprocess import Popen, PIPE, CalledProcessError
 from datetime import datetime
 
@@ -356,10 +357,10 @@ class Cromweller(object):
     RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CROMWELLER\s+docker\s(.+)'
     RE_PATTERN_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CROMWELLER\s+'\
         r'singularity\s(.+)'
-    RE_PATTERN_WORKFLOW_ID = r'started WorkflowActor-(\b[0-9a-f]{8}\b-'\
-        '[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
+    RE_PATTERN_WORKFLOW_ID = r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
     RE_PATTERN_VALID_LABEL = r'^[A-Za-z0-9\-\_]+$'
     DEEPCOPY_EXTS_IN_INPUT_JSON = ('.json', '.tsv', '.csv')
+    SEC_INTERVAL_CHK_WORKFLOW_DONE = 60.0
 
     def __init__(self, args):
         """Initializes from args dict
@@ -441,6 +442,7 @@ class Cromweller(object):
                CromwellerURI(self._cromwell).get_local_file(), 'run',
                CromwellerURI(self._wdl).get_local_file(), '-i', input_file,
                '-o', workflow_opts_file, '-m', metadata_file]
+        print('[Cromweller] cmd: ', cmd)
 
         if self._label is not None:
             # create labels JSON file
@@ -450,8 +452,6 @@ class Cromweller(object):
                     key=CromwellRestAPI.KEY_LABEL,
                     val=self._label))
             cmd += ['-l', labels_file]
-
-        print('RUN: ', cmd)
 
         try:
             p = Popen(cmd, stdout=PIPE, universal_newlines=True)
@@ -471,19 +471,11 @@ class Cromweller(object):
             while p.poll() is None:
                 stdout = p.stdout.readline().strip()
                 print(stdout)
-        print("RC: ", rc)
-        print("WORKFLOW_ID: ", workflow_id)
 
-        # move metadata_file to backend's output storage
-        with open(metadata_file, 'r') as fp:
-            # read metadata contents first locally
-            metadata_str = fp.read()
-            target_metadata_file = self.__write_metadata_json_file(
-                metadata_str, workflow_id)
-
-            # delete original metadata file
-            os.remove(metadata_file)
-        print("CROMWELL_METADATA_JSON_FILE: ", target_metadata_file)
+        target_metadata_file = self.__move_metadata_file(
+            metadata_file, workflow_id)
+        print('[Cromweller] run: ', rc, workflow_id, target_metadata_file)
+        return workflow_id
 
     def server(self):
         """Run a Cromwell server
@@ -493,12 +485,15 @@ class Cromweller(object):
 
         cmd = ['java', '-jar', '-Dconfig.file={}'.format(backend_file),
                CromwellerURI(self._cromwell).get_local_file(), 'server']
-        print('cmd: ', cmd)
+        print('[Cromweller] cmd: ', cmd)
 
         workflow_ids = set()
+        completed_workflow_ids = set()
         try:
             p = Popen(cmd, stdout=PIPE, universal_newlines=True)
             rc = None
+            t0 = time.clock()
+
             while p.poll() is None:
                 stdout = p.stdout.readline().strip()
                 workflow_id = \
@@ -507,13 +502,23 @@ class Cromweller(object):
                     workflow_ids.add(workflow_id)
                 print(stdout)
 
+                # # write metadata.json for running workflows
+                # if (time.clock() - t0) > \
+                #     Cromweller.MS_INTERVAL_CHK_WORKFLOW_DONE:
+                #     t0 = time.clock()
+
+                #     for wf_id in workflow_ids:
+                #         if wf_id in completed_workflow_ids:
+                #             continue
+                #         wf_id
+
         except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
             while p.poll() is None:
                 stdout = p.stdout.readline().strip()
                 print(stdout)
-        print('server: ', rc, workflow_ids)
+        print('[Cromweller] server: ', rc, workflow_ids)
         return workflow_ids
 
     def submit(self):
@@ -587,17 +592,16 @@ class Cromweller(object):
             print('\t'.join(row))
         return workflows
 
-    def __write_metadata_json_file(self, metadata_str, workflow_id):
-        """Write metadata JSON file (Cromwell's final output) to
-        corresponding output storage for a workflow
-        """
-        # get absolute path on target storage
-        target_metadata_file = os.path.join(
+    def __move_metadata_file(self, metadata_file, workflow_id):
+        if workflow_id is None or not os.path.exists(metadata_file):
+            return None
+        uri = os.path.join(
             self.__get_workflow_output_dir(workflow_id),
             'metadata.json')
-        # write on target storage (which can be a local/remote bucket)
-        return CromwellerURI(target_metadata_file).write_str_to_file(
-            metadata_str).get_uri()
+        with open(metadata_file, 'r') as fp:
+            CromwellerURI(uri).write_str_to_file(fp.read())
+        os.remove(metadata_file)
+        return uri
 
     def __create_backend_conf_file(self, directory, fname='backend.conf'):
         """Creates Cromwell's backend conf file
@@ -898,11 +902,13 @@ class Cromweller(object):
         else:
             out_dir = self._out_dir
 
-        wdl = self.__get_wdl_basename()
+        wdl = self.__get_wdl_basename()        
         if wdl is None:
-            return os.path.join(out_dir, workflow_id)
+            path = os.path.join(out_dir, workflow_id)
         else:
-            return os.path.join(out_dir, os.path.basename(wdl), workflow_id)
+            path = os.path.join(out_dir, os.path.basename(wdl), workflow_id)
+        os.makedirs(path, exist_ok=True)
+        return path
 
     def __get_wdl_basename(self):
         if self._wdl is not None:
@@ -937,7 +943,8 @@ def main():
         tmp_gcs_bucket=args.get('tmp_gcs_bucket'),
         http_user=args.get('http_user'),
         http_password=args.get('http_password'),
-        use_gsutil_over_aws_s3=args.get('use_gsutil_over_aws_s3'))
+        use_gsutil_over_aws_s3=args.get('use_gsutil_over_aws_s3'),
+        verbose=True)
 
     # init cromweller: taking all args at init step
     c = Cromweller(args)
@@ -957,7 +964,7 @@ def main():
         c.metadata()
     else:
         raise Exception('Unsupported or unspecified action.')
-
+    return 0
 
 if __name__ == '__main__':
     main()

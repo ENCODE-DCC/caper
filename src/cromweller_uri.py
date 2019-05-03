@@ -18,7 +18,7 @@ URI_LOCAL = 'local'
 
 def init_cromweller_uri(tmp_dir, tmp_s3_bucket=None, tmp_gcs_bucket=None,
                         http_user=None, http_password=None,
-                        use_gsutil_over_aws_s3=False):
+                        use_gsutil_over_aws_s3=False, verbose=False):
     """Initialize static members in CromwellerURI class
     """
     assert(tmp_dir is not None)
@@ -32,6 +32,7 @@ def init_cromweller_uri(tmp_dir, tmp_s3_bucket=None, tmp_gcs_bucket=None,
     CromwellerURI.HTTP_USER = http_user
     CromwellerURI.HTTP_PASSWORD = http_password
     CromwellerURI.USE_GSUTIL_OVER_AWS_S3 = use_gsutil_over_aws_s3
+    CromwellerURI.VERBOSE = verbose
 
 
 class CromwellerURI(object):
@@ -74,6 +75,7 @@ class CromwellerURI(object):
     HTTP_USER = None
     HTTP_PASSWORD = None
     USE_GSUTIL_OVER_AWS_S3 = False
+    VERBOSE = False
 
     def __init__(self, uri_or_path):
         if CromwellerURI.TMP_DIR is None:
@@ -146,6 +148,9 @@ class CromwellerURI(object):
         """
         if uri_type == self._uri_type:
             return self._uri
+        if CromwellerURI.VERBOSE:
+            print('copy from {src} to {target}, file: {uri}'.format(
+                src=self._uri_type, target=uri_type, uri=self._uri))
 
         path = None
         if uri_type == URI_URL:
@@ -159,14 +164,17 @@ class CromwellerURI(object):
         elif uri_type == URI_GCS:
             path = self.__get_gcs_file_name()
             if self._uri_type == URI_URL:
+                if CromwellerURI.VERBOSE:
+                    print('copy (URL to GCS): ', self._uri, path)
                 ps = Popen(
                     ['curl', '-u',
                      '{}:{}'.format(CromwellerURI.HTTP_USER,
                                     CromwellerURI.HTTP_PASSWORD),
                      '-f', self._uri], stdout=PIPE)
-                check_call(['gsutil', 'cp', '-n', '-', path], stdin=ps.stdout)
+                check_call(['gsutil', '-q', 'cp', '-n', '-', path],
+                           stdin=ps.stdout)
             elif self._uri_type == URI_S3 or self._uri_type == URI_LOCAL:
-                check_call(['gsutil', 'cp', '-n', self._uri, path])
+                check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
             else:
                 path = None
 
@@ -182,14 +190,17 @@ class CromwellerURI(object):
                     check_call(['gsutil', 'cp', '-n', '-', path],
                                stdin=ps.stdout)
                 else:
-                    check_call(['aws', 's3', 'cp', '-', path], stdin=ps.stdout)
+                    check_call(['aws', 's3', 'cp', '--only-show-errors',
+                                '-', path],
+                               stdin=ps.stdout)
             elif self._uri_type == URI_GCS:
-                check_call(['gsutil', 'cp', '-n', self._uri, path])
+                check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
             elif self._uri_type == URI_LOCAL:
                 if CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
-                    check_call(['gsutil', 'cp', '-n', self._uri, path])
+                    check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
                 else:
-                    check_call(['aws', 's3', 'cp', self._uri, path])
+                    check_call(['aws', 's3', 'cp', '--only-show-errors',
+                                self._uri, path])
             else:
                 path = None
 
@@ -198,16 +209,17 @@ class CromwellerURI(object):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             if self._uri_type == URI_URL:
                 check_call([
-                    'wget', '--no-check-certificate', '-c',
+                    'wget', '--no-check-certificate', '-qc',
                     '--user', str(CromwellerURI.HTTP_USER),
                     '--password', str(CromwellerURI.HTTP_PASSWORD),
                     self._uri, '-O', path])
             elif self._uri_type == URI_GCS or \
                 self._uri_type == URI_S3 and \
                     CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
-                check_call(['gsutil', 'cp', '-n', self._uri, path])
+                check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
             elif self._uri_type == URI_S3:
-                check_call(['aws', 's3', 'cp', self._uri, path])
+                check_call(['aws', 's3', 'cp', '--only-show-errors',
+                            self._uri, path])
             else:
                 path = None
 
@@ -225,6 +237,10 @@ class CromwellerURI(object):
     def get_file_contents(self):
         """Get file contents
         """
+        if CromwellerURI.VERBOSE:
+            print('read from {src}, file: {uri}'.format(
+                src=self._uri_type, uri=self._uri))
+
         if self._uri_type == URI_URL:
             return check_output([
                 'curl',
@@ -234,10 +250,11 @@ class CromwellerURI(object):
 
         elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
                 and CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
-            return check_output(['gsutil', 'cat', self._uri])
+            return check_output(['gsutil', '-q', 'cat', self._uri])
 
         elif self._uri_type == URI_S3:
-            return check_output(['aws', 's3', 'cp', self._uri, '-'])
+            return check_output(['aws', 's3', 'cp', '--only-show-errors',
+                                 self._uri, '-'])
 
         elif self._uri_type == URI_LOCAL:
             with open(self._uri, 'r') as fp:
@@ -247,15 +264,19 @@ class CromwellerURI(object):
                 self._uri_type))
 
     def write_str_to_file(self, s):
-        # assert(not self.file_exists())
+        if CromwellerURI.VERBOSE:
+            print('write to {src}, file: {uri}, size: {size}'.format(
+                src=self._uri_type, uri=self._uri, size=len(s)))
+
         if self._uri_type == URI_LOCAL:
             with open(self._uri, 'w') as fp:
                 fp.write(s)
         elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
                 and CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
-            run(['gsutil', 'cp', '-', self._uri], input=s, encoding='ascii')
+            run(['gsutil', '-q', 'cp', '-', self._uri], input=s, encoding='ascii')
         elif self._uri_type == URI_S3:
-            run(['aws', 's3', 'cp', '-', self._uri], input=s, encoding='ascii')
+            run(['aws', 's3', 'cp', '--only-show-errors', '-',
+                 self._uri], input=s, encoding='ascii')
         else:
             raise NotImplementedError('uri_type: {}'.format(
                 self._uri_type))
@@ -358,6 +379,11 @@ class CromwellerURI(object):
                 c = CromwellerURI(v)
                 if c.can_deepcopy() and c.uri_type != uri_type:
                     updated = True
+                    if CromwellerURI.VERBOSE:
+                        print('deepcopy_tsv from {src} to {target}, file: {uri}'
+                              ', tsv: {uri2}'.format(
+                                src=c.uri_type, target=uri_type,
+                                uri=c.uri, uri2=self._uri))
                     # copy file to target storage
                     new_file = c.deepcopy(
                         deepcopy_uri_type=uri_type,
@@ -398,6 +424,11 @@ class CromwellerURI(object):
                 assert(d_parent is not None or lst is not None)
                 c = CromwellerURI(v)
                 if c.can_deepcopy() and c.uri_type != uri_type:
+                    if CromwellerURI.VERBOSE:
+                        print('deepcopy_json from {src} to {target}, '
+                              'file: {uri}, json: {uri2}'.format(
+                                src=c.uri_type, target=uri_type,
+                                uri=c.uri, uri2=self._uri))
                     new_file = c.get_file(
                         uri_type,
                         deepcopy_uri_type=uri_type,
@@ -469,7 +500,7 @@ class CromwellerURI(object):
                         uri])
                 elif uri_type == URI_GCS or uri_type == URI_S3 \
                         and CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
-                    rc = check_call(['gsutil', 'ls', uri])
+                    rc = check_call(['gsutil', '-q', 'ls', uri])
                 elif uri_type == URI_S3:
                     rc = check_call(['aws', 's3', 'ls', path])
                 else:

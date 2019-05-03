@@ -57,7 +57,7 @@ class CromwellRestAPI(object):
                     key=CromwellRestAPI.KEY_LABEL, val=str_label))
         r = self.__query_post(CromwellRestAPI.ENDPOINT_SUBMIT, manifest)
         if self._verbose:
-            print("CromwellRestAPI.submit: ", r)
+            print('[CromwellRestAPI] submit: ', r)
         return r
 
     def abort(self, workflow_ids=None, str_labels=None):
@@ -77,7 +77,7 @@ class CromwellRestAPI(object):
                     wf_id=w['id']))
             result.append(r)
         if self._verbose:
-            print("CromwellRestAPI.abort: ", result)
+            print('[CromwellRestAPI] abort: ', result)
         return result
 
     def get_metadata(self, workflow_ids=None, str_labels=None):
@@ -146,7 +146,7 @@ class CromwellRestAPI(object):
             if w['id'] in matched:
                 result.append(w)
         if self._verbose:
-            print('CromwellRestAPI.find: ', result)
+            print('[CromwellRestAPI] find: ', result)
         return result
 
     def __init_auth(self):
@@ -186,8 +186,8 @@ class CromwellRestAPI(object):
         if resp.ok:
             return resp.json()
         else:
-            print("HTTP GET error: ", resp.status_code, resp.content,
-                  url)
+            print('[CromwellRestAPI] HTTP GET error: ', resp.status_code,
+                  resp.content, url)
             return None
 
     def __query_post(self, endpoint, manifest=None):
@@ -204,8 +204,8 @@ class CromwellRestAPI(object):
         if resp.ok:
             return resp.json()
         else:
-            print("HTTP Post error: ", resp.status_code, resp.content, 
-                  url, manifest)
+            print('[CromwellRestAPI] HTTP Post error: ', resp.status_code,
+                  resp.content, url, manifest)
             return None
 
     @staticmethod
