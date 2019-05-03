@@ -126,17 +126,17 @@ class CromwellerURI(object):
     def file_exists(self):
         return CromwellerURI.__file_exists(self._uri)
 
-    def get_local_file(self, deepcopy_uri_type=None, deepcopy_uri_exts=()):
+    def get_local_file(self):
         """Get local version of URI. Make a copy if required
         """
         return self.get_file(uri_type=URI_LOCAL)
 
-    def get_gcs_file(self, deepcopy_uri_type=None, deepcopy_uri_exts=()):
+    def get_gcs_file(self):
         """Get GCS bucket version of URI. Make a copy if required
         """
         return self.get_file(uri_type=URI_GCS)
 
-    def get_s3_file(self, deepcopy_uri_type=None, deepcopy_uri_exts=()):
+    def get_s3_file(self):
         """Get S3 bucket version of URI. Make a copy if required
         """
         return self.get_file(uri_type=URI_S3)
@@ -152,9 +152,9 @@ class CromwellerURI(object):
         if uri_type == self._uri_type:
             return self._uri
         if CromwellerURI.VERBOSE:
-            print('[CromwellerURI] copying from {src} to {target}, '
-                'file: {uri}'.format(src=self._uri_type, target=uri_type,
-                                     uri=self._uri))
+            print('[CromwellerURI] copying from '
+                '{src} to {target}, src: {uri}'.format(
+                    src=self._uri_type, target=uri_type, uri=self._uri))
 
         path = None
         if uri_type == URI_URL:
@@ -226,12 +226,15 @@ class CromwellerURI(object):
                 path = None
 
         else:
-            raise NotImplementedError('uri_type: {}'.format(
-                uri_type))
+            raise NotImplementedError('uri_type: {}'.format(uri_type))
 
         if path is None:
             raise NotImplementedError('uri_type: {}, {}'.format(
                 self._uri_type, uri_type))
+
+        if CromwellerURI.VERBOSE:
+            print('[CromwellerURI] copying done, target: {target}'.format(
+                    target=path))
 
         assert(CromwellerURI.__file_exists(path))
         return path
@@ -240,7 +243,7 @@ class CromwellerURI(object):
         """Get file contents
         """
         if CromwellerURI.VERBOSE:
-            print('[CromwellerURI] read from {src}, file: {uri}'.format(
+            print('[CromwellerURI] read from {src}, src: {uri}'.format(
                 src=self._uri_type, uri=self._uri))
 
         if self._uri_type == URI_URL:
@@ -267,8 +270,9 @@ class CromwellerURI(object):
 
     def write_str_to_file(self, s):
         if CromwellerURI.VERBOSE:
-            print('[CromwellerURI] write to {src}, file: {uri}, size: {size}'.format(
-                src=self._uri_type, uri=self._uri, size=len(s)))
+            print('[CromwellerURI] write to '
+                '{target}, target: {uri}, size: {size}'.format(
+                    target=self._uri_type, uri=self._uri, size=len(s)))
 
         if self._uri_type == URI_LOCAL:
             with open(self._uri, 'w') as fp:
@@ -333,7 +337,7 @@ class CromwellerURI(object):
         if self._uri_type == URI_GCS:
             return self._uri
 
-        elif self._uri_type == (URI_LOCAL, URI_S3, URI_URL):
+        elif self._uri_type in (URI_LOCAL, URI_S3, URI_URL):
             return os.path.join(CromwellerURI.TMP_GCS_BUCKET,
                                 self.__get_rel_uri())
         else:
@@ -344,7 +348,7 @@ class CromwellerURI(object):
         if self._uri_type == URI_S3:
             return self._uri
 
-        elif self._uri_type == (URI_LOCAL, URI_GCS, URI_URL):
+        elif self._uri_type in (URI_LOCAL, URI_GCS, URI_URL):
             return os.path.join(CromwellerURI.TMP_S3_BUCKET,
                                 self.__get_rel_uri())
         else:
@@ -384,12 +388,11 @@ class CromwellerURI(object):
                     if CromwellerURI.VERBOSE:
                         print('[CromwellerURI] deepcopy_tsv from {src} to {target}, '
                             'file: {uri}, tsv: {uri2}'.format(
-                                src=c.uri_type, target=uri_type,
-                                uri=c.uri, uri2=self._uri))
+                                src=c._uri_type, target=uri_type,
+                                uri=c._uri, uri2=self._uri))
                     # copy file to target storage
-                    new_file = c.deepcopy(
-                        deepcopy_uri_type=uri_type,
-                        deepcopy_uri_exts=uri_exts).get_file(uri_type)
+                    new_file = c.deepcopy(uri_type=uri_type,
+                                          uri_exts=uri_exts).get_file(uri_type)
                     new_values.append(new_file)
                 else:
                     new_values.append(v)
@@ -422,19 +425,17 @@ class CromwellerURI(object):
                 for i, v in enumerate(d):
                     updated |= recurse_dict(v, uri_type, lst=d,
                                             lst_idx=i, updated=updated)
-            elif type(v) == str:
+            elif type(d) == str:
                 assert(d_parent is not None or lst is not None)
-                c = CromwellerURI(v)
+                c = CromwellerURI(d)
                 if c.can_deepcopy() and c.uri_type != uri_type:
                     if CromwellerURI.VERBOSE:
                         print('[CromwellerURI] deepcopy_json from {src} to {target}, '
                               'file: {uri}, json: {uri2}'.format(
-                                src=c.uri_type, target=uri_type,
-                                uri=c.uri, uri2=self._uri))
-                    new_file = c.get_file(
-                        uri_type,
-                        deepcopy_uri_type=uri_type,
-                        deepcopy_uri_exts=uri_exts)
+                                src=c._uri_type, target=uri_type,
+                                uri=c._uri, uri2=self._uri))
+                    new_file = c.deepcopy(
+                        uri_type=uri_type, uri_exts=uri_exts).get_file(uri_type)
                     if d_parent is not None:
                         d_parent[d_parent_key] = new_file
                     elif lst is not None:

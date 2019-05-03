@@ -18,6 +18,7 @@ import argparse
 from configparser import ConfigParser
 from pyhocon import ConfigFactory, HOCONConverter
 import os
+import stat
 import sys
 import json
 import re
@@ -113,8 +114,13 @@ def parse_cromweller_arguments():
              'previous workflows. Make sure to configure MySQL correctly to '
              'use this feature')
     group_cromwell.add_argument(
-        '--backend-conf',
+        '--backend-file',
         help='Custom Cromwell backend configuration file to override all')
+    # group_cromwell.add_argument(
+    #     '--keep-temp-backend-file', action='store_true',
+    #     help='Keep backend.conf file in a temporary directory. '
+    #     '(SECURITY WARNING) MySQL database username/password will be exposed '
+    #     'in the temporary backend.conf file')
 
     group_local = parent_host.add_argument_group(
         title='local backend arguments')
@@ -174,7 +180,7 @@ def parse_cromweller_arguments():
              'workflow\'s temporary directory (tmp_dir/label/timestamp/)')
 
     parent_submit.add_argument(
-        '--deepcopy',
+        '--deepcopy', action='store_true',
         help='Deepcopy for JSON (.json), TSV (.tsv) and CSV (.csv) '
              'files specified in an input JSON file (--inputs). '
              'Find all path/URI string values in an input JSON file '
@@ -365,6 +371,7 @@ class Cromweller(object):
             ip=args.get('ip'), port=self._port, verbose=False)
 
         # init others
+        # self._keep_temp_backend_file = args.get('keep_temp_backend_file')
         self._format = args.get('format')
         self._use_call_caching = args.get('use_call_caching')
         self._max_concurrent_workflows = args.get('max_concurrent_workflows')
@@ -387,9 +394,7 @@ class Cromweller(object):
         self._mysql_db_port = args.get('mysql_db_port')
         self._mysql_db_user = args.get('mysql_db_user')
         self._mysql_db_password = args.get('mysql_db_password')
-        self._backend_conf = args.get('backend_conf')
-        self._use_singularity = args.get('use_singularity')
-        self._use_docker = args.get('use_docker')
+        self._backend_file = args.get('backend_file')
         self._wdl = args.get('wdl')
         self._inputs = args.get('inputs')
         self._cromwell = args.get('cromwell')
@@ -397,6 +402,16 @@ class Cromweller(object):
         self._deepcopy = args.get('deepcopy')
         self._workflow_opts = args.get('options')
         self._label = args.get('label')
+
+        # containers
+        self._use_singularity = args.get('use_singularity')
+        self._use_docker = args.get('use_docker')
+        self._singularity = args.get('singularity')
+        self._docker = args.get('docker')
+        if self._singularity is not None:
+            self._use_singularity = True
+        if self._docker is not None:
+            self._use_docker = True
 
         # list of values
         self._wf_id_or_label = args.get('wf_id_or_label')
@@ -448,7 +463,7 @@ class Cromweller(object):
             cmd += ['-l', labels_file]
 
         try:
-            p = Popen(cmd, stdout=PIPE, universal_newlines=True)
+            p = Popen(cmd, stdout=PIPE, universal_newlines=True, cwd=tmp_dir)
             workflow_id = None
             rc = None
             while p.poll() is None:
@@ -462,6 +477,13 @@ class Cromweller(object):
                         if status == 'submitted' or status == 'finished':
                             workflow_id = wf_id
                             break
+                # else:
+                #     # remove temp backend_file for security (MySQL database password in it)
+                #     if os.path.exists(backend_file) \
+                #         and (self._keep_temp_backend_file is None \
+                #             or not self._keep_temp_backend_file):
+                #         os.remove(backend_file)
+
                 print(stdout)
             rc = p.poll()
         except CalledProcessError as e:
@@ -501,7 +523,7 @@ class Cromweller(object):
         # completed, aborted or terminated workflows
         finished_workflow_ids = set()
         try:
-            p = Popen(cmd, stdout=PIPE, universal_newlines=True)
+            p = Popen(cmd, stdout=PIPE, universal_newlines=True, cwd=tmp_dir)
             rc = None
             # tickcount
             t0 = time.perf_counter() 
@@ -885,10 +907,10 @@ class Cromweller(object):
         lines_header = [Cromweller.BACKEND_CONF_HEADER]
 
         # override with user-specified backend.conf if exists
-        if self._backend_conf is not None:
+        if self._backend_file is not None:
             lines_wo_header = []
 
-            with open(CromwellerURI(self._backend_conf).get_local_file(),
+            with open(CromwellerURI(self._backend_file).get_local_file(),
                       'r') as fp:
                 for line in fp.readlines():
                     # find header and exclude
@@ -931,10 +953,11 @@ class Cromweller(object):
     def __get_workflow_output_dir(self, workflow_id=''):
         if self._backend == BACKEND_GCP:
             out_dir = self._out_gcs_bucket
-        if self._backend == BACKEND_AWS:
+        elif self._backend == BACKEND_AWS:
             out_dir = self._out_aws_bucket
         else:
             out_dir = self._out_dir
+        print(out_dir, self._backend, self._out_gcs_bucket)
 
         wdl = self.__get_wdl_basename()        
         if wdl is None:
