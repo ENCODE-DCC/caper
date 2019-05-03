@@ -9,6 +9,7 @@ BACKEND_SLURM = 'slurm'
 BACKEND_SGE = 'sge'
 BACKEND_PBS = 'pbs'
 
+
 class CromwellerBackendCommon(dict):
     """Common stanzas for all Cromweller backends
     """
@@ -16,12 +17,13 @@ class CromwellerBackendCommon(dict):
         "backend": {
             "default": BACKEND_LOCAL
         },
-        "webservice" : {
-            "port" : 8000
+        "webservice": {
+            "port": 8000
         },
         "services": {
             "LoadController": {
-                "class": "cromwell.services.loadcontroller.impl.LoadControllerServiceActor",
+                "class": "cromwell.services.loadcontroller.impl"
+                ".LoadControllerServiceActor",
                 "config": {
                     # due to issues on stanford sherlock/scg
                     "control-frequency": "21474834 seconds"
@@ -31,7 +33,7 @@ class CromwellerBackendCommon(dict):
         "system": {
             "abort-jobs-on-terminate": True,
             "graceful-server-shutdown": True,
-            "max-concurrent-workflows" : 40
+            "max-concurrent-workflows": 40
         },
         "call-caching": {
             "enabled": False,
@@ -39,20 +41,17 @@ class CromwellerBackendCommon(dict):
         }
     }
 
-    def __init__(self,
-        port=None,
-        use_call_caching=None,
-        max_concurrent_workflows=None):
-
+    def __init__(self, port=None, use_call_caching=None,
+                 max_concurrent_workflows=None):
         super(CromwellerBackendCommon, self).__init__(
             CromwellerBackendCommon.TEMPLATE)
-
         if port is not None:
             self['webservice']['port'] = port
         if use_call_caching is not None:
             self['call-caching']['enabled'] = use_call_caching
         if use_call_caching is not None:
-            self['system']['max-concurrent-workflows'] = max_concurrent_workflows
+            self['system']['max-concurrent-workflows'] = \
+                max_concurrent_workflows
 
 
 class CromwellerBackendMySQL(dict):
@@ -62,29 +61,25 @@ class CromwellerBackendMySQL(dict):
         "database": {
             "profile": "slick.jdbc.MySQLProfile$",
             "db": {
-                "url": "jdbc:mysql://localhost:3306/cromwell_db?allowPublicKeyRetrieval=true&useSSL=false&rewriteBatchedStatements=true",
+                "url": "jdbc:mysql://localhost:3306/cromwell_db?"
+                "allowPublicKeyRetrieval=true&useSSL=false&"
+                "rewriteBatchedStatements=true",
                 "user": "cromwell",
                 "password": "cromwell",
-                "driver": "com.mysql.jdbc.Driver" 
+                "driver": "com.mysql.jdbc.Driver"
             }
         }
     }
 
-    def __init__(self,
-        ip,
-        port,
-        user,
-        password):
-
+    def __init__(self, ip, port, user, password):
         super(CromwellerBackendMySQL, self).__init__(
             CromwellerBackendMySQL.TEMPLATE)
-
         db = self['database']['db']
         db['user'] = user
         db['password'] = password
-        db['url'] = db['url'].replace('localhost:3306',
-            '{ip}:{port}'.format(ip, port))
-        
+        db['url'] = db['url'].replace(
+            'localhost:3306', '{ip}:{port}'.format(ip, port))
+
 
 class CromwellerBackendGCP(dict):
     """Google Cloud backend
@@ -93,7 +88,8 @@ class CromwellerBackendGCP(dict):
         "backend": {
             "providers": {
                 BACKEND_GCP: {
-                    "actor-factory": "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory",
+                    "actor-factory": "cromwell.backend.impl.jes."
+                    "JesBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
                         },
@@ -128,14 +124,9 @@ class CromwellerBackendGCP(dict):
         }
     }
 
-    def __init__(self,
-        gc_project,
-        out_gcs_bucket,
-        concurrent_job_limit=None):
-
+    def __init__(self, gc_project, out_gcs_bucket, concurrent_job_limit=None):
         super(CromwellerBackendGCP, self).__init__(
-            CromwellerBackendGCP.TEMPLATE)        
-
+            CromwellerBackendGCP.TEMPLATE)
         config = self['backend']['providers'][BACKEND_GCP]['config']
         config['project'] = gc_project
         config['root'] = out_gcs_bucket
@@ -152,7 +143,8 @@ class CromwellerBackendAWS(dict):
         "backend": {
             "providers": {
                 BACKEND_AWS: {
-                    "actor-factory": "cromwell.backend.impl.aws.AwsBatchBackendLifecycleActorFactory",
+                    "actor-factory": "cromwell.backend.impl.aws."
+                    "AwsBatchBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
                             "queueArn": "YOUR_AWS_BATCH_ARN"
@@ -190,15 +182,10 @@ class CromwellerBackendAWS(dict):
         }
     }
 
-    def __init__(self,
-        aws_batch_arn,
-        aws_region,
-        out_s3_bucket,
-        concurrent_job_limit=None):
-
+    def __init__(self, aws_batch_arn, aws_region, out_s3_bucket,
+                 concurrent_job_limit=None):
         super(CromwellerBackendAWS, self).__init__(
             CromwellerBackendAWS.TEMPLATE)
-
         self[BACKEND_AWS]['region'] = aws_region
         config = self['backend']['providers'][BACKEND_AWS]['config']
         config['default-runtime-attributes']['queueArn'] = aws_batch_arn
@@ -212,56 +199,107 @@ class CromwellerBackendAWS(dict):
 class CromwellerBackendLocal(dict):
     """Local backend
     """
+    RUNTIME_ATTRIBUTES = """
+    Int? gpu
+    String? docker
+    String? docker_user
+    String? singularity
+    """
+    SUBMIT = """
+    ${if defined(singularity) then "" else "/bin/bash ${script} #"} \
+    if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
+    singularity exec --cleanenv --home ${cwd} \
+    ${if defined(gpu) then '--nv' else ''} \
+    ${singularity} /bin/bash ${script}
+    """
     TEMPLATE = {
         "backend": {
             "providers": {
                 BACKEND_LOCAL: {
-                    "actor-factory": "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory",
+                    "actor-factory": "cromwell.backend.impl.sfs.config."
+                    "ConfigBackendLifecycleActorFactory",
                     "config": {
-                        "default-runtime-attributes" : {                            
+                        "default-runtime-attributes": {
                         },
                         "run-in-background": True,
                         "script-epilogue": "sleep 10 && sync",
-                        "concurrent-job-limit": 1000,                        
-                        "runtime-attributes": "\n          Int? gpu\n          String? docker\n          String? docker_user\n          String? singularity\n        ",
-                        "submit": "\n          ${if defined(singularity) then \"\" else \"/bin/bash ${script} #\"} if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; singularity exec --cleanenv --home ${cwd} ${if defined(gpu) then '--nv' else ''} ${singularity} /bin/bash ${script}\n        "
+                        "concurrent-job-limit": 1000,
+                        "runtime-attributes": RUNTIME_ATTRIBUTES,
+                        "submit": SUBMIT
                     }
                 }
             }
         }
     }
 
-    def __init__(self,
-        out_dir,
-        concurrent_job_limit=None):
-
+    def __init__(self, out_dir, concurrent_job_limit=None):
         super(CromwellerBackendLocal, self).__init__(
             CromwellerBackendLocal.TEMPLATE)
-
-        config = self['backend']['providers'][BACKEND_LOCAL]['config']        
+        config = self['backend']['providers'][BACKEND_LOCAL]['config']
         config['root'] = out_dir
 
         if concurrent_job_limit is not None:
             config['concurrent-job-limit'] = concurrent_job_limit
 
 
-
 class CromwellerBackendSLURM(dict):
+    """SLURM backend
+    """
+    RUNTIME_ATTRIBUTES = """
+    String? docker
+    String? docker_user
+    Int cpu = 1
+    Int? gpu
+    Int? time
+    Int? memory_mb
+    String? slurm_partition
+    String? slurm_account
+    String? slurm_extra_param
+    String singularity
+    """
+    SUBMIT = """
+    sbatch \
+        --export=ALL \
+        -J ${job_name} \
+        -D ${cwd} \
+        -o ${out} \
+        -e ${err} \
+        ${"-t " + time*60} \
+        -n 1 \
+        --ntasks-per-node=1 \
+        ${true="--cpus-per-task=" false="" defined(cpu)}${cpu} \
+        ${true="--mem=" false="" defined(memory_mb)}${memory_mb} \
+        ${"-p " + slurm_partition} \
+        ${"--account " + slurm_account} \
+        ${true="--gres gpu:" false="" defined(gpu)}${gpu} \
+        ${slurm_extra_param} \
+        --wrap "${if defined(singularity) then '' else \
+            '/bin/bash ${script} #'} if [ -z $SINGULARITY_BINDPATH ]; then \
+            SINGULARITY_BINDPATH=/; fi; \
+            singularity exec --cleanenv --home ${cwd} \
+            ${if defined(gpu) then '--nv' else ''} \
+            ${singularity} /bin/bash ${script}"
+    """
+    CHECK_ALIVE = """
+    CHK_ALIVE=$(squeue --noheader -j ${job_id}); if [ -z $CHK_ALIVE ]; then \
+    /bin/bash -c 'exit 1'; else echo $CHK_ALIVE; fi
+    """
     TEMPLATE = {
         "backend": {
             "providers": {
                 BACKEND_SLURM: {
-                    "actor-factory": "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory",
+                    "actor-factory": "cromwell.backend.impl.sfs.config."
+                    "ConfigBackendLifecycleActorFactory",
                     "config": {
-                        "default-runtime-attributes" : {                            
+                        "default-runtime-attributes": {
                         },
                         "script-epilogue": "sleep 10 && sync",
                         "concurrent-job-limit": 1000,
-                        "runtime-attributes": "\n          String? docker\n          String? docker_user\n          Int cpu = 1\n          Int? gpu\n          Int? time\n          Int? memory_mb\n          String? slurm_partition\n          String? slurm_account\n          String? slurm_extra_param\n          String singularity\n        ",
-                        "submit": "\n          sbatch \n          --export=ALL \n          -J ${job_name} \n          -D ${cwd} \n          -o ${out} \n          -e ${err} \n          ${\"-t \" + time*60} \n          -n 1 \n          --ntasks-per-node=1 \n          ${true=\"--cpus-per-task=\" false=\"\" defined(cpu)}${cpu} \n          ${true=\"--mem=\" false=\"\" defined(memory_mb)}${memory_mb} \n          ${\"-p \" + slurm_partition} \n          ${\"--account \" + slurm_account} \n          ${true=\"--gres gpu:\" false=\"\" defined(gpu)}${gpu} \n          ${slurm_extra_param} \n          --wrap \"${if defined(singularity) then '' else '/bin/bash ${script} #'} if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; singularity exec --cleanenv --home ${cwd} ${if defined(gpu) then '--nv' else ''} ${singularity} /bin/bash ${script}\"\n        ",
+                        "runtime-attributes": RUNTIME_ATTRIBUTES,
+                        "submit": SUBMIT,
                         "kill": "scancel ${job_id}",
                         "exit-code-timeout-seconds": 180,
-                        "check-alive": "CHK_ALIVE=$(squeue --noheader -j ${job_id}); if [ -z $CHK_ALIVE ]; then /bin/bash -c 'exit 1'; else echo $CHK_ALIVE; fi",
+                        "check-alive": CHECK_ALIVE,
                         "job-id-regex": "Submitted batch job (\\\\d+).*"
                     }
                 }
@@ -269,15 +307,10 @@ class CromwellerBackendSLURM(dict):
         }
     }
 
-    def __init__(self,
-        partition=None,
-        account=None,
-        extra_param=None,
-        concurrent_job_limit=None):
-
+    def __init__(self, partition=None, account=None, extra_param=None,
+                 concurrent_job_limit=None):
         super(CromwellerBackendSLURM, self).__init__(
             CromwellerBackendSLURM.TEMPLATE)
-
         config = self['backend']['providers'][BACKEND_SLURM]['config']
         key = 'default-runtime-attributes'
 
@@ -294,18 +327,63 @@ class CromwellerBackendSLURM(dict):
 class CromwellerBackendSGE(dict):
     """SGE backend
     """
+    RUNTIME_ATTRIBUTES = """
+    String? docker
+    String? docker_user
+    String sge_pe = "shm"
+    Int cpu = 1
+    Int? gpu
+    Int? time
+    Int? memory_mb
+    String? sge_queue
+    String? sge_extra_param
+    String singularity
+    """
+    SUBMIT = """
+    echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
+    if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
+    singularity exec --cleanenv --home ${cwd} \
+    ${if defined(gpu) then '--nv' else ''} \
+    ${singularity} /bin/bash ${script}" | qsub \
+        -S /bin/sh \
+        -terse \
+        -b n \
+        -N ${job_name} \
+        -wd ${cwd} \
+        -o ${out} \
+        -e ${err} \
+        ${if cpu>1 then "-pe " + sge_pe + " " else ""}\
+${if cpu>1 then cpu else ""} \
+        ${true="-l h_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}\
+${true=" / " false="" defined(memory_mb)}\
+${if defined(memory_mb) then cpu else ""}\
+${true=")m" false="" defined(memory_mb)} \
+        ${true="-l s_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}\
+${true=" / " false="" defined(memory_mb)}\
+${if defined(memory_mb) then cpu else ""}\
+${true=")m" false="" defined(memory_mb)} \
+        ${true="-l h_rt=" false="" defined(time)}${time}$\
+{true=":00:00" false="" defined(time)} \
+        ${true="-l s_rt=" false="" defined(time)}${time}$\
+{true=":00:00" false="" defined(time)} \
+        ${"-q " + sge_queue} \
+        ${"-l gpu=" + gpu} \
+        ${sge_extra_param} \
+        -V
+    """
     TEMPLATE = {
         "backend": {
             "providers": {
                 BACKEND_SGE: {
-                    "actor-factory": "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory",
+                    "actor-factory": "cromwell.backend.impl.sfs.config."
+                    "ConfigBackendLifecycleActorFactory",
                     "config": {
-                        "default-runtime-attributes" : {                            
+                        "default-runtime-attributes": {
                         },
                         "script-epilogue": "sleep 10 && sync",
                         "concurrent-job-limit": 1000,
-                        "runtime-attributes": "\n          String? docker\n          String? docker_user\n          String sge_pe = \"shm\"\n          Int cpu = 1\n          Int? gpu\n          Int? time\n          Int? memory_mb\n          String? sge_queue\n          String? sge_extra_param\n          String singularity\n        ",
-                        "submit": "\n          echo \"${if defined(singularity) then '' else '/bin/bash ${script} #'} if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; singularity exec --cleanenv --home ${cwd} ${if defined(gpu) then '--nv' else ''} ${singularity} /bin/bash ${script}\" | qsub \n          -S /bin/sh \n          -terse \n          -b n \n          -N ${job_name} \n          -wd ${cwd} \n          -o ${out} \n          -e ${err} \n          ${if cpu>1 then \"-pe \" + sge_pe + \" \" else \"\"}${if cpu>1 then cpu else \"\"} \n          ${true=\"-l h_vmem=$(expr \" false=\"\" defined(memory_mb)}${memory_mb}${true=\" / \" false=\"\" defined(memory_mb)}${if defined(memory_mb) then cpu else \"\"}${true=\")m\" false=\"\" defined(memory_mb)} \n          ${true=\"-l s_vmem=$(expr \" false=\"\" defined(memory_mb)}${memory_mb}${true=\" / \" false=\"\" defined(memory_mb)}${if defined(memory_mb) then cpu else \"\"}${true=\")m\" false=\"\" defined(memory_mb)} \n          ${true=\"-l h_rt=\" false=\"\" defined(time)}${time}${true=\":00:00\" false=\"\" defined(time)}\n          ${true=\"-l s_rt=\" false=\"\" defined(time)}${time}${true=\":00:00\" false=\"\" defined(time)}\n          ${\"-q \" + sge_queue} \n          ${\"-l gpu=\" + gpu} \n          ${sge_extra_param} \n          -V\n        ",
+                        "runtime-attributes": RUNTIME_ATTRIBUTES,
+                        "submit": SUBMIT,
                         "exit-code-timeout-seconds": 180,
                         "kill": "qdel ${job_id}",
                         "check-alive": "qstat -j ${job_id}",
@@ -316,18 +394,13 @@ class CromwellerBackendSGE(dict):
         }
     }
 
-    def __init__(self,
-        pe=None,
-        queue=None,
-        extra_param=None,
-        concurrent_job_limit=None):
-
+    def __init__(self, pe=None, queue=None, extra_param=None,
+                 concurrent_job_limit=None):
         super(CromwellerBackendSGE, self).__init__(
             CromwellerBackendSGE.TEMPLATE)
-
         config = self['backend']['providers'][BACKEND_SGE]['config']
         key = 'default-runtime-attributes'
-        
+
         if pe is not None:
             config[key]['sge_pe'] = pe
         if queue is not None:
@@ -341,18 +414,49 @@ class CromwellerBackendSGE(dict):
 class CromwellerBackendPBS(dict):
     """PBS backend
     """
+    RUNTIME_ATTRIBUTES = """
+    String? docker
+    String? docker_user
+    Int cpu = 1
+    Int? gpu
+    Int? time
+    Int? memory_mb
+    String? pbs_queue
+    String? pbs_extra_param
+    String singularity
+    """
+    SUBMIT = """
+    echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
+    if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
+    singularity exec --cleanenv --home ${cwd} \
+    ${if defined(gpu) then '--nv' else ''} \
+    ${singularity} /bin/bash ${script}" | qsub \
+        -N ${job_name} \
+        -o ${out} \
+        -e ${err} \
+        ${true="-lselect=1:ncpus=" false="" defined(cpu)}${cpu}\
+${true=":mem=" false="" defined(memory_mb)}${memory_mb}\
+${true="mb" false="" defined(memory_mb)} \
+        ${true="-lwalltime=" false="" defined(time)}${time}\
+${true=":0:0" false="" defined(time)} \
+        ${true="-lngpus=" false="" gpu>1}${if gpu>1 then gpu else ""} \
+        ${"-q " + pbs_queue} \
+        ${pbs_extra_param} \
+        -V
+    """
     TEMPLATE = {
         "backend": {
             "providers": {
                 BACKEND_PBS: {
-                    "actor-factory": "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory",
+                    "actor-factory": "cromwell.backend.impl.sfs.config."
+                    "ConfigBackendLifecycleActorFactory",
                     "config": {
-                        "default-runtime-attributes" : {                            
+                        "default-runtime-attributes": {
                         },
                         "script-epilogue": "sleep 30 && sync",
                         "concurrent-job-limit": 1000,
-                        "runtime-attributes": "\n          String? docker\n          String? docker_user\n          Int cpu = 1\n          Int? gpu\n          Int? time\n          Int? memory_mb\n          String? pbs_queue\n          String? pbs_extra_param\n          String singularity\n        ",
-                        "submit": "\n          echo \"${if defined(singularity) then '' else '/bin/bash ${script} #'} if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; singularity exec --cleanenv --home ${cwd} ${if defined(gpu) then '--nv' else ''} ${singularity} /bin/bash ${script}\" | qsub \n          -N ${job_name} \n          -o ${out} \n          -e ${err} \n          ${true=\"-lselect=1:ncpus=\" false=\"\" defined(cpu)}${cpu}${true=\":mem=\" false=\"\" defined(memory_mb)}${memory_mb}${true=\"mb\" false=\"\" defined(memory_mb)} \n          ${true=\"-lwalltime=\" false=\"\" defined(time)}${time}${true=\":0:0\" false=\"\" defined(time)} \n          ${true=\"-lngpus=\" false=\"\" gpu>1}${if gpu>1 then gpu else \"\"} \n          ${\"-q \" + pbs_queue} \n          ${pbs_extra_param} \n          -V\n        ",
+                        "runtime-attributes": RUNTIME_ATTRIBUTES,
+                        "submit": SUBMIT,
                         "exit-code-timeout-seconds": 180,
                         "kill": "qdel ${job_id}",
                         "check-alive": "qstat -j ${job_id}",
@@ -363,16 +467,13 @@ class CromwellerBackendPBS(dict):
         }
     }
 
-    def __init__(self,
-        queue=None,
-        extra_param=None,
-        concurrent_job_limit=None):
-
+    def __init__(self, queue=None, extra_param=None,
+                 concurrent_job_limit=None):
         super(CromwellerBackendPBS, self).__init__(
             CromwellerBackendPBS.TEMPLATE)
         config = self['backend']['providers'][BACKEND_PBS]['config']
         key = 'default-runtime-attributes'
-        
+
         if queue is not None:
             config[key]['pbs_queue'] = queue
         if extra_param is not None:
@@ -383,6 +484,7 @@ class CromwellerBackendPBS(dict):
 
 def main():
     pass
+
 
 if __name__ == '__main__':
     main()
