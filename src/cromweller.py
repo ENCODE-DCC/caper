@@ -9,6 +9,9 @@ that Cromweller will use for your WDL.
 Example:
 #CROMWELLER docker quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
 #CROMWELLER singularity docker://quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
+
+Author:
+    Jin Lee (leepc12@gmail.com) at ENCODE-DCC
 """
 
 import argparse
@@ -30,17 +33,17 @@ from cromweller_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CromwellerBackendAWS, CromwellerBackendLocal, CromwellerBackendSLURM, \
     CromwellerBackendSGE, CromwellerBackendPBS
 
+__version__ = "v0.1.0"
 
 DEFAULT_CROMWELLER_CONF = '~/.cromweller/default.conf'
-DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases'\
-    '/download/38/cromwell-38.jar'
+DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/38/cromwell-38.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
 DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
 DEFAULT_MAX_CONCURRENT_TASKS = 1000
-DEFAULT_SERVER_PORT = 8000
-DEFAULT_SERVER_IP = 'localhost'
-DEFAULT_FORMAT = 'name,status,id,str_label,submit,start,end'
+DEFAULT_PORT = 8000
+DEFAULT_IP = 'localhost'
+DEFAULT_FORMAT = 'id,status,name,str_label,submission'
 
 
 def parse_cromweller_arguments():
@@ -57,10 +60,14 @@ def parse_cromweller_arguments():
 
     # read conf file if it exists
     defaults = {}
-    if known_args.conf and os.path.exists(known_args.conf):
-        config = ConfigParser()
-        config.read([known_args.conf])
-        defaults.update(dict(config.items("defaults")))
+    
+    if known_args.conf is not None:
+        # resolve tilde (~) in conf path
+        known_args.conf = os.path.expanduser(known_args.conf)        
+        if os.path.exists(known_args.conf):
+            config = ConfigParser()
+            config.read([known_args.conf])
+            defaults.update(dict(config.items("defaults")))
 
     parser = argparse.ArgumentParser(parents=[conf_parser])
     subparser = parser.add_subparsers(dest='action')
@@ -215,19 +222,16 @@ def parse_cromweller_arguments():
 
     group_sge = parent_submit.add_argument_group('SGE arguments')
     group_sge.add_argument(
-        '--sge-pe',
-        help='SGE parallel environment. Check with "qconf -spl"')
+        '--sge-pe', help='SGE parallel environment. Check with "qconf -spl"')
     group_sge.add_argument(
-        '--sge-queue',
-        help='SGE queue. Check with "qconf -sql"')
+        '--sge-queue', help='SGE queue. Check with "qconf -sql"')
     group_sge.add_argument(
         '--sge-extra-param',
         help='SGE extra parameters. Must be double-quoted')
 
     group_pbs = parent_submit.add_argument_group('PBS arguments')
     group_pbs.add_argument(
-        '--pbs-queue',
-        help='PBS queue')
+        '--pbs-queue', help='PBS queue')
     group_pbs.add_argument(
         '--pbs-extra-param',
         help='PBS extra parameters. Must be double-quoted')
@@ -235,60 +239,54 @@ def parse_cromweller_arguments():
     # list, metadata, abort
     parent_search_wf = argparse.ArgumentParser(add_help=False)
     parent_search_wf.add_argument(
-        'wf_id_or_label',
-        nargs='*',
+        'wf_id_or_label', nargs='*',
         help='List of workflow IDs to find matching workflows to '
              'commit a specified action (list, metadata and abort). '
              'Wildcards (* and ?) are allowed.')
 
     parent_server_client = argparse.ArgumentParser(add_help=False)
     parent_server_client.add_argument(
-        '--server-port',
-        default=DEFAULT_SERVER_PORT,
+        '-p', '--port', default=DEFAULT_PORT,
         help='Port for Cromweller server')
     parent_client = argparse.ArgumentParser(add_help=False)
     parent_client.add_argument(
-        '--server-ip',
-        default=DEFAULT_SERVER_IP,
+        '--ip', default=DEFAULT_IP,
         help='IP address for Cromweller server')
-    # parent_client.add_argument('--server-user',
-    #     help='Username for auth to connect to Cromwell server')
-    # parent_client.add_argument('--server-password',
-    #     help='Password for auth to connect to Cromwell server')
+    parent_client.add_argument('--user',
+        help='Username for HTTP auth to connect to Cromwell server')
+    parent_client.add_argument('--password',
+        help='Password for HTTP auth to connect to Cromwell server')
     parent_list = argparse.ArgumentParser(add_help=False)
     parent_list.add_argument(
-        '--format',
-        default=DEFAULT_FORMAT,
+        '-f', '--format', default=DEFAULT_FORMAT,
         help='Comma-separated list of items to be shown for "list" '
         'subcommand. Any key name in workflow JSON from Cromwell '
-        'server\'s response is allowed. There is a special key '
-        '"str_label". See help context of "--label" for details')
+        'server\'s response is allowed. '
+        'Available keys are "id" (workflow ID), "status", "str_label", '
+        '"name" (WDL/CWL name), "submission" (date/time), "start", "end". '
+        '"str_label" is a special key for Cromweller. See help context '
+        'of "--label" for details')
 
     p_run = subparser.add_parser(
-        'run',
-        help='Run a single workflow without server',
+        'run', help='Run a single workflow without server',
         parents=[parent_submit, parent_host, parent_backend])
     p_server = subparser.add_parser(
-        'server',
-        help='Run a Cromwell server',
+        'server', help='Run a Cromwell server',
         parents=[parent_server_client, parent_host, parent_backend])
     p_submit = subparser.add_parser(
-        'submit',
-        help='Submit a workflow to a Cromwell server',
+        'submit', help='Submit a workflow to a Cromwell server',
         parents=[parent_server_client, parent_client, parent_submit,
                  parent_backend])
     p_abort = subparser.add_parser(
-        'abort',
-        help='Abort workflows running/pending on a Cromwell server',
+        'abort', help='Abort running/pending workflows on a Cromwell server',
         parents=[parent_server_client, parent_client, parent_search_wf])
     p_list = subparser.add_parser(
-        'list',
-        help='List workflows running/pending on a Cromwell server',
+        'list', help='List running/pending workflows on a Cromwell server',
         parents=[parent_server_client, parent_client, parent_search_wf,
                  parent_list])
     p_metadata = subparser.add_parser(
         'metadata',
-        help='Retrieve metadata JSON for a workflow from a Cromwell server',
+        help='Retrieve metadata JSON for workflows from a Cromwell server',
         parents=[parent_server_client, parent_client, parent_search_wf])
 
     for p in [p_run, p_server, p_submit, p_abort, p_list, p_metadata]:
@@ -308,21 +306,17 @@ def parse_cromweller_arguments():
         args_d['out_dir'] = os.getcwd()
 
     if args_d.get('tmp_dir') is None:
-        args_d['tmp_dir'] = os.path.join(
-            args_d['out_dir'],
-            'cromweller_tmp')
+        args_d['tmp_dir'] = os.path.join(args_d['out_dir'], 'cromweller_tmp')
 
     if args_d.get('tmp_s3_bucket') is None:
         if args_d.get('out_s3_bucket'):
-            args_d['tmp_s3_bucket'] = os.path.join(
-                args_d['out_s3_bucket'],
-                'cromweller_tmp')
+            args_d['tmp_s3_bucket'] = os.path.join(args_d['out_s3_bucket'],
+                                                   'cromweller_tmp')
 
     if args_d.get('tmp_gcs_bucket') is None:
         if args_d.get('out_gcs_bucket'):
-            args_d['tmp_gcs_bucket'] = os.path.join(
-                args_d['out_gcs_bucket'],
-                'cromweller_tmp')
+            args_d['tmp_gcs_bucket'] = os.path.join(args_d['out_gcs_bucket'],
+                                                    'cromweller_tmp')
     return args_d
 
 
@@ -355,9 +349,9 @@ class Cromweller(object):
     DEFAULT_BACKEND = BACKEND_LOCAL
     RE_PATTERN_BACKEND_CONF_HEADER = r'^[\s]*include\s'
     RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CROMWELLER\s+docker\s(.+)'
-    RE_PATTERN_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CROMWELLER\s+'\
-        r'singularity\s(.+)'
+    RE_PATTERN_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CROMWELLER\s+singularity\s(.+)'
     RE_PATTERN_WORKFLOW_ID = r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
+    RE_PATTERN_FINISHED_WORKFLOW_ID = r'WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) is in a terminal state'
     RE_PATTERN_VALID_LABEL = r'^[A-Za-z0-9\-\_]+$'
     DEEPCOPY_EXTS_IN_INPUT_JSON = ('.json', '.tsv', '.csv')
     SEC_INTERVAL_CHK_WORKFLOW_DONE = 60.0
@@ -366,11 +360,9 @@ class Cromweller(object):
         """Initializes from args dict
         """
         # init REST API
-        self._server_port = args.get('server_port')
+        self._port = args.get('port')
         self._cromwell_rest_api = CromwellRestAPI(
-            server_ip=args.get('server_ip'),
-            server_port=self._server_port,
-            verbose=False)
+            ip=args.get('ip'), port=self._port, verbose=False)
 
         # init others
         self._format = args.get('format')
@@ -438,7 +430,9 @@ class Cromweller(object):
         #   place it on the tmp dir
         metadata_file = os.path.join(tmp_dir, 'metadata.json')
 
-        cmd = ['java', '-jar', '-Dconfig.file={}'.format(backend_file),
+        # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
+        cmd = ['java', '-DLOG_LEVEL=INFO', '-jar',
+               '-Dconfig.file={}'.format(backend_file),
                CromwellerURI(self._cromwell).get_local_file(), 'run',
                CromwellerURI(self._wdl).get_local_file(), '-i', input_file,
                '-o', workflow_opts_file, '-m', metadata_file]
@@ -458,23 +452,37 @@ class Cromweller(object):
             workflow_id = None
             rc = None
             while p.poll() is None:
-                stdout = p.stdout.readline().strip()
+                stdout = p.stdout.readline().strip('\n')
+                # find workflow id from STDOUT
                 if workflow_id is None:
-                    workflow_id = \
-                        Cromweller.__get_workflow_id_from_cromwell_stdout(
+                    wf_ids_with_status = \
+                        Cromweller.__get_workflow_ids_from_cromwell_stdout(
                             stdout)
+                    for wf_id, status in wf_ids_with_status:
+                        if status == 'submitted' or status == 'finished':
+                            workflow_id = wf_id
+                            break
                 print(stdout)
             rc = p.poll()
         except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
             while p.poll() is None:
-                stdout = p.stdout.readline().strip()
+                stdout = p.stdout.readline().strip('\n')
                 print(stdout)
 
-        target_metadata_file = self.__move_metadata_file(
-            metadata_file, workflow_id)
-        print('[Cromweller] run: ', rc, workflow_id, target_metadata_file)
+        # move metadata Json file to workflow's output directory
+        if workflow_id is not None and os.path.exists(metadata_file):
+            metadata_uri = os.path.join(
+                self.__get_workflow_output_dir(workflow_id),
+                'metadata.json')
+            with open(metadata_file, 'r') as fp:
+                CromwellerURI(metadata_uri).write_str_to_file(fp.read())
+            os.remove(metadata_file)
+        else:
+            metadata_uri = None
+
+        print('[Cromweller] run: ', rc, workflow_id, metadata_uri)
         return workflow_id
 
     def server(self):
@@ -482,41 +490,70 @@ class Cromweller(object):
         """
         tmp_dir = self.__mkdir_tmp_dir()
         backend_file = self.__create_backend_conf_file(tmp_dir)
-
-        cmd = ['java', '-jar', '-Dconfig.file={}'.format(backend_file),
+        # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
+        cmd = ['java', '-DLOG_LEVEL=INFO', '-jar',
+               '-Dconfig.file={}'.format(backend_file),
                CromwellerURI(self._cromwell).get_local_file(), 'server']
         print('[Cromweller] cmd: ', cmd)
 
+        # pending/running workflows
         workflow_ids = set()
-        completed_workflow_ids = set()
+        # completed, aborted or terminated workflows
+        finished_workflow_ids = set()
         try:
             p = Popen(cmd, stdout=PIPE, universal_newlines=True)
             rc = None
-            t0 = time.clock()
+            # tickcount
+            t0 = time.perf_counter() 
 
             while p.poll() is None:
-                stdout = p.stdout.readline().strip()
-                workflow_id = \
-                    Cromweller.__get_workflow_id_from_cromwell_stdout(stdout)
-                if workflow_id is not None and workflow_id not in workflow_ids:
-                    workflow_ids.add(workflow_id)
+                stdout = p.stdout.readline().strip('\n')
+
+                # find workflow id from STDOUT
+                wf_ids_with_status = \
+                    Cromweller.__get_workflow_ids_from_cromwell_stdout(stdout)
+                for wf_id, status in wf_ids_with_status:
+                    if status == 'submitted':
+                        workflow_ids.add(wf_id)
+                    elif status == 'finished':
+                        finished_workflow_ids.add(wf_id)
                 print(stdout)
 
-                # # write metadata.json for running workflows
-                # if (time.clock() - t0) > \
-                #     Cromweller.MS_INTERVAL_CHK_WORKFLOW_DONE:
-                #     t0 = time.clock()
+                # write metadata.json for running/just-finished workflows
+                t1 = time.perf_counter()
+                if (t1 - t0) > \
+                    Cromweller.SEC_INTERVAL_CHK_WORKFLOW_DONE:
+                    t0 = t1
+                    # check if any submitted workflow finished
+                    wfs_to_req_metadata = set()
+                    for wf_id in finished_workflow_ids:
+                        if wf_id in workflow_ids:
+                            wfs_to_req_metadata.add(wf_id)
+                            workflow_ids.remove(wf_id)
+                    for wf_id in workflow_ids:
+                        wfs_to_req_metadata.add(wf_id)
+                    # get metadata for running/just-finished workflows
+                    metadata = self._cromwell_rest_api.get_metadata(wfs_to_req_metadata)
+                    # for m in metadata:
+                    #     wf_id = m['id']
 
-                #     for wf_id in workflow_ids:
-                #         if wf_id in completed_workflow_ids:
-                #             continue
-                #         wf_id
+
+                #     # move metadata Json file
+                #     if workflow_id is not None and os.path.exists(metadata_file):
+                #         metadata_uri = os.path.join(
+                #             self.__get_workflow_output_dir(workflow_id),
+                #             'metadata.json')
+                #         with open(metadata_file, 'r') as fp:
+                #             CromwellerURI(uri).write_str_to_file(fp.read())
+                #         os.remove(metadata_file)
+                #     else:
+                #         metadata_uri = None
 
         except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
             while p.poll() is None:
-                stdout = p.stdout.readline().strip()
+                stdout = p.stdout.readline().strip('\n')
                 print(stdout)
         print('[Cromweller] server: ', rc, workflow_ids)
         return workflow_ids
@@ -548,20 +585,19 @@ class Cromweller(object):
             inputs_file=input_file,
             options_file=workflow_opts_file,
             str_label=self._label)
-        print("submit: ", r)
+        print("[Cromweller] submit: ", r)
         return r
 
     def abort(self):
-        """Send Cromwell server a request to abort running/pending
-        workflows
+        """Abort running/pending workflows on a Cromwell server
         """
         r = self._cromwell_rest_api.abort(self._wf_id_or_label,
                                           self._wf_id_or_label)
-        print("abort: ", r)
+        print("[Cromweller] abort: ", r)
         return r
 
     def metadata(self):
-        """Retriive metadata for a workflow from Cromwell server
+        """Retrieve metadata for workflows from a Cromwell server
         """
         m = self._cromwell_rest_api.get_metadata(self._wf_id_or_label,
                                                  self._wf_id_or_label)
@@ -569,10 +605,18 @@ class Cromweller(object):
         return m
 
     def list(self):
-        """Get list of running/pending workflows from Cromwell server
+        """Get list of running/pending workflows from a Cromwell server
         """
-        workflows = self._cromwell_rest_api.find(self._wf_id_or_label,
-                                                 self._wf_id_or_label)
+        # if not argument, list all workflows using wildcard (*)
+        if self._wf_id_or_label is None or len(self._wf_id_or_label) == 0:
+            workflow_ids = ['*']
+            str_labels = ['*']
+        else:
+            workflow_ids = self._wf_id_or_label
+            str_labels = self._wf_id_or_label
+        workflows = self._cromwell_rest_api.find(
+            workflow_ids=workflow_ids,
+            str_labels=str_labels)
         formats = self._format.split(',')
         print('\t'.join(formats))
 
@@ -583,25 +627,14 @@ class Cromweller(object):
             workflow_id = w['id'] if 'id' in w else None
             for f in formats:
                 if f == 'workflow_id':
-                    row.append(workflow_id)
+                    row.append(str(workflow_id))
                 elif f == 'str_label':
-                    lbl = self.__cromwell_rest_api.get_str_label(workflow_id)
-                    row.append(lbl)
+                    lbl = self._cromwell_rest_api.get_str_label(workflow_id)
+                    row.append(str(lbl))
                 else:
-                    row.append(w[f] if f in w else None)
+                    row.append(str(w[f] if f in w else None))
             print('\t'.join(row))
         return workflows
-
-    def __move_metadata_file(self, metadata_file, workflow_id):
-        if workflow_id is None or not os.path.exists(metadata_file):
-            return None
-        uri = os.path.join(
-            self.__get_workflow_output_dir(workflow_id),
-            'metadata.json')
-        with open(metadata_file, 'r') as fp:
-            CromwellerURI(uri).write_str_to_file(fp.read())
-        os.remove(metadata_file)
-        return uri
 
     def __create_backend_conf_file(self, directory, fname='backend.conf'):
         """Creates Cromwell's backend conf file
@@ -716,7 +749,7 @@ class Cromweller(object):
             template['default_runtime_attributes']['sge_pe'] = \
                 self._sge_pe
         if self._sge_queue is not None:
-            template['default-runtime-attributes']['sge_queue'] = \
+            template['default_runtime_attributes']['sge_queue'] = \
                 self._sge_queue
         if self._sge_extra_param is not None:
             template['default_runtime_attributes']['sge_extra_param'] = \
@@ -733,6 +766,7 @@ class Cromweller(object):
         workflow_opts_file = os.path.join(directory, fname)
         with open(workflow_opts_file, 'w') as fp:
             fp.write(json.dumps(template, indent=4))
+            fp.write('\n')
 
         return workflow_opts_file
 
@@ -780,7 +814,7 @@ class Cromweller(object):
         merge_dict(
             backend_dict,
             CromwellerBackendCommon(
-                port=self._server_port,
+                port=self._port,
                 use_call_caching=self._use_call_caching,
                 max_concurrent_workflows=self._max_concurrent_workflows))
 
@@ -918,12 +952,16 @@ class Cromweller(object):
             return None
 
     @staticmethod
-    def __get_workflow_id_from_cromwell_stdout(stdout):
+    def __get_workflow_ids_from_cromwell_stdout(stdout):
+        result = []
         for line in stdout.split('\n'):
-            r = re.findall(Cromweller.RE_PATTERN_WORKFLOW_ID, line)
-            if len(r) > 0:
-                return r[0].strip()
-        return None
+            r1 = re.findall(Cromweller.RE_PATTERN_WORKFLOW_ID, line)
+            if len(r1) > 0:
+                result.append((r1[0].strip(), 'submitted'))
+            r2 = re.findall(Cromweller.RE_PATTERN_FINISHED_WORKFLOW_ID, line)
+            if len(r2) > 0:
+                result.append((r2[0].strip(), 'finished'))
+        return result
 
     @staticmethod
     def __get_time_str():

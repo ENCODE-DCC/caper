@@ -66,7 +66,8 @@ class CromwellerBackendMySQL(dict):
                 "rewriteBatchedStatements=true",
                 "user": "cromwell",
                 "password": "cromwell",
-                "driver": "com.mysql.jdbc.Driver"
+                "driver": "com.mysql.cj.jdbc.Driver",
+                "connectionTimeout": 5000
             }
         }
     }
@@ -77,8 +78,8 @@ class CromwellerBackendMySQL(dict):
         db = self['database']['db']
         db['user'] = user
         db['password'] = password
-        db['url'] = db['url'].replace(
-            'localhost:3306', '{ip}:{port}'.format(ip, port))
+        db['url'] = db['url'].replace('localhost:3306', '{ip}:{port}'.format(
+            ip=ip, port=port))
 
 
 class CromwellerBackendGCP(dict):

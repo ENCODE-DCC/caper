@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Cromweller URI
+"""CromwellerURI: Easy transfer between cloud/local storages
+
+Author:
+    Jin Lee (leepc12@gmail.com) at ENCODE-DCC
 """
 
 import os
@@ -149,8 +152,9 @@ class CromwellerURI(object):
         if uri_type == self._uri_type:
             return self._uri
         if CromwellerURI.VERBOSE:
-            print('copy from {src} to {target}, file: {uri}'.format(
-                src=self._uri_type, target=uri_type, uri=self._uri))
+            print('[CromwellerURI] copying from {src} to {target}, '
+                'file: {uri}'.format(src=self._uri_type, target=uri_type,
+                                     uri=self._uri))
 
         path = None
         if uri_type == URI_URL:
@@ -164,8 +168,6 @@ class CromwellerURI(object):
         elif uri_type == URI_GCS:
             path = self.__get_gcs_file_name()
             if self._uri_type == URI_URL:
-                if CromwellerURI.VERBOSE:
-                    print('copy (URL to GCS): ', self._uri, path)
                 ps = Popen(
                     ['curl', '-u',
                      '{}:{}'.format(CromwellerURI.HTTP_USER,
@@ -238,7 +240,7 @@ class CromwellerURI(object):
         """Get file contents
         """
         if CromwellerURI.VERBOSE:
-            print('read from {src}, file: {uri}'.format(
+            print('[CromwellerURI] read from {src}, file: {uri}'.format(
                 src=self._uri_type, uri=self._uri))
 
         if self._uri_type == URI_URL:
@@ -265,7 +267,7 @@ class CromwellerURI(object):
 
     def write_str_to_file(self, s):
         if CromwellerURI.VERBOSE:
-            print('write to {src}, file: {uri}, size: {size}'.format(
+            print('[CromwellerURI] write to {src}, file: {uri}, size: {size}'.format(
                 src=self._uri_type, uri=self._uri, size=len(s)))
 
         if self._uri_type == URI_LOCAL:
@@ -380,8 +382,8 @@ class CromwellerURI(object):
                 if c.can_deepcopy() and c.uri_type != uri_type:
                     updated = True
                     if CromwellerURI.VERBOSE:
-                        print('deepcopy_tsv from {src} to {target}, file: {uri}'
-                              ', tsv: {uri2}'.format(
+                        print('[CromwellerURI] deepcopy_tsv from {src} to {target}, '
+                            'file: {uri}, tsv: {uri2}'.format(
                                 src=c.uri_type, target=uri_type,
                                 uri=c.uri, uri2=self._uri))
                     # copy file to target storage
@@ -425,7 +427,7 @@ class CromwellerURI(object):
                 c = CromwellerURI(v)
                 if c.can_deepcopy() and c.uri_type != uri_type:
                     if CromwellerURI.VERBOSE:
-                        print('deepcopy_json from {src} to {target}, '
+                        print('[CromwellerURI] deepcopy_json from {src} to {target}, '
                               'file: {uri}, json: {uri2}'.format(
                                 src=c.uri_type, target=uri_type,
                                 uri=c.uri, uri2=self._uri))

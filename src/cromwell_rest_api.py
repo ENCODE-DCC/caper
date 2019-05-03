@@ -6,6 +6,8 @@ import requests
 import io
 import fnmatch
 import json
+import sys
+# import traceback
 
 
 class CromwellRestAPI(object):
@@ -17,14 +19,14 @@ class CromwellRestAPI(object):
     ENDPOINT_SUBMIT = '/api/workflows/v1'
     KEY_LABEL = 'cromwell_rest_api_label'
 
-    def __init__(self, server_ip='localhost', server_port=8000,
-                 server_user=None, server_password=None, verbose=False):
+    def __init__(self, ip='localhost', port=8000,
+                 user=None, password=None, verbose=False):
         self._verbose = verbose
-        self._server_ip = server_ip
-        self._server_port = server_port
+        self._ip = ip
+        self._port = port
 
-        self._server_user = server_user
-        self._server_password = server_password
+        self._user = user
+        self._password = password
         self.__init_auth()
 
     def submit(self, source, dependencies=None,
@@ -57,7 +59,7 @@ class CromwellRestAPI(object):
                     key=CromwellRestAPI.KEY_LABEL, val=str_label))
         r = self.__query_post(CromwellRestAPI.ENDPOINT_SUBMIT, manifest)
         if self._verbose:
-            print('[CromwellRestAPI] submit: ', r)
+            print("CromwellRestAPI.submit: ", r)
         return r
 
     def abort(self, workflow_ids=None, str_labels=None):
@@ -77,7 +79,7 @@ class CromwellRestAPI(object):
                     wf_id=w['id']))
             result.append(r)
         if self._verbose:
-            print('[CromwellRestAPI] abort: ', result)
+            print("CromwellRestAPI.abort: ", result)
         return result
 
     def get_metadata(self, workflow_ids=None, str_labels=None):
@@ -122,8 +124,11 @@ class CromwellRestAPI(object):
         Returns:
             List of matched workflow JSONs
         """
-        workflows = self.__query_get(
-            CromwellRestAPI.ENDPOINT_WORKFLOWS)['results']
+        r = self.__query_get(
+            CromwellRestAPI.ENDPOINT_WORKFLOWS)
+        if r is None:
+            return None
+        workflows = r['results']
         if workflows is None:
             return None
         matched = set()
@@ -137,7 +142,7 @@ class CromwellRestAPI(object):
                         matched.add(w['id'])
             if str_labels is not None and s is not None:
                 for str_label in str_labels:
-                    if fnmatch.fnmatchcase(s, str_labels):
+                    if fnmatch.fnmatchcase(s, str_label):
                         matched.add(w['id'])
         result = []
         for w in workflows:
@@ -146,14 +151,14 @@ class CromwellRestAPI(object):
             if w['id'] in matched:
                 result.append(w)
         if self._verbose:
-            print('[CromwellRestAPI] find: ', result)
+            print('CromwellRestAPI.find: ', result)
         return result
 
     def __init_auth(self):
         """Init auth object
         """
-        if self._server_user is not None and self._server_password is not None:
-            self._auth = (self._server_user, self._server_password)
+        if self._user is not None and self._password is not None:
+            self._auth = (self._user, self._password)
         else:
             self._auth = None
 
@@ -179,15 +184,21 @@ class CromwellRestAPI(object):
             JSON response
         """
         url = CromwellRestAPI.QUERY_URL.format(
-                ip=self._server_ip,
-                port=self._server_port) + endpoint
-        resp = requests.get(url, headers={'accept': 'application/json'},
-                            auth=self._auth)
+                ip=self._ip,
+                port=self._port) + endpoint
+        try:
+            resp = requests.get(url, headers={'accept': 'application/json'},
+                                auth=self._auth)
+        except Exception as e:
+            # traceback.print_exc()
+            print(e)
+            sys.exit(1)
+
         if resp.ok:
             return resp.json()
         else:
-            print('[CromwellRestAPI] HTTP GET error: ', resp.status_code,
-                  resp.content, url)
+            print("HTTP GET error: ", resp.status_code, resp.content,
+                  url)
             return None
 
     def __query_post(self, endpoint, manifest=None):
@@ -197,15 +208,21 @@ class CromwellRestAPI(object):
             JSON response
         """
         url = CromwellRestAPI.QUERY_URL.format(
-                ip=self._server_ip,
-                port=self._server_port) + endpoint
-        resp = requests.post(url, headers={'accept': 'application/json'},
-                             files=manifest, auth=self._auth)
+                ip=self._ip,
+                port=self._port) + endpoint
+        try:
+            resp = requests.post(url, headers={'accept': 'application/json'},
+                                 files=manifest, auth=self._auth)
+        except Exception as e:
+            # traceback.print_exc()
+            print(e)
+            sys.exit(1)
+
         if resp.ok:
             return resp.json()
         else:
-            print('[CromwellRestAPI] HTTP Post error: ', resp.status_code,
-                  resp.content, url, manifest)
+            print("HTTP Post error: ", resp.status_code, resp.content, 
+                  url, manifest)
             return None
 
     @staticmethod
