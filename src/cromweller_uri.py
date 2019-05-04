@@ -194,15 +194,16 @@ class CromwellerURI(object):
                     check_call(['gsutil', 'cp', '-n', '-', path],
                                stdin=ps.stdout)
                 else:
-                    check_call(['aws', 's3', 'cp', '--only-show-errors',
-                                '-', path],
+                    if not CromwellerURI.__file_exists(path):
+                        check_call(['aws', 's3', 'cp', '--only-show-errors',
+                                    '-', path],
                                stdin=ps.stdout)
             elif self._uri_type == URI_GCS:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
             elif self._uri_type == URI_LOCAL:
                 if CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
                     check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
-                else:
+                elif not CromwellerURI.__file_exists(path):
                     check_call(['aws', 's3', 'cp', '--only-show-errors',
                                 self._uri, path])
             else:
@@ -222,8 +223,9 @@ class CromwellerURI(object):
                     CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
             elif self._uri_type == URI_S3:
-                check_call(['aws', 's3', 'cp', '--only-show-errors',
-                            self._uri, path])
+                if not CromwellerURI.__file_exists(path):
+                    check_call(['aws', 's3', 'cp', '--only-show-errors',
+                                self._uri, path])
             else:
                 path = None
 
