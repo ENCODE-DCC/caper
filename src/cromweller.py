@@ -741,7 +741,7 @@ class Cromweller(object):
         docker_from_wdl = self.__find_docker_from_wdl()
         # automatically add docker_from_wdl for cloud backend
         if docker_from_wdl is not None \
-            and self._backend in (BACKEND_GCP, BACKEND_AWS):
+                and self._backend in (BACKEND_GCP, BACKEND_AWS):
             template['default_runtime_attributes']['docker'] = docker_from_wdl
         elif self._use_docker:
             if self._docker is None:
@@ -856,7 +856,6 @@ class Cromweller(object):
             CromwellerBackendLocal(
                 out_dir=self._out_dir,
                 concurrent_job_limit=self._max_concurrent_tasks))
-
         # GC
         if self._gc_project is not None and self._out_gcs_bucket is not None:
             merge_dict(
@@ -865,10 +864,9 @@ class Cromweller(object):
                     gc_project=self._gc_project,
                     out_gcs_bucket=self._out_gcs_bucket,
                     concurrent_job_limit=self._max_concurrent_tasks))
-
         # AWS
         if self._aws_batch_arn is not None and self._aws_region is not None \
-            and self._out_s3_bucket is not None:
+                and self._out_s3_bucket is not None:
             merge_dict(
                 backend_dict,
                 CromwellerBackendAWS(
@@ -876,7 +874,6 @@ class Cromweller(object):
                     aws_region=self._aws_region,
                     out_s3_bucket=self._out_s3_bucket,
                     concurrent_job_limit=self._max_concurrent_tasks))
-
         # SLURM
         merge_dict(
             backend_dict,
@@ -885,7 +882,6 @@ class Cromweller(object):
                 account=self._slurm_account,
                 extra_param=self._slurm_extra_param,
                 concurrent_job_limit=self._max_concurrent_tasks))
-
         # SGE
         merge_dict(
             backend_dict,
