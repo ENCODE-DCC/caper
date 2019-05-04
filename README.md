@@ -52,7 +52,7 @@ optional arguments:
 	$ gcloud auth application-default --no-launch-browser
 	```
 
-* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html: Run the followings to configure AWS CLI:
+* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html): Run the followings to configure AWS CLI:
 	```bash
 	$ aws configure
 	```
