@@ -401,6 +401,8 @@ class Cromweller(object):
         self._inputs = args.get('inputs')
         self._cromwell = args.get('cromwell')
         self._backend = args.get('backend')
+        if self._backend is not None and self._backend == 'local':
+            self._backend = BACKEND_LOCAL # Local (capital L)
         self._workflow_opts = args.get('options')
         self._label = args.get('label')
 
