@@ -1,7 +1,8 @@
 # Cromweller
-Cromwell/WDL wrapper python package based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aws s3`).
+Cromwell wrapper based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aws s3`).
 
 # Installation
+Use `pip` to install it.
 
 ```bash
 $ pip install cromweller
@@ -30,7 +31,7 @@ optional arguments:
 
 # Requirements
 
-* `python3` >= 3.7, `java` >= 1.8, `pip3`, `wget` and `curl`
+* `python` >= 3.3, `java` >= 1.8, `pip3`, `wget` and `curl`
 	Debian:
 	```bash
 	$ sudo apt-get install python3 jre-default python3-pip wget curl
@@ -56,8 +57,13 @@ optional arguments:
 	$ aws configure
 	```
 
+## Python compatibility
+`python` >= 3.3 due to `time.perf_counter()` and `os.path.makedirs(exist_ok=True)`.
+
 # Cromwell
+
+Cromweller is a wrapper for Cromwell and internally runs Cromwell server/run mode.
 
 ## Security
 
-See [this](https://cromwell.readthedocs.io/en/develop/developers/Security/) for details.
+Before running a Cromwell server. See [this](https://cromwell.readthedocs.io/en/develop/developers/Security/) for details.

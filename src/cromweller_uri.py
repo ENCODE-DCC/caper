@@ -30,8 +30,10 @@ def init_cromweller_uri(tmp_dir, tmp_s3_bucket=None, tmp_gcs_bucket=None,
     CromwellerURI.TMP_DIR = path.rstrip('/') + '/'
     if tmp_s3_bucket is not None:
         CromwellerURI.TMP_S3_BUCKET = tmp_s3_bucket.rstrip('/') + '/'
+        assert(CromwellerURI.TMP_S3_BUCKET.startswith('s3://'))
     if tmp_gcs_bucket is not None:
         CromwellerURI.TMP_GCS_BUCKET = tmp_gcs_bucket.rstrip('/') + '/'
+        assert(CromwellerURI.TMP_GCS_BUCKET.startswith('gs://'))
     CromwellerURI.HTTP_USER = http_user
     CromwellerURI.HTTP_PASSWORD = http_password
     CromwellerURI.USE_GSUTIL_OVER_AWS_S3 = use_gsutil_over_aws_s3
@@ -229,7 +231,7 @@ class CromwellerURI(object):
             raise NotImplementedError('uri_type: {}'.format(uri_type))
 
         if path is None:
-            raise NotImplementedError('uri_type: {}, {}'.format(
+            raise NotImplementedError('uri_types: {}, {}'.format(
                 self._uri_type, uri_type))
 
         if CromwellerURI.VERBOSE:
@@ -284,8 +286,7 @@ class CromwellerURI(object):
             run(['aws', 's3', 'cp', '--only-show-errors', '-',
                  self._uri], input=s, encoding='ascii')
         else:
-            raise NotImplementedError('uri_type: {}'.format(
-                self._uri_type))
+            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
         return self
 
     def __get_rel_uri(self):
@@ -319,8 +320,7 @@ class CromwellerURI(object):
         elif self._uri_type == URI_URL:
             rel_uri = os.path.basename(self._uri)
         else:
-            raise NotImplementedError('uri_type: {}'.format(
-                self._uri_type))
+            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
         return rel_uri
 
     def __get_local_file_name(self):
@@ -330,8 +330,7 @@ class CromwellerURI(object):
         elif self._uri_type in (URI_GCS, URI_S3, URI_URL):
             return os.path.join(CromwellerURI.TMP_DIR, self.__get_rel_uri())
         else:
-            raise NotImplementedError('uri_type: {}'.format(
-                self._uri_type))
+            raise NotImplementedError('uri_type: {}'.format(self._uri_type))
 
     def __get_gcs_file_name(self):
         if self._uri_type == URI_GCS:
@@ -387,7 +386,7 @@ class CromwellerURI(object):
                     updated = True
                     if CromwellerURI.VERBOSE:
                         print('[CromwellerURI] deepcopy_tsv from {src} to {target}, '
-                            'file: {uri}, tsv: {uri2}'.format(
+                            'src: {uri}, tsv: {uri2}'.format(
                                 src=c._uri_type, target=uri_type,
                                 uri=c._uri, uri2=self._uri))
                     # copy file to target storage
@@ -399,9 +398,8 @@ class CromwellerURI(object):
             new_contents.append(delim.join(new_values))
 
         if updated:
-            new_uri = '{prefix}.{uri_type}.json'.format(
-                prefix=fname_wo_ext,
-                uri_type=uri_type)
+            new_uri = '{prefix}.{uri_type}{ext}'.format(
+                prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
             return CromwellerURI(new_uri).write_str_to_file(
                 '\n'.join(new_contents))
         else:
@@ -431,7 +429,7 @@ class CromwellerURI(object):
                 if c.can_deepcopy() and c.uri_type != uri_type:
                     if CromwellerURI.VERBOSE:
                         print('[CromwellerURI] deepcopy_json from {src} to {target}, '
-                              'file: {uri}, json: {uri2}'.format(
+                              'src: {uri}, json: {uri2}'.format(
                                 src=c._uri_type, target=uri_type,
                                 uri=c._uri, uri2=self._uri))
                     new_file = c.deepcopy(
@@ -452,9 +450,8 @@ class CromwellerURI(object):
         updated = recurse_dict(new_d, uri_type)
 
         if updated:
-            new_uri = '{prefix}.{uri_type}.json'.format(
-                prefix=fname_wo_ext,
-                uri_type=uri_type)
+            new_uri = '{prefix}.{uri_type}{ext}'.format(
+                prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
             j = json.dumps(new_d, indent=4)
             return CromwellerURI(new_uri).write_str_to_file(j)
         else:

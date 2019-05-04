@@ -45,7 +45,7 @@ DEFAULT_MAX_CONCURRENT_TASKS = 1000
 DEFAULT_PORT = 8000
 DEFAULT_IP = 'localhost'
 DEFAULT_FORMAT = 'id,status,name,str_label,submission'
-
+DEFAULT_DEEPCOPY_EXT = 'json,tsv'
 
 def parse_cromweller_arguments():
     """Argument parser for Cromweller
@@ -187,6 +187,9 @@ def parse_cromweller_arguments():
              'and make copies of files on a local/remote storage '
              'for a target backend. Make sure that you have installed '
              'gsutil for GCS and aws for S3.')
+    parent_submit.add_argument(
+        '--deepcopy-ext', default=DEFAULT_DEEPCOPY_EXT,
+        help='Comma-separated list of file extensions to be deepcopied')
 
     group_dep = parent_submit.add_argument_group(
         title='dependency resolver for all backends',
@@ -359,7 +362,6 @@ class Cromweller(object):
     RE_PATTERN_WORKFLOW_ID = r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
     RE_PATTERN_FINISHED_WORKFLOW_ID = r'WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) is in a terminal state'
     RE_PATTERN_VALID_LABEL = r'^[A-Za-z0-9\-\_]+$'
-    DEEPCOPY_EXTS_IN_INPUT_JSON = ('.json', '.tsv', '.csv')
     SEC_INTERVAL_CHK_WORKFLOW_DONE = 60.0
 
     def __init__(self, args):
@@ -399,9 +401,15 @@ class Cromweller(object):
         self._inputs = args.get('inputs')
         self._cromwell = args.get('cromwell')
         self._backend = args.get('backend')
-        self._deepcopy = args.get('deepcopy')
         self._workflow_opts = args.get('options')
         self._label = args.get('label')
+
+        # deepcopy
+        self._deepcopy = args.get('deepcopy')
+        self._deepcopy_ext = args.get('deepcopy_ext')
+        if self._deepcopy_ext is not None:
+            self._deepcopy_ext = [
+                '.'+ext for ext in self._deepcopy_ext.split(',')]
 
         # containers
         self._use_singularity = args.get('use_singularity')
@@ -674,8 +682,7 @@ class Cromweller(object):
         """
         if self._inputs is not None:
             c = CromwellerURI(self._inputs)
-
-            if self._deepcopy:
+            if self._deepcopy and self._deepcopy_ext:
                 # deepcopy all files in JSON/TSV/CSV
                 #   to the target backend
                 if self._backend == BACKEND_GCP:
@@ -684,12 +691,7 @@ class Cromweller(object):
                     uri_type = URI_S3
                 else:
                     uri_type = URI_LOCAL
-                uri_exts = Cromweller.DEEPCOPY_EXTS_IN_INPUT_JSON
-
-                c = c.deepcopy(
-                    uri_type=uri_type,
-                    uri_exts=uri_exts)
-
+                c = c.deepcopy(uri_type=uri_type, uri_exts=self._deepcopy_ext)
             return c.get_local_file()
         else:
             input_file = os.path.join(directory, fname)
@@ -737,9 +739,8 @@ class Cromweller(object):
                 docker = self.__find_docker_from_wdl()
             else:
                 docker = self._docker
-            if docker is not None:
-                template['default_runtime_attributes']['docker'] = \
-                    docker
+            assert(docker is not None)
+            template['default_runtime_attributes']['docker'] = docker
 
         elif self._use_singularity:
             if self._singularity is None:
@@ -957,14 +958,15 @@ class Cromweller(object):
             out_dir = self._out_aws_bucket
         else:
             out_dir = self._out_dir
-        print(out_dir, self._backend, self._out_gcs_bucket)
 
         wdl = self.__get_wdl_basename()        
         if wdl is None:
             path = os.path.join(out_dir, workflow_id)
         else:
             path = os.path.join(out_dir, os.path.basename(wdl), workflow_id)
-        os.makedirs(path, exist_ok=True)
+
+        if self._backend not in (BACKEND_GCP, BACKEND_AWS):
+            os.makedirs(path, exist_ok=True)
         return path
 
     def __get_wdl_basename(self):
