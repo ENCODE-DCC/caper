@@ -733,7 +733,7 @@ class Cromweller(object):
         }
 
         if self._backend is not None:
-            template['default_runtime_attributes']['backend'] = \
+            template['backend'] = \
                 self._backend
 
         # find docker/singularity from WDL or command line args
