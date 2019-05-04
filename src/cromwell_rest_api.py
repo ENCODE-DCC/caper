@@ -71,7 +71,7 @@ class CromwellRestAPI(object):
         """
         workflows = self.find(workflow_ids, str_labels)
         if workflows is None:
-            return None        
+            return None
         result = []
         for w in workflows:
             r = self.__query_post(
@@ -90,7 +90,7 @@ class CromwellRestAPI(object):
         """
         workflows = self.find(workflow_ids, str_labels)
         if workflows is None:
-            return None        
+            return None
         result = []
         for w in workflows:
             m = self.__query_get(
@@ -221,7 +221,7 @@ class CromwellRestAPI(object):
         if resp.ok:
             return resp.json()
         else:
-            print("HTTP Post error: ", resp.status_code, resp.content, 
+            print("HTTP Post error: ", resp.status_code, resp.content,
                   url, manifest)
             return None
 

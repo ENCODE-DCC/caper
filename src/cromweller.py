@@ -18,7 +18,6 @@ import argparse
 from configparser import ConfigParser
 from pyhocon import ConfigFactory, HOCONConverter
 import os
-import stat
 import sys
 import json
 import re
@@ -47,6 +46,7 @@ DEFAULT_IP = 'localhost'
 DEFAULT_FORMAT = 'id,status,name,str_label,submission'
 DEFAULT_DEEPCOPY_EXT = 'json,tsv'
 
+
 def parse_cromweller_arguments():
     """Argument parser for Cromweller
     """
@@ -61,10 +61,10 @@ def parse_cromweller_arguments():
 
     # read conf file if it exists
     defaults = {}
-    
+
     if known_args.conf is not None:
         # resolve tilde (~) in conf path
-        known_args.conf = os.path.expanduser(known_args.conf)        
+        known_args.conf = os.path.expanduser(known_args.conf)
         if os.path.exists(known_args.conf):
             config = ConfigParser()
             config.read([known_args.conf])
@@ -119,8 +119,8 @@ def parse_cromweller_arguments():
     # group_cromwell.add_argument(
     #     '--keep-temp-backend-file', action='store_true',
     #     help='Keep backend.conf file in a temporary directory. '
-    #     '(SECURITY WARNING) MySQL database username/password will be exposed '
-    #     'in the temporary backend.conf file')
+    #     '(SECURITY WARNING) MySQL database username/password will be '
+    #     'exposed in the temporary backend.conf file')
 
     group_local = parent_host.add_argument_group(
         title='local backend arguments')
@@ -261,9 +261,11 @@ def parse_cromweller_arguments():
     parent_client.add_argument(
         '--ip', default=DEFAULT_IP,
         help='IP address for Cromweller server')
-    parent_client.add_argument('--user',
+    parent_client.add_argument(
+        '--user',
         help='Username for HTTP auth to connect to Cromwell server')
-    parent_client.add_argument('--password',
+    parent_client.add_argument(
+        '--password',
         help='Password for HTTP auth to connect to Cromwell server')
     parent_list = argparse.ArgumentParser(add_help=False)
     parent_list.add_argument(
@@ -402,7 +404,7 @@ class Cromweller(object):
         self._cromwell = args.get('cromwell')
         self._backend = args.get('backend')
         if self._backend is not None and self._backend == 'local':
-            self._backend = BACKEND_LOCAL # Local (capital L)
+            self._backend = BACKEND_LOCAL  # Local (capital L)
         self._workflow_opts = args.get('options')
         self._label = args.get('label')
 
@@ -488,7 +490,8 @@ class Cromweller(object):
                             workflow_id = wf_id
                             break
                 # else:
-                #     # remove temp backend_file for security (MySQL database password in it)
+                #     # remove temp backend_file for security
+                #     #    (MySQL database password in it)
                 #     if os.path.exists(backend_file) \
                 #         and (self._keep_temp_backend_file is None \
                 #             or not self._keep_temp_backend_file):
@@ -536,7 +539,7 @@ class Cromweller(object):
             p = Popen(cmd, stdout=PIPE, universal_newlines=True, cwd=tmp_dir)
             rc = None
             # tickcount
-            t0 = time.perf_counter() 
+            t0 = time.perf_counter()
 
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
@@ -959,7 +962,7 @@ class Cromweller(object):
         else:
             out_dir = self._out_dir
 
-        wdl = self.__get_wdl_basename()        
+        wdl = self.__get_wdl_basename()
         if wdl is None:
             path = os.path.join(out_dir, workflow_id)
         else:
@@ -1028,6 +1031,7 @@ def main():
     else:
         raise Exception('Unsupported or unspecified action.')
     return 0
+
 
 if __name__ == '__main__':
     main()

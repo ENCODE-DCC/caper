@@ -4,7 +4,7 @@
 
 BACKEND_GCP = 'gcp'
 BACKEND_AWS = 'aws'
-BACKEND_LOCAL = 'Local' # must be CAPITAL L
+BACKEND_LOCAL = 'Local'  # must be CAPITAL L
 BACKEND_SLURM = 'slurm'
 BACKEND_SGE = 'sge'
 BACKEND_PBS = 'pbs'

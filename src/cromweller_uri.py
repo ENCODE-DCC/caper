@@ -155,7 +155,7 @@ class CromwellerURI(object):
             return self._uri
         if CromwellerURI.VERBOSE:
             print('[CromwellerURI] copying from '
-                '{src} to {target}, src: {uri}'.format(
+                  '{src} to {target}, src: {uri}'.format(
                     src=self._uri_type, target=uri_type, uri=self._uri))
 
         path = None
@@ -196,8 +196,7 @@ class CromwellerURI(object):
                 else:
                     if not CromwellerURI.__file_exists(path):
                         check_call(['aws', 's3', 'cp', '--only-show-errors',
-                                    '-', path],
-                               stdin=ps.stdout)
+                                    '-', path], stdin=ps.stdout)
             elif self._uri_type == URI_GCS:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
             elif self._uri_type == URI_LOCAL:
@@ -275,7 +274,7 @@ class CromwellerURI(object):
     def write_str_to_file(self, s):
         if CromwellerURI.VERBOSE:
             print('[CromwellerURI] write to '
-                '{target}, target: {uri}, size: {size}'.format(
+                  '{target}, target: {uri}, size: {size}'.format(
                     target=self._uri_type, uri=self._uri, size=len(s)))
 
         if self._uri_type == URI_LOCAL:
@@ -283,10 +282,11 @@ class CromwellerURI(object):
                 fp.write(s)
         elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
                 and CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
-            run(['gsutil', '-q', 'cp', '-', self._uri], input=s, encoding='ascii')
+            run(['gsutil', '-q', 'cp', '-', self._uri],
+                input=s, encoding='ascii')
         elif self._uri_type == URI_S3:
-            run(['aws', 's3', 'cp', '--only-show-errors', '-',
-                 self._uri], input=s, encoding='ascii')
+            run(['aws', 's3', 'cp', '--only-show-errors', '-', self._uri],
+                input=s, encoding='ascii')
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
         return self
@@ -387,9 +387,9 @@ class CromwellerURI(object):
                 if c.can_deepcopy() and c.uri_type != uri_type:
                     updated = True
                     if CromwellerURI.VERBOSE:
-                        print('[CromwellerURI] deepcopy_tsv from {src} to {target}, '
-                            'src: {uri}, tsv: {uri2}'.format(
-                                src=c._uri_type, target=uri_type,
+                        print('[CromwellerURI] deepcopy_tsv from '
+                              '{src} to {tgt}, src: {uri}, tsv: {uri2}'.format(
+                                src=c._uri_type, tgt=uri_type,
                                 uri=c._uri, uri2=self._uri))
                     # copy file to target storage
                     new_file = c.deepcopy(uri_type=uri_type,
@@ -430,12 +430,13 @@ class CromwellerURI(object):
                 c = CromwellerURI(d)
                 if c.can_deepcopy() and c.uri_type != uri_type:
                     if CromwellerURI.VERBOSE:
-                        print('[CromwellerURI] deepcopy_json from {src} to {target}, '
-                              'src: {uri}, json: {uri2}'.format(
-                                src=c._uri_type, target=uri_type,
-                                uri=c._uri, uri2=self._uri))
+                        print('[CromwellerURI] deepcopy_json from '
+                              '{src} to {tgt}, src: {uri}, json: {u2}'.format(
+                                src=c._uri_type, tgt=uri_type,
+                                uri=c._uri, u2=self._uri))
                     new_file = c.deepcopy(
-                        uri_type=uri_type, uri_exts=uri_exts).get_file(uri_type)
+                        uri_type=uri_type, uri_exts=uri_exts).get_file(
+                            uri_type)
                     if d_parent is not None:
                         d_parent[d_parent_key] = new_file
                     elif lst is not None:
