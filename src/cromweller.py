@@ -364,7 +364,7 @@ class Cromweller(object):
     RE_PATTERN_WORKFLOW_ID = r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
     RE_PATTERN_FINISHED_WORKFLOW_ID = r'WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) is in a terminal state'
     RE_PATTERN_VALID_LABEL = r'^[A-Za-z0-9\-\_]+$'
-    SEC_INTERVAL_CHK_WORKFLOW_DONE = 60.0
+    SEC_INTERVAL_UPDATE_METADATA = 60.0
 
     def __init__(self, args):
         """Initializes from args dict
@@ -532,56 +532,49 @@ class Cromweller(object):
                CromwellerURI(self._cromwell).get_local_file(), 'server']
         print('[Cromweller] cmd: ', cmd)
 
-        # pending/running workflows
-        workflow_ids = set()
+        # # pending/running workflows
+        # workflow_ids = set()
         # completed, aborted or terminated workflows
         finished_workflow_ids = set()
         try:
             p = Popen(cmd, stdout=PIPE, universal_newlines=True, cwd=tmp_dir)
             rc = None
-            # tickcount
-            t0 = time.perf_counter()
+            # # tickcount
+            # t0 = time.perf_counter()
 
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
 
-                # find workflow id from STDOUT
-                wf_ids_with_status = \
-                    Cromweller.__get_workflow_ids_from_cromwell_stdout(stdout)
-                for wf_id, status in wf_ids_with_status:
-                    if status == 'submitted':
-                        workflow_ids.add(wf_id)
-                    elif status == 'finished':
-                        finished_workflow_ids.add(wf_id)
-                print(stdout)
+                # # find workflow id from STDOUT
+                # wf_ids_with_status = \
+                #     Cromweller.__get_workflow_ids_from_cromwell_stdout(stdout)
+                # for wf_id, status in wf_ids_with_status:
+                #     if status == 'submitted':
+                #         workflow_ids.add(wf_id)
+                #     elif status == 'finished':
+                #         finished_workflow_ids.add(wf_id)
+                # print(stdout)
 
-                # # write metadata.json for running/just-finished workflows
+                # write metadata.json for running/just-finished workflows
                 # t1 = time.perf_counter()
-                # if (t1 - t0) > \
-                #     Cromweller.SEC_INTERVAL_CHK_WORKFLOW_DONE:
+                # if (t1 - t0) > Cromweller.SEC_INTERVAL_UPDATE_METADATA:
                 #     t0 = t1
-                #     # check if any submitted workflow finished
-                #     wfs_to_req_metadata = set()
-                #     for wf_id in finished_workflow_ids:
-                #         if wf_id in workflow_ids:
-                #             wfs_to_req_metadata.add(wf_id)
-                #             workflow_ids.remove(wf_id)
-                #     for wf_id in workflow_ids:
-                #         wfs_to_req_metadata.add(wf_id)
-                #     # get metadata for running/just-finished workflows
-                #     metadata = self._cromwell_rest_api.get_metadata(wfs_to_req_metadata)
-                #     # for m in metadata:
-                #     #     wf_id = m['id']
-                #     # move metadata Json file
-                #     if workflow_id is not None and os.path.exists(metadata_file):
-                #         metadata_uri = os.path.join(
-                #             self.__get_workflow_output_dir(workflow_id),
-                #             'metadata.json')
-                #         with open(metadata_file, 'r') as fp:
-                #             CromwellerURI(uri).write_str_to_file(fp.read())
-                #         os.remove(metadata_file)
-                #     else:
-                #         metadata_uri = None
+                #     try:
+                #         # get metadata of all workflows
+                #         m = self._cromwell_rest_api.get_metadata(['*'])
+                #         for w in m:
+                #             workflow_id = w['id']
+                #             status = w['status']
+                #             submission = w['submission']
+                #             if submission > time_server_on:
+                #                 metadata_uri = os.path.join(
+                #                     self.__get_workflow_output_dir(workflow_id),
+                #                     'metadata.json')
+                #                 CromwellerURI(metadata_uri).write_str_to_file(
+                #                     json.dumps(w), indent=4))
+                #     except Exception as e:
+                #         print('[Cromweller] Exception caught while retrieving metadata. '
+                #               'Keeping running... ', str(e))
 
         except CalledProcessError as e:
             rc = e.returncode
