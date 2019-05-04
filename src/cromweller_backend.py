@@ -201,17 +201,17 @@ class CromwellerBackendLocal(dict):
     """Local backend
     """
     RUNTIME_ATTRIBUTES = """
-    Int? gpu
-    String? docker
-    String? docker_user
-    String? singularity
+        Int? gpu
+        String? docker
+        String? docker_user
+        String? singularity
     """
     SUBMIT = """
-    ${if defined(singularity) then "" else "/bin/bash ${script} #"} \
-    if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
-    singularity exec --cleanenv --home ${cwd} \
-    ${if defined(gpu) then '--nv' else ''} \
-    ${singularity} /bin/bash ${script}
+        ${if defined(singularity) then "" else "/bin/bash ${script} #"} \
+        if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
+        singularity exec --cleanenv --home ${cwd} \
+        ${if defined(gpu) then '--nv' else ''} \
+        ${singularity} /bin/bash ${script}
     """
     TEMPLATE = {
         "backend": {
@@ -247,19 +247,19 @@ class CromwellerBackendSLURM(dict):
     """SLURM backend
     """
     RUNTIME_ATTRIBUTES = """
-    String? docker
-    String? docker_user
-    Int cpu = 1
-    Int? gpu
-    Int? time
-    Int? memory_mb
-    String? slurm_partition
-    String? slurm_account
-    String? slurm_extra_param
-    String singularity
+        String? docker
+        String? docker_user
+        Int cpu = 1
+        Int? gpu
+        Int? time
+        Int? memory_mb
+        String? slurm_partition
+        String? slurm_account
+        String? slurm_extra_param
+        String singularity
     """
     SUBMIT = """
-    sbatch \
+        sbatch \
         --export=ALL \
         -J ${job_name} \
         -D ${cwd} \
@@ -282,8 +282,8 @@ class CromwellerBackendSLURM(dict):
             ${singularity} /bin/bash ${script}"
     """
     CHECK_ALIVE = """
-    CHK_ALIVE=$(squeue --noheader -j ${job_id}); if [ -z $CHK_ALIVE ]; then \
-    /bin/bash -c 'exit 1'; else echo $CHK_ALIVE; fi
+        CHK_ALIVE=$(squeue --noheader -j ${job_id}); if [ -z $CHK_ALIVE ]; \
+        then /bin/bash -c 'exit 1'; else echo $CHK_ALIVE; fi
     """
     TEMPLATE = {
         "backend": {
@@ -329,23 +329,23 @@ class CromwellerBackendSGE(dict):
     """SGE backend
     """
     RUNTIME_ATTRIBUTES = """
-    String? docker
-    String? docker_user
-    String sge_pe = "shm"
-    Int cpu = 1
-    Int? gpu
-    Int? time
-    Int? memory_mb
-    String? sge_queue
-    String? sge_extra_param
-    String singularity
+        String? docker
+        String? docker_user
+        String sge_pe = "shm"
+        Int cpu = 1
+        Int? gpu
+        Int? time
+        Int? memory_mb
+        String? sge_queue
+        String? sge_extra_param
+        String singularity
     """
     SUBMIT = """
-    echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
-    if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
-    singularity exec --cleanenv --home ${cwd} \
-    ${if defined(gpu) then '--nv' else ''} \
-    ${singularity} /bin/bash ${script}" | qsub \
+        echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
+        if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
+        singularity exec --cleanenv --home ${cwd} \
+        ${if defined(gpu) then '--nv' else ''} \
+        ${singularity} /bin/bash ${script}" | qsub \
         -S /bin/sh \
         -terse \
         -b n \
@@ -416,22 +416,22 @@ class CromwellerBackendPBS(dict):
     """PBS backend
     """
     RUNTIME_ATTRIBUTES = """
-    String? docker
-    String? docker_user
-    Int cpu = 1
-    Int? gpu
-    Int? time
-    Int? memory_mb
-    String? pbs_queue
-    String? pbs_extra_param
-    String singularity
+        String? docker
+        String? docker_user
+        Int cpu = 1
+        Int? gpu
+        Int? time
+        Int? memory_mb
+        String? pbs_queue
+        String? pbs_extra_param
+        String singularity
     """
     SUBMIT = """
-    echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
-    if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
-    singularity exec --cleanenv --home ${cwd} \
-    ${if defined(gpu) then '--nv' else ''} \
-    ${singularity} /bin/bash ${script}" | qsub \
+        echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
+        if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
+        singularity exec --cleanenv --home ${cwd} \
+        ${if defined(gpu) then '--nv' else ''} \
+        ${singularity} /bin/bash ${script}" | qsub \
         -N ${job_name} \
         -o ${out} \
         -e ${err} \

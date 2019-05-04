@@ -384,6 +384,7 @@ class Cromweller(object):
         self._out_dir = args.get('out_dir')
         self._gc_project = args.get('gc_project')
         self._out_gcs_bucket = args.get('out_gcs_bucket')
+        self._out_s3_bucket = args.get('out_s3_bucket')
         self._aws_batch_arn = args.get('aws_batch_arn')
         self._aws_region = args.get('aws_region')
         self._slurm_partition = args.get('slurm_partition')
@@ -857,7 +858,7 @@ class Cromweller(object):
                 concurrent_job_limit=self._max_concurrent_tasks))
 
         # GC
-        if self._gc_project is not None:
+        if self._gc_project is not None and self._out_gcs_bucket is not None:
             merge_dict(
                 backend_dict,
                 CromwellerBackendGCP(
@@ -866,12 +867,14 @@ class Cromweller(object):
                     concurrent_job_limit=self._max_concurrent_tasks))
 
         # AWS
-        if self._aws_batch_arn is not None and self._aws_region is not None:
+        if self._aws_batch_arn is not None and self._aws_region is not None \
+            and self._out_s3_bucket is not None:
             merge_dict(
                 backend_dict,
                 CromwellerBackendAWS(
                     aws_batch_arn=self._aws_batch_arn,
                     aws_region=self._aws_region,
+                    out_s3_bucket=self._out_s3_bucket,
                     concurrent_job_limit=self._max_concurrent_tasks))
 
         # SLURM

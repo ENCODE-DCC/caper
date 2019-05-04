@@ -254,15 +254,15 @@ class CromwellerURI(object):
                 'curl',
                 '-u', '{}:{}'.format(CromwellerURI.HTTP_USER,
                                      CromwellerURI.HTTP_PASSWORD),
-                '-f', self._uri])
+                '-f', self._uri]).decode()
 
         elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
                 and CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
-            return check_output(['gsutil', '-q', 'cat', self._uri])
+            return check_output(['gsutil', '-q', 'cat', self._uri]).decode()
 
         elif self._uri_type == URI_S3:
             return check_output(['aws', 's3', 'cp', '--only-show-errors',
-                                 self._uri, '-'])
+                                 self._uri, '-']).decode()
 
         elif self._uri_type == URI_LOCAL:
             with open(self._uri, 'r') as fp:
@@ -400,6 +400,7 @@ class CromwellerURI(object):
             new_contents.append(delim.join(new_values))
 
         if updated:
+            print(ext)
             new_uri = '{prefix}.{uri_type}{ext}'.format(
                 prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
             return CromwellerURI(new_uri).write_str_to_file(
