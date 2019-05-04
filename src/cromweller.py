@@ -551,25 +551,23 @@ class Cromweller(object):
                         finished_workflow_ids.add(wf_id)
                 print(stdout)
 
-                # write metadata.json for running/just-finished workflows
-                t1 = time.perf_counter()
-                if (t1 - t0) > \
-                    Cromweller.SEC_INTERVAL_CHK_WORKFLOW_DONE:
-                    t0 = t1
-                    # check if any submitted workflow finished
-                    wfs_to_req_metadata = set()
-                    for wf_id in finished_workflow_ids:
-                        if wf_id in workflow_ids:
-                            wfs_to_req_metadata.add(wf_id)
-                            workflow_ids.remove(wf_id)
-                    for wf_id in workflow_ids:
-                        wfs_to_req_metadata.add(wf_id)
-                    # get metadata for running/just-finished workflows
-                    metadata = self._cromwell_rest_api.get_metadata(wfs_to_req_metadata)
-                    # for m in metadata:
-                    #     wf_id = m['id']
-
-
+                # # write metadata.json for running/just-finished workflows
+                # t1 = time.perf_counter()
+                # if (t1 - t0) > \
+                #     Cromweller.SEC_INTERVAL_CHK_WORKFLOW_DONE:
+                #     t0 = t1
+                #     # check if any submitted workflow finished
+                #     wfs_to_req_metadata = set()
+                #     for wf_id in finished_workflow_ids:
+                #         if wf_id in workflow_ids:
+                #             wfs_to_req_metadata.add(wf_id)
+                #             workflow_ids.remove(wf_id)
+                #     for wf_id in workflow_ids:
+                #         wfs_to_req_metadata.add(wf_id)
+                #     # get metadata for running/just-finished workflows
+                #     metadata = self._cromwell_rest_api.get_metadata(wfs_to_req_metadata)
+                #     # for m in metadata:
+                #     #     wf_id = m['id']
                 #     # move metadata Json file
                 #     if workflow_id is not None and os.path.exists(metadata_file):
                 #         metadata_uri = os.path.join(
@@ -587,8 +585,8 @@ class Cromweller(object):
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
                 print(stdout)
-        print('[Cromweller] server: ', rc, workflow_ids)
-        return workflow_ids
+        print('[Cromweller] server: ', rc, workflow_ids, finished_workflow_ids)
+        return rc
 
     def submit(self):
         """Submit a workflow to Cromwell server
