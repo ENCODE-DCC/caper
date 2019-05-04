@@ -4,7 +4,8 @@ for multiple backends (local, gc, aws)
 
 (Optional)
 Add the following comments to your WDL script to specify container images
-that Cromweller will use for your WDL.
+that Cromweller will use for your WDL. You still need to use them by adding
+"--use-docker" or "--use-singularity" to command line arguments.
 
 Example:
 #CROMWELLER docker quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
@@ -199,28 +200,27 @@ def parse_cromweller_arguments():
         'in the command line argument or as a comment "#CROMWELLER '
         'docker URI_FOR_DOCKER_IMG" in a WDL file')
     group_dep.add_argument(
-        '--docker', help='URI for Docker image (e.g. ubuntu:latest)')
-
+        '--docker', help='URI for Docker image (e.g. ubuntu:latest). '
+        'Defining it automatically turn on flag "--use-docker"')
+    group_dep.add_argument(
+        '--use-docker', action='store_true',
+        help='Use Singularity to resolve dependency for local backend.')
     group_dep_local = parent_submit.add_argument_group(
         title='dependency resolver for local backend',
         description=''
         'Singularity is for local backend only. Other backends '
-        '(gc and aws) will use Docker. '
-        'Local backend defaults not to use any container-based methods. '
-        'Activate --use-singularity or --use-docker to use one of them')
+        '(gcp and aws) will use Docker only. '
+        'Local backend defaults to not use any container-based methods. '
+        'Activate "--use-singularity" or "--use-docker" to use containers')
     group_dep_local.add_argument(
         '--singularity',
         help='URI or path for Singularity image '
              '(e.g. ~/.singularity/ubuntu-latest.simg, '
-             'docker://ubuntu:latest, shub://vsoch/hello-world)')
+             'docker://ubuntu:latest, shub://vsoch/hello-world). '
+             'Defining it automatically turn on flag "--use-singularity"')
     group_dep_local.add_argument(
-        '--use-singularity',
-        help='Use Singularity to resolve dependency for local backend.',
-        action='store_true')
-    group_dep_local.add_argument(
-        '--use-docker',
-        help='Use Singularity to resolve dependency for local backend.',
-        action='store_true')
+        '--use-singularity', action='store_true',
+        help='Use Singularity to resolve dependency for local backend.')
 
     group_slurm = parent_submit.add_argument_group('SLURM arguments')
     group_slurm.add_argument('--slurm-partition', help='SLURM partition')
@@ -737,22 +737,27 @@ class Cromweller(object):
                 self._backend
 
         # find docker/singularity from WDL or command line args
-        if self._use_docker:
+        docker_from_wdl = self.__find_docker_from_wdl()
+        # automatically add docker_from_wdl for cloud backend
+        if docker_from_wdl is not None \
+            and self._backend in (BACKEND_GCP, BACKEND_AWS):
+            template['default_runtime_attributes']['docker'] = docker_from_wdl
+        elif self._use_docker:
             if self._docker is None:
-                docker = self.__find_docker_from_wdl()
+                docker = docker_from_wdl
             else:
                 docker = self._docker
             assert(docker is not None)
             template['default_runtime_attributes']['docker'] = docker
 
-        elif self._use_singularity:
+        singularity_from_wdl = self.__find_singularity_from_wdl()
+        if self._use_singularity:
             if self._singularity is None:
-                singularity = self.__find_singularity_from_wdl()
+                singularity = singularity_from_wdl
             else:
                 singularity = self._singularity
-            if singularity is not None:
-                template['default_runtime_attributes']['singularity'] = \
-                    singularity
+            assert(singularity is not None)
+            template['default_runtime_attributes']['singularity'] = singularity
 
         if self._slurm_partition is not None:
             template['default_runtime_attributes']['slurm_partition'] = \
