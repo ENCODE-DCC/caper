@@ -382,8 +382,8 @@ class Cromweller(object):
     RE_PATTERN_WORKFLOW_ID = r'\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b'
     RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s+as\s+'
     SEC_INTERVAL_UPDATE_METADATA = 60.0
-    # added to labels file
-    KEY_CROMWELLER_STR_LABEL = 'cromweller-label'
+    # added to cromwell labels file
+    KEY_CROMWELLER_STR_LABEL = 'cromweller-str-label'
     KEY_CROMWELLER_BACKEND = 'cromweller-backend'
 
     def __init__(self, args):
@@ -459,7 +459,6 @@ class Cromweller(object):
         # list of values
         self._wf_id_or_label = args.get('wf_id_or_label')
 
-
     def run(self):
         """Run a workflow using Cromwell run mode
         """
@@ -517,14 +516,6 @@ class Cromweller(object):
                         if status == 'submitted' or status == 'finished':
                             workflow_id = wf_id
                             break
-                # else:
-                #     # remove temp backend_file for security
-                #     #    (MySQL database password)
-                #     if os.path.exists(backend_file) \
-                #         and (self._keep_temp_backend_file is None \
-                #             or not self._keep_temp_backend_file):
-                #         os.remove(backend_file)
-
                 print(stdout)
             rc = p.poll()
         except CalledProcessError as e:
