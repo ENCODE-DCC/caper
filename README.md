@@ -20,14 +20,15 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 	```
 
 * **Built-in backends**: You don't need your own backend configuration file. Cromweller provides the following built-in backends. You can still use your own backend file with `--backend-file`. Configuration in this file will override anything in built-in ones.
-	|Backend| Description           |
-	|-------|-----------------------|
-	|`Local`| Default local backend |
-	|`gcp`  | Google Cloud Platform |
-	|`aws`  | Amazon Web Service    |
-	|`slurm`| SLURM                 |
-	|`sge`  | Sun GridEngine        |
-	|`pbs`  | PBS                   |
+
+	| Backend | Description           |
+	|---------|-----------------------|
+	| `Local` | Default local backend |
+	| `gcp`   | Google Cloud Platform |
+	| `aws`   | Amazon Web Service    |
+	| `slurm` | SLURM                 |
+	| `sge`   | Sun GridEngine        |
+	| `pbs`   | PBS                   |
 
 * **Automatic transfer between local/cloud storages**: For example, the following command line works. Such auto-transfer is done magically by correctly defining [temporary directory](#temporary-storage) for each stroage.
 	```bash
