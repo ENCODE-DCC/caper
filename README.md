@@ -1,5 +1,5 @@
 # Cromweller
-Cromweller is a wrapper Python package for [Cromwell]. Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aws s3`) and provides easier way of running Cromwell server/run by automatically composing necessary input files for Cromwell. Also, Cromweller supports easy automatic transfer between local/cloud storages (local, `s3://`, `gs://`, `http(s)://`). You can use these URIs in input JSON file or WDL file itself.
+Cromweller is a wrapper Python package for [Cromwell](https://github.com/broadinstitute/cromwell/). Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aws s3`) and provides easier way of running Cromwell server/run by automatically composing necessary input files for Cromwell. Also, Cromweller supports easy automatic transfer between local/cloud storages (local, `s3://`, `gs://`, `http(s)://`). You can use these URIs in input JSON file or WDL file itself.
 
 # Features
 
@@ -42,7 +42,7 @@ Cromweller is a wrapper Python package for [Cromwell]. Cromweller is based on Un
 		}
 	}
 	```
-	Then Cromweller looks at files with extensions `.json` and `.tsv` first and recursively copy all files defined in it to a target storage. If those files are already on a target storage then transfer will be skipped. If anything is updated to those text file then Cromweller make a copy of that file on the same directory with a suffix `.gcs`. For example, Cromweller makes a copy of `s3://over/here/info.json` as `s3://over/here/info.gcs.json`.
+	Then Cromweller looks at files with extensions `.json` and `.tsv` first and recursively copy all files defined in it to a target storage. If those files are already on a target storage then transfer will be skipped. If anything is updated to those text file then Cromwellers make a copy of that file on the same directory with a suffix `.gcs`. For example, Cromweller makes a copy of `s3://over/here/info.json` as `s3://over/here/info.gcs.json`.
 
 	All other files with an absolute path/URI (`http://your.server.com/big.bigwig`) will be copied to your [temporary directory](#temporary-directory) on `gs://`.
 
@@ -64,6 +64,28 @@ Cromweller is a wrapper Python package for [Cromwell]. Cromweller is based on Un
 	You can also submit a workflow to a remote server (`localhost` by default).
 	```bash
 	$ cromweller submit --ip 1.2.3.4 --port 8001 your.wdl ...
+	```
+
+* **One server for four backends**: Once authentication/configuration for cloud CLIs (`gcloud` and `aws`) are correctly set up, then your Cromwell server can submit job to any backend specified with `-b` or `--backend`.
+	```bash
+	$ cromweller submit -b gcp s3://maybe/here/your.wdl
+	```
+	```bash
+	$ cromweller submit -b aws gs://maybe/there/my.wdl
+	```
+
+* **Cluster engines**: SLURM, SGE and PBS are supported. To run a Cromwell server directly submitting/monitoring jobs to SLURM. Make sure to keep your server process alive by using `nohup`, `screen` or `tmux`.
+	```bash
+	$ cromweller server -b slurm
+	```
+
+	Submit to the Cromwell server instead of running `sbatch`.
+	```bash
+	$ cromweller server -b slurm
+	```
+	If you want to sbatch Cromweller. Use local mode (by default).
+	```bash
+	$ sbatch cromweller run -b Local your.wdl
 	```
 
 * Easy workflow management: Find all workflows submitted to a Cromwell server by workflow IDs (UUIDs) or `str_label` (special label for Cromweller). You can define multiple keywords with wildcards (`*` and `?`) to search for matching workflows. Abort, release hold, retrieve metadata JSON for them.
