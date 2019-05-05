@@ -12,11 +12,13 @@ import sys
 
 class CromwellRestAPI(object):
     QUERY_URL = 'http://{ip}:{port}'
+    ENDPOINT_BACKEND = '/api/workflows/v1/backends'
     ENDPOINT_WORKFLOWS = '/api/workflows/v1/query'
     ENDPOINT_METADATA = '/api/workflows/v1/{wf_id}/metadata'
     ENDPOINT_LABELS = '/api/workflows/v1/{wf_id}/labels'
-    ENDPOINT_ABORT = '/api/workflows/v1/{wf_id}/abort'
     ENDPOINT_SUBMIT = '/api/workflows/v1'
+    ENDPOINT_ABORT = '/api/workflows/v1/{wf_id}/abort'
+    ENDPOINT_RELEASE_HOLD = '/api/workflows/v1/{wf_id}/releaseHold'
     KEY_LABEL = 'cromwell_rest_api_label'
 
     def __init__(self, ip='localhost', port=8000,
@@ -29,12 +31,9 @@ class CromwellRestAPI(object):
         self._password = password
         self.__init_auth()
 
-    def submit(self, source, dependencies=None,
-               inputs_file=None, options_file=None, str_label=None):
-        """Submit a workflow. Labels file is not allowed. Instead,
-        a string label can be given and it is written to a labels file
-        as a value under the key name CromwellRestAPI.KEY_LABEL
-        ("cromwell_rest_api_label")
+    def submit(self, source, dependencies=None, inputs_file=None,
+               options_file=None, labels_file=None, on_hold=False):
+        """Submit a workflow.
 
         Returns:
             JSON Response from POST request submit a workflow
@@ -44,7 +43,7 @@ class CromwellRestAPI(object):
             CromwellRestAPI.__get_string_io_from_file(source)
         if dependencies is not None:
             manifest['workflowDependencies'] = \
-                CromwellRestAPI.__get_string_io_from_file(dependencies)
+                CromwellRestAPI.__get_bytes_io_from_file(dependencies)
         if inputs_file is not None:
             manifest['workflowInputs'] = \
                 CromwellRestAPI.__get_string_io_from_file(inputs_file)
@@ -53,28 +52,30 @@ class CromwellRestAPI(object):
         if options_file is not None:
             manifest['workflowOptions'] = \
                 CromwellRestAPI.__get_string_io_from_file(options_file)
-        if str_label is not None:
-            manifest['labels'] = io.StringIO(
-                '{{ "{key}":"{val}" }}'.format(
-                    key=CromwellRestAPI.KEY_LABEL, val=str_label))
-        r = self.__query_post(CromwellRestAPI.ENDPOINT_SUBMIT, manifest)
+        if labels_file is not None:
+            manifest['labels'] = \
+                CromwellRestAPI.__get_string_io_from_file(labels_file)                
+        if on_hold:
+            manifest['workflowOnHold'] = True
+
+        r = self.__request_post(CromwellRestAPI.ENDPOINT_SUBMIT, manifest)
         if self._verbose:
             print("CromwellRestAPI.submit: ", r)
         return r
 
-    def abort(self, workflow_ids=None, str_labels=None):
-        """Abort a workflow
+    def abort(self, workflow_ids=None, labels=None):
+        """Abort workflows matching workflow IDs or labels
 
         Returns:
             List of JSON responses from POST request
             for aborting workflows
         """
-        workflows = self.find(workflow_ids, str_labels)
+        workflows = self.find(workflow_ids, labels)
         if workflows is None:
             return None
         result = []
         for w in workflows:
-            r = self.__query_post(
+            r = self.__request_post(
                 CromwellRestAPI.ENDPOINT_ABORT.format(
                     wf_id=w['id']))
             result.append(r)
@@ -82,49 +83,121 @@ class CromwellRestAPI(object):
             print("CromwellRestAPI.abort: ", result)
         return result
 
-    def get_metadata(self, workflow_ids=None, str_labels=None):
-        """Retrieve metadata for a workflow
+    def release_hold(self, workflow_ids=None, labels=None):
+        """Release hold of workflows matching workflow IDs or labels
 
         Returns:
-            List of metadata JSONs
+            List of JSON responses from POST request
+            for releasing hold of workflows
         """
-        workflows = self.find(workflow_ids, str_labels)
+        workflows = self.find(workflow_ids, labels)
         if workflows is None:
             return None
         result = []
         for w in workflows:
-            m = self.__query_get(
+            r = self.__request_post(
+                CromwellRestAPI.ENDPOINT_RELEASE_HOLD.format(
+                    wf_id=w['id']))
+            result.append(r)
+        if self._verbose:
+            print("CromwellRestAPI.release_hold: ", result)
+        return result
+
+    def get_default_backend(self):
+        """Retrieve default backend name
+
+        Returns:
+            Default backend name
+        """
+        return self.get_backends()['defaultBackend']
+
+    def get_backends(self):
+        """Retrieve available backend names and default backend name
+
+        Returns:
+            JSON response with keys "defaultBackend" and "supportedBackends"
+            Example: {"defaultBackend":"Local","supportedBackends":
+                      ["Local","aws","gcp","pbs","sge","slurm"]}
+        """
+        return self.__request_get(CromwellRestAPI.ENDPOINT_BACKEND)
+
+    def get_metadata(self, workflow_ids=None, labels=None):
+        """Retrieve metadata for workflows matching workflow IDs or labels
+
+        Returns:
+            List of metadata JSONs
+        """
+        workflows = self.find(workflow_ids, labels)
+        if workflows is None:
+            return None
+        result = []
+        for w in workflows:
+            m = self.__request_get(
                 CromwellRestAPI.ENDPOINT_METADATA.format(wf_id=w['id']))
             result.append(m)
         if self._verbose:
             print(json.dumps(result, indent=4))
         return result
 
-    def get_str_label(self, workflow_id):
-        """Get a string label for a specified workflow
+    def get_labels(self, workflow_id):
+        """Get labels JSON for a specified workflow
 
         Returns:
-            String label. This is different from raw "labels"
-            JSON directly retrieved from Cromwell server.
-            This string label is one of the values in it.
-            See __get_labels() for details about JSON labels.
+            Labels JSON for a workflow
         """
-        labels = self.__get_labels(workflow_id)
-        if labels is None or 'labels' not in labels:
+        if workflow_id is None:
             return None
-        for key in labels['labels']:
-            if key == CromwellRestAPI.KEY_LABEL:
-                return labels['labels'][key]
-        return None
+        r = self.__request_get(
+            CromwellRestAPI.ENDPOINT_LABELS.format(
+                wf_id=workflow_id))
+        if r is None:
+            return None
+        return r['labels']
 
-    def find(self, workflow_ids=None, str_labels=None):
-        """Find a workflow by matching workflow_ids or string labels.
-        Wildcards (? and *) are allowed for both.
+    def get_label(self, workflow_id, key):
+        """Get a label for a key in a specified workflow
+
+        Returns:
+            Value for a specified key in labels JSON for a workflow
+        """
+        labels = self.get_labels(workflow_id)
+        if labels is None:
+            return None
+        if key in labels:
+            return labels[key]
+        else:
+            return None
+
+    def update_labels(self, workflow_id, labels):
+        """Update labels for a specified workflow with
+        a list of (key, val) tuples
+        """
+        if workflow_id is None or labels is None:
+            return None
+        r = self.__request_patch(
+            CromwellRestAPI.ENDPOINT_LABELS.format(
+                wf_id=workflow_id), labels)        
+        if self._verbose:
+            print("CromwellRestAPI.update_labels: ", r)
+        return r
+
+    def find(self, workflow_ids=None, labels=None):
+        """Find workflows by matching workflow IDs, label (key, value) tuples.
+        Wildcards (? and *) are allowed for string workflow IDs and values in
+        a tuple label. Search criterion is (workflow_ids OR labels).
+
+        Args:
+            workflow_ids:
+                List of workflows ID strings: [wf_id, ...].
+                OR search for multiple workflow IDs
+            labels:
+                List of (key, val) tuples: [(key: val), (key2: val2), ...].
+                OR search for multiple tuples
 
         Returns:
             List of matched workflow JSONs
         """
-        r = self.__query_get(
+        r = self.__request_get(
             CromwellRestAPI.ENDPOINT_WORKFLOWS)
         if r is None:
             return None
@@ -135,15 +208,26 @@ class CromwellRestAPI(object):
         for w in workflows:
             if 'id' not in w:
                 continue
-            s = self.get_str_label(w['id'])
             if workflow_ids is not None:
                 for wf_id in workflow_ids:
                     if fnmatch.fnmatchcase(w['id'], wf_id):
                         matched.add(w['id'])
-            if str_labels is not None and s is not None:
-                for str_label in str_labels:
-                    if fnmatch.fnmatchcase(s, str_label):
-                        matched.add(w['id'])
+                        break
+            if w['id'] in matched:
+                continue
+            if labels is not None:
+                labels_ = self.get_labels(w['id'])
+                for k, v in labels:
+                    if k in labels_:
+                        v_ = labels_[k]
+                        if isinstance(v_, str) and isinstance(v, str):
+                            # wildcard allowed for str values
+                            if fnmatch.fnmatchcase(v_, v):
+                                matched.add(w['id'])
+                                break
+                        elif v_ == v:
+                            matched.add(w['id'])
+                            break
         result = []
         for w in workflows:
             if 'id' not in w:
@@ -162,22 +246,7 @@ class CromwellRestAPI(object):
         else:
             self._auth = None
 
-    def __get_labels(self, workflow_id):
-        """Get dict of a label for a specified workflow
-        This is different from string label.
-        String label is one of the values in
-        Cromwell's labels dict.
-
-        Returns:
-            JSON labels for a workflow
-        """
-        if workflow_id is None:
-            return None
-        return self.__query_get(
-            CromwellRestAPI.ENDPOINT_LABELS.format(
-                wf_id=workflow_id))
-
-    def __query_get(self, endpoint):
+    def __request_get(self, endpoint):
         """GET request
 
         Returns:
@@ -187,8 +256,9 @@ class CromwellRestAPI(object):
                 ip=self._ip,
                 port=self._port) + endpoint
         try:
-            resp = requests.get(url, headers={'accept': 'application/json'},
-                                auth=self._auth)
+            resp = requests.get(
+                url, auth=self._auth,
+                headers={'accept': 'application/json'})
         except Exception as e:
             # traceback.print_exc()
             print(e)
@@ -201,7 +271,7 @@ class CromwellRestAPI(object):
                   url)
             return None
 
-    def __query_post(self, endpoint, manifest=None):
+    def __request_post(self, endpoint, manifest=None):
         """POST request
 
         Returns:
@@ -211,8 +281,9 @@ class CromwellRestAPI(object):
                 ip=self._ip,
                 port=self._port) + endpoint
         try:
-            resp = requests.post(url, headers={'accept': 'application/json'},
-                                 files=manifest, auth=self._auth)
+            resp = requests.post(
+                url, files=manifest, auth=self._auth,
+                headers={'accept': 'application/json'})
         except Exception as e:
             # traceback.print_exc()
             print(e)
@@ -221,8 +292,34 @@ class CromwellRestAPI(object):
         if resp.ok:
             return resp.json()
         else:
-            print("HTTP Post error: ", resp.status_code, resp.content,
+            print("HTTP POST error: ", resp.status_code, resp.content,
                   url, manifest)
+            return None
+
+    def __request_patch(self, endpoint, data):
+        """POST request
+
+        Returns:
+            JSON response
+        """
+        url = CromwellRestAPI.QUERY_URL.format(
+                ip=self._ip,
+                port=self._port) + endpoint
+        try:
+            resp = requests.patch(
+                url, data=data, auth=self._auth,
+                headers={'accept': 'application/json',
+                         'content-type': 'application/json'})
+        except Exception as e:
+            # traceback.print_exc()
+            print(e)
+            sys.exit(1)
+
+        if resp.ok:
+            return resp.json()
+        else:
+            print("HTTP PATCH error: ", resp.status_code, resp.content,
+                  url, json)
             return None
 
     @staticmethod
@@ -230,6 +327,9 @@ class CromwellRestAPI(object):
         with open(fname, 'r') as fp:
             return io.StringIO(fp.read())
 
+    def __get_bytes_io_from_file(fname):
+        with open(fname, 'rb') as fp:
+            return io.BytesIO(fp.read())
 
 def main():
     pass
