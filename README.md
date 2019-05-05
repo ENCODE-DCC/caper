@@ -20,7 +20,8 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 	```
 
 * **Built-in backends**: You don't need your own backend configuration file. Cromweller provides the following built-in backends. You can still use your own backend file with `--backend-file`. Configuration in this file will override anything in built-in ones.
-	
+	|Backend| Description           |
+	|-------|-----------------------|
 	|`Local`| Default local backend |
 	|`gcp`  | Google Cloud Platform |
 	|`aws`  | Amazon Web Service    |
@@ -178,6 +179,8 @@ $ pip install cromweller
 
 There are four types of storages. Each storage except for URL has its own temporary directory/bucket defined by the following parameters. 
 
+| Storage | URI(s)       | Command line parameter    |
+|---------|--------------|---------------------------|
 | `local` | Path         | `--tmp-dir`               |
 | `gcs`   | `gs://`      | `--tmp-gcs-bucket`        |
 | `s3`    | `s3://`      | `--tmp-s3-bucket`         |
@@ -187,6 +190,8 @@ There are four types of storages. Each storage except for URL has its own tempor
 
 > **WARNING**: Please keep your local temporary directory **SECURE**. Cromweller writes temporary files (`backend.conf`, `inputs.json`, `workflow_opts.json` and `labels.json`) for Cromwell on `local` temporary directory defined by `--tmp-dir`. The following sensitive information can be exposed on these directories.
 
+| Sensitve information               | Temporary filename   |
+|------------------------------------|----------------------|
 | MySQL database username            | `backend.conf`       |
 | MySQL database password            | `backend.conf`       |
 | AWS Batch ARN                      | `backend.conf`       |
@@ -200,12 +205,16 @@ There are four types of storages. Each storage except for URL has its own tempor
 
 Inter-storage transfer is done by keeping source's directory structure and appending to target storage temporary directory. For example of the following temporary directory settings for each backend,
 
+| Storage | Command line parameters                              |
+|---------|------------------------------------------------------|
 | `local` | `--tmp-dir /scratch/user/cromweller_tmp`             |
 | `gcs`   | `--tmp-gcs-bucket gs://my_gcs_bucket/cromweller_tmp` |
 | `s3`    | `--tmp-s3-bucket s3://my_s3_bucket/cromweller_tmp`   |
 
 A local file `/home/user/a/b/c/hello.gz` can be copied (on demand) to 
 
+| Storage | Command line parameters                                      |
+|---------|--------------------------------------------------------------|
 | `gcs`   | `gs://my_gcs_bucket/cromweller_tmp/home/user/a/b/c/hello.gz` |
 | `s3`    | `s3://my_s3_bucket/cromweller_tmp/home/user/a/b/c/hello.gz`  |
 
@@ -228,6 +237,8 @@ Example:
 
 Output directories are defined similarly as temporary ones. Those are actual output directories (called `cromwell_root` which is `cromwell-executions/` by default) where Cromwell's output are written to.
 
+| Storage | URI(s)       | Command line parameter    |
+|---------|--------------|---------------------------|
 | `local` | Path         | `--out-dir`               |
 | `gcs`   | `gs://`      | `--out-gcs-bucket`        |
 | `s3`    | `s3://`      | `--out-s3-bucket`         |
