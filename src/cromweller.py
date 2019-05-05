@@ -38,7 +38,7 @@ from cromweller_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
 __version__ = "v0.1.0"
 
 DEFAULT_CROMWELLER_CONF = '~/.cromweller/default.conf'
-DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/38/cromwell-38.jar'
+DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
 DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
