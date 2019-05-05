@@ -4,7 +4,7 @@ Cromweller is a wrapper Python package for [Cromwell](https://github.com/broadin
 
 ## Introduction
 
-Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aws`) and provides easier way of running Cromwell server/run by automatically composing necessary input files for Cromwell. Also, Cromweller supports easy automatic transfer between local/cloud storages (local, `s3://`, `gs://`, `http(s)://`). You can use these URIs in input JSON file or for a WDL file itself.
+Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aws`) and provides easier way of running Cromwell server/run by automatically composing necessary input files for Cromwell. Also, Cromweller supports easy automatic file transfer between local/cloud storages (local path, `s3://`, `gs://` and `http(s)://`). You can use these URIs in input JSON file or for a WDL file itself.
 
 ## Features
 
@@ -19,7 +19,7 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 	$ cromweller server
 	```
 
-* **Built-in backends**: You don't need your own backend configuration file. Cromweller provides the following built-in backends. You can still use your own backend file with `--backend-file`. Configuration in this file will override anything in built-in ones.
+* **Built-in backends**: You don't need your own backend configuration file. Cromweller provides the following built-in backends. You can still use your own backend file with `--backend-file`. Configuration in this file will override anything defined in built-in ones.
 
 	| Backend | Description           |
 	|---------|-----------------------|
@@ -35,12 +35,12 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 	$ cromweller run gs://some/where/my.wdl -i s3://over/here/input.json
 	```
 
-* **Deepcopy for input JSON file**: You may want to have all data files defined in your input JSON file automatically copied to a target backend storage. Deepcopying is allowed for several text file extensions (`.json`, `.tsv` and `.csv`). Any string with absolute path/URI in your input JSON will be recursively copied to a target backend storage. For example of the above command.
+* **Deepcopy for input JSON file**: You may want to have all data files defined in your input JSON file automatically transferred to a target remote storage. Deepcopying is allowed for several text file extensions (`.json`, `.tsv` and `.csv`). Any string value with absolute path/URI in your input JSON will be recursively copied to a target backend storage. For example of the above command.
 
 	```bash
 	$ cromweller run gs://some/where/my.wdl -i s3://over/here/input.json --deepcopy -b gcp
 	```
-	Let's say that you specified a target backend as `gcp` (Google Clooud Platform) then target storage will be on `gs://` (Google Cloud Storage) and your input JSON (`s3://over/here/input.json`) looks like the following:
+	Let's say that you specified a target backend as `gcp` (Google Clooud Platform) then corresponding target storage will be `gs://` (Google Cloud Storage) and your input JSON (`s3://over/here/input.json`) looks like the following:
 	```json
 	{
 		"txt_file": "s3://over/here/info.json",
@@ -50,33 +50,32 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 		}
 	}
 	```
-	Then Cromweller looks at files with extensions `.json` and `.tsv` first and recursively copy all files defined in it to a target storage. If those files are already on a target storage then transfer will be skipped. If anything is updated to those text file then Cromwellers make a copy of that file on the same directory with a suffix `.gcs`. For example, Cromweller makes a copy of `s3://over/here/info.json` as `s3://over/here/info.gcs.json`.
+	Then Cromweller looks at all files with extensions `.json` and `.tsv` first and recursively transfer all files defined in it to a target storage. If those files are already on a target storage then transfer will be skipped. If anything is updated to those text file then Cromwellers make a copy of that file on the same directory with a suffix `.gcs`. For example, Cromweller makes a copy of `s3://over/here/info.json` as `s3://over/here/info.gcs.json`.
 
-	All other files with an absolute path/URI (`http://your.server.com/big.bigwig`) will be copied to your [temporary directory](#temporary-directory) on `gs://`.
+	All other files with an absolute path/URI (`http://your.server.com/big.bigwig`) will be transferred to your [temporary directory](#temporary-directory) on `gs://`.
 
-* **One configuration file for all**: You don't repeat writing the same command line parameters for every pipeline run. Define them in a configuration file at `~/.cromweller/default.conf` and forget about it.
+* **One configuration file for all**: You may not want to repeat writing the same command line parameters for every pipeline run. Define them in a configuration file at `~/.cromweller/default.conf` and forget about it.
 
 * **Docker/Singularity integration**: You can define a container image (Docker or Singularity) to run all tasks in a WDL workflow. Simply define it in command line arguments or directly in your WDL as [comments](#wdl-customization). Then `docker` or `singularity` attribute will be added to `runtime {}` section of all of tasks in a WDL so that Cromwell runs in a Docker mode or Singularity mode.
 	```bash
 	$ cromweller run http://my.web.server.com/my.wdl --singularity docker://ubuntu:latest
 	$ cromweller submit s3://over/there/your.wdl --docker ubuntu:latest
 	```
-* **Server mode and MySQL database integration**: You can spin up a Cromwell server with your own port (`8000` by default) with the following simple command line. 
+* **MySQL database integration**: You can spin up a Cromwell server with your own port (`8000` by default) with the following simple command line. This works for `run` mode too.
 	```bash
 	$ cromweller server --port 8001	
 	```
-	You can also connect to MySQL database. This works for `run` mode too.
+	You can also connect to a remote/local MySQL database. 
 	```bash
 	$ cromweller server --mysql-db-ip 4.3.2.1 --mysql-db-port 3307 --mysql-db-user cromwell --mysql-db-password some-secret-key
 	```	
-	You can also submit a workflow to a remote server (`localhost` by default).
+	You can also submit a workflow to a remote Cromwell server (`localhost` by default).
 	```bash
 	$ cromweller submit --ip 1.2.3.4 --port 8001 your.wdl ...
 	```
 	> **WARNING**: Before running a Cromwell server. See [security warnings](https://cromwell.readthedocs.io/en/develop/developers/Security/).
 
-
-* **One server for four backends**: Once authentication/configuration for cloud CLIs (`gcloud` and `aws`) are correctly set up, then your Cromwell server can submit job to any backend specified with `-b` or `--backend`.
+* **One server for six backends**: Once authentication/configuration for cloud CLIs (`gcloud` and `aws`) are correctly set up, then your Cromwell server can submit job to any backend specified with `-b` or `--backend`.
 	```bash
 	$ cromweller submit -b gcp s3://maybe/here/your.wdl
 	```
@@ -84,22 +83,24 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 	$ cromweller submit -b aws gs://maybe/there/my.wdl
 	```
 
-* **Cluster engines**: SLURM, SGE and PBS are supported. To run a Cromwell server directly submitting/monitoring jobs to SLURM. Make sure to keep your server process alive by using `nohup`, `screen` or `tmux`.
-	```bash
-	$ cromweller server -b slurm
-	```
+* **Cluster engine support**: SLURM, SGE and PBS are currently supported. To run a Cromwell server directly submitting/monitoring jobs to SLURM. Make sure to keep your server process alive by using `nohup`, `screen` or `tmux`.
 
-	Submit to the Cromwell server instead of running `sbatch`.
+	You can specify default backend for your Cromwell server.
 	```bash
 	$ cromweller server -b slurm
 	```
-	If you want to sbatch Cromweller. Use local mode (by default).
+	Submit to the Cromwell server instead of running `sbatch`. This workflow will run on a `slurm` backend.
+	```bash
+	$ cromweller submit your.wdl -i your.inputs.json
+	```
+	You can also directly `sbatch` Cromweller. Use `Local` mode.
 	```bash
 	$ sbatch cromweller run -b Local your.wdl
 	```
 
-* **Easy workflow management**: Find all workflows submitted to a Cromwell server by workflow IDs (UUIDs) or `str_label` (special label for Cromweller). You can define multiple keywords with wildcards (`*` and `?`) to search for matching workflows. Abort, release hold, retrieve metadata JSON for them.
+* **Easy workflow management**: Find all workflows submitted to a Cromwell server by workflow IDs (UUIDs) or `str_label` (special label for a workflow submitted by Cromweller `submit` and `run`). You can define multiple keywords with wildcards (`*` and `?`) to search for matching workflows. Abort, release hold, retrieve metadata JSON for them.
 
+	Example:
 	```bash
 	$ cromweller list
 	id      status  name    str_label       submission
@@ -236,7 +237,7 @@ Example:
 
 ## Output directory
 
-Output directories are defined similarly as temporary ones. Those are actual output directories (called `cromwell_root` which is `cromwell-executions/` by default) where Cromwell's output are written to.
+Output directories are defined similarly as temporary ones. Those are actual output directories (called `cromwell_root`, which is `cromwell-executions/` by default) where Cromwell's output are actually written to.
 
 | Storage | URI(s)       | Command line parameter    |
 |---------|--------------|---------------------------|
