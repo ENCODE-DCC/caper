@@ -109,12 +109,6 @@ Cromweller is a wrapper Python package for [Cromwell](https://github.com/broadin
 	$ cromweller metadata 0787a2b8-49a0-4acb-b6b3-338c697f1d90 970b3640-ccdd-4b5a-82b3-f4a32252e95a
 	```
 
-# Installation
-
-```bash
-$ pip install cromweller
-```
-
 # Usage
 
 ```bash
@@ -137,7 +131,13 @@ optional arguments:
   -c FILE, --conf FILE  Specify config file
 ```
 
-# Requirements
+# Installation
+
+```bash
+$ pip install cromweller
+```
+
+## Requirements
 
 * `python` >= 3.3, `java` >= 1.8, `pip3`, `wget` and `curl`
 	Debian:
@@ -181,4 +181,48 @@ Add the following comments to your WDL then Cromweller will be able to find an a
 # Python compatibility
 `python` >= 3.3 due to `time.perf_counter()` and `os.path.makedirs(exist_ok=True)`.
 
+
 # Temporary directory
+
+There are four types of storages. Each storage except for URL has its own temporary directory/bucket defined by the following parameters.
+
+* local: `--tmp-dir`
+* gcs (`gs://`): `--tmp-gcs-bucket`
+* s3 (`s3://`): `--tmp-s3-bucket`
+* URL (`http(s)://` and `ftp://`) : not available (read-only)
+
+Inter-storage transfer is done by keeping source's directory structure and appending to target storage temporary directory. For example of the following temporary directory settings for each backend,
+
+* local: `--tmp-dir /scratch/user/cromweller_tmp`
+* gcs (`gs://`): `--tmp-gcs-bucket gs://my_gcs_bucket/cromweller_tmp`
+* s3 (`s3://`): `--tmp-s3-bucket s3://my_s3_bucket/cromweller_tmp`
+
+A local file `/home/user/a/b/c/hello.gz` can be copied (on demand) to 
+
+* gcs (`gs://`): `gs://my_gcs_bucket/cromweller_tmp/home/user/a/b/c/hello.gz`
+* s3 (`s3://`): `s3://my_s3_bucket/cromweller_tmp/home/user/a/b/c/hello.gz`
+
+File transfer is done by using the following cloud CLIs:
+
+* `gsutil -q cp -n [SRC] [TARGET]`
+* `aws s3 cp '--only-show-errors' [SRC] [TARGET]`
+* `wget --no-check-certificate -qc [URL_SRC] -O [LOCAL_TARGET]`
+* `curl -f [URL_SRC] | gsutil -q cp -n - [TARGET]`
+
+> **WARNING**: Cromweller does not ensure a fail-safe file transfer when it's interrupted by user or system. Also, there can be race conditions if multiple users try to access/copy files. This will be later addressed in the future release. Until then DO NOT interrupt file transfer until you see the following `copying done`:
+
+```
+[CromwellerURI] copying from gcs to local, src: gs://encode-pipeline-test-runs/test_wdl_imports/main.wdl
+[CromwellerURI] copying done, target: /srv/scratch/leepc12/cromweller_tmp_dir/encode-pipeline-test-runs/test_wdl_imports/main.wdl
+```
+
+# Output directory
+
+Output directories are defined similarly as temporary ones. Those are actual output directories (called `cromwell_root` which is `cromwell-executions/` by default) where Cromwell's output are written to.
+
+* local: `--out-dir`
+* gcs (`gs://`): `--out-gcs-bucket`
+* s3 (`s3://`): `--out-s3-bucket`
+* URL (`http(s)://` and `ftp://`) : not available (read-only)
+
+Workflow's final output file `metadata.json` will be written to each workflow's directory (with workflow UUID) under this output directory.
