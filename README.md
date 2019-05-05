@@ -1,7 +1,12 @@
 # Cromweller
-Cromweller is a wrapper Python package for [Cromwell](https://github.com/broadinstitute/cromwell/). Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aws s3`) and provides easier way of running Cromwell server/run by automatically composing necessary input files for Cromwell. Also, Cromweller supports easy automatic transfer between local/cloud storages (local, `s3://`, `gs://`, `http(s)://`). You can use these URIs in input JSON file or WDL file itself.
 
-# Features
+Cromweller is a wrapper Python package for [Cromwell](https://github.com/broadinstitute/cromwell/).
+
+## Introduction
+
+Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aws`) and provides easier way of running Cromwell server/run by automatically composing necessary input files for Cromwell. Also, Cromweller supports easy automatic transfer between local/cloud storages (local, `s3://`, `gs://`, `http(s)://`). You can use these URIs in input JSON file or for a WDL file itself.
+
+## Features
 
 * **Similar CLI**: Cromweller has a similar command line interface as Cromwell.
 
@@ -15,12 +20,13 @@ Cromweller is a wrapper Python package for [Cromwell](https://github.com/broadin
 	```
 
 * **Built-in backends**: You don't need your own backend configuration file. Cromweller provides the following built-in backends. You can still use your own backend file with `--backend-file`. Configuration in this file will override anything in built-in ones.
-	- Local: Default local backend
-	- gcp: Google Cloud Platform
-	- aws: Amazon Web Service
-	- slurm: SLURM
-	- sge: Sun GridEngine
-	- pbs: PBS
+	
+	|`Local`| Default local backend |
+	|`gcp`  | Google Cloud Platform |
+	|`aws`  | Amazon Web Service    |
+	|`slurm`| SLURM                 |
+	|`sge`  | Sun GridEngine        |
+	|`pbs`  | PBS                   |
 
 * **Automatic transfer between local/cloud storages**: For example, the following command line works. Such auto-transfer is done magically by correctly defining [temporary directory](#temporary-storage) for each stroage.
 	```bash
@@ -65,6 +71,8 @@ Cromweller is a wrapper Python package for [Cromwell](https://github.com/broadin
 	```bash
 	$ cromweller submit --ip 1.2.3.4 --port 8001 your.wdl ...
 	```
+	> **WARNING**: Before running a Cromwell server. See [security warnings](https://cromwell.readthedocs.io/en/develop/developers/Security/).
+
 
 * **One server for four backends**: Once authentication/configuration for cloud CLIs (`gcloud` and `aws`) are correctly set up, then your Cromwell server can submit job to any backend specified with `-b` or `--backend`.
 	```bash
@@ -88,7 +96,7 @@ Cromweller is a wrapper Python package for [Cromwell](https://github.com/broadin
 	$ sbatch cromweller run -b Local your.wdl
 	```
 
-* Easy workflow management: Find all workflows submitted to a Cromwell server by workflow IDs (UUIDs) or `str_label` (special label for Cromweller). You can define multiple keywords with wildcards (`*` and `?`) to search for matching workflows. Abort, release hold, retrieve metadata JSON for them.
+* **Easy workflow management**: Find all workflows submitted to a Cromwell server by workflow IDs (UUIDs) or `str_label` (special label for Cromweller). You can define multiple keywords with wildcards (`*` and `?`) to search for matching workflows. Abort, release hold, retrieve metadata JSON for them.
 
 	```bash
 	$ cromweller list
@@ -109,7 +117,7 @@ Cromweller is a wrapper Python package for [Cromwell](https://github.com/broadin
 	$ cromweller metadata 0787a2b8-49a0-4acb-b6b3-338c697f1d90 970b3640-ccdd-4b5a-82b3-f4a32252e95a
 	```
 
-# Usage
+## Usage
 
 ```bash
 usage: cromweller.py [-h] [-c FILE]
@@ -131,7 +139,7 @@ optional arguments:
   -c FILE, --conf FILE  Specify config file
 ```
 
-# Installation
+## Installation
 
 ```bash
 $ pip install cromweller
@@ -140,6 +148,7 @@ $ pip install cromweller
 ## Requirements
 
 * `python` >= 3.3, `java` >= 1.8, `pip3`, `wget` and `curl`
+
 	Debian:
 	```bash
 	$ sudo apt-get install python3 jre-default python3-pip wget curl
@@ -165,64 +174,72 @@ $ pip install cromweller
 	$ aws configure
 	```
 
-# Cromwell server mode security
+## Temporary directory
 
-Before running a Cromwell server. See [this](https://cromwell.readthedocs.io/en/develop/developers/Security/) for details.
+There are four types of storages. Each storage except for URL has its own temporary directory/bucket defined by the following parameters. 
 
-# WDL customization
+| `local` | Path         | `--tmp-dir`               |
+| `gcs`   | `gs://`      | `--tmp-gcs-bucket`        |
+| `s3`    | `s3://`      | `--tmp-s3-bucket`         |
+| `url`   | `http(s)://` | not available (read-only) |
 
-Add the following comments to your WDL then Cromweller will be able to find an appropriate container image for your WDL. Then you don't have to define them in command line arguments everytime you run a pipeline.
+### Security
 
-```bash
-#CROMWELLER singularity docker://ubuntu:latest
-#CROMWELLER docker ubuntu:latest
-```
+> **WARNING**: Please keep your local temporary directory **SECURE**. Cromweller writes temporary files (`backend.conf`, `inputs.json`, `workflow_opts.json` and `labels.json`) for Cromwell on `local` temporary directory defined by `--tmp-dir`. The following sensitive information can be exposed on these directories.
 
-# Python compatibility
-`python` >= 3.3 due to `time.perf_counter()` and `os.path.makedirs(exist_ok=True)`.
+| MySQL database username            | `backend.conf`       |
+| MySQL database password            | `backend.conf`       |
+| AWS Batch ARN                      | `backend.conf`       |
+| Google Cloud Platform project name | `backend.conf`       |
+| SLURM account name                 | `workflow_opts.json` |
+| SLURM partition name               | `workflow_opts.json` |
 
+> **WARNING**: Also, please keep other temporary directories **SECURE** too. Your data files defined in your input JSON file can be recursively transferred to any of these temporary directories according to your target backend defined by `-b` or `--backend`.
 
-# Temporary directory
-
-There are four types of storages. Each storage except for URL has its own temporary directory/bucket defined by the following parameters.
-
-* local: `--tmp-dir`
-* gcs (`gs://`): `--tmp-gcs-bucket`
-* s3 (`s3://`): `--tmp-s3-bucket`
-* URL (`http(s)://` and `ftp://`) : not available (read-only)
+### Inter-storage transfer
 
 Inter-storage transfer is done by keeping source's directory structure and appending to target storage temporary directory. For example of the following temporary directory settings for each backend,
 
-* local: `--tmp-dir /scratch/user/cromweller_tmp`
-* gcs (`gs://`): `--tmp-gcs-bucket gs://my_gcs_bucket/cromweller_tmp`
-* s3 (`s3://`): `--tmp-s3-bucket s3://my_s3_bucket/cromweller_tmp`
+| `local` | `--tmp-dir /scratch/user/cromweller_tmp`             |
+| `gcs`   | `--tmp-gcs-bucket gs://my_gcs_bucket/cromweller_tmp` |
+| `s3`    | `--tmp-s3-bucket s3://my_s3_bucket/cromweller_tmp`   |
 
 A local file `/home/user/a/b/c/hello.gz` can be copied (on demand) to 
 
-* gcs (`gs://`): `gs://my_gcs_bucket/cromweller_tmp/home/user/a/b/c/hello.gz`
-* s3 (`s3://`): `s3://my_s3_bucket/cromweller_tmp/home/user/a/b/c/hello.gz`
+| `gcs`   | `gs://my_gcs_bucket/cromweller_tmp/home/user/a/b/c/hello.gz` |
+| `s3`    | `s3://my_s3_bucket/cromweller_tmp/home/user/a/b/c/hello.gz`  |
 
-File transfer is done by using the following cloud CLIs:
+File transfer is done by using the following command lines using various CLIs:
 
 * `gsutil -q cp -n [SRC] [TARGET]`
 * `aws s3 cp '--only-show-errors' [SRC] [TARGET]`
 * `wget --no-check-certificate -qc [URL_SRC] -O [LOCAL_TARGET]`
 * `curl -f [URL_SRC] | gsutil -q cp -n - [TARGET]`
 
-> **WARNING**: Cromweller does not ensure a fail-safe file transfer when it's interrupted by user or system. Also, there can be race conditions if multiple users try to access/copy files. This will be later addressed in the future release. Until then DO NOT interrupt file transfer until you see the following `copying done`:
+> **WARNING**: Cromweller does not ensure a fail-safe file transfer when it's interrupted by user or system. Also, there can be race conditions if multiple users try to access/copy files. This will be later addressed in the future release. Until then DO NOT interrupt file transfer until you see the following `copying done` message.
 
+Example:
 ```
 [CromwellerURI] copying from gcs to local, src: gs://encode-pipeline-test-runs/test_wdl_imports/main.wdl
 [CromwellerURI] copying done, target: /srv/scratch/leepc12/cromweller_tmp_dir/encode-pipeline-test-runs/test_wdl_imports/main.wdl
 ```
 
-# Output directory
+## Output directory
 
 Output directories are defined similarly as temporary ones. Those are actual output directories (called `cromwell_root` which is `cromwell-executions/` by default) where Cromwell's output are written to.
 
-* local: `--out-dir`
-* gcs (`gs://`): `--out-gcs-bucket`
-* s3 (`s3://`): `--out-s3-bucket`
-* URL (`http(s)://` and `ftp://`) : not available (read-only)
+| `local` | Path         | `--out-dir`               |
+| `gcs`   | `gs://`      | `--out-gcs-bucket`        |
+| `s3`    | `s3://`      | `--out-s3-bucket`         |
+| `url`   | `http(s)://` | not available (read-only) |
 
 Workflow's final output file `metadata.json` will be written to each workflow's directory (with workflow UUID) under this output directory.
+
+## WDL customization
+
+> **Optional**: Add the following comments to your WDL then Cromweller will be able to find an appropriate container image for your WDL. Then you don't have to define them in command line arguments everytime you run a pipeline.
+
+```bash
+#CROMWELLER singularity docker://ubuntu:latest
+#CROMWELLER docker ubuntu:latest
+```
