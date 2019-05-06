@@ -174,34 +174,94 @@ $ git clone https://github.com/ENCODE-DCC/cromweller
 $ echo "export PATH=\"\$PATH:$PWD/cromweller\"" >> ~/.bashrc
 ```
 
-## Requirements
+## Configuration file
 
-* `python` >= 3.3, `java` >= 1.8, `pip3`, `wget` and `curl`
+You can avoid repeatedly defining the same parameters in your command line arguments by using a configuration file. For example, you can define `out_dir` and `tmp_dir` in your configuration file instead of defining them in command line arguments.
+```
+$ cromweller run --out-dir [LOCAL_OUT_DIR] --tmp-dir [LOCAL_TMP_DIR] your.wdl
+```
 
-	Debian:
-	```bash
-	$ sudo apt-get install python3 jre-default python3-pip wget curl
-	```
-	Others:
-	```bash
-	$ sudo yum install python3 java-1.8.0-openjdk sudo yum install epel-release wget curl
-	```
+Equivalent settings in a configuration file. Make sure to replace dashes (`-`) with underscores (`_`).
+```
+[defaults]
+out_dir=[LOCAL_OUT_DIR]
+tmp_dir=[LOCAL_TMP_DIR]
+```
 
-* python dependencies: `pyhocon`, `requests` and `datetime`
-	```bash
-	$ pip3 install pyhocon requests datetime
-	```
+Run with a configuration file.
+```
+$ cromweller -c [YOUR_CONF_FILE] run your.wdl
+```
 
-* [gsutil](https://cloud.google.com/storage/docs/gsutil_install): Run the followings to configure gsutil:
-	```bash
-	$ gcloud auth login --no-launch-browser
-	$ gcloud auth application-default --no-launch-browser
-	```
+You can also have a default configuration file at `~/.cromweller/default.conf`. Cromweller will try to find this path first and if it exists then will automatically use it as a default configuration file.
 
-* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html): Run the followings to configure AWS CLI:
-	```bash
-	$ aws configure
-	```
+We provide an example configuration file `default.conf`.
+
+Create Cromweller's directory on your `HOME`. Copy the eaxmple configuration file (`default.conf`) to it. Uncomment any parameter to activate and define it.
+```
+$ mkdir -p ~/.cromweller
+$ cd cromweller  # make sure that you are on Cromweller's git directory
+$ cp default.conf ~/.cromweller
+```
+
+## How to configure for each backend
+
+We recommend to use a default configuration file explained in the section [Configuration file](#configuration-file).
+
+There are six backends supported by Cromweller. Each backend must run on its designated storage. To use cloud backends (`gcp` and `aws`) and corresponding cloud storages (`gcs` and `s3`), you must install cloud platform's CLIs ([`gsutil`](https://cloud.google.com/storage/docs/gsutil_install) and [`aws`](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html)). You also need to configure these CLIs for authentication. See [Requirements](#requirements) for details.
+
+| Backend | Description          | Storage | Required parameters                                                     |
+|---------|----------------------|---------|-------------------------------------------------------------------------|
+|`gcp`    |Google Cloud Platform | `gcs`   | `--gcp-prj`, `--out-gcs-bucket`, `--tmp-gcs-bucket`                     |
+|`aws`    |AWS                   | `s3`    | `--aws-batch-arn`, `--aws-region`, `--out-s3-bucket`, `--tmp-s3-bucket` |
+|`Local`  |Default local backend | `local` | `--out-dir`, `--tmp-dir`                                                |
+|`slurm`  |local SLURM backend   | `local` | `--out-dir`, `--tmp-dir`, `--slurm-partition` or `--slurm-account`      |
+|`sge`    |local SGE backend     | `local` | `--out-dir`, `--tmp-dir`, `--sge-pe`                                    |
+|`pds`    |local PBS backend     | `local` | `--out-dir`, `--tmp-dir`                                                |
+
+### Google Cloud Platform (`gcp`)
+
+Make sure that you already configured `gcloud` and `gsutil` correctly and passed authentication for them (e.g. `gcloud auth login`). You need to define `--gcp-prj`, `--out-gcs-bucket` and `--tmp-gcs-bucket` in your command line arguments or in your configuration file.
+```
+$ cromweller run -b gcp --gcp-prj [GOOGLE_PRJ_NAME] --out-gcs-bucket [GS_OUT_DIR] --tmp-gcs-bucket [GS_TMP_DIR]
+```
+
+### Google Cloud Platform (`gcp`)
+
+Make sure that you already configured `aws` correctly and passed authentication for them (e.g. `aws configure`). You need to define `--aws-batch-arn`, `--aws-region`, `--out-s3-bucket` and `--tmp-s3-bucket` in your command line arguments or in your configuration file.
+```
+$ cromweller run -b aws --aws-batch-arn [AWS_BATCH_ARN] --aws-region [AWS_REGION] --out-s3-bucket [S3_OUT_DIR] --tmp-s3-bucket [S3_TMP_DIR]
+```
+
+### All local backends (`Local`, `slurm`, `sge` and `pbs`)
+
+You need to define `--out-dir` and `--tmp-dir` in your command line arguments or in your configuration file.
+```
+$ cromweller run -b [BACKEND] --out-dir [OUT_DIR] --tmp-dir [TMP_DIR]
+```
+
+### SLURM backend (`slurm`)
+
+You need to define `--slurm-account` or `--slurm-partition` in your command line arguments or in your configuration file.
+> **WARNING: If your SLURM cluster does not require you to specify a partition or an account then skip them.
+```
+$ cromweller run -b slurm --slurm-account [YOUR_SLURM_ACCOUNT] --slurm-partition [YOUR_SLURM_PARTITON]
+```
+
+### SGE backend (`sge`)
+
+You need to define `--sge-pe` in your command line arguments or in your configuration file.
+> **WARNING: If you don't have a parallel environment (PE) then ask your SGE admin to add one.
+```
+$ cromweller run -b sge --sge-pe [YOUR_PE]
+```
+
+### PBS backend (`pbs`)
+
+There are no required parameters for PBS backend.
+```
+$ cromweller run -b pbs
+```
 
 ## Temporary directory
 
@@ -282,3 +342,32 @@ Workflow's final output file `metadata.json` will be written to each workflow's 
 #CROMWELLER singularity docker://ubuntu:latest
 #CROMWELLER docker ubuntu:latest
 ```
+
+## Requirements
+
+* `python` >= 3.3, `java` >= 1.8, `pip3`, `wget` and `curl`
+
+	Debian:
+	```bash
+	$ sudo apt-get install python3 jre-default python3-pip wget curl
+	```
+	Others:
+	```bash
+	$ sudo yum install python3 java-1.8.0-openjdk sudo yum install epel-release wget curl
+	```
+
+* python dependencies: `pyhocon`, `requests` and `datetime`
+	```bash
+	$ pip3 install pyhocon requests datetime
+	```
+
+* [gsutil](https://cloud.google.com/storage/docs/gsutil_install): Run the followings to configure gsutil:
+	```bash
+	$ gcloud auth login --no-launch-browser
+	$ gcloud auth application-default --no-launch-browser
+	```
+
+* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html): Run the followings to configure AWS CLI:
+	```bash
+	$ aws configure
+	```
