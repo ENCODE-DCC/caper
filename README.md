@@ -54,8 +54,6 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 
 	All other files with an absolute path/URI (`http://your.server.com/big.bigwig`) will be transferred to your [temporary directory](#temporary-directory) on `gs://`.
 
-* **One configuration file for all**: You may not want to repeat writing the same command line parameters for every pipeline run. Define them in a configuration file at `~/.cromweller/default.conf` and forget about it.
-
 * **Docker/Singularity integration**: You can define a container image (Docker or Singularity) to run all tasks in a WDL workflow. Simply define it in command line arguments or directly in your WDL as [comments](#wdl-customization). Then `docker` or `singularity` attribute will be added to `runtime {}` section of all of tasks in a WDL so that Cromwell runs in a Docker mode or Singularity mode.
 	```bash
 	$ cromweller run http://my.web.server.com/my.wdl --singularity docker://ubuntu:latest
@@ -74,6 +72,8 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 	$ cromweller submit --ip 1.2.3.4 --port 8001 your.wdl ...
 	```
 	> **WARNING**: Before running a Cromwell server. See [security warnings](https://cromwell.readthedocs.io/en/develop/developers/Security/).
+
+* **One configuration file for all**: You may not want to repeat writing the same command line parameters for every pipeline run. Define them in a configuration file at `~/.cromweller/default.conf` and forget about it.
 
 * **One server for six backends**: Once authentication/configuration for cloud CLIs (`gcloud` and `aws`) are correctly set up, then your Cromwell server can submit job to any backend specified with `-b` or `--backend`.
 	```bash
@@ -119,6 +119,29 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 	```bash
 	$ cromweller metadata 0787a2b8-49a0-4acb-b6b3-338c697f1d90 970b3640-ccdd-4b5a-82b3-f4a32252e95a
 	```
+
+* **Automatic subworkflow packing**: Cromweller automatically creates an archive (`imports.zip`) of all imports and send it to Cromwell server/run.
+
+	For example, your WDL and its imports are n a Google Cloud Storage bucket.
+	```bash
+	gs://every/where/main.wdl
+	gs://every/where/a/b/c/d.wdl
+	gs://every/where/e/f/g.wdl
+	```
+
+	`main.wdl` looks like the following:
+	```python
+	import "a/b/c/d.wdl" as sub_d
+	import "e/f/g.wdl" as sub_g
+	import "http://some.where.com/z.wdl" as sub_z	
+	```
+
+	If you run `gs://every/where/main.wdl` then Cromweller looks `gs://every/where/a/b/c/d.wdl` and `gs://every/where/e/f/g.wdl` and pack them as a ZIP file and send it to Cromwell server/run. You don't need to add such ZIP file as `-p` or `--imports` in the command line.
+	```bash
+	$ cromweller run gs://every/where/main.wdl
+	```
+
+	You can still use your own ZIP file as `-p` in the command line arguments then Cromweller's automatic subworkflow packing will be disabled.
 
 ## Usage
 
