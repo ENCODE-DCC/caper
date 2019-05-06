@@ -107,7 +107,7 @@ def parse_cromweller_arguments():
 
     group_gc = parent_host.add_argument_group(
         title='GC backend arguments')
-    group_gc.add_argument('--gc-project', help='GC project')
+    group_gc.add_argument('--gcp-prj', help='GC project')
     group_gc.add_argument(
         '--out-gcs-bucket', help='Output GCS bucket for GC backend')
     group_gc.add_argument(

@@ -19,7 +19,7 @@ from pyhocon import ConfigFactory, HOCONConverter
 import os
 import json
 import re
-# import time
+import time
 import shutil
 from subprocess import Popen, PIPE, CalledProcessError
 from datetime import datetime
@@ -75,7 +75,7 @@ class Cromweller(object):
     RE_PATTERN_WORKFLOW_ID = \
         r'\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b'
     RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s+as\s+'
-    SEC_INTERVAL_UPDATE_METADATA = 120.0
+    SEC_INTERVAL_UPDATE_METADATA = 240.0
     # added to cromwell labels file
     KEY_CROMWELLER_STR_LABEL = 'cromweller-str-label'
     KEY_CROMWELLER_BACKEND = 'cromweller-backend'
@@ -102,7 +102,7 @@ class Cromweller(object):
         self._max_concurrent_tasks = args.get('max_concurrent_tasks')
         self._tmp_dir = args.get('tmp_dir')
         self._out_dir = args.get('out_dir')
-        self._gc_project = args.get('gc_project')
+        self._gcp_prj = args.get('gcp_prj')
         self._out_gcs_bucket = args.get('out_gcs_bucket')
         self._out_s3_bucket = args.get('out_s3_bucket')
         self._aws_batch_arn = args.get('aws_batch_arn')
@@ -241,6 +241,32 @@ class Cromweller(object):
         print('[Cromweller] run: ', rc, workflow_id, metadata_uri)
         return workflow_id
 
+    def __write_metadata_jsons(self, workflow_ids):
+        try:
+            for wf_id in workflow_ids:
+                # get metadata for wf_id
+                m = self._cromwell_rest_api.get_metadata([wf_id])
+                assert(len(m) == 1)
+                metadata = m[0]
+                if 'labels' in metadata and \
+                        'cromweller-backend' in metadata['labels']:
+                    backend = \
+                        metadata['labels']['cromweller-backend']
+                else:
+                    backend = None
+
+                if backend is not None:
+                    self.__write_metadata_json(
+                        wf_id, metadata,
+                        backend=backend,
+                        wdl=metadata['workflowName'])
+            return True
+        except Exception as e:
+            print('[Cromweller] Exception caught while retrieving '
+                  'metadata from Cromwell server. Keeping running... ',
+                  str(e), workflow_ids)
+        return False
+
     def __write_metadata_json(self, workflow_id, metadata_json,
                               backend=None, wdl=None):
         if backend is None:
@@ -289,7 +315,7 @@ class Cromweller(object):
         try:
             p = Popen(cmd, stdout=PIPE, universal_newlines=True, cwd=tmp_dir)
             rc = None
-            # t0 = time.perf_counter()  # tickcount
+            t0 = time.perf_counter()  # tickcount
 
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
@@ -304,38 +330,21 @@ class Cromweller(object):
                     elif status == 'finished':
                         finished_wf_ids.add(wf_id)
 
-                try:
-                    for wf_id in finished_wf_ids:
-                        # get metadata for wf_id
-                        m = self._cromwell_rest_api.get_metadata([wf_id])
-                        assert(len(m) == 1)
-                        metadata = m[0]
-                        if 'labels' in metadata and \
-                                'cromweller-backend' in metadata['labels']:
-                            backend = \
-                                metadata['labels']['cromweller-backend']
-                        else:
-                            backend = None
+                for wf_id in finished_wf_ids:
+                    started_wf_ids.remove(wf_id)
 
-                        if backend is not None:
-                            self.__write_metadata_json(
-                                wf_id, metadata,
-                                backend=backend,
-                                wdl=metadata['workflowName'])
-                            metadata_wf_ids.add(wf_id)
-                    # flush finished workflow IDs
-                    #   so that their metadata don't get updated any longer
-                    finished_wf_ids.clear()
-                except Exception as e:
-                    print('[Cromweller] Exception caught while retrieving '
-                          'metadata from Cromwell server. Keeping running... ',
-                          str(e))
+                # write metadata.json for finished workflows
+                ok = self.__write_metadata_jsons(finished_wf_ids)
+                # flush finished workflow IDs
+                #   so that their metadata don't get updated any longer
+                finished_wf_ids.clear()
 
-                # # write metadata.json for running workflows
-                # #   every SEC_INTERVAL_UPDATE_METADATA
-                # t1 = time.perf_counter()
-                # if (t1 - t0) > Cromweller.SEC_INTERVAL_UPDATE_METADATA:
-                #     t0 = t1
+                # write metadata.json for running workflows
+                #   every SEC_INTERVAL_UPDATE_METADATA
+                t1 = time.perf_counter()
+                if (t1 - t0) > Cromweller.SEC_INTERVAL_UPDATE_METADATA:
+                    t0 = t1
+                    self.__write_metadata_jsons(started_wf_ids)
 
         except CalledProcessError as e:
             rc = e.returncode
@@ -343,7 +352,7 @@ class Cromweller(object):
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
                 print(stdout)
-        print('[Cromweller] server: ', rc, started_wf_ids, metadata_wf_ids)
+        print('[Cromweller] server: ', rc, started_wf_ids, finished_wf_ids)
         return rc
 
     def submit(self):
@@ -670,11 +679,11 @@ class Cromweller(object):
                 out_dir=self._out_dir,
                 concurrent_job_limit=self._max_concurrent_tasks))
         # GC
-        if self._gc_project is not None and self._out_gcs_bucket is not None:
+        if self._gcp_prj is not None and self._out_gcs_bucket is not None:
             merge_dict(
                 backend_dict,
                 CromwellerBackendGCP(
-                    gc_project=self._gc_project,
+                    gcp_prj=self._gcp_prj,
                     out_gcs_bucket=self._out_gcs_bucket,
                     concurrent_job_limit=self._max_concurrent_tasks))
         # AWS

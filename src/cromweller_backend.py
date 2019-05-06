@@ -94,7 +94,7 @@ class CromwellerBackendGCP(dict):
                     "config": {
                         "default-runtime-attributes": {
                         },
-                        "project": "YOUR_GC_PROJECT",
+                        "project": "YOUR_GCP_PROJECT",
                         "root": "gs://YOUR_GCS_BUCKET",
                         "concurrent-job-limit": 1000,
                         "genomics-api-queries-per-100-seconds": 1000,
@@ -125,11 +125,11 @@ class CromwellerBackendGCP(dict):
         }
     }
 
-    def __init__(self, gc_project, out_gcs_bucket, concurrent_job_limit=None):
+    def __init__(self, gcp_prj, out_gcs_bucket, concurrent_job_limit=None):
         super(CromwellerBackendGCP, self).__init__(
             CromwellerBackendGCP.TEMPLATE)
         config = self['backend']['providers'][BACKEND_GCP]['config']
-        config['project'] = gc_project
+        config['project'] = gcp_prj
         config['root'] = out_gcs_bucket
         assert(out_gcs_bucket.startswith('gs://'))
 
