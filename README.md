@@ -104,18 +104,22 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 	```bash
 	$ cromweller list
 	id      status  name    str_label       submission
-	f12526cb-7ed8-4bfa-8e2e-a463e94a61d0    Succeeded       test_cromweller_uri     None    2019-05-04T17:56:30.173-07:00
-	66dbb4a5-2077-4db8-bc83-6a5d36495037    Aborted test_cromweller_uri     None    2019-05-04T17:55:12.902-07:00
-	0787a2b8-49a0-4acb-b6b3-338c697f1d90    Succeeded       main    None    2019-05-04T17:53:28.045-07:00
+	f12526cb-7ed8-4bfa-8e2e-a463e94a61d0    Succeeded       test_cromweller_uri     TEST1    2019-05-04T17:56:30.173-07:00
+	66dbb4a5-2077-4db8-bc83-6a5d36495037    Aborted test_cromweller_uri     TEST2    2019-05-04T17:55:12.902-07:00
+	0787a2b8-49a0-4acb-b6b3-338c697f1d90    Succeeded       main    GOOD_LABEL    2019-05-04T17:53:28.045-07:00
 	5917a17d-3156-41c7-93d9-545d8cdde3c0    Failed  None    None    2019-05-04T17:51:17.239-07:00	
 	```
 
 	```bash
-	$ cromweller abort 66dbb4a5-2077-4db8-bc83-6a5d3649503 test_cromweller_uri
+	$ cromweller abort 66dbb4a5-2077-4db8-bc83-6a5d3649503 TEST*
 	```
 
 	```bash
 	$ cromweller metadata 0787a2b8-49a0-4acb-b6b3-338c697f1d90 970b3640-ccdd-4b5a-82b3-f4a32252e95a
+	```
+
+	```bash
+	$ cromweller metadata TEST2
 	```
 
 * **Automatic subworkflow packing**: Cromweller automatically creates an archive (`imports.zip`) of all imports and send it to Cromwell server/run.
@@ -140,6 +144,8 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 	```
 
 	You can still use your own ZIP file as `-p` in the command line arguments then Cromweller's automatic subworkflow packing will be disabled.
+
+* **Special label** (`str_label`): You have a string label, specified with `-s` or `--str-label`, for your workflow so that you can search for your workflow by this label instead of Cromwell's workflow UUID (e.g. `f12526cb-7ed8-4bfa-8e2e-a463e94a61d0`). This label will be written to Cromwell's original `labels.json` under a key `cromweller-str-label`. This label will be shown as `str_label` when you list all workflows by using `cromweller list`. See above `cromweller list` example and see
 
 ## Usage
 
