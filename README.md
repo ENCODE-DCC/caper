@@ -106,8 +106,6 @@ Cromweller is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` an
 	id      status  name    str_label       submission
 	f12526cb-7ed8-4bfa-8e2e-a463e94a61d0    Succeeded       test_cromweller_uri     None    2019-05-04T17:56:30.173-07:00
 	66dbb4a5-2077-4db8-bc83-6a5d36495037    Aborted test_cromweller_uri     None    2019-05-04T17:55:12.902-07:00
-	9a29f2ef-9c89-460c-9ebe-ab174eff135f    Succeeded       sub_c.c None    None
-	970b3640-ccdd-4b5a-82b3-f4a32252e95a    Succeeded       sub_a.a None    None
 	0787a2b8-49a0-4acb-b6b3-338c697f1d90    Succeeded       main    None    2019-05-04T17:53:28.045-07:00
 	5917a17d-3156-41c7-93d9-545d8cdde3c0    Failed  None    None    2019-05-04T17:51:17.239-07:00	
 	```
@@ -165,9 +163,36 @@ optional arguments:
   -c FILE, --conf FILE  Specify config file
 ```
 
+Examples:
+
+Run a Cromwell server with Google Cloud Platform as a default backend (specified by `-b` or `--backend`).
+```
+$ cromweller server -b gcp
+```
+
+Submit a workflow to a Cromwell server but use a different backend (`aws`).
+```
+$ cromweller submit gs://some/where/your.wdl -b aws
+```
+
+Run a Cromwell server on a SLURM cluster. Submit to Cromwell server insteads of `sbatch`ing your pipelines. Make sure to keep Cromwell server alive on an interactive node with unlimited/long walltime.
+```
+$ cromweller server -b slurm
+```
+
+Run a workflow locally. You don't need to specify `-b Local` since it's Cromweller's default backend.
+```
+$ cromweller run http://some.where.com/my.wdl
+```
+
+Run a workflow on Google Cloud Platform and deepcopy all files in your `inputs.json` to a temporary Google Cloud Storage bucket.
+```
+$ cromweller run my.wdl -i s3://my_s3_bucket/data/inputs.json --deepcopy
+```
+
 ## Installation
 
-We will add PIP installation later. Until then git clone it and manually add `cromweller` to your environment variable `PATH` in your BASH startup scripts (`~/.bashrc`).
+We will add PIP installation later. Until then git clone it and manually add `cromweller` to your environment variable `PATH` in your BASH startup scripts (`~/.bashrc`). Make sure that you have `python3` >=3.3 installed on your system.
 
 ```bash
 $ git clone https://github.com/ENCODE-DCC/cromweller
@@ -206,7 +231,7 @@ $ cp default.conf ~/.cromweller
 
 ## How to configure for each backend
 
-We recommend to use a default configuration file explained in the section [Configuration file](#configuration-file).
+We highly recommend to use a default configuration file explained in the section [Configuration file](#configuration-file).
 
 There are six backends supported by Cromweller. Each backend must run on its designated storage. To use cloud backends (`gcp` and `aws`) and corresponding cloud storages (`gcs` and `s3`), you must install cloud platform's CLIs ([`gsutil`](https://cloud.google.com/storage/docs/gsutil_install) and [`aws`](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html)). You also need to configure these CLIs for authentication. See configuration instructions for [GCP](docs/conf_gcp.md) and [AWS](docs/conf_aws.md) for details.
 
@@ -219,49 +244,39 @@ There are six backends supported by Cromweller. Each backend must run on its des
 |`sge`    |local SGE backend     | `local` | `--out-dir`, `--tmp-dir`, `--sge-pe`                                    |
 |`pds`    |local PBS backend     | `local` | `--out-dir`, `--tmp-dir`                                                |
 
-### Google Cloud Platform (`gcp`)
+* Google Cloud Platform (`gcp`): Make sure that you already configured `gcloud` and `gsutil` correctly and passed authentication for them (e.g. `gcloud auth login`). You need to define `--gcp-prj`, `--out-gcs-bucket` and `--tmp-gcs-bucket` in your command line arguments or in your configuration file.
+	```
+	$ cromweller run my.wdl -b gcp --gcp-prj [GOOGLE_PRJ_NAME] --out-gcs-bucket [GS_OUT_DIR] --tmp-gcs-bucket [GS_TMP_DIR]
+	```
 
-Make sure that you already configured `gcloud` and `gsutil` correctly and passed authentication for them (e.g. `gcloud auth login`). You need to define `--gcp-prj`, `--out-gcs-bucket` and `--tmp-gcs-bucket` in your command line arguments or in your configuration file.
-```
-$ cromweller run my.wdl -b gcp --gcp-prj [GOOGLE_PRJ_NAME] --out-gcs-bucket [GS_OUT_DIR] --tmp-gcs-bucket [GS_TMP_DIR]
-```
+* AWS (`aws`)Make sure that you already configured `aws` correctly and passed authentication for them (e.g. `aws configure`). You need to define `--aws-batch-arn`, `--aws-region`, `--out-s3-bucket` and `--tmp-s3-bucket` in your command line arguments or in your configuration file.
+	```
+	$ cromweller run my.wdl -b aws --aws-batch-arn [AWS_BATCH_ARN] --aws-region [AWS_REGION] --out-s3-bucket [S3_OUT_DIR] --tmp-s3-bucket [S3_TMP_DIR]
+	```
 
-### Google Cloud Platform (`gcp`)
+* All local backends (`Local`, `slurm`, `sge` and `pbs`): You need to define `--out-dir` and `--tmp-dir` in your command line arguments or in your configuration file.
+	```
+	$ cromweller run my.wdl -b [BACKEND] --out-dir [OUT_DIR] --tmp-dir [TMP_DIR]
+	```
 
-Make sure that you already configured `aws` correctly and passed authentication for them (e.g. `aws configure`). You need to define `--aws-batch-arn`, `--aws-region`, `--out-s3-bucket` and `--tmp-s3-bucket` in your command line arguments or in your configuration file.
-```
-$ cromweller run my.wdl -b aws --aws-batch-arn [AWS_BATCH_ARN] --aws-region [AWS_REGION] --out-s3-bucket [S3_OUT_DIR] --tmp-s3-bucket [S3_TMP_DIR]
-```
+* SLURM backend (`slurm`): You need to define `--slurm-account` or `--slurm-partition` in your command line arguments or in your configuration file.
 
-### All local backends (`Local`, `slurm`, `sge` and `pbs`)
+	> **WARNING: If your SLURM cluster does not require you to specify a partition or an account then skip them.
+	```
+	$ cromweller run my.wdl -b slurm --slurm-account [YOUR_SLURM_ACCOUNT] --slurm-partition [YOUR_SLURM_PARTITON]
+	```
 
-You need to define `--out-dir` and `--tmp-dir` in your command line arguments or in your configuration file.
-```
-$ cromweller run my.wdl -b [BACKEND] --out-dir [OUT_DIR] --tmp-dir [TMP_DIR]
-```
+* SGE backend (`sge`): You need to define `--sge-pe` in your command line arguments or in your configuration file.
+	
+	> **WARNING: If you don't have a parallel environment (PE) then ask your SGE admin to add one.
+	```
+	$ cromweller run my.wdl -b sge --sge-pe [YOUR_PE]
+	```
 
-### SLURM backend (`slurm`)
-
-You need to define `--slurm-account` or `--slurm-partition` in your command line arguments or in your configuration file.
-> **WARNING: If your SLURM cluster does not require you to specify a partition or an account then skip them.
-```
-$ cromweller run my.wdl -b slurm --slurm-account [YOUR_SLURM_ACCOUNT] --slurm-partition [YOUR_SLURM_PARTITON]
-```
-
-### SGE backend (`sge`)
-
-You need to define `--sge-pe` in your command line arguments or in your configuration file.
-> **WARNING: If you don't have a parallel environment (PE) then ask your SGE admin to add one.
-```
-$ cromweller run my.wdl -b sge --sge-pe [YOUR_PE]
-```
-
-### PBS backend (`pbs`)
-
-There are no required parameters for PBS backend.
-```
-$ cromweller run my.wdl -b pbs
-```
+* PBS backend (`pbs`): There are no required parameters for PBS backend.
+	```
+	$ cromweller run my.wdl -b pbs
+	```
 
 ## Temporary directory
 
@@ -319,7 +334,7 @@ Example:
 [CromwellerURI] copying done, target: /srv/scratch/leepc12/cromweller_tmp_dir/encode-pipeline-test-runs/test_wdl_imports/main.wdl
 ```
 
-### Working with URLs
+### Working with private URLs
 
 To have access to password-protected (HTTP Auth) private URLs, provide username and password in command line arguments (`--http-user` and `--http-password`) or in a configuration file.
 ```
