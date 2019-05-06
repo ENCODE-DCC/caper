@@ -107,9 +107,12 @@ class CromwellerURI(object):
         self._uri_type = CromwellerURI.__get_uri_type(uri_or_path)
         self.__init_uri()
 
+    def __str__(self):
+        return self._uri
+
     @property
     def uri_type(self):
-        return self._uri
+        return self._uri_type
 
     @uri_type.setter
     def uri_type(self, value):
@@ -144,31 +147,55 @@ class CromwellerURI(object):
         return self.get_file(uri_type=URI_S3)
 
     def get_url(self):
-        """Get URL version of URI. Local files cannot have a URL
-        """
         return self.get_file(uri_type=URI_URL)
 
     def get_file(self, uri_type):
         """Get a URI on a specified storage. Make a copy if required
         """
-        if uri_type == self._uri_type:
+        return self.copy(target_uri_type=uri_type)
+
+    def copy(self, target_uri_type=None, target_uri=None):
+        """Make a copy of self on a "target_uri_type" tmp_dir or 
+        tmp_bucket. Or copy self to "target_uri".
+
+        Args:
+            "target_uri_type" and "target_uri" are exclusive. Specify
+            only one of them.
+        """
+        # XOR: only one of target_uri and target_uri_type
+        # should be specified
+        assert((target_uri is None) != (target_uri_type is None))
+        if target_uri is None:
+            path = None
+            uri_type = target_uri_type
+        elif isinstance(target_uri, CromwellerURI):
+            path = target_uri.get_uri()
+            uri_type = target_uri.uri_type
+        else:
+            path = target_uri
+            uri_type = CromwellerURI.__get_uri_type(target_uri)
+
+        if path is None and uri_type == self._uri_type:
             return self._uri
+
         if CromwellerURI.VERBOSE:
             print('[CromwellerURI] copying from '
                   '{src} to {target}, src: {uri}'.format(
                     src=self._uri_type, target=uri_type, uri=self._uri))
 
-        path = None
         if uri_type == URI_URL:
-            if self._uri_type == URI_GCS:
+            if path is not None:
+                path = None
+            elif self._uri_type == URI_GCS:
                 path = 'http://storage.googleapis.com/{}'.format(
                     self._uri.replace('gs://', '', 1))
             elif self._uri_type == URI_S3:
                 path = 'http://s3.amazonaws.com/{}'.format(
                     self._uri.replace('s3://', '', 1))
 
-        elif uri_type == URI_GCS:
-            path = self.__get_gcs_file_name()
+        if uri_type == URI_GCS:
+            if path is None:
+                path = self.__get_gcs_file_name()
             if self._uri_type == URI_URL:
                 ps = Popen(
                     ['curl', '-u',
@@ -183,7 +210,8 @@ class CromwellerURI(object):
                 path = None
 
         elif uri_type == URI_S3:
-            path = self.__get_s3_file_name()
+            if path is None:
+                path = self.__get_s3_file_name()
             if self._uri_type == URI_URL:
                 ps = Popen([
                     'curl',
@@ -209,7 +237,8 @@ class CromwellerURI(object):
                 path = None
 
         elif uri_type == URI_LOCAL:
-            path = self.__get_local_file_name()
+            if path is None:
+                path = self.__get_local_file_name()
             os.makedirs(os.path.dirname(path), exist_ok=True)
             if self._uri_type == URI_URL:
                 check_call([
@@ -234,12 +263,10 @@ class CromwellerURI(object):
         if path is None:
             raise NotImplementedError('uri_types: {}, {}'.format(
                 self._uri_type, uri_type))
-
         if CromwellerURI.VERBOSE:
             print('[CromwellerURI] copying done, target: {target}'.format(
-                    target=path))
-
-        assert(CromwellerURI.__file_exists(path))
+                    target=path)) 
+        # assert(CromwellerURI.__file_exists(path))
         return path
 
     def get_file_contents(self):
