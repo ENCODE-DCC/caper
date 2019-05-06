@@ -167,8 +167,11 @@ optional arguments:
 
 ## Installation
 
+We will add PIP installation later. Until then git clone it and manually add `cromweller` to your environment variable `PATH` in your BASH startup scripts (`~/.bashrc`).
+
 ```bash
-$ pip install cromweller
+$ git clone https://github.com/ENCODE-DCC/cromweller
+$ echo "export PATH=\"\$PATH:$PWD/cromweller\"" >> ~/.bashrc
 ```
 
 ## Requirements
