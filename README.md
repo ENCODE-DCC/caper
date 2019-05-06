@@ -178,7 +178,7 @@ $ echo "export PATH=\"\$PATH:$PWD/cromweller\"" >> ~/.bashrc
 
 You can avoid repeatedly defining the same parameters in your command line arguments by using a configuration file. For example, you can define `out_dir` and `tmp_dir` in your configuration file instead of defining them in command line arguments.
 ```
-$ cromweller run --out-dir [LOCAL_OUT_DIR] --tmp-dir [LOCAL_TMP_DIR] your.wdl
+$ cromweller run your.wdl --out-dir [LOCAL_OUT_DIR] --tmp-dir [LOCAL_TMP_DIR]
 ```
 
 Equivalent settings in a configuration file. Make sure to replace dashes (`-`) with underscores (`_`).
@@ -197,7 +197,7 @@ You can also have a default configuration file at `~/.cromweller/default.conf`. 
 
 We provide an example configuration file `default.conf`.
 
-Create Cromweller's directory on your `HOME`. Copy the eaxmple configuration file (`default.conf`) to it. Uncomment any parameter to activate and define it.
+Create Cromweller's directory on your `HOME`. Copy the example configuration file (`default.conf`) to it. Uncomment any parameter to activate and define it.
 ```
 $ mkdir -p ~/.cromweller
 $ cd cromweller  # make sure that you are on Cromweller's git directory
@@ -208,7 +208,7 @@ $ cp default.conf ~/.cromweller
 
 We recommend to use a default configuration file explained in the section [Configuration file](#configuration-file).
 
-There are six backends supported by Cromweller. Each backend must run on its designated storage. To use cloud backends (`gcp` and `aws`) and corresponding cloud storages (`gcs` and `s3`), you must install cloud platform's CLIs ([`gsutil`](https://cloud.google.com/storage/docs/gsutil_install) and [`aws`](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html)). You also need to configure these CLIs for authentication. See [Requirements](#requirements) for details.
+There are six backends supported by Cromweller. Each backend must run on its designated storage. To use cloud backends (`gcp` and `aws`) and corresponding cloud storages (`gcs` and `s3`), you must install cloud platform's CLIs ([`gsutil`](https://cloud.google.com/storage/docs/gsutil_install) and [`aws`](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html)). You also need to configure these CLIs for authentication. See configuration instructions for [GCP](docs/conf_gcp.md) and [AWS](docs/conf_aws.md) for details.
 
 | Backend | Description          | Storage | Required parameters                                                     |
 |---------|----------------------|---------|-------------------------------------------------------------------------|
@@ -223,21 +223,21 @@ There are six backends supported by Cromweller. Each backend must run on its des
 
 Make sure that you already configured `gcloud` and `gsutil` correctly and passed authentication for them (e.g. `gcloud auth login`). You need to define `--gcp-prj`, `--out-gcs-bucket` and `--tmp-gcs-bucket` in your command line arguments or in your configuration file.
 ```
-$ cromweller run -b gcp --gcp-prj [GOOGLE_PRJ_NAME] --out-gcs-bucket [GS_OUT_DIR] --tmp-gcs-bucket [GS_TMP_DIR]
+$ cromweller run my.wdl -b gcp --gcp-prj [GOOGLE_PRJ_NAME] --out-gcs-bucket [GS_OUT_DIR] --tmp-gcs-bucket [GS_TMP_DIR]
 ```
 
 ### Google Cloud Platform (`gcp`)
 
 Make sure that you already configured `aws` correctly and passed authentication for them (e.g. `aws configure`). You need to define `--aws-batch-arn`, `--aws-region`, `--out-s3-bucket` and `--tmp-s3-bucket` in your command line arguments or in your configuration file.
 ```
-$ cromweller run -b aws --aws-batch-arn [AWS_BATCH_ARN] --aws-region [AWS_REGION] --out-s3-bucket [S3_OUT_DIR] --tmp-s3-bucket [S3_TMP_DIR]
+$ cromweller run my.wdl -b aws --aws-batch-arn [AWS_BATCH_ARN] --aws-region [AWS_REGION] --out-s3-bucket [S3_OUT_DIR] --tmp-s3-bucket [S3_TMP_DIR]
 ```
 
 ### All local backends (`Local`, `slurm`, `sge` and `pbs`)
 
 You need to define `--out-dir` and `--tmp-dir` in your command line arguments or in your configuration file.
 ```
-$ cromweller run -b [BACKEND] --out-dir [OUT_DIR] --tmp-dir [TMP_DIR]
+$ cromweller run my.wdl -b [BACKEND] --out-dir [OUT_DIR] --tmp-dir [TMP_DIR]
 ```
 
 ### SLURM backend (`slurm`)
@@ -245,7 +245,7 @@ $ cromweller run -b [BACKEND] --out-dir [OUT_DIR] --tmp-dir [TMP_DIR]
 You need to define `--slurm-account` or `--slurm-partition` in your command line arguments or in your configuration file.
 > **WARNING: If your SLURM cluster does not require you to specify a partition or an account then skip them.
 ```
-$ cromweller run -b slurm --slurm-account [YOUR_SLURM_ACCOUNT] --slurm-partition [YOUR_SLURM_PARTITON]
+$ cromweller run my.wdl -b slurm --slurm-account [YOUR_SLURM_ACCOUNT] --slurm-partition [YOUR_SLURM_PARTITON]
 ```
 
 ### SGE backend (`sge`)
@@ -253,14 +253,14 @@ $ cromweller run -b slurm --slurm-account [YOUR_SLURM_ACCOUNT] --slurm-partition
 You need to define `--sge-pe` in your command line arguments or in your configuration file.
 > **WARNING: If you don't have a parallel environment (PE) then ask your SGE admin to add one.
 ```
-$ cromweller run -b sge --sge-pe [YOUR_PE]
+$ cromweller run my.wdl -b sge --sge-pe [YOUR_PE]
 ```
 
 ### PBS backend (`pbs`)
 
 There are no required parameters for PBS backend.
 ```
-$ cromweller run -b pbs
+$ cromweller run my.wdl -b pbs
 ```
 
 ## Temporary directory
@@ -274,20 +274,18 @@ There are four types of storages. Each storage except for URL has its own tempor
 | `s3`    | `s3://`      | `--tmp-s3-bucket`         |
 | `url`   | `http(s)://` | not available (read-only) |
 
-### Security
+## Output directory
 
-> **WARNING**: Please keep your local temporary directory **SECURE**. Cromweller writes temporary files (`backend.conf`, `inputs.json`, `workflow_opts.json` and `labels.json`) for Cromwell on `local` temporary directory defined by `--tmp-dir`. The following sensitive information can be exposed on these directories.
+Output directories are defined similarly as temporary ones. Those are actual output directories (called `cromwell_root`, which is `cromwell-executions/` by default) where Cromwell's output are actually written to.
 
-| Sensitve information               | Temporary filename   |
-|------------------------------------|----------------------|
-| MySQL database username            | `backend.conf`       |
-| MySQL database password            | `backend.conf`       |
-| AWS Batch ARN                      | `backend.conf`       |
-| Google Cloud Platform project name | `backend.conf`       |
-| SLURM account name                 | `workflow_opts.json` |
-| SLURM partition name               | `workflow_opts.json` |
+| Storage | URI(s)       | Command line parameter    |
+|---------|--------------|---------------------------|
+| `local` | Path         | `--out-dir`               |
+| `gcs`   | `gs://`      | `--out-gcs-bucket`        |
+| `s3`    | `s3://`      | `--out-s3-bucket`         |
+| `url`   | `http(s)://` | not available (read-only) |
 
-> **WARNING**: Also, please keep other temporary directories **SECURE** too. Your data files defined in your input JSON file can be recursively transferred to any of these temporary directories according to your target backend defined by `-b` or `--backend`.
+Workflow's final output file `metadata.json` will be written to each workflow's directory (with workflow UUID) under this output directory.
 
 ### Inter-storage transfer
 
@@ -321,18 +319,20 @@ Example:
 [CromwellerURI] copying done, target: /srv/scratch/leepc12/cromweller_tmp_dir/encode-pipeline-test-runs/test_wdl_imports/main.wdl
 ```
 
-## Output directory
+### Security
 
-Output directories are defined similarly as temporary ones. Those are actual output directories (called `cromwell_root`, which is `cromwell-executions/` by default) where Cromwell's output are actually written to.
+> **WARNING**: Please keep your local temporary directory **SECURE**. Cromweller writes temporary files (`backend.conf`, `inputs.json`, `workflow_opts.json` and `labels.json`) for Cromwell on `local` temporary directory defined by `--tmp-dir`. The following sensitive information can be exposed on these directories.
 
-| Storage | URI(s)       | Command line parameter    |
-|---------|--------------|---------------------------|
-| `local` | Path         | `--out-dir`               |
-| `gcs`   | `gs://`      | `--out-gcs-bucket`        |
-| `s3`    | `s3://`      | `--out-s3-bucket`         |
-| `url`   | `http(s)://` | not available (read-only) |
+| Sensitve information               | Temporary filename   |
+|------------------------------------|----------------------|
+| MySQL database username            | `backend.conf`       |
+| MySQL database password            | `backend.conf`       |
+| AWS Batch ARN                      | `backend.conf`       |
+| Google Cloud Platform project name | `backend.conf`       |
+| SLURM account name                 | `workflow_opts.json` |
+| SLURM partition name               | `workflow_opts.json` |
 
-Workflow's final output file `metadata.json` will be written to each workflow's directory (with workflow UUID) under this output directory.
+> **WARNING**: Also, please keep other temporary directories **SECURE** too. Your data files defined in your input JSON file can be recursively transferred to any of these temporary directories according to your target backend defined by `-b` or `--backend`.
 
 ## WDL customization
 
