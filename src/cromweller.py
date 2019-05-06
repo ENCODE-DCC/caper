@@ -1,0 +1,868 @@
+#!/usr/bin/env python3
+"""Cromweller: Cromwell/WDL wrapper python script
+for multiple backends (local, gc, aws)
+
+(Optional)
+Add the following comments to your WDL script to specify container images
+that Cromweller will use for your WDL. You still need to add
+"--use-docker" or "--use-singularity" to command line arguments.
+
+Example:
+#CROMWELLER docker quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
+#CROMWELLER singularity docker://quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
+
+Author:
+    Jin Lee (leepc12@gmail.com) at ENCODE-DCC
+"""
+
+from pyhocon import ConfigFactory, HOCONConverter
+import os
+import json
+import re
+import time
+import shutil
+from subprocess import Popen, PIPE, CalledProcessError
+from datetime import datetime
+
+from cromweller_args import parse_cromweller_arguments
+from cromwell_rest_api import CromwellRestAPI
+from cromweller_uri import URI_S3, URI_GCS, URI_LOCAL, \
+    init_cromweller_uri, CromwellerURI
+from cromweller_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
+    CromwellerBackendCommon, CromwellerBackendMySQL, CromwellerBackendGCP, \
+    CromwellerBackendAWS, CromwellerBackendLocal, CromwellerBackendSLURM, \
+    CromwellerBackendSGE, CromwellerBackendPBS
+
+__version__ = "v0.1.0"
+
+
+def merge_dict(a, b, path=None):
+    """Merge b into a recursively. This mutates a and overwrites
+    items in b on a for conflicts.
+
+    Ref: https://stackoverflow.com/questions/7204805/dictionaries
+    -of-dictionaries-merge/7205107#7205107
+    """
+    if path is None:
+        path = []
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                merge_dict(a[key], b[key], path + [str(key)])
+            elif a[key] == b[key]:
+                pass
+            else:
+                a[key] = b[key]
+        else:
+            a[key] = b[key]
+
+
+class Cromweller(object):
+    """Cromwell/WDL wrapper
+    """
+
+    BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
+    DEFAULT_BACKEND = BACKEND_LOCAL
+    RE_PATTERN_BACKEND_CONF_HEADER = r'^\s*include\s'
+    RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CROMWELLER\s+docker\s(.+)'
+    RE_PATTERN_WDL_COMMENT_SINGULARITY = \
+        r'^\s*\#\s*CROMWELLER\s+singularity\s(.+)'
+    RE_PATTERN_VALID_STR_LABEL = r'^[A-Za-z0-9\-\_]+$'
+    RE_PATTERN_STARTED_WORKFLOW_ID = \
+        r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
+    RE_PATTERN_FINISHED_WORKFLOW_ID = \
+        r'WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) is in a terminal state'
+    RE_PATTERN_WORKFLOW_ID = \
+        r'\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b'
+    RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s+as\s+'
+    SEC_INTERVAL_UPDATE_METADATA = 240.0
+    # added to cromwell labels file
+    KEY_CROMWELLER_STR_LABEL = 'cromweller-str-label'
+    KEY_CROMWELLER_BACKEND = 'cromweller-backend'
+    TMP_FILE_BASENAME_METADATA_JSON = 'metadata.json'
+    TMP_FILE_BASENAME_WORKFLOW_OPTS_JSON = 'workflow_opts.json'
+    TMP_FILE_BASENAME_BACKEND_CONF = 'backend.conf'
+    TMP_FILE_BASENAME_LABELS_JSON = 'labels.json'
+    TMP_FILE_BASENAME_IMPORTS_ZIP = 'imports.zip'
+
+    def __init__(self, args):
+        """Initializes from args dict
+        """
+        # init REST API
+        self._port = args.get('port')
+        self._cromwell_rest_api = CromwellRestAPI(
+            ip=args.get('ip'), port=self._port, verbose=False)
+
+        # init others
+        # self._keep_temp_backend_file = args.get('keep_temp_backend_file')
+        self._hold = args.get('hold')
+        self._format = args.get('format')
+        self._use_call_caching = args.get('use_call_caching')
+        self._max_concurrent_workflows = args.get('max_concurrent_workflows')
+        self._max_concurrent_tasks = args.get('max_concurrent_tasks')
+        self._tmp_dir = args.get('tmp_dir')
+        self._out_dir = args.get('out_dir')
+        self._gcp_prj = args.get('gcp_prj')
+        self._out_gcs_bucket = args.get('out_gcs_bucket')
+        self._out_s3_bucket = args.get('out_s3_bucket')
+        self._aws_batch_arn = args.get('aws_batch_arn')
+        self._aws_region = args.get('aws_region')
+        self._slurm_partition = args.get('slurm_partition')
+        self._slurm_account = args.get('slurm_account')
+        self._slurm_extra_param = args.get('slurm_extra_param')
+        self._sge_pe = args.get('sge_pe')
+        self._sge_queue = args.get('sge_queue')
+        self._sge_extra_param = args.get('sge_extra_param')
+        self._pbs_queue = args.get('pbs_queue')
+        self._pbs_extra_param = args.get('pbs_extra_param')
+        self._mysql_db_ip = args.get('mysql_db_ip')
+        self._mysql_db_port = args.get('mysql_db_port')
+        self._mysql_db_user = args.get('mysql_db_user')
+        self._mysql_db_password = args.get('mysql_db_password')
+        self._backend_file = args.get('backend_file')
+        self._wdl = args.get('wdl')
+        self._inputs = args.get('inputs')
+        self._cromwell = args.get('cromwell')
+        self._workflow_opts = args.get('options')
+        self._str_label = args.get('str_label')
+        self._labels = args.get('labels')
+        self._imports = args.get('imports')
+
+        # backend and default backend
+        self._backend = args.get('backend')
+        if self._backend is None:
+            if args.get('action') == 'submit':
+                self._backend = self._cromwell_rest_api.get_default_backend()
+            else:
+                self._backend = Cromweller.DEFAULT_BACKEND
+        if self._backend == 'local':
+            self._backend = BACKEND_LOCAL  # Local (capital L)
+
+        # deepcopy
+        self._deepcopy = args.get('deepcopy')
+        self._deepcopy_ext = args.get('deepcopy_ext')
+        if self._deepcopy_ext is not None:
+            self._deepcopy_ext = [
+                '.'+ext for ext in self._deepcopy_ext.split(',')]
+
+        # containers
+        self._use_singularity = args.get('use_singularity')
+        self._use_docker = args.get('use_docker')
+        self._singularity = args.get('singularity')
+        self._docker = args.get('docker')
+        if self._singularity is not None:
+            self._use_singularity = True
+        if self._docker is not None:
+            self._use_docker = True
+
+        # list of values
+        self._wf_id_or_label = args.get('wf_id_or_label')
+
+    def run(self):
+        """Run a workflow using Cromwell run mode
+        """
+        timestamp = Cromweller.__get_time_str()
+        if self._str_label is not None:
+            # check if str label is valid
+            r = re.findall(Cromweller.RE_PATTERN_VALID_STR_LABEL,
+                           self._str_label)
+            if len(r) != 1:
+                raise ValueError('Invalid str_label.')
+            suffix = os.path.join(
+                self._str_label, timestamp)
+        else:
+            # otherwise, use WDL basename
+            suffix = os.path.join(
+                self.__get_wdl_basename_wo_ext(), timestamp)
+        tmp_dir = self.__mkdir_tmp_dir(suffix)
+
+        # all input files
+        backend_file = self.__create_backend_conf_file(tmp_dir)
+        input_file = self.__create_input_json_file(tmp_dir)
+        workflow_opts_file = self.__create_workflow_opts_json_file(tmp_dir)
+        labels_file = self.__create_labels_json_file(tmp_dir)
+        imports_file = self.__create_imports_zip_file_from_wdl(tmp_dir)
+
+        # metadata JSON file is an output from Cromwell
+        #   place it on the tmp dir
+        metadata_file = os.path.join(
+            tmp_dir, Cromweller.TMP_FILE_BASENAME_METADATA_JSON)
+
+        # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
+        cmd = ['java', '-DLOG_LEVEL=INFO', '-jar',
+               '-Dconfig.file={}'.format(backend_file),
+               CromwellerURI(self._cromwell).get_local_file(), 'run',
+               CromwellerURI(self._wdl).get_local_file(),
+               '-i', input_file,
+               '-o', workflow_opts_file,
+               '-l', labels_file,
+               '-m', metadata_file]
+        if imports_file is not None:
+            cmd += ['-p', imports_file]
+        print('[Cromweller] cmd: ', cmd)
+
+        try:
+            p = Popen(cmd, stdout=PIPE, universal_newlines=True, cwd=tmp_dir)
+            workflow_id = None
+            rc = None
+            while p.poll() is None:
+                stdout = p.stdout.readline().strip('\n')
+
+                # find workflow id from STDOUT
+                if workflow_id is None:
+                    wf_ids_with_status = \
+                        Cromweller.__get_workflow_ids_from_cromwell_stdout(
+                            stdout)
+                    for wf_id, status in wf_ids_with_status:
+                        if status == 'started' or status == 'finished':
+                            workflow_id = wf_id
+                            break
+                print(stdout)
+            # get final RC
+            rc = p.poll()
+        except CalledProcessError as e:
+            rc = e.returncode
+        except KeyboardInterrupt:
+            while p.poll() is None:
+                stdout = p.stdout.readline().strip('\n')
+                print(stdout)
+
+        # move metadata file to a workflow output directory
+        if metadata_file is not None and workflow_id is not None:
+            with open(metadata_file, 'r') as fp:
+                metadata_uri = self.__write_metadata_json(
+                    workflow_id,
+                    json.loads(fp.read()))
+            # remove original one
+            os.remove(metadata_file)
+        else:
+            metadata_uri = None
+
+        print('[Cromweller] run: ', rc, workflow_id, metadata_uri)
+        return workflow_id
+
+    def __write_metadata_jsons(self, workflow_ids):
+        try:
+            for wf_id in workflow_ids:
+                # get metadata for wf_id
+                m = self._cromwell_rest_api.get_metadata([wf_id])
+                assert(len(m) == 1)
+                metadata = m[0]
+                if 'labels' in metadata and \
+                        'cromweller-backend' in metadata['labels']:
+                    backend = \
+                        metadata['labels']['cromweller-backend']
+                else:
+                    backend = None
+
+                if backend is not None:
+                    self.__write_metadata_json(
+                        wf_id, metadata,
+                        backend=backend,
+                        wdl=metadata['workflowName'])
+            return True
+        except Exception as e:
+            print('[Cromweller] Exception caught while retrieving '
+                  'metadata from Cromwell server. Keeping running... ',
+                  str(e), workflow_ids)
+        return False
+
+    def __write_metadata_json(self, workflow_id, metadata_json,
+                              backend=None, wdl=None):
+        if backend is None:
+            backend = self._backend
+        if backend is None:
+            return None
+
+        if backend == BACKEND_GCP:
+            out_dir = self._out_gcs_bucket
+        elif backend == BACKEND_AWS:
+            out_dir = self._out_aws_bucket
+        else:
+            out_dir = self._out_dir
+
+        if wdl is None:
+            wdl = self.__get_wdl_basename_wo_ext()
+        if wdl is None:
+            path = os.path.join(out_dir, workflow_id)
+        else:
+            path = os.path.join(out_dir, os.path.basename(wdl), workflow_id)
+
+        metadata_uri = os.path.join(
+            path, Cromweller.TMP_FILE_BASENAME_METADATA_JSON)
+        return CromwellerURI(metadata_uri).write_str_to_file(
+            json.dumps(metadata_json, indent=4)).get_uri()
+
+    def server(self):
+        """Run a Cromwell server
+        """
+        tmp_dir = self.__mkdir_tmp_dir()
+        backend_file = self.__create_backend_conf_file(tmp_dir)
+
+        # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
+        cmd = ['java', '-DLOG_LEVEL=INFO', '-jar',
+               '-Dconfig.file={}'.format(backend_file),
+               CromwellerURI(self._cromwell).get_local_file(), 'server']
+        print('[Cromweller] cmd: ', cmd)
+
+        # pending/running workflows
+        started_wf_ids = set()
+        # completed, aborted or terminated workflows
+        finished_wf_ids = set()
+        # workflows whose metadata were written
+        metadata_wf_ids = set()
+        try:
+            p = Popen(cmd, stdout=PIPE, universal_newlines=True, cwd=tmp_dir)
+            rc = None
+            t0 = time.perf_counter()  # tickcount
+
+            while p.poll() is None:
+                stdout = p.stdout.readline().strip('\n')
+                print(stdout)
+
+                # find workflow id from Cromwell server's STDOUT
+                wf_ids_with_status = \
+                    Cromweller.__get_workflow_ids_from_cromwell_stdout(stdout)
+                for wf_id, status in wf_ids_with_status:
+                    if status in 'started':
+                        started_wf_ids.add(wf_id)
+                    elif status == 'finished':
+                        finished_wf_ids.add(wf_id)
+
+                for wf_id in finished_wf_ids:
+                    started_wf_ids.remove(wf_id)
+
+                # write metadata.json for finished workflows
+                ok = self.__write_metadata_jsons(finished_wf_ids)
+                # flush finished workflow IDs
+                #   so that their metadata don't get updated any longer
+                finished_wf_ids.clear()
+
+                # write metadata.json for running workflows
+                #   every SEC_INTERVAL_UPDATE_METADATA
+                t1 = time.perf_counter()
+                if (t1 - t0) > Cromweller.SEC_INTERVAL_UPDATE_METADATA:
+                    t0 = t1
+                    self.__write_metadata_jsons(started_wf_ids)
+
+        except CalledProcessError as e:
+            rc = e.returncode
+        except KeyboardInterrupt:
+            while p.poll() is None:
+                stdout = p.stdout.readline().strip('\n')
+                print(stdout)
+        print('[Cromweller] server: ', rc, started_wf_ids, finished_wf_ids)
+        return rc
+
+    def submit(self):
+        """Submit a workflow to Cromwell server
+        """
+        timestamp = Cromweller.__get_time_str()
+        if self._str_label is not None:
+            # check if label is valid
+            r = re.findall(Cromweller.RE_PATTERN_VALID_STR_LABEL,
+                           self._str_label)
+            if len(r) != 1:
+                raise ValueError('Invalid str_label.')
+            suffix = os.path.join(
+                self._str_label, timestamp)
+        else:
+            # otherwise, use WDL basename
+            suffix = os.path.join(
+                self.__get_wdl_basename_wo_ext(), timestamp)
+        tmp_dir = self.__mkdir_tmp_dir(suffix)
+
+        # all input files
+        input_file = self.__create_input_json_file(tmp_dir)
+        imports_file = self.__create_imports_zip_file_from_wdl(tmp_dir)
+        workflow_opts_file = self.__create_workflow_opts_json_file(tmp_dir)
+        labels_file = self.__create_labels_json_file(tmp_dir)
+        on_hold = self._hold if self._hold is not None else False
+
+        r = self._cromwell_rest_api.submit(
+            source=CromwellerURI(self._wdl).get_local_file(),
+            dependencies=imports_file,
+            inputs_file=input_file,
+            options_file=workflow_opts_file,
+            labels_file=labels_file,
+            on_hold=on_hold)
+        print("[Cromweller] submit: ", r)
+        return r
+
+    def abort(self):
+        """Abort running/pending workflows on a Cromwell server
+        """
+        r = self._cromwell_rest_api.abort(
+                self._wf_id_or_label,
+                [(Cromweller.KEY_CROMWELLER_STR_LABEL, v)
+                 for v in self._wf_id_or_label])
+        print("[Cromweller] abort: ", r)
+        return r
+
+    def unhold(self):
+        """Release hold of workflows on a Cromwell server
+        """
+        r = self._cromwell_rest_api.release_hold(
+                self._wf_id_or_label,
+                [(Cromweller.KEY_CROMWELLER_STR_LABEL, v)
+                 for v in self._wf_id_or_label])
+        print("[Cromweller] unhold: ", r)
+        return r
+
+    def metadata(self):
+        """Retrieve metadata for workflows from a Cromwell server
+        """
+        m = self._cromwell_rest_api.get_metadata(
+                self._wf_id_or_label,
+                [(Cromweller.KEY_CROMWELLER_STR_LABEL, v)
+                 for v in self._wf_id_or_label])
+        print(json.dumps(m, indent=4))
+        return m
+
+    def list(self):
+        """Get list of running/pending workflows from a Cromwell server
+        """
+        # if not argument, list all workflows using wildcard (*)
+        if self._wf_id_or_label is None or len(self._wf_id_or_label) == 0:
+            workflow_ids = ['*']
+            labels = [(Cromweller.KEY_CROMWELLER_STR_LABEL, '*')]
+        else:
+            workflow_ids = self._wf_id_or_label,
+            labels = [(Cromweller.KEY_CROMWELLER_STR_LABEL, v)
+                      for v in self._wf_id_or_label]
+
+        workflows = self._cromwell_rest_api.find(
+            workflow_ids, labels)
+        formats = self._format.split(',')
+        print('\t'.join(formats))
+
+        if workflows is None:
+            return None
+        for w in workflows:
+            row = []
+            workflow_id = w['id'] if 'id' in w else None
+            for f in formats:
+                if f == 'workflow_id':
+                    row.append(str(workflow_id))
+                elif f == 'str_label':
+                    lbl = self._cromwell_rest_api.get_label(
+                        workflow_id,
+                        Cromweller.KEY_CROMWELLER_STR_LABEL)
+                    row.append(str(lbl))
+                else:
+                    row.append(str(w[f] if f in w else None))
+            print('\t'.join(row))
+        return workflows
+
+    def __create_input_json_file(
+            self, directory, fname='inputs.json'):
+        """Make a copy of input JSON file.
+        Deepcopy to a specified storage if required.
+        """
+        if self._inputs is not None:
+            c = CromwellerURI(self._inputs)
+            if self._deepcopy and self._deepcopy_ext:
+                # deepcopy all files in JSON/TSV/CSV
+                #   to the target backend
+                if self._backend == BACKEND_GCP:
+                    uri_type = URI_GCS
+                elif self._backend == BACKEND_AWS:
+                    uri_type = URI_S3
+                else:
+                    uri_type = URI_LOCAL
+                c = c.deepcopy(uri_type=uri_type, uri_exts=self._deepcopy_ext)
+            return c.get_local_file()
+        else:
+            input_file = os.path.join(directory, fname)
+            with open(input_file, 'w') as fp:
+                fp.write('{}')
+            return input_file
+
+    def __create_labels_json_file(
+            self, directory, fname=TMP_FILE_BASENAME_LABELS_JSON):
+        """Create labels JSON file
+        """
+        if self._labels is not None:
+            s = CromwellerURI(self._labels).get_file_contents()
+            labels_dict = json.loads(s)
+        else:
+            labels_dict = {}
+
+        labels_dict[Cromweller.KEY_CROMWELLER_BACKEND] = self._backend
+        if self._str_label is not None:
+            labels_dict[Cromweller.KEY_CROMWELLER_STR_LABEL] = \
+                self._str_label
+
+        labels_file = os.path.join(directory, fname)
+        with open(labels_file, 'w') as fp:
+            fp.write(json.dumps(labels_dict, indent=4))
+        return labels_file
+
+    def __create_workflow_opts_json_file(
+            self, directory, fname=TMP_FILE_BASENAME_WORKFLOW_OPTS_JSON):
+        """Creates Cromwell's workflow options JSON file
+
+        Items written to workflow options JSON file:
+            * very important backend
+            backend: a backend to run workflows on
+
+            * important dep resolver
+            docker: docker image URI (e.g. ubuntu:latest)
+            singularity: singularity image URI (docker://, shub://)
+
+            * SLURM params (can also be defined in backend conf file)
+            slurm_partition
+            slurm_account
+            slurm_extra_param
+
+            * SGE params (can also be defined in backend conf file)
+            sge_pe
+            sge_queue
+            sge_extra_param
+
+            * PBS params (can also be defined in backend conf file)
+            pbs_queue
+            pbs_extra_param
+        """
+        template = {
+            'default_runtime_attributes': {}
+        }
+
+        if self._backend is not None:
+            template['backend'] = \
+                self._backend
+
+        # find docker/singularity from WDL or command line args
+        docker_from_wdl = self.__find_docker_from_wdl()
+        # automatically add docker_from_wdl for cloud backend
+        if docker_from_wdl is not None \
+                and self._backend in (BACKEND_GCP, BACKEND_AWS):
+            template['default_runtime_attributes']['docker'] = docker_from_wdl
+        elif self._use_docker:
+            if self._docker is None:
+                docker = docker_from_wdl
+            else:
+                docker = self._docker
+            assert(docker is not None)
+            template['default_runtime_attributes']['docker'] = docker
+
+        singularity_from_wdl = self.__find_singularity_from_wdl()
+        if self._use_singularity:
+            if self._singularity is None:
+                singularity = singularity_from_wdl
+            else:
+                singularity = self._singularity
+            assert(singularity is not None)
+            template['default_runtime_attributes']['singularity'] = singularity
+
+        if self._slurm_partition is not None:
+            template['default_runtime_attributes']['slurm_partition'] = \
+                self._slurm_partition
+        if self._slurm_account is not None:
+            template['default_runtime_attributes']['slurm_account'] = \
+                self._slurm_account
+        if self._slurm_extra_param is not None:
+            template['default_runtime_attributes']['slurm_extra_param'] = \
+                self._slurm_extra_param
+
+        if self._pbs_queue is not None:
+            template['default_runtime_attributes']['pbs_queue'] = \
+                self._pbs_queue
+        if self._pbs_extra_param is not None:
+            template['default_runtime_attributes']['pbs_extra_param'] = \
+                self._pbs_extra_param
+
+        if self._sge_pe is not None:
+            template['default_runtime_attributes']['sge_pe'] = \
+                self._sge_pe
+        if self._sge_queue is not None:
+            template['default_runtime_attributes']['sge_queue'] = \
+                self._sge_queue
+        if self._sge_extra_param is not None:
+            template['default_runtime_attributes']['sge_extra_param'] = \
+                self._sge_extra_param
+
+        # if workflow opts file is given by a user, merge it to template
+        if self._workflow_opts is not None:
+            f = CromwellerURI(self._workflow_opts).get_local_file()
+            with open(f, 'r') as fp:
+                d = json.loads(fp.read())
+                merge_dict(template, d)
+
+        # write it
+        workflow_opts_file = os.path.join(directory, fname)
+        with open(workflow_opts_file, 'w') as fp:
+            fp.write(json.dumps(template, indent=4))
+            fp.write('\n')
+
+        return workflow_opts_file
+
+    def __create_imports_zip_file_from_wdl(
+            self, directory, fname=TMP_FILE_BASENAME_IMPORTS_ZIP):
+        if self._imports is not None:
+            return CromwellerURI(self._imports).get_local_file()
+
+        imports = self.__find_val_from_wdl(Cromweller.RE_PATTERN_WDL_IMPORT)
+        if imports is None:
+            return None
+
+        zip_tmp_dir = os.path.join(directory, 'imports_zip_tmp_dir')
+
+        files_to_zip = []
+        for imp in imports:
+            # ignore imports as HTTP URL or absolute PATH
+            if CromwellerURI(imp).uri_type == URI_LOCAL \
+                    or not os.path.isabs(imp):
+                # download imports relative to WDL (which can exists remotely)
+                wdl_dirname = os.path.dirname(self._wdl)
+                c_imp_ = CromwellerURI(os.path.join(wdl_dirname, imp))
+                # download file to tmp_dir
+                f = c_imp_.get_local_file()
+                target_f = os.path.join(zip_tmp_dir, imp)
+                target_dirname = os.path.dirname(target_f)
+                os.makedirs(target_dirname, exist_ok=True)
+                shutil.copyfile(f, target_f)
+
+        if len(files_to_zip) == 0:
+            return None
+
+        imports_file = os.path.join(directory, fname)
+        imports_file_wo_ext, ext = os.path.splitext(imports_file)
+        shutil.make_archive(imports_file_wo_ext, 'zip', zip_tmp_dir)
+        shutil.rmtree(zip_tmp_dir)
+        return imports_file
+
+    def __create_backend_conf_file(
+            self, directory, fname=TMP_FILE_BASENAME_BACKEND_CONF):
+        """Creates Cromwell's backend conf file
+        """
+        backend_str = self.__get_backend_conf_str()
+        backend_file = os.path.join(directory, fname)
+        with open(backend_file, 'w') as fp:
+            fp.write(backend_str)
+        return backend_file
+
+    def __get_backend_conf_str(self):
+        """
+        Initializes the following backend stanzas,
+        which are defined in "backend" {} in a Cromwell's backend
+        configuration file:
+            1) local: local backend
+            2) gc: Google Cloud backend (optional)
+            3) aws: AWS backend (optional)
+            4) slurm: SLURM (optional)
+            5) sge: SGE (optional)
+            6) pbs: PBS (optional)
+
+        Also, initializes the following common non-"backend" stanzas:
+            a) common: base stanzas
+            b) mysql: connect to MySQL (optional)
+
+        Then converts it to a HOCON string
+        """
+        # init backend dict
+        backend_dict = {}
+
+        # common stanza for backend conf file
+        merge_dict(
+            backend_dict,
+            CromwellerBackendCommon(
+                port=self._port,
+                use_call_caching=self._use_call_caching,
+                max_concurrent_workflows=self._max_concurrent_workflows))
+
+        # local backend
+        merge_dict(
+            backend_dict,
+            CromwellerBackendLocal(
+                out_dir=self._out_dir,
+                concurrent_job_limit=self._max_concurrent_tasks))
+        # GC
+        if self._gcp_prj is not None and self._out_gcs_bucket is not None:
+            merge_dict(
+                backend_dict,
+                CromwellerBackendGCP(
+                    gcp_prj=self._gcp_prj,
+                    out_gcs_bucket=self._out_gcs_bucket,
+                    concurrent_job_limit=self._max_concurrent_tasks))
+        # AWS
+        if self._aws_batch_arn is not None and self._aws_region is not None \
+                and self._out_s3_bucket is not None:
+            merge_dict(
+                backend_dict,
+                CromwellerBackendAWS(
+                    aws_batch_arn=self._aws_batch_arn,
+                    aws_region=self._aws_region,
+                    out_s3_bucket=self._out_s3_bucket,
+                    concurrent_job_limit=self._max_concurrent_tasks))
+        # SLURM
+        merge_dict(
+            backend_dict,
+            CromwellerBackendSLURM(
+                partition=self._slurm_partition,
+                account=self._slurm_account,
+                extra_param=self._slurm_extra_param,
+                concurrent_job_limit=self._max_concurrent_tasks))
+        # SGE
+        merge_dict(
+            backend_dict,
+            CromwellerBackendSGE(
+                pe=self._sge_pe,
+                queue=self._sge_queue,
+                extra_param=self._sge_extra_param,
+                concurrent_job_limit=self._max_concurrent_tasks))
+
+        # PBS
+        merge_dict(
+            backend_dict,
+            CromwellerBackendPBS(
+                queue=self._pbs_queue,
+                extra_param=self._pbs_extra_param,
+                concurrent_job_limit=self._max_concurrent_tasks))
+
+        # MySQL is optional
+        if self._mysql_db_user is not None \
+                and self._mysql_db_password is not None:
+            merge_dict(
+                backend_dict,
+                CromwellerBackendMySQL(
+                    ip=self._mysql_db_ip,
+                    port=self._mysql_db_port,
+                    user=self._mysql_db_user,
+                    password=self._mysql_db_password))
+
+        # set header for conf ("include ...")
+        assert(Cromweller.BACKEND_CONF_HEADER.endswith('\n'))
+        lines_header = [Cromweller.BACKEND_CONF_HEADER]
+
+        # override with user-specified backend.conf if exists
+        if self._backend_file is not None:
+            lines_wo_header = []
+
+            with open(CromwellerURI(self._backend_file).get_local_file(),
+                      'r') as fp:
+                for line in fp.readlines():
+                    # find header and exclude
+                    if re.findall(Cromweller.RE_PATTERN_BACKEND_CONF_HEADER,
+                                  line):
+                        if line not in lines_header:
+                            lines_header.append(line)
+                    else:
+                        lines_wo_header.append(line)
+
+            # parse HOCON to JSON to dict
+            c = ConfigFactory.parse_string(''.join(lines_wo_header))
+            j = HOCONConverter.to_json(c)
+            d = json.loads(j)
+            # apply to backend conf
+            merge_dict(backend_dict, d)
+
+        # use default backend (local) if not specified
+        if self._backend is not None:
+            backend_dict['backend']['default'] = self._backend
+        else:
+            backend_dict['backend']['default'] = Cromweller.DEFAULT_BACKEND
+
+        # dict to HOCON (excluding header)
+        backend_hocon = ConfigFactory.from_dict(backend_dict)
+        # write header to HOCON string
+        backend_str = ''.join(lines_header)
+        # convert HOCON to string
+        backend_str += HOCONConverter.to_hocon(backend_hocon)
+
+        return backend_str
+
+    def __get_wdl_basename_wo_ext(self):
+        if self._wdl is not None:
+            wdl, _ = os.path.splitext(self._wdl)
+            return os.path.basename(wdl)
+        else:
+            return None
+
+    def __find_docker_from_wdl(self):
+        r = self.__find_val_from_wdl(
+            Cromweller.RE_PATTERN_WDL_COMMENT_DOCKER)
+        return r[0] if len(r) > 0 else None
+
+    def __find_singularity_from_wdl(self):
+        r = self.__find_val_from_wdl(
+            Cromweller.RE_PATTERN_WDL_COMMENT_SINGULARITY)
+        return r[0] if len(r) > 0 else None
+
+    def __find_val_from_wdl(self, regex_val):
+        result = []
+        if self._wdl is not None:
+            with open(CromwellerURI(self._wdl).get_local_file(), 'r') as fp:
+                for line in fp.readlines():
+                    r = re.findall(regex_val, line)
+                    if len(r) > 0:
+                        ret = r[0].strip()
+                        if len(ret) > 0:
+                            result.append(ret)
+        return result
+
+    def __mkdir_tmp_dir(self, suffix=''):
+        """Create a temporary directory (self._tmp_dir/suffix)
+        """
+        tmp_dir = os.path.join(self._tmp_dir, suffix)
+        os.makedirs(tmp_dir, exist_ok=True)
+        return tmp_dir
+
+    @staticmethod
+    def __get_workflow_ids_from_cromwell_stdout(stdout):
+        result = []
+        for line in stdout.split('\n'):
+            r1 = re.findall(Cromweller.RE_PATTERN_STARTED_WORKFLOW_ID, line)
+            if len(r1) > 0:
+                result.append((r1[0].strip(), 'started'))
+            r2 = re.findall(Cromweller.RE_PATTERN_FINISHED_WORKFLOW_ID, line)
+            if len(r2) > 0:
+                result.append((r2[0].strip(), 'finished'))
+        return result
+
+    @staticmethod
+    def __get_time_str():
+        return datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+
+
+def main():
+    # parse arguments
+    #   note that args is a dict
+    args = parse_cromweller_arguments()
+
+    # init cromweller uri to transfer files across various storages
+    #   e.g. gs:// to s3://, http:// to local, ...
+    init_cromweller_uri(
+        tmp_dir=args.get('tmp_dir'),
+        tmp_s3_bucket=args.get('tmp_s3_bucket'),
+        tmp_gcs_bucket=args.get('tmp_gcs_bucket'),
+        http_user=args.get('http_user'),
+        http_password=args.get('http_password'),
+        use_gsutil_over_aws_s3=args.get('use_gsutil_over_aws_s3'),
+        verbose=True)
+
+    # init cromweller: taking all args at init step
+    c = Cromweller(args)
+
+    action = args['action']
+    if action == 'run':
+        c.run()
+    elif action == 'server':
+        c.server()
+    elif action == 'submit':
+        c.submit()
+    elif action == 'abort':
+        c.abort()
+    elif action == 'list':
+        c.list()
+    elif action == 'metadata':
+        c.metadata()
+    elif action == 'unhold':
+        c.unhold()
+    else:
+        raise Exception('Unsupported or unspecified action.')
+    return 0
+
+
+if __name__ == '__main__':
+    main()

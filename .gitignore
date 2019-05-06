@@ -102,3 +102,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# dev
+src/test_dev
+src/cromweller_tmp
+cromweller_tmp
+src/test_cromweller_uri/
