@@ -319,6 +319,13 @@ Example:
 [CromwellerURI] copying done, target: /srv/scratch/leepc12/cromweller_tmp_dir/encode-pipeline-test-runs/test_wdl_imports/main.wdl
 ```
 
+### Working with URLs
+
+To have access to password-protected (HTTP Auth) private URLs, provide username and password in command line arguments (`--http-user` and `--http-password`) or in a configuration file.
+```
+$ cromweller run http://password.protected.server.com/my.wdl -i http://password.protected.server.com/my.inputs.json --http-user [HTTP_USERNAME] --http-password [HTTP_PASSWORD] 
+```
+
 ### Security
 
 > **WARNING**: Please keep your local temporary directory **SECURE**. Cromweller writes temporary files (`backend.conf`, `inputs.json`, `workflow_opts.json` and `labels.json`) for Cromwell on `local` temporary directory defined by `--tmp-dir`. The following sensitive information can be exposed on these directories.
