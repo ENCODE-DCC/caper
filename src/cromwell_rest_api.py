@@ -54,7 +54,7 @@ class CromwellRestAPI(object):
                 CromwellRestAPI.__get_string_io_from_file(options_file)
         if labels_file is not None:
             manifest['labels'] = \
-                CromwellRestAPI.__get_string_io_from_file(labels_file)                
+                CromwellRestAPI.__get_string_io_from_file(labels_file)
         if on_hold:
             manifest['workflowOnHold'] = True
 
@@ -176,7 +176,7 @@ class CromwellRestAPI(object):
             return None
         r = self.__request_patch(
             CromwellRestAPI.ENDPOINT_LABELS.format(
-                wf_id=workflow_id), labels)        
+                wf_id=workflow_id), labels)
         if self._verbose:
             print("CromwellRestAPI.update_labels: ", r)
         return r
@@ -330,6 +330,7 @@ class CromwellRestAPI(object):
     def __get_bytes_io_from_file(fname):
         with open(fname, 'rb') as fp:
             return io.BytesIO(fp.read())
+
 
 def main():
     pass
