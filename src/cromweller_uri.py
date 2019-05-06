@@ -305,6 +305,7 @@ class CromwellerURI(object):
                     target=self._uri_type, uri=self._uri, size=len(s)))
 
         if self._uri_type == URI_LOCAL:
+            os.makedirs(os.path.dirname(self._uri), exist_ok=True)
             with open(self._uri, 'w') as fp:
                 fp.write(s)
         elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \

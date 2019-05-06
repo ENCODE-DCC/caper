@@ -271,6 +271,8 @@ class Cromweller(object):
                               backend=None, wdl=None):
         if backend is None:
             backend = self._backend
+        if backend is None:
+            return None
 
         if backend == BACKEND_GCP:
             out_dir = self._out_gcs_bucket
@@ -285,9 +287,6 @@ class Cromweller(object):
             path = os.path.join(out_dir, workflow_id)
         else:
             path = os.path.join(out_dir, os.path.basename(wdl), workflow_id)
-
-        if self._backend not in (BACKEND_GCP, BACKEND_AWS):
-            os.makedirs(path, exist_ok=True)
 
         metadata_uri = os.path.join(
             path, Cromweller.TMP_FILE_BASENAME_METADATA_JSON)
