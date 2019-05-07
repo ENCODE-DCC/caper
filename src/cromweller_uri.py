@@ -311,10 +311,10 @@ class CromwellerURI(object):
         elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
                 and CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
             run(['gsutil', '-q', 'cp', '-', self._uri],
-                input=s, encoding='ascii')
+                input=s.encode('ascii'))
         elif self._uri_type == URI_S3:
             run(['aws', 's3', 'cp', '--only-show-errors', '-', self._uri],
-                input=s, encoding='ascii')
+                input=s.encode('ascii'))
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
         return self
