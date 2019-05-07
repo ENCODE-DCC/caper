@@ -9,6 +9,7 @@ import argparse
 from configparser import ConfigParser
 import sys
 import os
+from distutils.util import strtobool
 
 
 DEFAULT_CROMWELLER_CONF = '~/.cromweller/default.conf'
@@ -77,11 +78,13 @@ def parse_cromweller_arguments():
         help='Path or URL for Cromwell JAR file')
     group_cromwell.add_argument(
         '--max-concurrent-tasks', default=DEFAULT_MAX_CONCURRENT_TASKS,
+        type=int,
         help='Number of concurrent tasks. '
              '"config.concurrent-job-limit" in Cromwell backend configuration '
              'for each backend')
     group_cromwell.add_argument(
         '--max-concurrent-workflows', default=DEFAULT_MAX_CONCURRENT_WORKFLOWS,
+        type=int,
         help='Number of concurrent workflows. '
              '"system.max-concurrent-workflows" in backend configuration')
     group_cromwell.add_argument(
@@ -300,6 +303,38 @@ def parse_cromweller_arguments():
 
     # convert to dict
     args_d = vars(args)
+
+    use_call_caching = args_d.get('use_call_caching')
+    if use_call_caching is not None and isinstance(use_call_caching, str):
+        args_d['use_call_caching'] = bool(strtobool(use_call_caching))
+
+    use_gsutil_over_aws_s3 = args_d.get('use_gsutil_over_aws_s3')
+    if use_gsutil_over_aws_s3 is not None and isinstance(use_gsutil_over_aws_s3, str):
+        args_d['use_gsutil_over_aws_s3'] = bool(strtobool(use_gsutil_over_aws_s3))
+
+    hold = args_d.get('hold')
+    if hold is not None and isinstance(hold, str):
+        args_d['hold'] = bool(strtobool(hold))
+
+    deepcopy = args_d.get('deepcopy')
+    if deepcopy is not None and isinstance(deepcopy, str):
+        args_d['deepcopy'] = bool(strtobool(deepcopy))
+
+    use_docker = args_d.get('use_docker')
+    if use_docker is not None and isinstance(use_docker, str):
+        args_d['use_docker'] = bool(strtobool(use_docker))
+
+    use_singularity = args_d.get('use_singularity')
+    if use_singularity is not None and isinstance(use_singularity, str):
+        args_d['use_singularity'] = bool(strtobool(use_singularity))
+
+    max_concurrent_tasks = args_d.get('max_concurrent_tasks')
+    if max_concurrent_tasks is not None and isinstance(max_concurrent_tasks, str):
+        args_d['max_concurrent_tasks'] = int(max_concurrent_tasks)
+
+    max_concurrent_workflows = args_d.get('max_concurrent_workflows')
+    if max_concurrent_workflows is not None and isinstance(max_concurrent_workflows, str):
+        args_d['max_concurrent_workflows'] = int(max_concurrent_workflows)
 
     # init some important path variables
     if args_d.get('out_dir') is None:
