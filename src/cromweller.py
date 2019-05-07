@@ -102,6 +102,10 @@ class Cromweller(object):
         self._max_concurrent_tasks = args.get('max_concurrent_tasks')
         self._tmp_dir = args.get('tmp_dir')
         self._out_dir = args.get('out_dir')
+        if self._out_dir is not None:
+            self._out_dir = os.path.abspath(self._out_dir)
+        if self._tmp_dir is not None:
+            self._tmp_dir = os.path.abspath(self._tmp_dir)
         self._gcp_prj = args.get('gcp_prj')
         self._out_gcs_bucket = args.get('out_gcs_bucket')
         self._out_s3_bucket = args.get('out_s3_bucket')
