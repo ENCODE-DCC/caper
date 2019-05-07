@@ -377,7 +377,7 @@ $ cromweller run http://password.protected.server.com/my.wdl -i http://password.
 
 	Debian:
 	```bash
-	$ sudo apt-get install python3 jre-default python3-pip wget curl
+	$ sudo apt-get install python3 default-jre python3-pip wget curl
 	```
 	Others:
 	```bash
