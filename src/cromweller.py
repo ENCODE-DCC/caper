@@ -24,7 +24,7 @@ import shutil
 from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 
-from cromweller_args import parse_cromweller_arguments
+from cromweller_args import parse_cromweller_arguments, DEFAULT_IP
 from cromwell_rest_api import CromwellRestAPI
 from cromweller_uri import URI_S3, URI_GCS, URI_LOCAL, \
     init_cromweller_uri, CromwellerURI
@@ -90,8 +90,9 @@ class Cromweller(object):
         """
         # init REST API
         self._port = args.get('port')
+        self._ip = args.get('ip')
         self._cromwell_rest_api = CromwellRestAPI(
-            ip=args.get('ip'), port=self._port, verbose=False)
+            ip=self._ip, port=self._port, verbose=False)
 
         # init others
         # self._keep_temp_backend_file = args.get('keep_temp_backend_file')
@@ -815,7 +816,9 @@ class Cromweller(object):
         return tmp_dir
 
     def __build_singularity_image(self, singularity):
-        if self._backend is not None and self._backend == BACKEND_LOCAL:
+        if (self._ip is None or self._ip == DEFAULT_IP) \
+		and self._backend is not None \
+                and self._backend not in (BACKEND_AWS, BACKEND_GCP):
             print('[Cromweller] building local singularity image: ',
                   singularity)
             return check_call(['singularity', 'exec', singularity,
