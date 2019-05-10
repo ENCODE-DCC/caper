@@ -21,7 +21,7 @@ import json
 import re
 import time
 import shutil
-from subprocess import Popen, PIPE, CalledProcessError
+from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 
 from cromweller_args import parse_cromweller_arguments
@@ -557,6 +557,8 @@ class Cromweller(object):
             else:
                 singularity = self._singularity
             assert(singularity is not None)
+            # build singularity image before running a pipeline
+            self.__build_singularity_image(singularity)
             template['default_runtime_attributes']['singularity'] = singularity
 
         if self._slurm_partition is not None:
@@ -811,6 +813,15 @@ class Cromweller(object):
         tmp_dir = os.path.join(self._tmp_dir, suffix)
         os.makedirs(tmp_dir, exist_ok=True)
         return tmp_dir
+
+    def __build_singularity_image(self, singularity):
+        if self._backend is not None and self._backend == BACKEND_LOCAL:
+            print('[Cromweller] building local singularity image: ',
+                  singularity)
+            return check_call(['singularity', 'exec', singularity,
+                               'echo', '[Cromweller] building done.'])
+        else:
+            return None
 
     @staticmethod
     def __get_workflow_ids_from_cromwell_stdout(stdout):
