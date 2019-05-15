@@ -425,7 +425,6 @@ To stop/kill a MySQL server,
 $ docker ps  # find your MySQL docker container
 $ docker stop [CONTAINER_NAME]  # you can also use a container ID found in the above cmd
 $ docker rm [CONTAINER_NAME]
-$ docker volume rm $(basename [DB_DIR])
 ```
 
 If you see the following authentication error:
@@ -434,10 +433,9 @@ Caused by: java.sql.SQLException: Access denied for user 'cromwell'@'localhost' 
 
 Then try to remove a volume for MySQL's docker container. See [this](https://github.com/docker-library/mariadb/issues/62#issuecomment-366933805) for details.
 ```bash
-$ docker volume ls
-$ docker volume rm $(basename [DB_DIR])
+$ docker volume ls  # find [VOLUME_ID] for your container
+$ docker volume rm [VOLUME_ID]
 ```
-
 
 ## Running a MySQL server with Singularity
 
