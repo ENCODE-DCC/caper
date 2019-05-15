@@ -399,3 +399,46 @@ $ cromweller run http://password.protected.server.com/my.wdl -i http://password.
 	```bash
 	$ aws configure
 	```
+
+## Running a MySQL server with Docker
+
+Run the following command line. `[PORT]`, `[MYSQL_USER]`, `[MYSQL_PASSWORD]` and `[CONTAINER_NAME]` are optional. MySQL server will run in background.
+$ bash mysql/run_mysql_server_docker.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
+```
+
+```bash
+Usage: ./run_mysql_server_docker.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
+
+Example: run_mysql_server_docker.sh ~/cromwell_data_dir 3307
+
+[DB_DIR]: This directory will be mapped to /var/lib/mysql inside a container
+[PORT] (optional): MySQL database port for docker host (default: 3306)
+[MYSQL_USER] (optional): MySQL username (default: cromwell)
+[MYSQL_PASSWORD] (optional): MySQL password (default: cromwell)
+[CONTAINER_NAME] (optional): MySQL container name (default: mysql_cromwell)
+```
+
+If you see any conflict in `[PORT]` and `[CONTAINER_NAME]`, then try with different port and name.
+
+To stop/kill a MySQL server,
+```bash
+$ docker ps  # find your MySQL docker container
+$ docker stop [CONTAINER_NAME]  # you can also use a container ID found in the above cmd
+$ docker rm [CONTAINER_NAME]
+$ docker volume rm $(basename [DB_DIR])
+```
+
+If you see the following authentication error:
+```bash
+Caused by: java.sql.SQLException: Access denied for user 'cromwell'@'localhost' (using password: YES)
+
+Then try to remove a volume for MySQL's docker container. See [this](https://github.com/docker-library/mariadb/issues/62#issuecomment-366933805) for details.
+```bash
+$ docker volume ls
+$ docker volume rm $(basename [DB_DIR])
+```
+
+
+## Running a MySQL server with Singularity
+
+This will be added soon.
