@@ -49,9 +49,11 @@ echo ${INIT_SQL} > ${TMP_INIT_FILE}
 echo "SECURITY WARNING: Your MySQL DB username/password can be exposed in \
 ${TMP_INIT_FILE}"
 
-docker run --name ${CONTAINER_NAME} \
+docker run --detach --name ${CONTAINER_NAME} \
 -v ${DB_DIR}:/var/lib/mysql \
 -v ${TMP_INIT_DIR}:/docker-entrypoint-initdb.d \
 -e MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD} \
 -e MYSQL_DATABASE=${CROMWELL_DB} \
 --publish ${PORT}:3306 mysql
+
+echo "All done."
