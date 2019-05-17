@@ -33,7 +33,7 @@ from cromweller_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CromwellerBackendAWS, CromwellerBackendLocal, CromwellerBackendSLURM, \
     CromwellerBackendSGE, CromwellerBackendPBS
 
-__version__ = "v0.1.0"
+__version__ = "v0.1.1"
 
 
 def merge_dict(a, b, path=None):
