@@ -1,6 +1,6 @@
 # Caper
 
-Caper is a wrapper Python package for [Cromwell](https://github.com/broadinstitute/cromwell/).
+Caper (Cromwell Assisted Pipeline ExecutoR) is a wrapper Python package for [Cromwell](https://github.com/broadinstitute/cromwell/).
 
 ## Introduction
 
