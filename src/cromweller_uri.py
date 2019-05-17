@@ -6,7 +6,9 @@ Author:
 """
 
 import os
+import errno
 import json
+import shutil
 from copy import deepcopy
 from collections import OrderedDict
 from subprocess import Popen, check_call, check_output, run, \
@@ -125,6 +127,10 @@ class CromwellerURI(object):
     def get_uri(self):
         return self._uri
 
+    def is_valid_uri(self):
+        # deepcopy is only available for valid URIs
+        return self._can_deepcopy
+
     def can_deepcopy(self):
         return self._can_deepcopy
 
@@ -154,13 +160,16 @@ class CromwellerURI(object):
         """
         return self.copy(target_uri_type=uri_type)
 
-    def copy(self, target_uri_type=None, target_uri=None):
-        """Make a copy of self on a "target_uri_type" tmp_dir or 
+    def copy(self, target_uri_type=None, target_uri=None, soft_link=False):
+        """Make a copy of self on a "target_uri_type" tmp_dir or
         tmp_bucket. Or copy self to "target_uri".
 
         Args:
-            "target_uri_type" and "target_uri" are exclusive. Specify
-            only one of them.
+            target_uri_type, target_uri:
+                these are exclusive. Specify only one of them.
+
+            soft_link:
+                soft link target if possible. e.g. from local to local
         """
         # XOR: only one of target_uri and target_uri_type
         # should be specified
@@ -179,8 +188,14 @@ class CromwellerURI(object):
             return self._uri
 
         if CromwellerURI.VERBOSE:
-            print('[CromwellerURI] copying from '
+            if soft_link and self._uri_type == URI_LOCAL \
+                    and uri_type == URI_LOCAL:
+                method = 'symlinking'
+            else:
+                method = 'copying'
+            print('[CromwellerURI] {method} from '
                   '{src} to {target}, src: {uri}'.format(
+                    method=method,
                     src=self._uri_type, target=uri_type, uri=self._uri))
 
         if uri_type == URI_URL:
@@ -204,7 +219,8 @@ class CromwellerURI(object):
                      '-f', self._uri], stdout=PIPE)
                 check_call(['gsutil', '-q', 'cp', '-n', '-', path],
                            stdin=ps.stdout)
-            elif self._uri_type == URI_S3 or self._uri_type == URI_LOCAL:
+            elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
+                    or self._uri_type == URI_LOCAL:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
             else:
                 path = None
@@ -227,7 +243,7 @@ class CromwellerURI(object):
                                     '-', path], stdin=ps.stdout)
             elif self._uri_type == URI_GCS:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
-            elif self._uri_type == URI_LOCAL:
+            elif self._uri_type == URI_S3 or self._uri_type == URI_LOCAL:
                 if CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
                     check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
                 elif not CromwellerURI.__file_exists(path):
@@ -240,7 +256,22 @@ class CromwellerURI(object):
             if path is None:
                 path = self.__get_local_file_name()
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            if self._uri_type == URI_URL:
+            if self._uri_type == URI_LOCAL:
+                if soft_link:
+                    if CromwellerURI.VERBOSE:
+                        method = 'symlinking'
+                    try:
+                        os.symlink(self._uri, path)
+                    except OSError as e:
+                        if e.errno == errno.EEXIST:
+                            os.remove(path)
+                            os.symlink(self._uri, path)
+                else:
+                    if CromwellerURI.VERBOSE:
+                        method = 'copying'
+                    shutil.copy2(self._uri, path)
+
+            elif self._uri_type == URI_URL:
                 check_call([
                     'wget', '--no-check-certificate', '-qc',
                     '--user', str(CromwellerURI.HTTP_USER),
@@ -264,9 +295,8 @@ class CromwellerURI(object):
             raise NotImplementedError('uri_types: {}, {}'.format(
                 self._uri_type, uri_type))
         if CromwellerURI.VERBOSE:
-            print('[CromwellerURI] copying done, target: {target}'.format(
-                    target=path)) 
-        # assert(CromwellerURI.__file_exists(path))
+            print('[CromwellerURI] {method} done, target: {target}'.format(
+                    method=method, target=path))
         return path
 
     def get_file_contents(self):

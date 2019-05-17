@@ -399,3 +399,86 @@ $ cromweller run http://password.protected.server.com/my.wdl -i http://password.
 	```bash
 	$ aws configure
 	```
+
+## Running a MySQL server with Docker
+
+We provide [a shell script](mysql/run_mysql_server_docker.sh) to run a MySQL server with docker. Run the following command line. `[PORT]`, `[MYSQL_USER]`, `[MYSQL_PASSWORD]` and `[CONTAINER_NAME]` are optional. MySQL server will run in background.
+
+```bash
+$ bash mysql/run_mysql_server_docker.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
+```
+
+A general usage is:
+```bash
+Usage: ./run_mysql_server_docker.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
+
+Example: run_mysql_server_docker.sh ~/cromwell_data_dir 3307
+
+[DB_DIR]: This directory will be mapped to /var/lib/mysql inside a container
+[PORT] (optional): MySQL database port for docker host (default: 3306)
+[MYSQL_USER] (optional): MySQL username (default: cromwell)
+[MYSQL_PASSWORD] (optional): MySQL password (default: cromwell)
+[CONTAINER_NAME] (optional): MySQL container name (default: mysql_cromwell)
+```
+
+If you see any conflict in `[PORT]` and `[CONTAINER_NAME]`:
+```bash
+docker: Error response from daemon: Conflict. The container name "/mysql_cromwell" is already in use by container 0584ec7affed0555a4ecbd2ed86a345c542b3c60993960408e72e6ea803cb97e. You have to remove (or rename) that container to be able to reuse that name..
+```
+
+Then remove a conflicting container and try with different port and container name.
+```bash
+$ docker stop [CONTAINER_NAME]  # you can also use a container ID found in the above cmd
+$ docker rm [CONTAINER_NAME]
+```
+
+To stop/kill a running MySQL server,
+```bash
+$ docker ps  # find your MySQL docker container
+$ docker stop [CONTAINER_NAME]  # you can also use a container ID found in the above cmd
+$ docker rm [CONTAINER_NAME]
+```
+
+If you see the following authentication error:
+```bash
+Caused by: java.sql.SQLException: Access denied for user 'cromwell'@'localhost' (using password: YES)
+```
+
+Then try to remove a volume for MySQL's docker container. See [this](https://github.com/docker-library/mariadb/issues/62#issuecomment-366933805) for details.
+```bash
+$ docker volume ls  # find [VOLUME_ID] for your container
+$ docker volume rm [VOLUME_ID]
+```
+
+## Running a MySQL server with Singularity
+
+We provide [a shell script](mysql/run_mysql_server_singularity.sh) to run a MySQL server with singularity. Run the following command line. `[PORT]`, `[MYSQL_USER]`, `[MYSQL_PASSWORD]` and `[CONTAINER_NAME]` are optional. MySQL server will run in background.
+
+```bash
+$ bash mysql/run_mysql_server_singularity.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
+```
+
+A general usage is:
+```bash
+Usage: ./run_mysql_server_singularity.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
+
+Example: run_mysql_server_singularity.sh ~/cromwell_data_dir 3307
+
+[DB_DIR]: This directory will be mapped to /var/lib/mysql inside a container
+[PORT] (optional): MySQL database port for singularity host (default: 3306)
+[MYSQL_USER] (optional): MySQL username (default: cromwell)
+[MYSQL_PASSWORD] (optional): MySQL password (default: cromwell)
+[CONTAINER_NAME] (optional): MySQL container name (default: mysql_cromwell)
+```
+
+If you see any conflict in `[PORT]` and `[CONTAINER_NAME]`, then remove a conflicting container and try with different port and container name.
+```bash
+$ singularity instance list
+$ singularity instance stop [CONTAINER_NAME]
+```
+
+To stop/kill a running MySQL server,
+```bash
+$ singularity instance list  # find your MySQL singularity container
+$ singularity instance stop [CONTAINER_NAME]
+```

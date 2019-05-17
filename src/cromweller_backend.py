@@ -63,7 +63,7 @@ class CromwellerBackendMySQL(dict):
             "db": {
                 "url": "jdbc:mysql://localhost:3306/cromwell_db?"
                 "allowPublicKeyRetrieval=true&useSSL=false&"
-                "rewriteBatchedStatements=true",
+                "rewriteBatchedStatements=true&serverTimezone=UTC",
                 "user": "cromwell",
                 "password": "cromwell",
                 "driver": "com.mysql.cj.jdbc.Driver",
