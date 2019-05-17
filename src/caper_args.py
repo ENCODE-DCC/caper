@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CromwellerArgs: Command line arguments parser for Cromweller
+"""CaperArgs: Command line arguments parser for Caper
 
 Author:
     Jin Lee (leepc12@gmail.com) at ENCODE-DCC
@@ -12,7 +12,7 @@ import os
 from distutils.util import strtobool
 
 
-DEFAULT_CROMWELLER_CONF = '~/.cromweller/default.conf'
+DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
@@ -24,8 +24,8 @@ DEFAULT_FORMAT = 'id,status,name,str_label,submission'
 DEFAULT_DEEPCOPY_EXT = 'json,tsv'
 
 
-def parse_cromweller_arguments():
-    """Argument parser for Cromweller
+def parse_caper_arguments():
+    """Argument parser for Caper
     """
     conf_parser = argparse.ArgumentParser(
         description=__doc__,
@@ -33,7 +33,7 @@ def parse_cromweller_arguments():
         add_help=False)
     conf_parser.add_argument('-c', '--conf', help='Specify config file',
                              metavar='FILE',
-                             default=DEFAULT_CROMWELLER_CONF)
+                             default=DEFAULT_CAPER_CONF)
     known_args, remaining_argv = conf_parser.parse_known_args()
 
     # read conf file if it exists
@@ -157,9 +157,9 @@ def parse_cromweller_arguments():
         help='Zip file of imported subworkflows')
     parent_submit.add_argument(
         '-s', '--str-label',
-        help='Cromweller\'s special label for a workflow '
+        help='Caper\'s special label for a workflow '
              'This label will be added to a workflow labels JSON file '
-             'as a value for a key "cromweller-label". '
+             'as a value for a key "caper-label". '
              'DO NOT USE IRREGULAR CHARACTERS. USE LETTERS, NUMBERS, '
              'DASHES AND UNDERSCORES ONLY (^[A-Za-z0-9\\-\\_]+$) '
              'since this label is used to compose a path for '
@@ -185,7 +185,7 @@ def parse_cromweller_arguments():
         description=''
         'Cloud-based backends (gc and aws) will only use Docker '
         'so that "--docker URI_FOR_DOCKER_IMG" must be specified '
-        'in the command line argument or as a comment "#CROMWELLER '
+        'in the command line argument or as a comment "#CAPER '
         'docker URI_FOR_DOCKER_IMG" in a WDL file')
     group_dep.add_argument(
         '--docker', help='URI for Docker image (e.g. ubuntu:latest). '
@@ -244,11 +244,11 @@ def parse_cromweller_arguments():
     parent_server_client = argparse.ArgumentParser(add_help=False)
     parent_server_client.add_argument(
         '--port', default=DEFAULT_PORT,
-        help='Port for Cromweller server')
+        help='Port for Caper server')
     parent_client = argparse.ArgumentParser(add_help=False)
     parent_client.add_argument(
         '--ip', default=DEFAULT_IP,
-        help='IP address for Cromweller server')
+        help='IP address for Caper server')
     parent_client.add_argument(
         '--user',
         help='Username for HTTP auth to connect to Cromwell server')
@@ -263,7 +263,7 @@ def parse_cromweller_arguments():
         'server\'s response is allowed. '
         'Available keys are "id" (workflow ID), "status", "str_label", '
         '"name" (WDL/CWL name), "submission" (date/time), "start", "end". '
-        '"str_label" is a special key for Cromweller. See help context '
+        '"str_label" is a special key for Caper. See help context '
         'of "--str-label" for details')
 
     p_run = subparser.add_parser(
@@ -341,15 +341,15 @@ def parse_cromweller_arguments():
         args_d['out_dir'] = os.getcwd()
 
     if args_d.get('tmp_dir') is None:
-        args_d['tmp_dir'] = os.path.join(args_d['out_dir'], 'cromweller_tmp')
+        args_d['tmp_dir'] = os.path.join(args_d['out_dir'], 'caper_tmp')
 
     if args_d.get('tmp_s3_bucket') is None:
         if args_d.get('out_s3_bucket'):
             args_d['tmp_s3_bucket'] = os.path.join(args_d['out_s3_bucket'],
-                                                   'cromweller_tmp')
+                                                   'caper_tmp')
 
     if args_d.get('tmp_gcs_bucket') is None:
         if args_d.get('out_gcs_bucket'):
             args_d['tmp_gcs_bucket'] = os.path.join(args_d['out_gcs_bucket'],
-                                                    'cromweller_tmp')
+                                                    'caper_tmp')
     return args_d

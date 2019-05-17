@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Cromweller: Cromwell/WDL wrapper python script
+"""Caper: Cromwell/WDL wrapper python script
 for multiple backends (local, gc, aws)
 
 (Optional)
 Add the following comments to your WDL script to specify container images
-that Cromweller will use for your WDL. You still need to add
+that Caper will use for your WDL. You still need to add
 "--use-docker" or "--use-singularity" to command line arguments.
 
 Example:
-#CROMWELLER docker quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
-#CROMWELLER singularity docker://quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
+#CAPER docker quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
+#CAPER singularity docker://quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
 
 Author:
     Jin Lee (leepc12@gmail.com) at ENCODE-DCC
@@ -24,14 +24,14 @@ import shutil
 from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 
-from cromweller_args import parse_cromweller_arguments, DEFAULT_IP
+from caper_args import parse_caper_arguments, DEFAULT_IP
 from cromwell_rest_api import CromwellRestAPI
-from cromweller_uri import URI_S3, URI_GCS, URI_LOCAL, \
-    init_cromweller_uri, CromwellerURI
-from cromweller_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
-    CromwellerBackendCommon, CromwellerBackendMySQL, CromwellerBackendGCP, \
-    CromwellerBackendAWS, CromwellerBackendLocal, CromwellerBackendSLURM, \
-    CromwellerBackendSGE, CromwellerBackendPBS
+from caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
+    init_caper_uri, CaperURI
+from caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
+    CaperBackendCommon, CaperBackendMySQL, CaperBackendGCP, \
+    CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
+    CaperBackendSGE, CaperBackendPBS
 
 __version__ = "v0.1.1"
 
@@ -57,16 +57,16 @@ def merge_dict(a, b, path=None):
             a[key] = b[key]
 
 
-class Cromweller(object):
+class Caper(object):
     """Cromwell/WDL wrapper
     """
 
     BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
     DEFAULT_BACKEND = BACKEND_LOCAL
     RE_PATTERN_BACKEND_CONF_HEADER = r'^\s*include\s'
-    RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CROMWELLER\s+docker\s(.+)'
+    RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CAPER\s+docker\s(.+)'
     RE_PATTERN_WDL_COMMENT_SINGULARITY = \
-        r'^\s*\#\s*CROMWELLER\s+singularity\s(.+)'
+        r'^\s*\#\s*CAPER\s+singularity\s(.+)'
     RE_PATTERN_VALID_STR_LABEL = r'^[A-Za-z0-9\-\_]+$'
     RE_PATTERN_STARTED_WORKFLOW_ID = \
         r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
@@ -77,8 +77,8 @@ class Cromweller(object):
     RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s+as\s+'
     SEC_INTERVAL_UPDATE_METADATA = 240.0
     # added to cromwell labels file
-    KEY_CROMWELLER_STR_LABEL = 'cromweller-str-label'
-    KEY_CROMWELLER_BACKEND = 'cromweller-backend'
+    KEY_CAPER_STR_LABEL = 'caper-str-label'
+    KEY_CAPER_BACKEND = 'caper-backend'
     TMP_FILE_BASENAME_METADATA_JSON = 'metadata.json'
     TMP_FILE_BASENAME_WORKFLOW_OPTS_JSON = 'workflow_opts.json'
     TMP_FILE_BASENAME_BACKEND_CONF = 'backend.conf'
@@ -139,7 +139,7 @@ class Cromweller(object):
             if args.get('action') == 'submit':
                 self._backend = self._cromwell_rest_api.get_default_backend()
             else:
-                self._backend = Cromweller.DEFAULT_BACKEND
+                self._backend = Caper.DEFAULT_BACKEND
         if self._backend == 'local':
             self._backend = BACKEND_LOCAL  # Local (capital L)
 
@@ -166,10 +166,10 @@ class Cromweller(object):
     def run(self):
         """Run a workflow using Cromwell run mode
         """
-        timestamp = Cromweller.__get_time_str()
+        timestamp = Caper.__get_time_str()
         if self._str_label is not None:
             # check if str label is valid
-            r = re.findall(Cromweller.RE_PATTERN_VALID_STR_LABEL,
+            r = re.findall(Caper.RE_PATTERN_VALID_STR_LABEL,
                            self._str_label)
             if len(r) != 1:
                 raise ValueError('Invalid str_label.')
@@ -191,20 +191,20 @@ class Cromweller(object):
         # metadata JSON file is an output from Cromwell
         #   place it on the tmp dir
         metadata_file = os.path.join(
-            tmp_dir, Cromweller.TMP_FILE_BASENAME_METADATA_JSON)
+            tmp_dir, Caper.TMP_FILE_BASENAME_METADATA_JSON)
 
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
         cmd = ['java', '-DLOG_LEVEL=INFO', '-jar',
                '-Dconfig.file={}'.format(backend_file),
-               CromwellerURI(self._cromwell).get_local_file(), 'run',
-               CromwellerURI(self._wdl).get_local_file(),
+               CaperURI(self._cromwell).get_local_file(), 'run',
+               CaperURI(self._wdl).get_local_file(),
                '-i', input_file,
                '-o', workflow_opts_file,
                '-l', labels_file,
                '-m', metadata_file]
         if imports_file is not None:
             cmd += ['-p', imports_file]
-        print('[Cromweller] cmd: ', cmd)
+        print('[Caper] cmd: ', cmd)
 
         try:
             p = Popen(cmd, stdout=PIPE, universal_newlines=True, cwd=tmp_dir)
@@ -216,7 +216,7 @@ class Cromweller(object):
                 # find workflow id from STDOUT
                 if workflow_id is None:
                     wf_ids_with_status = \
-                        Cromweller.__get_workflow_ids_from_cromwell_stdout(
+                        Caper.__get_workflow_ids_from_cromwell_stdout(
                             stdout)
                     for wf_id, status in wf_ids_with_status:
                         if status == 'started' or status == 'finished':
@@ -243,7 +243,7 @@ class Cromweller(object):
         else:
             metadata_uri = None
 
-        print('[Cromweller] run: ', rc, workflow_id, metadata_uri)
+        print('[Caper] run: ', rc, workflow_id, metadata_uri)
         return workflow_id
 
     def __write_metadata_jsons(self, workflow_ids):
@@ -254,9 +254,9 @@ class Cromweller(object):
                 assert(len(m) == 1)
                 metadata = m[0]
                 if 'labels' in metadata and \
-                        'cromweller-backend' in metadata['labels']:
+                        'caper-backend' in metadata['labels']:
                     backend = \
-                        metadata['labels']['cromweller-backend']
+                        metadata['labels']['caper-backend']
                 else:
                     backend = None
 
@@ -267,7 +267,7 @@ class Cromweller(object):
                         wdl=metadata['workflowName'])
             return True
         except Exception as e:
-            print('[Cromweller] Exception caught while retrieving '
+            print('[Caper] Exception caught while retrieving '
                   'metadata from Cromwell server. Keeping running... ',
                   str(e), workflow_ids)
         return False
@@ -294,8 +294,8 @@ class Cromweller(object):
             path = os.path.join(out_dir, os.path.basename(wdl), workflow_id)
 
         metadata_uri = os.path.join(
-            path, Cromweller.TMP_FILE_BASENAME_METADATA_JSON)
-        return CromwellerURI(metadata_uri).write_str_to_file(
+            path, Caper.TMP_FILE_BASENAME_METADATA_JSON)
+        return CaperURI(metadata_uri).write_str_to_file(
             json.dumps(metadata_json, indent=4)).get_uri()
 
     def server(self):
@@ -307,8 +307,8 @@ class Cromweller(object):
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
         cmd = ['java', '-DLOG_LEVEL=INFO', '-jar',
                '-Dconfig.file={}'.format(backend_file),
-               CromwellerURI(self._cromwell).get_local_file(), 'server']
-        print('[Cromweller] cmd: ', cmd)
+               CaperURI(self._cromwell).get_local_file(), 'server']
+        print('[Caper] cmd: ', cmd)
 
         # pending/running workflows
         started_wf_ids = set()
@@ -327,7 +327,7 @@ class Cromweller(object):
 
                 # find workflow id from Cromwell server's STDOUT
                 wf_ids_with_status = \
-                    Cromweller.__get_workflow_ids_from_cromwell_stdout(stdout)
+                    Caper.__get_workflow_ids_from_cromwell_stdout(stdout)
                 for wf_id, status in wf_ids_with_status:
                     if status in 'started':
                         started_wf_ids.add(wf_id)
@@ -346,7 +346,7 @@ class Cromweller(object):
                 # write metadata.json for running workflows
                 #   every SEC_INTERVAL_UPDATE_METADATA
                 t1 = time.perf_counter()
-                if (t1 - t0) > Cromweller.SEC_INTERVAL_UPDATE_METADATA:
+                if (t1 - t0) > Caper.SEC_INTERVAL_UPDATE_METADATA:
                     t0 = t1
                     self.__write_metadata_jsons(started_wf_ids)
 
@@ -356,16 +356,16 @@ class Cromweller(object):
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
                 print(stdout)
-        print('[Cromweller] server: ', rc, started_wf_ids, finished_wf_ids)
+        print('[Caper] server: ', rc, started_wf_ids, finished_wf_ids)
         return rc
 
     def submit(self):
         """Submit a workflow to Cromwell server
         """
-        timestamp = Cromweller.__get_time_str()
+        timestamp = Caper.__get_time_str()
         if self._str_label is not None:
             # check if label is valid
-            r = re.findall(Cromweller.RE_PATTERN_VALID_STR_LABEL,
+            r = re.findall(Caper.RE_PATTERN_VALID_STR_LABEL,
                            self._str_label)
             if len(r) != 1:
                 raise ValueError('Invalid str_label.')
@@ -385,13 +385,13 @@ class Cromweller(object):
         on_hold = self._hold if self._hold is not None else False
 
         r = self._cromwell_rest_api.submit(
-            source=CromwellerURI(self._wdl).get_local_file(),
+            source=CaperURI(self._wdl).get_local_file(),
             dependencies=imports_file,
             inputs_file=input_file,
             options_file=workflow_opts_file,
             labels_file=labels_file,
             on_hold=on_hold)
-        print("[Cromweller] submit: ", r)
+        print("[Caper] submit: ", r)
         return r
 
     def abort(self):
@@ -399,9 +399,9 @@ class Cromweller(object):
         """
         r = self._cromwell_rest_api.abort(
                 self._wf_id_or_label,
-                [(Cromweller.KEY_CROMWELLER_STR_LABEL, v)
+                [(Caper.KEY_CAPER_STR_LABEL, v)
                  for v in self._wf_id_or_label])
-        print("[Cromweller] abort: ", r)
+        print("[Caper] abort: ", r)
         return r
 
     def unhold(self):
@@ -409,9 +409,9 @@ class Cromweller(object):
         """
         r = self._cromwell_rest_api.release_hold(
                 self._wf_id_or_label,
-                [(Cromweller.KEY_CROMWELLER_STR_LABEL, v)
+                [(Caper.KEY_CAPER_STR_LABEL, v)
                  for v in self._wf_id_or_label])
-        print("[Cromweller] unhold: ", r)
+        print("[Caper] unhold: ", r)
         return r
 
     def metadata(self):
@@ -419,7 +419,7 @@ class Cromweller(object):
         """
         m = self._cromwell_rest_api.get_metadata(
                 self._wf_id_or_label,
-                [(Cromweller.KEY_CROMWELLER_STR_LABEL, v)
+                [(Caper.KEY_CAPER_STR_LABEL, v)
                  for v in self._wf_id_or_label])
         print(json.dumps(m, indent=4))
         return m
@@ -430,10 +430,10 @@ class Cromweller(object):
         # if not argument, list all workflows using wildcard (*)
         if self._wf_id_or_label is None or len(self._wf_id_or_label) == 0:
             workflow_ids = ['*']
-            labels = [(Cromweller.KEY_CROMWELLER_STR_LABEL, '*')]
+            labels = [(Caper.KEY_CAPER_STR_LABEL, '*')]
         else:
             workflow_ids = self._wf_id_or_label,
-            labels = [(Cromweller.KEY_CROMWELLER_STR_LABEL, v)
+            labels = [(Caper.KEY_CAPER_STR_LABEL, v)
                       for v in self._wf_id_or_label]
 
         workflows = self._cromwell_rest_api.find(
@@ -452,7 +452,7 @@ class Cromweller(object):
                 elif f == 'str_label':
                     lbl = self._cromwell_rest_api.get_label(
                         workflow_id,
-                        Cromweller.KEY_CROMWELLER_STR_LABEL)
+                        Caper.KEY_CAPER_STR_LABEL)
                     row.append(str(lbl))
                 else:
                     row.append(str(w[f] if f in w else None))
@@ -465,7 +465,7 @@ class Cromweller(object):
         Deepcopy to a specified storage if required.
         """
         if self._inputs is not None:
-            c = CromwellerURI(self._inputs)
+            c = CaperURI(self._inputs)
             if self._deepcopy and self._deepcopy_ext:
                 # deepcopy all files in JSON/TSV/CSV
                 #   to the target backend
@@ -488,14 +488,14 @@ class Cromweller(object):
         """Create labels JSON file
         """
         if self._labels is not None:
-            s = CromwellerURI(self._labels).get_file_contents()
+            s = CaperURI(self._labels).get_file_contents()
             labels_dict = json.loads(s)
         else:
             labels_dict = {}
 
-        labels_dict[Cromweller.KEY_CROMWELLER_BACKEND] = self._backend
+        labels_dict[Caper.KEY_CAPER_BACKEND] = self._backend
         if self._str_label is not None:
-            labels_dict[Cromweller.KEY_CROMWELLER_STR_LABEL] = \
+            labels_dict[Caper.KEY_CAPER_STR_LABEL] = \
                 self._str_label
 
         labels_file = os.path.join(directory, fname)
@@ -591,7 +591,7 @@ class Cromweller(object):
 
         # if workflow opts file is given by a user, merge it to template
         if self._workflow_opts is not None:
-            f = CromwellerURI(self._workflow_opts).get_local_file()
+            f = CaperURI(self._workflow_opts).get_local_file()
             with open(f, 'r') as fp:
                 d = json.loads(fp.read())
                 merge_dict(template, d)
@@ -607,9 +607,9 @@ class Cromweller(object):
     def __create_imports_zip_file_from_wdl(
             self, directory, fname=TMP_FILE_BASENAME_IMPORTS_ZIP):
         if self._imports is not None:
-            return CromwellerURI(self._imports).get_local_file()
+            return CaperURI(self._imports).get_local_file()
 
-        imports = self.__find_val_from_wdl(Cromweller.RE_PATTERN_WDL_IMPORT)
+        imports = self.__find_val_from_wdl(Caper.RE_PATTERN_WDL_IMPORT)
         if imports is None:
             return None
 
@@ -618,11 +618,11 @@ class Cromweller(object):
         files_to_zip = []
         for imp in imports:
             # ignore imports as HTTP URL or absolute PATH
-            if CromwellerURI(imp).uri_type == URI_LOCAL \
+            if CaperURI(imp).uri_type == URI_LOCAL \
                     or not os.path.isabs(imp):
                 # download imports relative to WDL (which can exists remotely)
                 wdl_dirname = os.path.dirname(self._wdl)
-                c_imp_ = CromwellerURI(os.path.join(wdl_dirname, imp))
+                c_imp_ = CaperURI(os.path.join(wdl_dirname, imp))
                 # download file to tmp_dir
                 f = c_imp_.get_local_file()
                 target_f = os.path.join(zip_tmp_dir, imp)
@@ -673,7 +673,7 @@ class Cromweller(object):
         # common stanza for backend conf file
         merge_dict(
             backend_dict,
-            CromwellerBackendCommon(
+            CaperBackendCommon(
                 port=self._port,
                 use_call_caching=self._use_call_caching,
                 max_concurrent_workflows=self._max_concurrent_workflows))
@@ -681,14 +681,14 @@ class Cromweller(object):
         # local backend
         merge_dict(
             backend_dict,
-            CromwellerBackendLocal(
+            CaperBackendLocal(
                 out_dir=self._out_dir,
                 concurrent_job_limit=self._max_concurrent_tasks))
         # GC
         if self._gcp_prj is not None and self._out_gcs_bucket is not None:
             merge_dict(
                 backend_dict,
-                CromwellerBackendGCP(
+                CaperBackendGCP(
                     gcp_prj=self._gcp_prj,
                     out_gcs_bucket=self._out_gcs_bucket,
                     concurrent_job_limit=self._max_concurrent_tasks))
@@ -697,7 +697,7 @@ class Cromweller(object):
                 and self._out_s3_bucket is not None:
             merge_dict(
                 backend_dict,
-                CromwellerBackendAWS(
+                CaperBackendAWS(
                     aws_batch_arn=self._aws_batch_arn,
                     aws_region=self._aws_region,
                     out_s3_bucket=self._out_s3_bucket,
@@ -705,7 +705,7 @@ class Cromweller(object):
         # SLURM
         merge_dict(
             backend_dict,
-            CromwellerBackendSLURM(
+            CaperBackendSLURM(
                 partition=self._slurm_partition,
                 account=self._slurm_account,
                 extra_param=self._slurm_extra_param,
@@ -713,7 +713,7 @@ class Cromweller(object):
         # SGE
         merge_dict(
             backend_dict,
-            CromwellerBackendSGE(
+            CaperBackendSGE(
                 pe=self._sge_pe,
                 queue=self._sge_queue,
                 extra_param=self._sge_extra_param,
@@ -722,7 +722,7 @@ class Cromweller(object):
         # PBS
         merge_dict(
             backend_dict,
-            CromwellerBackendPBS(
+            CaperBackendPBS(
                 queue=self._pbs_queue,
                 extra_param=self._pbs_extra_param,
                 concurrent_job_limit=self._max_concurrent_tasks))
@@ -732,25 +732,25 @@ class Cromweller(object):
                 and self._mysql_db_password is not None:
             merge_dict(
                 backend_dict,
-                CromwellerBackendMySQL(
+                CaperBackendMySQL(
                     ip=self._mysql_db_ip,
                     port=self._mysql_db_port,
                     user=self._mysql_db_user,
                     password=self._mysql_db_password))
 
         # set header for conf ("include ...")
-        assert(Cromweller.BACKEND_CONF_HEADER.endswith('\n'))
-        lines_header = [Cromweller.BACKEND_CONF_HEADER]
+        assert(Caper.BACKEND_CONF_HEADER.endswith('\n'))
+        lines_header = [Caper.BACKEND_CONF_HEADER]
 
         # override with user-specified backend.conf if exists
         if self._backend_file is not None:
             lines_wo_header = []
 
-            with open(CromwellerURI(self._backend_file).get_local_file(),
+            with open(CaperURI(self._backend_file).get_local_file(),
                       'r') as fp:
                 for line in fp.readlines():
                     # find header and exclude
-                    if re.findall(Cromweller.RE_PATTERN_BACKEND_CONF_HEADER,
+                    if re.findall(Caper.RE_PATTERN_BACKEND_CONF_HEADER,
                                   line):
                         if line not in lines_header:
                             lines_header.append(line)
@@ -768,7 +768,7 @@ class Cromweller(object):
         if self._backend is not None:
             backend_dict['backend']['default'] = self._backend
         else:
-            backend_dict['backend']['default'] = Cromweller.DEFAULT_BACKEND
+            backend_dict['backend']['default'] = Caper.DEFAULT_BACKEND
 
         # dict to HOCON (excluding header)
         backend_hocon = ConfigFactory.from_dict(backend_dict)
@@ -788,18 +788,18 @@ class Cromweller(object):
 
     def __find_docker_from_wdl(self):
         r = self.__find_val_from_wdl(
-            Cromweller.RE_PATTERN_WDL_COMMENT_DOCKER)
+            Caper.RE_PATTERN_WDL_COMMENT_DOCKER)
         return r[0] if len(r) > 0 else None
 
     def __find_singularity_from_wdl(self):
         r = self.__find_val_from_wdl(
-            Cromweller.RE_PATTERN_WDL_COMMENT_SINGULARITY)
+            Caper.RE_PATTERN_WDL_COMMENT_SINGULARITY)
         return r[0] if len(r) > 0 else None
 
     def __find_val_from_wdl(self, regex_val):
         result = []
         if self._wdl is not None:
-            with open(CromwellerURI(self._wdl).get_local_file(), 'r') as fp:
+            with open(CaperURI(self._wdl).get_local_file(), 'r') as fp:
                 for line in fp.readlines():
                     r = re.findall(regex_val, line)
                     if len(r) > 0:
@@ -819,10 +819,10 @@ class Cromweller(object):
         if (self._ip is None or self._ip == DEFAULT_IP) \
 		and self._backend is not None \
                 and self._backend not in (BACKEND_AWS, BACKEND_GCP):
-            print('[Cromweller] building local singularity image: ',
+            print('[Caper] building local singularity image: ',
                   singularity)
             return check_call(['singularity', 'exec', singularity,
-                               'echo', '[Cromweller] building done.'])
+                               'echo', '[Caper] building done.'])
         else:
             return None
 
@@ -830,10 +830,10 @@ class Cromweller(object):
     def __get_workflow_ids_from_cromwell_stdout(stdout):
         result = []
         for line in stdout.split('\n'):
-            r1 = re.findall(Cromweller.RE_PATTERN_STARTED_WORKFLOW_ID, line)
+            r1 = re.findall(Caper.RE_PATTERN_STARTED_WORKFLOW_ID, line)
             if len(r1) > 0:
                 result.append((r1[0].strip(), 'started'))
-            r2 = re.findall(Cromweller.RE_PATTERN_FINISHED_WORKFLOW_ID, line)
+            r2 = re.findall(Caper.RE_PATTERN_FINISHED_WORKFLOW_ID, line)
             if len(r2) > 0:
                 result.append((r2[0].strip(), 'finished'))
         return result
@@ -846,11 +846,11 @@ class Cromweller(object):
 def main():
     # parse arguments
     #   note that args is a dict
-    args = parse_cromweller_arguments()
+    args = parse_caper_arguments()
 
-    # init cromweller uri to transfer files across various storages
+    # init caper uri to transfer files across various storages
     #   e.g. gs:// to s3://, http:// to local, ...
-    init_cromweller_uri(
+    init_caper_uri(
         tmp_dir=args.get('tmp_dir'),
         tmp_s3_bucket=args.get('tmp_s3_bucket'),
         tmp_gcs_bucket=args.get('tmp_gcs_bucket'),
@@ -859,8 +859,8 @@ def main():
         use_gsutil_over_aws_s3=args.get('use_gsutil_over_aws_s3'),
         verbose=True)
 
-    # init cromweller: taking all args at init step
-    c = Cromweller(args)
+    # init caper: taking all args at init step
+    c = Caper(args)
 
     action = args['action']
     if action == 'run':

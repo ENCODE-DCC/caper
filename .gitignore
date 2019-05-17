@@ -105,6 +105,6 @@ venv.bak/
 
 # dev
 src/test_dev
-src/cromweller_tmp
-cromweller_tmp
-src/test_cromweller_uri/
+src/caper_tmp
+caper_tmp
+src/test_caper_uri/
