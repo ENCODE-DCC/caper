@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cromweller backend
+"""Caper backend
 """
 
 BACKEND_GCP = 'gcp'
@@ -10,8 +10,8 @@ BACKEND_SGE = 'sge'
 BACKEND_PBS = 'pbs'
 
 
-class CromwellerBackendCommon(dict):
-    """Common stanzas for all Cromweller backends
+class CaperBackendCommon(dict):
+    """Common stanzas for all Caper backends
     """
     TEMPLATE = {
         "backend": {
@@ -43,8 +43,8 @@ class CromwellerBackendCommon(dict):
 
     def __init__(self, port=None, use_call_caching=None,
                  max_concurrent_workflows=None):
-        super(CromwellerBackendCommon, self).__init__(
-            CromwellerBackendCommon.TEMPLATE)
+        super(CaperBackendCommon, self).__init__(
+            CaperBackendCommon.TEMPLATE)
         if port is not None:
             self['webservice']['port'] = port
         if use_call_caching is not None:
@@ -54,7 +54,7 @@ class CromwellerBackendCommon(dict):
                 max_concurrent_workflows
 
 
-class CromwellerBackendMySQL(dict):
+class CaperBackendMySQL(dict):
     """Common stanzas for MySQL
     """
     TEMPLATE = {
@@ -73,8 +73,8 @@ class CromwellerBackendMySQL(dict):
     }
 
     def __init__(self, ip, port, user, password):
-        super(CromwellerBackendMySQL, self).__init__(
-            CromwellerBackendMySQL.TEMPLATE)
+        super(CaperBackendMySQL, self).__init__(
+            CaperBackendMySQL.TEMPLATE)
         db = self['database']['db']
         db['user'] = user
         db['password'] = password
@@ -82,7 +82,7 @@ class CromwellerBackendMySQL(dict):
             ip=ip, port=port))
 
 
-class CromwellerBackendGCP(dict):
+class CaperBackendGCP(dict):
     """Google Cloud backend
     """
     TEMPLATE = {
@@ -126,8 +126,8 @@ class CromwellerBackendGCP(dict):
     }
 
     def __init__(self, gcp_prj, out_gcs_bucket, concurrent_job_limit=None):
-        super(CromwellerBackendGCP, self).__init__(
-            CromwellerBackendGCP.TEMPLATE)
+        super(CaperBackendGCP, self).__init__(
+            CaperBackendGCP.TEMPLATE)
         config = self['backend']['providers'][BACKEND_GCP]['config']
         config['project'] = gcp_prj
         config['root'] = out_gcs_bucket
@@ -137,7 +137,7 @@ class CromwellerBackendGCP(dict):
             config['concurrent-job-limit'] = concurrent_job_limit
 
 
-class CromwellerBackendAWS(dict):
+class CaperBackendAWS(dict):
     """AWS backend
     """
     TEMPLATE = {
@@ -185,8 +185,8 @@ class CromwellerBackendAWS(dict):
 
     def __init__(self, aws_batch_arn, aws_region, out_s3_bucket,
                  concurrent_job_limit=None):
-        super(CromwellerBackendAWS, self).__init__(
-            CromwellerBackendAWS.TEMPLATE)
+        super(CaperBackendAWS, self).__init__(
+            CaperBackendAWS.TEMPLATE)
         self[BACKEND_AWS]['region'] = aws_region
         config = self['backend']['providers'][BACKEND_AWS]['config']
         config['default-runtime-attributes']['queueArn'] = aws_batch_arn
@@ -197,7 +197,7 @@ class CromwellerBackendAWS(dict):
             config['concurrent-job-limit'] = concurrent_job_limit
 
 
-class CromwellerBackendLocal(dict):
+class CaperBackendLocal(dict):
     """Local backend
     """
     RUNTIME_ATTRIBUTES = """
@@ -234,8 +234,8 @@ class CromwellerBackendLocal(dict):
     }
 
     def __init__(self, out_dir, concurrent_job_limit=None):
-        super(CromwellerBackendLocal, self).__init__(
-            CromwellerBackendLocal.TEMPLATE)
+        super(CaperBackendLocal, self).__init__(
+            CaperBackendLocal.TEMPLATE)
         config = self['backend']['providers'][BACKEND_LOCAL]['config']
         config['root'] = out_dir
 
@@ -243,7 +243,7 @@ class CromwellerBackendLocal(dict):
             config['concurrent-job-limit'] = concurrent_job_limit
 
 
-class CromwellerBackendSLURM(dict):
+class CaperBackendSLURM(dict):
     """SLURM backend
     """
     RUNTIME_ATTRIBUTES = """
@@ -310,8 +310,8 @@ class CromwellerBackendSLURM(dict):
 
     def __init__(self, partition=None, account=None, extra_param=None,
                  concurrent_job_limit=None):
-        super(CromwellerBackendSLURM, self).__init__(
-            CromwellerBackendSLURM.TEMPLATE)
+        super(CaperBackendSLURM, self).__init__(
+            CaperBackendSLURM.TEMPLATE)
         config = self['backend']['providers'][BACKEND_SLURM]['config']
         key = 'default-runtime-attributes'
 
@@ -325,7 +325,7 @@ class CromwellerBackendSLURM(dict):
             config['concurrent-job-limit'] = concurrent_job_limit
 
 
-class CromwellerBackendSGE(dict):
+class CaperBackendSGE(dict):
     """SGE backend
     """
     RUNTIME_ATTRIBUTES = """
@@ -397,8 +397,8 @@ ${true=")m" false="" defined(memory_mb)} \
 
     def __init__(self, pe=None, queue=None, extra_param=None,
                  concurrent_job_limit=None):
-        super(CromwellerBackendSGE, self).__init__(
-            CromwellerBackendSGE.TEMPLATE)
+        super(CaperBackendSGE, self).__init__(
+            CaperBackendSGE.TEMPLATE)
         config = self['backend']['providers'][BACKEND_SGE]['config']
         key = 'default-runtime-attributes'
 
@@ -412,7 +412,7 @@ ${true=")m" false="" defined(memory_mb)} \
             config['concurrent-job-limit'] = concurrent_job_limit
 
 
-class CromwellerBackendPBS(dict):
+class CaperBackendPBS(dict):
     """PBS backend
     """
     RUNTIME_ATTRIBUTES = """
@@ -470,8 +470,8 @@ ${true=":0:0" false="" defined(time)} \
 
     def __init__(self, queue=None, extra_param=None,
                  concurrent_job_limit=None):
-        super(CromwellerBackendPBS, self).__init__(
-            CromwellerBackendPBS.TEMPLATE)
+        super(CaperBackendPBS, self).__init__(
+            CaperBackendPBS.TEMPLATE)
         config = self['backend']['providers'][BACKEND_PBS]['config']
         key = 'default-runtime-attributes'
 

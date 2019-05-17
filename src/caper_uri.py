@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CromwellerURI: Easy transfer between cloud/local storages
+"""CaperURI: Easy transfer between cloud/local storages
 
 Author:
     Jin Lee (leepc12@gmail.com) at ENCODE-DCC
@@ -21,28 +21,28 @@ URI_GCS = 'gcs'     # Google Cloud Storage bucket
 URI_LOCAL = 'local'
 
 
-def init_cromweller_uri(tmp_dir, tmp_s3_bucket=None, tmp_gcs_bucket=None,
+def init_caper_uri(tmp_dir, tmp_s3_bucket=None, tmp_gcs_bucket=None,
                         http_user=None, http_password=None,
                         use_gsutil_over_aws_s3=False, verbose=False):
-    """Initialize static members in CromwellerURI class
+    """Initialize static members in CaperURI class
     """
     assert(tmp_dir is not None)
     path = os.path.abspath(os.path.expanduser(tmp_dir))
     # adds slash (/) to the end of string if missing
-    CromwellerURI.TMP_DIR = path.rstrip('/') + '/'
+    CaperURI.TMP_DIR = path.rstrip('/') + '/'
     if tmp_s3_bucket is not None:
-        CromwellerURI.TMP_S3_BUCKET = tmp_s3_bucket.rstrip('/') + '/'
-        assert(CromwellerURI.TMP_S3_BUCKET.startswith('s3://'))
+        CaperURI.TMP_S3_BUCKET = tmp_s3_bucket.rstrip('/') + '/'
+        assert(CaperURI.TMP_S3_BUCKET.startswith('s3://'))
     if tmp_gcs_bucket is not None:
-        CromwellerURI.TMP_GCS_BUCKET = tmp_gcs_bucket.rstrip('/') + '/'
-        assert(CromwellerURI.TMP_GCS_BUCKET.startswith('gs://'))
-    CromwellerURI.HTTP_USER = http_user
-    CromwellerURI.HTTP_PASSWORD = http_password
-    CromwellerURI.USE_GSUTIL_OVER_AWS_S3 = use_gsutil_over_aws_s3
-    CromwellerURI.VERBOSE = verbose
+        CaperURI.TMP_GCS_BUCKET = tmp_gcs_bucket.rstrip('/') + '/'
+        assert(CaperURI.TMP_GCS_BUCKET.startswith('gs://'))
+    CaperURI.HTTP_USER = http_user
+    CaperURI.HTTP_PASSWORD = http_password
+    CaperURI.USE_GSUTIL_OVER_AWS_S3 = use_gsutil_over_aws_s3
+    CaperURI.VERBOSE = verbose
 
 
-class CromwellerURI(object):
+class CaperURI(object):
     """Easy transfer between cloud/local storages based on cloud
     platform CLIs (gsutil, aws s3).
 
@@ -85,28 +85,28 @@ class CromwellerURI(object):
     VERBOSE = False
 
     def __init__(self, uri_or_path):
-        if CromwellerURI.TMP_DIR is None:
+        if CaperURI.TMP_DIR is None:
             raise Exception(
-                'Call init_cromweller_uri() first '
-                'to initialize CromwellerURI. TMP_DIR must be '
+                'Call init_caper_uri() first '
+                'to initialize CaperURI. TMP_DIR must be '
                 'specified.')
-        elif not CromwellerURI.TMP_DIR.endswith('/'):
+        elif not CaperURI.TMP_DIR.endswith('/'):
             raise Exception(
-                'CromwellerURI.TMP_DIR must ends '
+                'CaperURI.TMP_DIR must ends '
                 'with a slash (/).')
-        if CromwellerURI.TMP_S3_BUCKET is not None and \
-           not CromwellerURI.TMP_S3_BUCKET.endswith('/'):
+        if CaperURI.TMP_S3_BUCKET is not None and \
+           not CaperURI.TMP_S3_BUCKET.endswith('/'):
             raise Exception(
-                'CromwellerURI.TMP_S3_BUCKET must ends '
+                'CaperURI.TMP_S3_BUCKET must ends '
                 'with a slash (/).')
-        if CromwellerURI.TMP_GCS_BUCKET is not None and \
-           not CromwellerURI.TMP_GCS_BUCKET.endswith('/'):
+        if CaperURI.TMP_GCS_BUCKET is not None and \
+           not CaperURI.TMP_GCS_BUCKET.endswith('/'):
             raise Exception(
-                'CromwellerURI.TMP_GCS_BUCKET must ends '
+                'CaperURI.TMP_GCS_BUCKET must ends '
                 'with a slash (/).')
 
         self._uri = uri_or_path
-        self._uri_type = CromwellerURI.__get_uri_type(uri_or_path)
+        self._uri_type = CaperURI.__get_uri_type(uri_or_path)
         self.__init_uri()
 
     def __str__(self):
@@ -135,7 +135,7 @@ class CromwellerURI(object):
         return self._can_deepcopy
 
     def file_exists(self):
-        return CromwellerURI.__file_exists(self._uri)
+        return CaperURI.__file_exists(self._uri)
 
     def get_local_file(self):
         """Get local version of URI. Make a copy if required
@@ -177,23 +177,23 @@ class CromwellerURI(object):
         if target_uri is None:
             path = None
             uri_type = target_uri_type
-        elif isinstance(target_uri, CromwellerURI):
+        elif isinstance(target_uri, CaperURI):
             path = target_uri.get_uri()
             uri_type = target_uri.uri_type
         else:
             path = target_uri
-            uri_type = CromwellerURI.__get_uri_type(target_uri)
+            uri_type = CaperURI.__get_uri_type(target_uri)
 
         if path is None and uri_type == self._uri_type:
             return self._uri
 
-        if CromwellerURI.VERBOSE:
+        if CaperURI.VERBOSE:
             if soft_link and self._uri_type == URI_LOCAL \
                     and uri_type == URI_LOCAL:
                 method = 'symlinking'
             else:
                 method = 'copying'
-            print('[CromwellerURI] {method} from '
+            print('[CaperURI] {method} from '
                   '{src} to {target}, src: {uri}'.format(
                     method=method,
                     src=self._uri_type, target=uri_type, uri=self._uri))
@@ -214,8 +214,8 @@ class CromwellerURI(object):
             if self._uri_type == URI_URL:
                 ps = Popen(
                     ['curl', '-u',
-                     '{}:{}'.format(CromwellerURI.HTTP_USER,
-                                    CromwellerURI.HTTP_PASSWORD),
+                     '{}:{}'.format(CaperURI.HTTP_USER,
+                                    CaperURI.HTTP_PASSWORD),
                      '-f', self._uri], stdout=PIPE)
                 check_call(['gsutil', '-q', 'cp', '-n', '-', path],
                            stdin=ps.stdout)
@@ -231,22 +231,22 @@ class CromwellerURI(object):
             if self._uri_type == URI_URL:
                 ps = Popen([
                     'curl',
-                    '-u', '{}:{}'.format(CromwellerURI.HTTP_USER,
-                                         CromwellerURI.HTTP_PASSWORD),
+                    '-u', '{}:{}'.format(CaperURI.HTTP_USER,
+                                         CaperURI.HTTP_PASSWORD),
                     '-f', self._uri], stdout=PIPE)
-                if CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
+                if CaperURI.USE_GSUTIL_OVER_AWS_S3:
                     check_call(['gsutil', 'cp', '-n', '-', path],
                                stdin=ps.stdout)
                 else:
-                    if not CromwellerURI.__file_exists(path):
+                    if not CaperURI.__file_exists(path):
                         check_call(['aws', 's3', 'cp', '--only-show-errors',
                                     '-', path], stdin=ps.stdout)
             elif self._uri_type == URI_GCS:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
             elif self._uri_type == URI_S3 or self._uri_type == URI_LOCAL:
-                if CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
+                if CaperURI.USE_GSUTIL_OVER_AWS_S3:
                     check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
-                elif not CromwellerURI.__file_exists(path):
+                elif not CaperURI.__file_exists(path):
                     check_call(['aws', 's3', 'cp', '--only-show-errors',
                                 self._uri, path])
             else:
@@ -258,7 +258,7 @@ class CromwellerURI(object):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             if self._uri_type == URI_LOCAL:
                 if soft_link:
-                    if CromwellerURI.VERBOSE:
+                    if CaperURI.VERBOSE:
                         method = 'symlinking'
                     try:
                         os.symlink(self._uri, path)
@@ -267,22 +267,22 @@ class CromwellerURI(object):
                             os.remove(path)
                             os.symlink(self._uri, path)
                 else:
-                    if CromwellerURI.VERBOSE:
+                    if CaperURI.VERBOSE:
                         method = 'copying'
                     shutil.copy2(self._uri, path)
 
             elif self._uri_type == URI_URL:
                 check_call([
                     'wget', '--no-check-certificate', '-qc',
-                    '--user', str(CromwellerURI.HTTP_USER),
-                    '--password', str(CromwellerURI.HTTP_PASSWORD),
+                    '--user', str(CaperURI.HTTP_USER),
+                    '--password', str(CaperURI.HTTP_PASSWORD),
                     self._uri, '-O', path])
             elif self._uri_type == URI_GCS or \
                 self._uri_type == URI_S3 and \
-                    CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
+                    CaperURI.USE_GSUTIL_OVER_AWS_S3:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
             elif self._uri_type == URI_S3:
-                if not CromwellerURI.__file_exists(path):
+                if not CaperURI.__file_exists(path):
                     check_call(['aws', 's3', 'cp', '--only-show-errors',
                                 self._uri, path])
             else:
@@ -294,27 +294,27 @@ class CromwellerURI(object):
         if path is None:
             raise NotImplementedError('uri_types: {}, {}'.format(
                 self._uri_type, uri_type))
-        if CromwellerURI.VERBOSE:
-            print('[CromwellerURI] {method} done, target: {target}'.format(
+        if CaperURI.VERBOSE:
+            print('[CaperURI] {method} done, target: {target}'.format(
                     method=method, target=path))
         return path
 
     def get_file_contents(self):
         """Get file contents
         """
-        if CromwellerURI.VERBOSE:
-            print('[CromwellerURI] read from {src}, src: {uri}'.format(
+        if CaperURI.VERBOSE:
+            print('[CaperURI] read from {src}, src: {uri}'.format(
                 src=self._uri_type, uri=self._uri))
 
         if self._uri_type == URI_URL:
             return check_output([
                 'curl',
-                '-u', '{}:{}'.format(CromwellerURI.HTTP_USER,
-                                     CromwellerURI.HTTP_PASSWORD),
+                '-u', '{}:{}'.format(CaperURI.HTTP_USER,
+                                     CaperURI.HTTP_PASSWORD),
                 '-f', self._uri]).decode()
 
         elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
-                and CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
+                and CaperURI.USE_GSUTIL_OVER_AWS_S3:
             return check_output(['gsutil', '-q', 'cat', self._uri]).decode()
 
         elif self._uri_type == URI_S3:
@@ -329,8 +329,8 @@ class CromwellerURI(object):
                 self._uri_type))
 
     def write_str_to_file(self, s):
-        if CromwellerURI.VERBOSE:
-            print('[CromwellerURI] write to '
+        if CaperURI.VERBOSE:
+            print('[CaperURI] write to '
                   '{target}, target: {uri}, size: {size}'.format(
                     target=self._uri_type, uri=self._uri, size=len(s)))
 
@@ -339,7 +339,7 @@ class CromwellerURI(object):
             with open(self._uri, 'w') as fp:
                 fp.write(s)
         elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
-                and CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
+                and CaperURI.USE_GSUTIL_OVER_AWS_S3:
             run(['gsutil', '-q', 'cp', '-', self._uri],
                 input=s.encode('ascii'))
         elif self._uri_type == URI_S3:
@@ -351,31 +351,31 @@ class CromwellerURI(object):
 
     def __get_rel_uri(self):
         if self._uri_type == URI_LOCAL:
-            if CromwellerURI.TMP_DIR is None or \
+            if CaperURI.TMP_DIR is None or \
                 not self._uri.startswith(
-                    CromwellerURI.TMP_DIR):
+                    CaperURI.TMP_DIR):
                 rel_uri = self._uri.replace('/', '', 1)
             else:
                 rel_uri = self._uri.replace(
-                    CromwellerURI.TMP_DIR, '', 1)
+                    CaperURI.TMP_DIR, '', 1)
 
         elif self._uri_type == URI_GCS:
-            if CromwellerURI.TMP_GCS_BUCKET is None or \
+            if CaperURI.TMP_GCS_BUCKET is None or \
                 not self._uri.startswith(
-                    CromwellerURI.TMP_GCS_BUCKET):
+                    CaperURI.TMP_GCS_BUCKET):
                 rel_uri = self._uri.replace('gs://', '', 1)
             else:
                 rel_uri = self._uri.replace(
-                    CromwellerURI.TMP_GCS_BUCKET, '', 1)
+                    CaperURI.TMP_GCS_BUCKET, '', 1)
 
         elif self._uri_type == URI_S3:
-            if CromwellerURI.TMP_S3_BUCKET is None or \
+            if CaperURI.TMP_S3_BUCKET is None or \
                 not self._uri.startswith(
-                    CromwellerURI.TMP_S3_BUCKET):
+                    CaperURI.TMP_S3_BUCKET):
                 rel_uri = self._uri.replace('s3://', '', 1)
             else:
                 rel_uri = self._uri.replace(
-                    CromwellerURI.TMP_S3_BUCKET, '', 1)
+                    CaperURI.TMP_S3_BUCKET, '', 1)
 
         elif self._uri_type == URI_URL:
             rel_uri = os.path.basename(self._uri)
@@ -388,7 +388,7 @@ class CromwellerURI(object):
             return self._uri
 
         elif self._uri_type in (URI_GCS, URI_S3, URI_URL):
-            return os.path.join(CromwellerURI.TMP_DIR, self.__get_rel_uri())
+            return os.path.join(CaperURI.TMP_DIR, self.__get_rel_uri())
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
 
@@ -397,7 +397,7 @@ class CromwellerURI(object):
             return self._uri
 
         elif self._uri_type in (URI_LOCAL, URI_S3, URI_URL):
-            return os.path.join(CromwellerURI.TMP_GCS_BUCKET,
+            return os.path.join(CaperURI.TMP_GCS_BUCKET,
                                 self.__get_rel_uri())
         else:
             raise NotImplementedError('uri_type: {}'.format(
@@ -408,7 +408,7 @@ class CromwellerURI(object):
             return self._uri
 
         elif self._uri_type in (URI_LOCAL, URI_GCS, URI_URL):
-            return os.path.join(CromwellerURI.TMP_S3_BUCKET,
+            return os.path.join(CaperURI.TMP_S3_BUCKET,
                                 self.__get_rel_uri())
         else:
             raise NotImplementedError('uri_type: {}'.format(
@@ -441,11 +441,11 @@ class CromwellerURI(object):
         for line in contents.split('\n'):
             new_values = []
             for v in line.split(delim):
-                c = CromwellerURI(v)
+                c = CaperURI(v)
                 if c.can_deepcopy() and c.uri_type != uri_type:
                     updated = True
-                    if CromwellerURI.VERBOSE:
-                        print('[CromwellerURI] deepcopy_tsv from '
+                    if CaperURI.VERBOSE:
+                        print('[CaperURI] deepcopy_tsv from '
                               '{src} to {tgt}, src: {uri}, tsv: {uri2}'.format(
                                 src=c._uri_type, tgt=uri_type,
                                 uri=c._uri, uri2=self._uri))
@@ -461,7 +461,7 @@ class CromwellerURI(object):
             print(ext)
             new_uri = '{prefix}.{uri_type}{ext}'.format(
                 prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
-            return CromwellerURI(new_uri).write_str_to_file(
+            return CaperURI(new_uri).write_str_to_file(
                 '\n'.join(new_contents))
         else:
             return self
@@ -486,10 +486,10 @@ class CromwellerURI(object):
                                             lst_idx=i, updated=updated)
             elif type(d) == str:
                 assert(d_parent is not None or lst is not None)
-                c = CromwellerURI(d)
+                c = CaperURI(d)
                 if c.can_deepcopy() and c.uri_type != uri_type:
-                    if CromwellerURI.VERBOSE:
-                        print('[CromwellerURI] deepcopy_json from '
+                    if CaperURI.VERBOSE:
+                        print('[CaperURI] deepcopy_json from '
                               '{src} to {tgt}, src: {uri}, json: {u2}'.format(
                                 src=c._uri_type, tgt=uri_type,
                                 uri=c._uri, u2=self._uri))
@@ -515,7 +515,7 @@ class CromwellerURI(object):
             new_uri = '{prefix}.{uri_type}{ext}'.format(
                 prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
             j = json.dumps(new_d, indent=4)
-            return CromwellerURI(new_uri).write_str_to_file(j)
+            return CaperURI(new_uri).write_str_to_file(j)
         else:
             return self
 
@@ -548,7 +548,7 @@ class CromwellerURI(object):
 
     @staticmethod
     def __file_exists(uri):
-        uri_type = CromwellerURI.__get_uri_type(uri)
+        uri_type = CaperURI.__get_uri_type(uri)
         if uri_type == URI_LOCAL:
             path = os.path.expanduser(uri)
             return os.path.isfile(path)
@@ -557,11 +557,11 @@ class CromwellerURI(object):
                 if uri_type == URI_URL:
                     rc = check_call([
                         'curl', '--head', '--silent', '--fail',
-                        '-u', '{}:{}'.format(CromwellerURI.HTTP_USER,
-                                             CromwellerURI.HTTP_PASSWORD),
+                        '-u', '{}:{}'.format(CaperURI.HTTP_USER,
+                                             CaperURI.HTTP_PASSWORD),
                         uri])
                 elif uri_type == URI_GCS or uri_type == URI_S3 \
-                        and CromwellerURI.USE_GSUTIL_OVER_AWS_S3:
+                        and CaperURI.USE_GSUTIL_OVER_AWS_S3:
                     rc = check_call(['gsutil', '-q', 'ls', uri])
                 elif uri_type == URI_S3:
                     rc = check_call(['aws', 's3', 'ls', path])
