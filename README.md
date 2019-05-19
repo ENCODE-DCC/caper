@@ -198,11 +198,16 @@ $ caper run my.wdl -i s3://my_s3_bucket/data/inputs.json --deepcopy
 
 ## Installation
 
-We will add PIP installation later. Until then git clone it and manually add `caper` to your environment variable `PATH` in your BASH startup scripts (`~/.bashrc`). Make sure that you have `python3` >=3.3 installed on your system.
+Install it with `pip`.
+```bash
+$ pip install caper
+```
+
+Or `git clone` this repo and manually add `bin/` to your environment variable `PATH` in your BASH startup scripts (`~/.bashrc`). Make sure that you have `python3` >=3.3 installed on your system.
 
 ```bash
 $ git clone https://github.com/ENCODE-DCC/caper
-$ echo "export PATH=\"\$PATH:$PWD/caper\"" >> ~/.bashrc
+$ echo "export PATH=\"\$PATH:$PWD/caper/bin\"" >> ~/.bashrc
 ```
 
 ## Configuration file
