@@ -22,8 +22,8 @@ URI_LOCAL = 'local'
 
 
 def init_caper_uri(tmp_dir, tmp_s3_bucket=None, tmp_gcs_bucket=None,
-                        http_user=None, http_password=None,
-                        use_gsutil_over_aws_s3=False, verbose=False):
+                   http_user=None, http_password=None,
+                   use_gsutil_over_aws_s3=False, verbose=False):
     """Initialize static members in CaperURI class
     """
     assert(tmp_dir is not None)

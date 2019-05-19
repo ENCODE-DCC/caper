@@ -314,8 +314,6 @@ class Caper(object):
         started_wf_ids = set()
         # completed, aborted or terminated workflows
         finished_wf_ids = set()
-        # workflows whose metadata were written
-        metadata_wf_ids = set()
         try:
             p = Popen(cmd, stdout=PIPE, universal_newlines=True, cwd=tmp_dir)
             rc = None
@@ -338,7 +336,7 @@ class Caper(object):
                     started_wf_ids.remove(wf_id)
 
                 # write metadata.json for finished workflows
-                ok = self.__write_metadata_jsons(finished_wf_ids)
+                self.__write_metadata_jsons(finished_wf_ids)
                 # flush finished workflow IDs
                 #   so that their metadata don't get updated any longer
                 finished_wf_ids.clear()
@@ -817,7 +815,7 @@ class Caper(object):
 
     def __build_singularity_image(self, singularity):
         if (self._ip is None or self._ip == DEFAULT_IP) \
-		and self._backend is not None \
+            and self._backend is not None \
                 and self._backend not in (BACKEND_AWS, BACKEND_GCP):
             print('[Caper] building local singularity image: ',
                   singularity)
