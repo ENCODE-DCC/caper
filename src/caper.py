@@ -33,8 +33,6 @@ from caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
     CaperBackendSGE, CaperBackendPBS
 
-__version__ = "v0.1.1"
-
 
 def merge_dict(a, b, path=None):
     """Merge b into a recursively. This mutates a and overwrites
