@@ -1,25 +1,24 @@
 import setuptools
 
-with open("README.md", "r") as fh:
+with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='caper',  
-    version='v0.1.2',
-    scripts=['caper'],
-    author="Jin Lee",
-    author_email="leepc12@gmail.com",
-    description="Cromwell Assisted Pipeline ExecutoR",
-    long_description="Cromwell/WDL wrapper utility based on Unix/cloud platform CLIs",
-    long_description_content_type="text/markdown",
-    url="https://github.com/ENCODE-DCC/caper",
-    packages=setuptools.find_packages(),
+    name='caper',
+    version='v0.1.2.3',
+    scripts=['bin/caper', 'mysql/run_mysql_server_docker.sh',
+             'mysql/run_mysql_server_singularity.sh'],
+    author='Jin Lee',
+    author_email='leepc12@gmail.com',
+    description='Cromwell Assisted Pipeline ExecutoR',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    url='https://github.com/ENCODE-DCC/caper',
+    packages=setuptools.find_packages(exclude=['mysql*', 'docs']),
     classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: POSIX :: Linux",
+        'Programming Language :: Python :: 3',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: POSIX :: Linux',
     ],
-    install_requires=[
-        "pyhocon",
-    ],    
+    install_requires=['pyhocon']
 )

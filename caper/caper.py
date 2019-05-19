@@ -24,11 +24,11 @@ import shutil
 from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 
-from caper_args import parse_caper_arguments, DEFAULT_IP
-from cromwell_rest_api import CromwellRestAPI
-from caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
+from .caper_args import parse_caper_arguments, DEFAULT_IP
+from .cromwell_rest_api import CromwellRestAPI
+from .caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
     init_caper_uri, CaperURI
-from caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
+from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CaperBackendCommon, CaperBackendMySQL, CaperBackendGCP, \
     CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
     CaperBackendSGE, CaperBackendPBS

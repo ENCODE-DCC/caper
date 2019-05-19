@@ -22,11 +22,93 @@ DEFAULT_PORT = 8000
 DEFAULT_IP = 'localhost'
 DEFAULT_FORMAT = 'id,status,name,str_label,submission'
 DEFAULT_DEEPCOPY_EXT = 'json,tsv'
+DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
+
+### MySQL database settings
+#mysql_db_ip=
+#mysql_db_port=
+#mysql_db_user=cromwell
+#mysql_db_password=cromwell
+
+### Cromwell general settings
+#cromwell=https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar
+#use_call_caching=True
+#max_concurrent_tasks=1000
+#max_concurrent_workflows=40
+
+### Cromwell server/client settings
+#ip=localhost
+#port=8000
+## HTTP auth to connect to Cromwell server
+#user=
+#password=
+
+### backends general settings
+## default backend
+#backend=local
+#backend_file=
+
+### local backend
+#out_dir=
+#tmp_dir=
+
+### Google Cloud Platform backend
+#gcp_prj=encode-dcc-1016
+#out_gcs_bucket=gs://encode-pipeline-test-runs/caper/out
+#tmp_gcs_bucket=gs://encode-pipeline-test-runs/caper/tmp
+
+### AWS backend
+#aws_batch_arn=arn:aws:batch:us-west-1:618537831167:job-queue/first-run-job-queue
+#aws_region=us-west-1
+#out_s3_bucket=s3://encode-pipeline-test-runs/caper/out
+#tmp_s3_bucket=s3://encode-pipeline-test-runs/caper/tmp
+#use_gsutil_over_aws_s3=True
+
+### HTTP auth to download from URLs (http://, https://)
+#http_user=
+#http_password=
+
+### SLURM backend
+#slurm_partition=akundaje
+#slurm_account=akundaje
+#slurm_extra_param=
+
+### SGE backend
+#sge_queue=q
+#sge_pe=shm
+#sge_extra_param=
+
+### PBS backend
+#pbs_queue=q
+#pbs_extra_param=
+
+### Workflow settings
+## deepcopy recursively all file URIs in a file URI
+##  with supported extensions (json,tsv,csv)
+##  to a target remote/local storage
+#deepcopy=True
+#deepcopy_ext=json,tsv
+
+## Put a hold on submitted jobs.
+## You need to run "caper unhold [WORKFLOW_ID]" to release hold
+#hold=True
+
+## list workflow format
+#format=id,status,name,str_label,submission
+
+"""
 
 
 def parse_caper_arguments():
     """Argument parser for Caper
     """
+    # write default conf file if not exists
+    default_caper_conf = os.path.expanduser(DEFAULT_CAPER_CONF)
+    if not os.path.exists(default_caper_conf):
+        os.makedirs(os.path.dirname(default_caper_conf), exist_ok=True)
+        with open(default_caper_conf, 'w') as fp:
+            fp.write(DEFAULT_CAPER_CONF_CONTENTS)
+
     conf_parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
