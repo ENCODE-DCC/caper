@@ -244,58 +244,6 @@ class Caper(object):
         print('[Caper] run: ', rc, workflow_id, metadata_uri)
         return workflow_id
 
-    def __write_metadata_jsons(self, workflow_ids):
-        try:
-            for wf_id in workflow_ids:
-                # get metadata for wf_id
-                m = self._cromwell_rest_api.get_metadata([wf_id])
-                assert(len(m) == 1)
-                metadata = m[0]
-                if 'labels' in metadata and \
-                        'caper-backend' in metadata['labels']:
-                    backend = \
-                        metadata['labels']['caper-backend']
-                else:
-                    backend = None
-
-                if backend is not None:
-                    self.__write_metadata_json(
-                        wf_id, metadata,
-                        backend=backend,
-                        wdl=metadata['workflowName'])
-            return True
-        except Exception as e:
-            print('[Caper] Exception caught while retrieving '
-                  'metadata from Cromwell server. Keeping running... ',
-                  str(e), workflow_ids)
-        return False
-
-    def __write_metadata_json(self, workflow_id, metadata_json,
-                              backend=None, wdl=None):
-        if backend is None:
-            backend = self._backend
-        if backend is None:
-            return None
-
-        if backend == BACKEND_GCP:
-            out_dir = self._out_gcs_bucket
-        elif backend == BACKEND_AWS:
-            out_dir = self._out_aws_bucket
-        else:
-            out_dir = self._out_dir
-
-        if wdl is None:
-            wdl = self.__get_wdl_basename_wo_ext()
-        if wdl is None:
-            path = os.path.join(out_dir, workflow_id)
-        else:
-            path = os.path.join(out_dir, os.path.basename(wdl), workflow_id)
-
-        metadata_uri = os.path.join(
-            path, Caper.TMP_FILE_BASENAME_METADATA_JSON)
-        return CaperURI(metadata_uri).write_str_to_file(
-            json.dumps(metadata_json, indent=4)).get_uri()
-
     def server(self):
         """Run a Cromwell server
         """
@@ -454,6 +402,58 @@ class Caper(object):
                     row.append(str(w[f] if f in w else None))
             print('\t'.join(row))
         return workflows
+
+    def __write_metadata_jsons(self, workflow_ids):
+        try:
+            for wf_id in workflow_ids:
+                # get metadata for wf_id
+                m = self._cromwell_rest_api.get_metadata([wf_id])
+                assert(len(m) == 1)
+                metadata = m[0]
+                if 'labels' in metadata and \
+                        'caper-backend' in metadata['labels']:
+                    backend = \
+                        metadata['labels']['caper-backend']
+                else:
+                    backend = None
+
+                if backend is not None:
+                    self.__write_metadata_json(
+                        wf_id, metadata,
+                        backend=backend,
+                        wdl=metadata['workflowName'])
+            return True
+        except Exception as e:
+            print('[Caper] Exception caught while retrieving '
+                  'metadata from Cromwell server. Keeping running... ',
+                  str(e), workflow_ids)
+        return False
+
+    def __write_metadata_json(self, workflow_id, metadata_json,
+                              backend=None, wdl=None):
+        if backend is None:
+            backend = self._backend
+        if backend is None:
+            return None
+
+        if backend == BACKEND_GCP:
+            out_dir = self._out_gcs_bucket
+        elif backend == BACKEND_AWS:
+            out_dir = self._out_aws_bucket
+        else:
+            out_dir = self._out_dir
+
+        if wdl is None:
+            wdl = self.__get_wdl_basename_wo_ext()
+        if wdl is None:
+            path = os.path.join(out_dir, workflow_id)
+        else:
+            path = os.path.join(out_dir, os.path.basename(wdl), workflow_id)
+
+        metadata_uri = os.path.join(
+            path, Caper.TMP_FILE_BASENAME_METADATA_JSON)
+        return CaperURI(metadata_uri).write_str_to_file(
+            json.dumps(metadata_json, indent=4)).get_uri()
 
     def __create_input_json_file(
             self, directory, fname='inputs.json'):
