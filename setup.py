@@ -5,8 +5,8 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='caper',  
-    version='0.1',
-    scripts=['caper','src/caper.py'] ,
+    version='v0.1.2',
+    scripts=['caper'],
     author="Jin Lee",
     author_email="leepc12@gmail.com",
     description="Cromwell Assisted Pipeline ExecutoR",
@@ -19,4 +19,7 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: POSIX :: Linux",
     ],
+    install_requires=[
+        "pyhocon",
+    ],    
 )
