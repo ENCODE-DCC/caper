@@ -9,7 +9,6 @@ except:
     import caper
 
 from caper.caper import main
-print(caper.caper.__file__)
 
 main()
 
