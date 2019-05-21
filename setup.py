@@ -21,5 +21,5 @@ setuptools.setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: POSIX :: Linux',
     ],
-    install_requires=['pyhocon']
+    install_requires=['pyhocon', 'requests']
 )
