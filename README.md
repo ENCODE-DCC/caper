@@ -4,206 +4,31 @@ Caper (Cromwell Assisted Pipeline ExecutoR) is a wrapper Python package for [Cro
 
 ## Introduction
 
-Caper is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aws`) and provides easier way of running Cromwell server/run by automatically composing necessary input files for Cromwell. Also, Caper supports easy automatic file transfer between local/cloud storages (local path, `s3://`, `gs://` and `http(s)://`). You can use these URIs in input JSON file or for a WDL file itself.
+Caper is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aws`) and provides easier way of running Cromwell server/run modes by automatically composing necessary input files for Cromwell. Also, Caper supports easy automatic file transfer between local/cloud storages (local path, `s3://`, `gs://` and `http(s)://`). You can use these URIs in input JSON file or for a WDL file itself.
 
 ## Features
 
-* **Similar CLI**: Caper has a similar command line interface as Cromwell.
-
-	For run mode,
-	```bash
-	$ caper run my.wdl -i input.json -o workflow.opts.json -l labels.json -p imports.zip
-	```
-	For server mode,
-	```bash
-	$ caper server
-	```
-
-* **Built-in backends**: You don't need your own backend configuration file. Caper provides the following built-in backends. You can still use your own backend file with `--backend-file`. Configuration in this file will override anything defined in built-in ones.
-
-	| Backend | Description           |
-	|---------|-----------------------|
-	| `Local` | Default local backend |
-	| `gcp`   | Google Cloud Platform |
-	| `aws`   | Amazon Web Service    |
-	| `slurm` | SLURM                 |
-	| `sge`   | Sun GridEngine        |
-	| `pbs`   | PBS                   |
-
-* **Automatic transfer between local/cloud storages**: For example, the following command line works. Such auto-transfer is done magically by correctly defining [temporary directory](#temporary-storage) for each stroage.
-	```bash
-	$ caper run gs://some/where/my.wdl -i s3://over/here/input.json
-	```
-
-* **Deepcopy for input JSON file**: You may want to have all data files defined in your input JSON file automatically transferred to a target remote storage. Deepcopying is allowed for several text file extensions (`.json`, `.tsv` and `.csv`). Any string value with absolute path/URI in your input JSON will be recursively copied to a target backend storage. For example of the above command.
-
-	```bash
-	$ caper run gs://some/where/my.wdl -i s3://over/here/input.json --deepcopy -b gcp
-	```
-	Let's say that you specified a target backend as `gcp` (Google Clooud Platform) then corresponding target storage will be `gs://` (Google Cloud Storage) and your input JSON (`s3://over/here/input.json`) looks like the following:
-	```json
-	{
-		"txt_file": "s3://over/here/info.json",
-		"big_file": "http://your.server.com/big.bigwig",
-		"hello" : {
-			"world" : ["gs://some/where/hello.tsv"]
-		}
-	}
-	```
-	Then Caper looks at all files with extensions `.json` and `.tsv` first and recursively transfer all files defined in it to a target storage. If those files are already on a target storage then transfer will be skipped. If anything is updated to those text file then Caper make a copy of that file on the same directory with a suffix `.gcs`. For example, Caper makes a copy of `s3://over/here/info.json` as `s3://over/here/info.gcs.json`.
-
-	All other files with an absolute path/URI (`http://your.server.com/big.bigwig`) will be transferred to your [temporary directory](#temporary-directory) on `gs://`.
-
-* **Docker/Singularity integration**: You can define a container image (Docker or Singularity) to run all tasks in a WDL workflow. Simply define it in command line arguments or directly in your WDL as [comments](#wdl-customization). Then `docker` or `singularity` attribute will be added to `runtime {}` section of all of tasks in a WDL so that Cromwell runs in a Docker mode or Singularity mode.
-	```bash
-	$ caper run http://my.web.server.com/my.wdl --singularity docker://ubuntu:latest
-	$ caper submit s3://over/there/your.wdl --docker ubuntu:latest
-	```
-* **MySQL database integration**: You can spin up a Cromwell server with your own port (`8000` by default) with the following simple command line. This works for `run` mode too.
-	```bash
-	$ caper server --port 8001	
-	```
-	You can also connect to a remote/local MySQL database. 
-	```bash
-	$ caper server --mysql-db-ip 4.3.2.1 --mysql-db-port 3307 --mysql-db-user cromwell --mysql-db-password some-secret-key
-	```	
-	You can also submit a workflow to a remote Cromwell server (`localhost` by default).
-	```bash
-	$ caper submit --ip 1.2.3.4 --port 8001 your.wdl ...
-	```
-	> **WARNING**: Before running a Cromwell server. See [security warnings](https://cromwell.readthedocs.io/en/develop/developers/Security/).
-
-* **One configuration file for all**: You may not want to repeat writing the same command line parameters for every pipeline run. Define them in a configuration file at `~/.caper/default.conf` and forget about it.
-
-* **One server for six backends**: Once authentication/configuration for cloud CLIs (`gcloud` and `aws`) are correctly set up, then your Cromwell server can submit job to any backend specified with `-b` or `--backend`.
-	```bash
-	$ caper submit -b gcp s3://maybe/here/your.wdl
-	```
-	```bash
-	$ caper submit -b aws gs://maybe/there/my.wdl
-	```
-
-* **Cluster engine support**: SLURM, SGE and PBS are currently supported. To run a Cromwell server directly submitting/monitoring jobs to SLURM. Make sure to keep your server process alive by using `nohup`, `screen` or `tmux`.
-
-	You can specify default backend for your Cromwell server.
-	```bash
-	$ caper server -b slurm
-	```
-	Submit to the Cromwell server instead of running `sbatch`. This workflow will run on a `slurm` backend.
-	```bash
-	$ caper submit your.wdl -i your.inputs.json
-	```
-	You can also directly `sbatch` Caper. Use `Local` mode.
-	```bash
-	$ sbatch caper run -b Local your.wdl
-	```
-
+* **Similar CLI**: Caper has a similar CLI as Cromwell.
+* **Built-in backends**: You don't need your own backend configuration file. Caper provides built-in backends.
+* **Automatic transfer between local/cloud storages**: You can use URIs (e.g. `gs://`, `http://` and `s3://) instead of paths in a command line arguments, also in your input JSON file. Files associated with these URIs will be automatically transfered to a specified temporary directory on a target remote storage.
+* **Deepcopy for input JSON file**: Recursively copy all data files in (`.json`, `.tsv` and `.csv`) to a target remote storage.
+* **Docker/Singularity integration**: You can run a WDL workflow in a specifed docker/singularity container.
+* **MySQL database integration**: We provides shells scripts to run MySQL database in a docker/singularity container. Using Caper with MySQL database will allow you to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks.
+* **One configuration file for all**: You may not want to repeat writing same command line parameters for every pipeline run. Define parameters in a configuration file at `~/.caper/default.conf`.
+* **One server for six backends**: Built-in backends allow you to submit pipelines to any local/remote backend specified with `-b` or `--backend`.
+* **Cluster engine support**: SLURM, SGE and PBS are currently supported locally.
 * **Easy workflow management**: Find all workflows submitted to a Cromwell server by workflow IDs (UUIDs) or `str_label` (special label for a workflow submitted by Caper `submit` and `run`). You can define multiple keywords with wildcards (`*` and `?`) to search for matching workflows. Abort, release hold, retrieve metadata JSON for them.
-
-	Example:
-	```bash
-	$ caper list
-	id      status  name    str_label       submission
-	f12526cb-7ed8-4bfa-8e2e-a463e94a61d0    Succeeded       test_caper_uri     TEST1    2019-05-04T17:56:30.173-07:00
-	66dbb4a5-2077-4db8-bc83-6a5d36495037    Aborted test_caper_uri     TEST2    2019-05-04T17:55:12.902-07:00
-	0787a2b8-49a0-4acb-b6b3-338c697f1d90    Succeeded       main    GOOD_LABEL    2019-05-04T17:53:28.045-07:00
-	5917a17d-3156-41c7-93d9-545d8cdde3c0    Failed  None    None    2019-05-04T17:51:17.239-07:00	
-	```
-
-	```bash
-	$ caper abort 66dbb4a5-2077-4db8-bc83-6a5d3649503 TEST*
-	```
-
-	```bash
-	$ caper metadata 0787a2b8-49a0-4acb-b6b3-338c697f1d90 970b3640-ccdd-4b5a-82b3-f4a32252e95a
-	```
-
-	```bash
-	$ caper metadata TEST2
-	```
-
 * **Automatic subworkflow packing**: Caper automatically creates an archive (`imports.zip`) of all imports and send it to Cromwell server/run.
-
-	For example, your WDL and its imports are n a Google Cloud Storage bucket.
-	```bash
-	gs://every/where/main.wdl
-	gs://every/where/a/b/c/d.wdl
-	gs://every/where/e/f/g.wdl
-	```
-
-	`main.wdl` looks like the following:
-	```python
-	import "a/b/c/d.wdl" as sub_d
-	import "e/f/g.wdl" as sub_g
-	import "http://some.where.com/z.wdl" as sub_z	
-	```
-
-	If you run `gs://every/where/main.wdl` then Caper looks `gs://every/where/a/b/c/d.wdl` and `gs://every/where/e/f/g.wdl` and pack them as a ZIP file and send it to Cromwell server/run. You don't need to add such ZIP file as `-p` or `--imports` in the command line.
-	```bash
-	$ caper run gs://every/where/main.wdl
-	```
-
-	You can still use your own ZIP file as `-p` in the command line arguments then Caper's automatic subworkflow packing will be disabled.
-
-* **Special label** (`str_label`): You have a string label, specified with `-s` or `--str-label`, for your workflow so that you can search for your workflow by this label instead of Cromwell's workflow UUID (e.g. `f12526cb-7ed8-4bfa-8e2e-a463e94a61d0`). This label will be written to Cromwell's original `labels.json` under a key `caper-str-label`. This label will be shown as `str_label` when you list all workflows by using `caper list`. See above `caper list` example and see
-
-## Usage
-
-```bash
-usage: caper.py [-h] [-c FILE]
-                     {run,server,submit,abort,unhold,list,metadata} ...
-
-positional arguments:
-  {run,server,submit,abort,unhold,list,metadata}
-    run                 Run a single workflow without server
-    server              Run a Cromwell server
-    submit              Submit a workflow to a Cromwell server
-    abort               Abort running/pending workflows on a Cromwell server
-    unhold              Release hold of workflows on a Cromwell server
-    list                List running/pending workflows on a Cromwell server
-    metadata            Retrieve metadata JSON for workflows from a Cromwell
-                        server
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -c FILE, --conf FILE  Specify config file
-```
-
-Examples:
-
-Run a Cromwell server with Google Cloud Platform as a default backend (specified by `-b` or `--backend`).
-```
-$ caper server -b gcp
-```
-
-Submit a workflow to a Cromwell server but use a different backend (`aws`).
-```
-$ caper submit gs://some/where/your.wdl -b aws
-```
-
-Run a Cromwell server on a SLURM cluster. Submit to Cromwell server insteads of `sbatch`ing your pipelines. Make sure to keep Cromwell server alive on an interactive node with unlimited/long walltime.
-```
-$ caper server -b slurm
-```
-
-Run a workflow locally. You don't need to specify `-b Local` since it's Caper's default backend.
-```
-$ caper run http://some.where.com/my.wdl
-```
-
-Run a workflow on Google Cloud Platform and deepcopy all files in your `inputs.json` to a temporary Google Cloud Storage bucket.
-```
-$ caper run my.wdl -i s3://my_s3_bucket/data/inputs.json --deepcopy
-```
+* **Special label** (`str_label`): You have a string label, specified with `-s` or `--str-label`, for your workflow so that you can search for your workflow by this label instead of Cromwell's workflow UUID (e.g. `f12526cb-7ed8-4bfa-8e2e-a463e94a61d0`).
 
 ## Installation
 
-Install it with `pip`.
+Make sure that you have `python3`(> 3.4.1) installed on your system. Use `pip` to install Caper.
 ```bash
 $ pip install caper
 ```
 
-Or `git clone` this repo and manually add `bin/` to your environment variable `PATH` in your BASH startup scripts (`~/.bashrc`). Make sure that you have `python3` >=3.3 installed on your system.
+Or `git clone` this repo and manually add `bin/` to your environment variable `PATH` in your BASH startup scripts (`~/.bashrc`).
 
 ```bash
 $ git clone https://github.com/ENCODE-DCC/caper
@@ -212,33 +37,104 @@ $ echo "export PATH=\"\$PATH:$PWD/caper/bin\"" >> ~/.bashrc
 
 ## Configuration file
 
-You can avoid repeatedly defining the same parameters in your command line arguments by using a configuration file. For example, you can define `out_dir` and `tmp_dir` in your configuration file instead of defining them in command line arguments.
+`Caper` automatically creates a default configuration file at `~/.caper/default.conf`. Such configruation file comes with all available parameters commented out. You can uncomment/define any parameter to activate it.
+
+You can avoid repeatedly defining same parameters in your command line arguments by using a configuration file. For example, you can define `out_dir` and `tmp_dir` in your configuration file instead of defining them in command line arguments.
 ```
 $ caper run your.wdl --out-dir [LOCAL_OUT_DIR] --tmp-dir [LOCAL_TMP_DIR]
 ```
 
-Equivalent settings in a configuration file. Make sure to replace dashes (`-`) with underscores (`_`).
+Equivalent settings in a configuration file.
 ```
 [defaults]
-out_dir=[LOCAL_OUT_DIR]
-tmp_dir=[LOCAL_TMP_DIR]
+out-dir=[LOCAL_OUT_DIR]
+tmp-dir=[LOCAL_TMP_DIR]
 ```
 
-Run with a configuration file.
-```
-$ caper -c [YOUR_CONF_FILE] run your.wdl
-```
+## List of parameters
 
-You can also have a default configuration file at `~/.caper/default.conf`. Caper will try to find this path first and if it exists then will automatically use it as a default configuration file.
+We highly recommend to use a default configuration file explained in the section [Configuration file](#configuration-file). Note that both dash (`-`) and underscore (`_`) are allowed for key names in a configuration file.
 
-We provide an example configuration file `default.conf`.
+**Cmd. line arg.**|**Description**
+:-----:|:-----:
+--inputs, -i|Workflow inputs JSON file
+--options, -o|Workflow options JSON file
+--labels, -l|Workflow labels JSON file
+--imports, -p|Zip file of imported subworkflows
 
-Create Caper's directory on your `HOME`. Copy the example configuration file (`default.conf`) to it. Uncomment any parameter to activate and define it.
-```
-$ mkdir -p ~/.caper
-$ cd caper  # make sure that you are on Caper's git directory
-$ cp default.conf ~/.caper
-```
+**Cmd. line arg.**|**Description**
+:-----:|:-----:
+--str-label, -s|Caper's special label for a workflow. This will be used to identify a workflow submitted by Caper
+--docker|Docker image URI for a WDL
+--singularity|Singaularity image URI for a WDL
+--use-docker|Use docker image for all tasks in a workflow by adding docker URI into docker runtime-attribute
+--use-singularity|Use singularity image for all tasks in a workflow
+
+**Conf. file**|**Cmd. line arg.**|**Default**|**Description**
+:-----:|:-----:|:-----:|:-----:
+backend|-b, --backend|local|Caper's built-in backend to run a workflow. Supported backends: `local`, `gcp`, `aws`, `slurm`, `sge` and `pbs`. Make sure to configure for chosen backend
+hold|--hold| |Put a hold on a workflow when submitted to a Cromwell server
+deepcopy|--deepcopy| |Deepcopy input files to corresponding file local/remote storage
+deepcopy-ext|--deepcopy-ext|json,tsv|Comma-separated list of file extensions to be deepcopied. Supported exts: .json, .tsv  and .csv.
+format|--format, -f|id,status,name,str\_label,submission|Comma-separated list of items to be shown for `list` subcommand. Supported formats: `id` (workflow UUID), `status`, `name` (WDL basename), `str\_label` (Caper's special string label), `submission`, `start`, `end`
+
+**Conf. file**|**Cmd. line arg.**|**Default**|**Description**
+:-----:|:-----:|:-----:|:-----:
+out-dir|--out-dir|`$CWD`|Output directory for local backend
+tmp-dir|--tmp-dir|`$CWD/caper\_tmp`|Tmp. directory for local backend
+
+**Conf. file**|**Cmd. line arg.**|**Description**
+:-----:|:-----:|:-----:
+gcp-prj|--gcp-prj|Google Cloud project
+out-gcs-bucket|--out-gcs-bucket|Output GCS bucket for GC backend
+tmp-gcs-bucket|--tmp-gcs-bucket|Tmp. GCS bucket for GC backend
+
+**Conf. file**|**Cmd. line arg.**|**Description**
+:-----:|:-----:|:-----:
+aws-batch-arn|--aws-batch-arn|ARN for AWS Batch
+aws-region|--aws-region|AWS region (e.g. us-west-1)
+out-s3-bucket|--out-s3-bucket|Output S3 bucket for AWS backend
+tmp-s3-bucket|--tmp-s3-bucket|Tmp. S3 bucket for AWS backend
+use-gsutil-over-aws-s3|--use-gsutil-over-aws-s3|Use `gsutil` instead of `aws s3` even for S3 buckets
+
+**Conf. file**|**Cmd. line arg.**|**Description**
+:-----:|:-----:|:-----:
+http-user|--http-user|HTTP Auth username to download data from private URLs
+http-password|--http-password|HTTP Auth password to download data from private URLs
+
+**Conf. file**|**Cmd. line arg.**|**Default**|**Description**
+:-----:|:-----:|:-----:|:-----:
+mysql-db-ip|--mysql-db-ip|localhost|MySQL DB IP address
+mysql-db-port|--mysql-db-port|3306|MySQL DB port
+mysql-db-user|--mysql-db-user|cromwell|MySQL DB username
+mysql-db-password|--mysql-db-password|cromwell|MySQL DB password
+
+**Conf. file**|**Cmd. line arg.**|**Default**|**Description**
+:-----:|:-----:|:-----:|:-----:
+ip|--ip|localhost|Cromwell server IP address or hostname
+port|--port|8000|Cromwell server port
+cromwell|--cromwell|[cromwell-40.jar](https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar)|Path or URL for Cromwell JAR file
+max-concurrent-tasks|--max-concurrent-tasks|1000|Maximum number of concurrent tasks
+max-concurrent-workflows|--max-concurrent-workflows|40|Maximum number of concurrent workflows
+disable-call-caching|--disable-call-caching| |Disable Cromwell's call-caching (re-using outputs)
+backend-file|--backend-file| |Custom Cromwell backend conf file. This will override Caper's built-in backends
+
+**Conf. file**|**Cmd. line arg.**|**Description**
+:-----:|:-----:|:-----:
+slurm-partition|--slurm-partition|SLURM partition
+slurm-account|--slurm-account|SLURM account
+slurm-extra-param|--slurm-extra-param|Extra parameters for SLURM `sbatch` command
+
+**Conf. file**|**Cmd. line arg.**|**Description**
+:-----:|:-----:|:-----:
+sge-pe|--sge-pe|SGE parallel environment. Check with `qconf -spl`
+sge-queue|--sge-queue|SGE queue to submit tasks. Check with `qconf -sql`
+slurm-extra-param|--slurm-extra-param|Extra parameters for SGE `qsub` command
+
+**Conf. file**|**Cmd. line arg.**|**Description**
+:-----:|:-----:|:-----:
+pbs-queue|--pbs-queue|PBS queue to submit tasks.
+pbs-extra-param|--pbs-extra-param|Extra parameters for PBS `qsub` command
 
 ## How to configure for each backend
 
@@ -377,22 +273,6 @@ $ caper run http://password.protected.server.com/my.wdl -i http://password.prote
 ```
 
 ## Requirements
-
-* `python` >= 3.3, `java` >= 1.8, `pip3`, `wget` and `curl`
-
-	Debian:
-	```bash
-	$ sudo apt-get install python3 default-jre python3-pip wget curl
-	```
-	Others:
-	```bash
-	$ sudo yum install python3 java-1.8.0-openjdk sudo yum install epel-release wget curl
-	```
-
-* python dependencies: `pyhocon`, `requests` and `datetime`
-	```bash
-	$ pip3 install pyhocon requests datetime
-	```
 
 * [gsutil](https://cloud.google.com/storage/docs/gsutil_install): Run the followings to configure gsutil:
 	```bash

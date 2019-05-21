@@ -24,60 +24,14 @@ DEFAULT_FORMAT = 'id,status,name,str_label,submission'
 DEFAULT_DEEPCOPY_EXT = 'json,tsv'
 DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 
-### MySQL database settings
-#mysql-db-ip=
-#mysql-db-port=
-#mysql-db-user=cromwell
-#mysql-db-password=cromwell
+############# Caper settings
 
-### Cromwell general settings
-#cromwell=https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar
-#disable-call-caching=False
-#max-concurrent-tasks=1000
-#max-concurrent-workflows=40
-
-### Cromwell server/client settings
-#ip=localhost
-#port=8000
-
-### backends general settings
 ## default backend
 #backend=local
-#backend-file=
 
-### local backend
-#out-dir=
-#tmp-dir=
-
-### Google Cloud Platform backend
-#gcp-prj=encode-dcc-1016
-#out-gcs-bucket=gs://encode-pipeline-test-runs/caper/out
-#tmp-gcs-bucket=gs://encode-pipeline-test-runs/caper/tmp
-
-### AWS backend
-#aws-batch-arn=arn:aws:batch:us-west-1:618537831167:job-queue/first-run-job-queue
-#aws-region=us-west-1
-#out-s3-bucket=s3://encode-pipeline-test-runs/caper/out
-#tmp-s3-bucket=s3://encode-pipeline-test-runs/caper/tmp
-#use-gsutil-over-aws-s3=True
-
-### HTTP auth to download from URLs (http://, https://)
-#http-user=
-#http-password=
-
-### SLURM backend
-#slurm-partition=akundaje
-#slurm-account=akundaje
-#slurm-extra-param=
-
-### SGE backend
-#sge-queue=q
-#sge-pe=shm
-#sge-extra-param=
-
-### PBS backend
-#pbs-queue=q
-#pbs-extra-param=
+## Put a hold on submitted jobs.
+## You need to run "caper unhold [WORKFLOW_ID]" to release hold
+#hold=True
 
 ### Workflow settings
 ## deepcopy recursively all file URIs in a file URI
@@ -86,9 +40,56 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 #deepcopy=True
 #deepcopy-ext=json,tsv
 
-## Put a hold on submitted jobs.
-## You need to run "caper unhold [WORKFLOW_ID]" to release hold
-#hold=True
+############# local backend
+#out-dir=
+#tmp-dir=
+
+############# Google Cloud Platform backend
+#gcp-prj=encode-dcc-1016
+#out-gcs-bucket=gs://encode-pipeline-test-runs/caper/out
+#tmp-gcs-bucket=gs://encode-pipeline-test-runs/caper/tmp
+
+############# AWS backend
+#aws-batch-arn=
+#aws-region=us-west-1
+#out-s3-bucket=s3://encode-pipeline-test-runs/caper/out
+#tmp-s3-bucket=s3://encode-pipeline-test-runs/caper/tmp
+#use-gsutil-over-aws-s3=True
+
+############# HTTP auth to download from URLs (http://, https://)
+#http-user=
+#http-password=
+
+############# MySQL database settings
+#mysql-db-ip=
+#mysql-db-port=
+#mysql-db-user=cromwell
+#mysql-db-password=cromwell
+
+############# Cromwell general settings
+#cromwell=https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar
+#max-concurrent-tasks=1000
+#max-concurrent-workflows=40
+#disable-call-caching=False
+#backend-file=
+
+## Cromwell server
+#ip=localhost
+#port=8000
+
+############# SLURM backend
+#slurm-partition=akundaje
+#slurm-account=akundaje
+#slurm-extra-param=
+
+############# SGE backend
+#sge-queue=q
+#sge-pe=shm
+#sge-extra-param=
+
+############# PBS backend
+#pbs-queue=q
+#pbs-extra-param=
 
 ## list workflow format
 #format=id,status,name,str_label,submission
