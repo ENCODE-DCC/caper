@@ -36,20 +36,20 @@ class CaperBackendCommon(dict):
             "max-concurrent-workflows": 40
         },
         "call-caching": {
-            "enabled": False,
+            "enabled": True,
             "invalidate-bad-cache-results": True
         }
     }
 
-    def __init__(self, port=None, use_call_caching=None,
+    def __init__(self, port=None, disable_call_caching=None,
                  max_concurrent_workflows=None):
         super(CaperBackendCommon, self).__init__(
             CaperBackendCommon.TEMPLATE)
         if port is not None:
             self['webservice']['port'] = port
-        if use_call_caching is not None:
-            self['call-caching']['enabled'] = use_call_caching
-        if use_call_caching is not None:
+        if disable_call_caching is not None:
+            self['call-caching']['enabled'] = not disable_call_caching
+        if max_concurrent_workflows is not None:
             self['system']['max-concurrent-workflows'] = \
                 max_concurrent_workflows
 

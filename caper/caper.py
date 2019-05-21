@@ -96,7 +96,7 @@ class Caper(object):
         # self._keep_temp_backend_file = args.get('keep_temp_backend_file')
         self._hold = args.get('hold')
         self._format = args.get('format')
-        self._use_call_caching = args.get('use_call_caching')
+        self._disable_call_caching = args.get('disable_call_caching')
         self._max_concurrent_workflows = args.get('max_concurrent_workflows')
         self._max_concurrent_tasks = args.get('max_concurrent_tasks')
         self._tmp_dir = args.get('tmp_dir')
@@ -671,7 +671,7 @@ class Caper(object):
             backend_dict,
             CaperBackendCommon(
                 port=self._port,
-                use_call_caching=self._use_call_caching,
+                disable_call_caching=self._disable_call_caching,
                 max_concurrent_workflows=self._max_concurrent_workflows))
 
         # local backend
