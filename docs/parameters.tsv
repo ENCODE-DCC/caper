@@ -1,0 +1,68 @@
+Cmd. line arg.	Description		
+--inputs, -i	Workflow inputs JSON file		
+--options, -o	Workflow options JSON file		
+--labels, -l	Workflow labels JSON file		
+--imports, -p	Zip file of imported subworkflows		
+			
+Cmd. line arg.	Description		
+--str-label, -s	Caper's special label for a workflow. This will be used to identify a workflow submitted by Caper		
+--docker	Docker image URI for a WDL		
+--singularity	Singaularity image URI for a WDL		
+--use-docker	Use docker image for all tasks in a workflow by adding docker URI into docker runtime-attribute		
+--use-singularity	Use singularity image for all tasks in a workflow		
+			
+Conf. file	Cmd. line arg.	Default	Description
+backend	-b, --backend	local	Caper's built-in backend to run a workflow. Supported backends: `local`, `gcp`, `aws`, `slurm`, `sge` and `pbs`. Make sure to configure for chosen backend
+hold	--hold		Put a hold on a workflow when submitted to a Cromwell server
+deepcopy	--deepcopy		Deepcopy input files to corresponding file local/remote storage
+deepcopy-ext	--deepcopy-ext	json,tsv	Comma-separated list of file extensions to be deepcopied. Supported exts: .json, .tsv  and .csv.
+format	--format, -f	id,status,name,str_label,submission	Comma-separated list of items to be shown for `list` subcommand. Supported formats: `id` (workflow UUID), `status`, `name` (WDL basename), `str_label` (Caper's special string label), `submission`, `start`, `end`
+			
+Conf. file	Cmd. line arg.	Default	Description
+out-dir	--out-dir	`$CWD`	Output directory for local backend
+tmp-dir	--tmp-dir	`$CWD/caper_tmp`	Tmp. directory for local backend
+			
+Conf. file	Cmd. line arg.	Default	Description
+gcp-prj	--gcp-prj		Google Cloud project
+out-gcs-bucket	--out-gcs-bucket		Output GCS bucket for GC backend
+tmp-gcs-bucket	--tmp-gcs-bucket		Tmp. GCS bucket for GC backend
+			
+Conf. file	Cmd. line arg.	Default	Description
+aws-batch-arn	--aws-batch-arn		ARN for AWS Batch
+aws-region	--aws-region		AWS region (e.g. us-west-1)
+out-s3-bucket	--out-s3-bucket		Output S3 bucket for AWS backend
+tmp-s3-bucket	--tmp-s3-bucket		Tmp. S3 bucket for AWS backend
+use-gsutil-over-aws-s3	--use-gsutil-over-aws-s3		Use `gsutil` instead of `aws s3` even for S3 buckets
+			
+Conf. file	Cmd. line arg.	Default	Description
+http-user	--http-user		HTTP Auth username to download data from private URLs
+http-password	--http-password		HTTP Auth password to download data from private URLs
+			
+Conf. file	Cmd. line arg.	Default	Description
+mysql-db-ip	--mysql-db-ip	localhost	MySQL DB IP address
+mysql-db-port	--mysql-db-port	3306	MySQL DB port
+mysql-db-user	--mysql-db-user	cromwell	MySQL DB username
+mysql-db-password	--mysql-db-password	cromwell	MySQL DB password
+			
+Conf. file	Cmd. line arg.	Default	Description
+ip	--ip	localhost	Cromwell server IP address or hostname
+port	--port	8000	Cromwell server port
+cromwell	--cromwell	[cromwell-40.jar](https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar)	Path or URL for Cromwell JAR file
+max-concurrent-tasks	--max-concurrent-tasks	1000	Maximum number of concurrent tasks
+max-concurrent-workflows	--max-concurrent-workflows	40	Maximum number of concurrent workflows
+disable-call-caching	--disable-call-caching		Disable Cromwell's call-caching (re-using outputs)
+backend-file	--backend-file		Custom Cromwell backend conf file. This will override Caper's built-in backends
+			
+Conf. file	Cmd. line arg.	Default	Description
+slurm-partition	--slurm-partition		SLURM partition
+slurm-account	--slurm-account		SLURM account
+slurm-extra-param	--slurm-extra-param		Extra parameters for SLURM `sbatch` command
+			
+Conf. file	Cmd. line arg.	Default	Description
+sge-pe	--sge-pe		SGE parallel environment. Check with `qconf -spl`
+sge-queue	--sge-queue		SGE queue to submit tasks. Check with `qconf -sql`
+slurm-extra-param	--slurm-extra-param		Extra parameters for SGE `qsub` command
+			
+Conf. file	Cmd. line arg.	Default	Description
+pbs-queue	--pbs-queue		PBS queue to submit tasks.
+pbs-extra-param	--pbs-extra-param		Extra parameters for PBS `qsub` command
