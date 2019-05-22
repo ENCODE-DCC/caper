@@ -109,7 +109,7 @@ tmp-dir=[LOCAL_TMP_DIR]
 
 ## List of parameters
 
-We highly recommend to use a default configuration file explained in the section [Configuration file](#configuration-file). Note that both dash (`-`) and underscore (`_`) are allowed for key names in a configuration file.
+We highly recommend to use a default configuration file described in the section [Configuration file](#configuration-file). Note that both dash (`-`) and underscore (`_`) are allowed for key names in a configuration file.
 
 * Basic parameters that are similar to Cromwell.
 
@@ -225,17 +225,17 @@ There are six built-in backends for Caper. Each backend must run on its designat
 
 | Backend | Description          | Storage | Required parameters                                                     |
 |---------|----------------------|---------|-------------------------------------------------------------------------|
-|`gcp`    |Google Cloud Platform | `gcs`   | `--gcp-prj`, `--out-gcs-bucket`, `--tmp-gcs-bucket`                     |
-|`aws`    |AWS                   | `s3`    | `--aws-batch-arn`, `--aws-region`, `--out-s3-bucket`, `--tmp-s3-bucket` |
-|`Local`  |Default local backend | `local` | `--out-dir`, `--tmp-dir`                                                |
-|`slurm`  |local SLURM backend   | `local` | `--out-dir`, `--tmp-dir`, `--slurm-partition` or `--slurm-account`      |
-|`sge`    |local SGE backend     | `local` | `--out-dir`, `--tmp-dir`, `--sge-pe`                                    |
-|`pds`    |local PBS backend     | `local` | `--out-dir`, `--tmp-dir`                                                |
+|gcp    |Google Cloud Platform | gcs   | --gcp-prj, --out-gcs-bucket, --tmp-gcs-bucket                     |
+|aws    |AWS                   | s3    | --aws-batch-arn, --aws-region, --out-s3-bucket, --tmp-s3-bucket |
+|Local  |Default local backend | local | --out-dir, --tmp-dir                                                |
+|slurm  |local SLURM backend   | local | --out-dir, --tmp-dir, --slurm-partition or --slurm-account      |
+|sge    |local SGE backend     | local | --out-dir, --tmp-dir, --sge-pe                                    |
+|pds    |local PBS backend     | local | --out-dir, --tmp-dir                                                |
 
 
 ## MySQL server
 
-We provide [shell scripts](mysql/) to run a MySQL server in a container with docker/singularity. Once you have a running MySQL server, define MySQL-related parameters in Caper to make Cromwell server connect to it. One of the advantages of using MySQL server is to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks. You can simply restart failed workflows with the same command line you used to start them.
+We provide [shell scripts](mysql/) to run a MySQL server in a container with docker/singularity. Once you have a running MySQL server, define MySQL-related parameters in Caper to attach it to a Cromwell server. One of the advantages of using MySQL server is to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks. You can simply restart failed workflows with the same command line you used to start them.
 
 1) docker
 
@@ -349,12 +349,14 @@ out-dir=
 mysql-db-port=3307
 ```
 
-Run a MySQL database server in a singularity container.
+Run a MySQL database server in a singularity container. If you are running it for the first time, make an empty directory for `DB_DIR`. `PORT` is optional but match it with that in a configuration file.
 ```bash
-$ run_mysql_server_singularity.sh [PORT]
+$ run_mysql_server_singularity.sh [DB_DIR] [PORT]
 ```
 
-Run a Cromwell server. Make sure to keep the SSH session alive where a Cromwell server runs on.
+Run a Cromwell server.
+> **WARNING**: Make sure to keep the SSH session alive where a Cromwell server runs on.
+
 ```bash
 $ caper server
 ```
@@ -375,10 +377,10 @@ There are four types of storages. Each storage except for URL has its own tempor
 
 | Storage | URI(s)       | Command line parameter    |
 |---------|--------------|---------------------------|
-| `local` | Path         | `--tmp-dir`               |
-| `gcs`   | `gs://`      | `--tmp-gcs-bucket`        |
-| `s3`    | `s3://`      | `--tmp-s3-bucket`         |
-| `url`   | `http(s)://` | not available (read-only) |
+| local | Path         | --tmp-dir               |
+| gcs   | gs://      | --tmp-gcs-bucket        |
+| s3    | s3://      | --tmp-s3-bucket         |
+| url   | http(s):// | not available (read-only) |
 
 ## Output directory
 
@@ -386,10 +388,10 @@ Output directories are defined similarly as temporary ones. Those are actual out
 
 | Storage | URI(s)       | Command line parameter    |
 |---------|--------------|---------------------------|
-| `local` | Path         | `--out-dir`               |
-| `gcs`   | `gs://`      | `--out-gcs-bucket`        |
-| `s3`    | `s3://`      | `--out-s3-bucket`         |
-| `url`   | `http(s)://` | not available (read-only) |
+| local | Path         | --out-dir               |
+| gcs   | gs://      | --out-gcs-bucket        |
+| s3    | s3://      | --out-s3-bucket         |
+| url   | http(s):// | not available (read-only) |
 
 Workflow's final output file `metadata.json` will be written to each workflow's directory (with workflow UUID) under this output directory.
 
@@ -399,16 +401,16 @@ Inter-storage transfer is done by keeping source's directory structure and appen
 
 | Storage | Command line parameters                              |
 |---------|------------------------------------------------------|
-| `local` | `--tmp-dir /scratch/user/caper_tmp`             |
-| `gcs`   | `--tmp-gcs-bucket gs://my_gcs_bucket/caper_tmp` |
-| `s3`    | `--tmp-s3-bucket s3://my_s3_bucket/caper_tmp`   |
+| local | --tmp-dir /scratch/user/caper_tmp             |
+| gcs   | --tmp-gcs-bucket gs://my_gcs_bucket/caper_tmp |
+| s3    | --tmp-s3-bucket s3://my_s3_bucket/caper_tmp   |
 
 A local file `/home/user/a/b/c/hello.gz` can be copied (on demand) to 
 
 | Storage | Command line parameters                                      |
 |---------|--------------------------------------------------------------|
-| `gcs`   | `gs://my_gcs_bucket/caper_tmp/home/user/a/b/c/hello.gz` |
-| `s3`    | `s3://my_s3_bucket/caper_tmp/home/user/a/b/c/hello.gz`  |
+| gcs   | gs://my_gcs_bucket/caper_tmp/home/user/a/b/c/hello.gz |
+| s3    | s3://my_s3_bucket/caper_tmp/home/user/a/b/c/hello.gz  |
 
 File transfer is done by using the following command lines using various CLIs:
 
@@ -431,12 +433,12 @@ Example:
 
 | Sensitve information               | Temporary filename   |
 |------------------------------------|----------------------|
-| MySQL database username            | `backend.conf`       |
-| MySQL database password            | `backend.conf`       |
-| AWS Batch ARN                      | `backend.conf`       |
-| Google Cloud Platform project name | `backend.conf`       |
-| SLURM account name                 | `workflow_opts.json` |
-| SLURM partition name               | `workflow_opts.json` |
+| MySQL database username            | backend.conf       |
+| MySQL database password            | backend.conf       |
+| AWS Batch ARN                      | backend.conf       |
+| Google Cloud Platform project name | backend.conf       |
+| SLURM account name                 | workflow_opts.json |
+| SLURM partition name               | workflow_opts.json` |
 
 > **WARNING**: Also, please keep other temporary directories **SECURE** too. Your data files defined in your input JSON file can be recursively transferred to any of these temporary directories according to your target backend defined by `-b` or `--backend`.
 
