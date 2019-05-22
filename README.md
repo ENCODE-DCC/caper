@@ -371,6 +371,18 @@ Monitor your workflows. Find by `STR_LABEL` or `WF_ID` (UUID). Wildcard search (
 $ caper list [WF_ID or STR_LABEL]
 ```
 
+## Output directory organizer
+
+Cromwell's raw outputs are not organized. PIP install `croo`. Please read through `croo`'s [README](https://github.com/ENCODE-DCC/croo).
+```bash
+$ pip install croo
+```
+
+Use `croo` to organize outputs. For `METADATA_JSON`, find a `metadata.json` for your workflow in Caper's output directory. It is stored on `[CAPER_OUT_DIR]/[WDL_NAME]/[WF_ID]/metadata.json`. You need an [output definition JSON file](https://github.com/ENCODE-DCC/croo#output-definition-json-file) for your WDL. Find [examples](https://github.com/ENCODE-DCC/croo/tree/master/examples) for ENCODE ATAC/ChIP-seq pipelines. 
+```bash
+$ croo [METADATA_JSON] --out-def-json [OUT_DEF_JSON]
+```
+
 ## Temporary directory
 
 There are four types of storages. Each storage except for URL has its own temporary directory/bucket defined by the following parameters. 
