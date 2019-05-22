@@ -214,19 +214,11 @@ class CaperURI(object):
         if uri_type == URI_GCS:
             if path is None:
                 path = self.__get_gcs_file_name()
+
             if self._uri_type == URI_URL:
-                ps = Popen(
-                    ['curl', '-L', '-f',
-                     '-u', '{}:{}'.format(CaperURI.HTTP_USER,
-                                          CaperURI.HTTP_PASSWORD),
-                     self._uri], stdout=PIPE, stderr=PIPE)
-                check_call(['gsutil', '-q', 'cp', '-n', '-', path],
-                           stdin=ps.stdout)
-                _, stderr = ps.communicate()
-                stderr = stderr.decode()
-                rc = ps.returncode
-                if rc > 0:
-                    raise Exception('cURL RC: {}, STDERR: {}'.format(rc, stderr))
+                tmp_local_file = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
+                CaperURI(tmp_local_file).copy(target_uri=path)
+
             elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
                     or self._uri_type == URI_LOCAL:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
@@ -236,26 +228,14 @@ class CaperURI(object):
         elif uri_type == URI_S3:
             if path is None:
                 path = self.__get_s3_file_name()
+
             if self._uri_type == URI_URL:
-                ps = Popen([
-                    'curl', '-L', '-f',
-                    '-u', '{}:{}'.format(CaperURI.HTTP_USER,
-                                         CaperURI.HTTP_PASSWORD),
-                    self._uri], stdout=PIPE, stderr=PIPE)
-                if CaperURI.USE_GSUTIL_OVER_AWS_S3:
-                    check_call(['gsutil', 'cp', '-n', '-', path],
-                               stdin=ps.stdout)
-                else:
-                    if not CaperURI.__file_exists(path):
-                        check_call(['aws', 's3', 'cp', '--only-show-errors',
-                                    '-', path], stdin=ps.stdout)
-                _, stderr = ps.communicate()
-                stderr = stderr.decode()
-                rc = ps.returncode
-                if rc > 0:
-                    raise Exception('cURL RC: {}, STDERR: {}'.format(rc, stderr))
+                tmp_local_file = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
+                CaperURI(tmp_local_file).copy(target_uri=path)
+
             elif self._uri_type == URI_GCS:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
+
             elif self._uri_type == URI_S3 or self._uri_type == URI_LOCAL:
                 if CaperURI.USE_GSUTIL_OVER_AWS_S3:
                     check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
@@ -265,7 +245,7 @@ class CaperURI(object):
             else:
                 path = None
 
-        elif uri_type == URI_LOCAL
+        elif uri_type == URI_LOCAL:
             if path is None:
                 path = self.__get_local_file_name()
             os.makedirs(os.path.dirname(path), exist_ok=True)
