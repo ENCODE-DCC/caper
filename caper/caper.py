@@ -130,6 +130,7 @@ class Caper(object):
         self._str_label = args.get('str_label')
         self._labels = args.get('labels')
         self._imports = args.get('imports')
+        self._metadata_output = args.get('metadata_output')
 
         # backend and default backend
         self._backend = args.get('backend')
@@ -450,8 +451,12 @@ class Caper(object):
         else:
             path = os.path.join(out_dir, os.path.basename(wdl), workflow_id)
 
-        metadata_uri = os.path.join(
-            path, Caper.TMP_FILE_BASENAME_METADATA_JSON)
+        if self._metadata_output is not None:
+            metadata_uri = self._metadata_output
+        else:
+            metadata_uri = os.path.join(
+                path, Caper.TMP_FILE_BASENAME_METADATA_JSON)
+
         return CaperURI(metadata_uri).write_str_to_file(
             json.dumps(metadata_json, indent=4)).get_uri()
 

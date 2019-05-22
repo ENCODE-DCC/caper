@@ -244,6 +244,12 @@ def parse_caper_arguments():
         '--hold', action='store_true',
         help='Put a hold on a workflow when submitted to a Cromwell server.')
 
+    # run
+    parent_run = argparse.ArgumentParser(add_help=False)
+    parent_run.add_argument(
+        '-m', '--metadata-output',
+        help='An optional directory path to output metadata JSON file')
+
     parent_submit.add_argument(
         '--deepcopy', action='store_true',
         help='Deepcopy for JSON (.json), TSV (.tsv) and CSV (.csv) '
@@ -338,7 +344,7 @@ def parse_caper_arguments():
 
     p_run = subparser.add_parser(
         'run', help='Run a single workflow without server',
-        parents=[parent_submit, parent_host, parent_backend])
+        parents=[parent_submit, parent_run, parent_host, parent_backend])
     p_server = subparser.add_parser(
         'server', help='Run a Cromwell server',
         parents=[parent_server_client, parent_host, parent_backend])

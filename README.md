@@ -119,6 +119,7 @@ We highly recommend to use a default configuration file described in the section
 	--options, -o|Workflow options JSON file
 	--labels, -l|Workflow labels JSON file
 	--imports, -p|Zip file of imported subworkflows
+	--metadata-output, -m|Path for output metadata JSON file (for `run` mode only)
 
 * Caper's special parameters. You can define a docker/singularity image to run your workflow with.
 
