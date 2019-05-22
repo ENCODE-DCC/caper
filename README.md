@@ -239,7 +239,7 @@ We provide [shell scripts](mysql/) to run a MySQL server in a container with doc
 
 1) docker
 
-	Run the following command line. `[PORT]`, `[MYSQL_USER]`, `[MYSQL_PASSWORD]` and `[CONTAINER_NAME]` are optional. MySQL server will run in background.
+	Run the following command line. `PORT`, `MYSQL_USER`, `MYSQL_PASSWORD` and `CONTAINER_NAME` are optional. MySQL server will run in background.
 
 	```bash
 	$ bash mysql/run_mysql_server_docker.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
@@ -258,7 +258,7 @@ We provide [shell scripts](mysql/) to run a MySQL server in a container with doc
 	[CONTAINER_NAME] (optional): MySQL container name (default: mysql_cromwell)
 	```
 
-	If you see any conflict in `[PORT]` and `[CONTAINER_NAME]`:
+	If you see any conflict in `PORT` and `CONTAINER_NAME`:
 	```bash
 	docker: Error response from daemon: Conflict. The container name "/mysql_cromwell" is already in use by container 0584ec7affed0555a4ecbd2ed86a345c542b3c60993960408e72e6ea803cb97e. You have to remove (or rename) that container to be able to reuse that name..
 	```
@@ -289,7 +289,7 @@ We provide [shell scripts](mysql/) to run a MySQL server in a container with doc
 
 2) Singularity
 
-	Run the following command line. `[PORT]`, `[MYSQL_USER]`, `[MYSQL_PASSWORD]` and `[CONTAINER_NAME]` are optional. MySQL server will run in background.
+	Run the following command line. `PORT`, `MYSQL_USER`, `MYSQL_PASSWORD` and `CONTAINER_NAME` are optional. MySQL server will run in background.
 
 	```bash
 	$ bash mysql/run_mysql_server_singularity.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
@@ -308,7 +308,7 @@ We provide [shell scripts](mysql/) to run a MySQL server in a container with doc
 	[CONTAINER_NAME] (optional): MySQL container name (default: mysql_cromwell)
 	```
 
-	If you see any conflict in `[PORT]` and `[CONTAINER_NAME]`, then remove a conflicting container and try with different port and container name.
+	If you see any conflict in `PORT` and `CONTAINER_NAME`, then remove a conflicting container and try with different port and container name.
 	```bash
 	$ singularity instance list
 	$ singularity instance stop [CONTAINER_NAME]
