@@ -36,20 +36,20 @@ class CaperBackendCommon(dict):
             "max-concurrent-workflows": 40
         },
         "call-caching": {
-            "enabled": False,
+            "enabled": True,
             "invalidate-bad-cache-results": True
         }
     }
 
-    def __init__(self, port=None, use_call_caching=None,
+    def __init__(self, port=None, disable_call_caching=None,
                  max_concurrent_workflows=None):
         super(CaperBackendCommon, self).__init__(
             CaperBackendCommon.TEMPLATE)
         if port is not None:
             self['webservice']['port'] = port
-        if use_call_caching is not None:
-            self['call-caching']['enabled'] = use_call_caching
-        if use_call_caching is not None:
+        if disable_call_caching is not None:
+            self['call-caching']['enabled'] = not disable_call_caching
+        if max_concurrent_workflows is not None:
             self['system']['max-concurrent-workflows'] = \
                 max_concurrent_workflows
 
@@ -315,11 +315,11 @@ class CaperBackendSLURM(dict):
         config = self['backend']['providers'][BACKEND_SLURM]['config']
         key = 'default-runtime-attributes'
 
-        if partition is not None:
+        if partition is not None and partition != '':
             config[key]['slurm_partition'] = partition
-        if account is not None:
+        if account is not None and account != '':
             config[key]['slurm_account'] = account
-        if extra_param is not None:
+        if extra_param is not None and extra_param != '':
             config[key]['slurm_extra_param'] = extra_param
         if concurrent_job_limit is not None:
             config['concurrent-job-limit'] = concurrent_job_limit
@@ -402,11 +402,11 @@ ${true=")m" false="" defined(memory_mb)} \
         config = self['backend']['providers'][BACKEND_SGE]['config']
         key = 'default-runtime-attributes'
 
-        if pe is not None:
+        if pe is not None and pe != '':
             config[key]['sge_pe'] = pe
-        if queue is not None:
+        if queue is not None and queue != '':
             config[key]['sge_queue'] = queue
-        if extra_param is not None:
+        if extra_param is not None and extra_param != '':
             config[key]['sge_extra_param'] = extra_param
         if concurrent_job_limit is not None:
             config['concurrent-job-limit'] = concurrent_job_limit
@@ -475,9 +475,9 @@ ${true=":0:0" false="" defined(time)} \
         config = self['backend']['providers'][BACKEND_PBS]['config']
         key = 'default-runtime-attributes'
 
-        if queue is not None:
+        if queue is not None and queue != '':
             config[key]['pbs_queue'] = queue
-        if extra_param is not None:
+        if extra_param is not None and extra_param != '':
             config[key]['pbs_extra_param'] = extra_param
         if concurrent_job_limit is not None:
             config['concurrent-job-limit'] = concurrent_job_limit

@@ -5,7 +5,8 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='caper',
-    version='v0.1.2.3',
+    version='v0.1.3',
+    python_requires='>3.4.1',
     scripts=['bin/caper', 'mysql/run_mysql_server_docker.sh',
              'mysql/run_mysql_server_singularity.sh'],
     author='Jin Lee',
@@ -20,5 +21,5 @@ setuptools.setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: POSIX :: Linux',
     ],
-    install_requires=['pyhocon']
+    install_requires=['pyhocon', 'requests']
 )

@@ -96,7 +96,7 @@ class Caper(object):
         # self._keep_temp_backend_file = args.get('keep_temp_backend_file')
         self._hold = args.get('hold')
         self._format = args.get('format')
-        self._use_call_caching = args.get('use_call_caching')
+        self._disable_call_caching = args.get('disable_call_caching')
         self._max_concurrent_workflows = args.get('max_concurrent_workflows')
         self._max_concurrent_tasks = args.get('max_concurrent_tasks')
         self._tmp_dir = args.get('tmp_dir')
@@ -130,6 +130,7 @@ class Caper(object):
         self._str_label = args.get('str_label')
         self._labels = args.get('labels')
         self._imports = args.get('imports')
+        self._metadata_output = args.get('metadata_output')
 
         # backend and default backend
         self._backend = args.get('backend')
@@ -192,8 +193,8 @@ class Caper(object):
             tmp_dir, Caper.TMP_FILE_BASENAME_METADATA_JSON)
 
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
-        cmd = ['java', '-DLOG_LEVEL=INFO', '-jar',
-               '-Dconfig.file={}'.format(backend_file),
+        cmd = ['java', '-Xmx1G', '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
+               '-jar', '-Dconfig.file={}'.format(backend_file),
                CaperURI(self._cromwell).get_local_file(), 'run',
                CaperURI(self._wdl).get_local_file(),
                '-i', input_file,
@@ -251,8 +252,8 @@ class Caper(object):
         backend_file = self.__create_backend_conf_file(tmp_dir)
 
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
-        cmd = ['java', '-DLOG_LEVEL=INFO', '-jar',
-               '-Dconfig.file={}'.format(backend_file),
+        cmd = ['java', '-Xmx2G', '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
+               '-jar', '-Dconfig.file={}'.format(backend_file),
                CaperURI(self._cromwell).get_local_file(), 'server']
         print('[Caper] cmd: ', cmd)
 
@@ -450,8 +451,12 @@ class Caper(object):
         else:
             path = os.path.join(out_dir, os.path.basename(wdl), workflow_id)
 
-        metadata_uri = os.path.join(
-            path, Caper.TMP_FILE_BASENAME_METADATA_JSON)
+        if self._metadata_output is not None:
+            metadata_uri = self._metadata_output
+        else:
+            metadata_uri = os.path.join(
+                path, Caper.TMP_FILE_BASENAME_METADATA_JSON)
+
         return CaperURI(metadata_uri).write_str_to_file(
             json.dumps(metadata_json, indent=4)).get_uri()
 
@@ -671,7 +676,7 @@ class Caper(object):
             backend_dict,
             CaperBackendCommon(
                 port=self._port,
-                use_call_caching=self._use_call_caching,
+                disable_call_caching=self._disable_call_caching,
                 max_concurrent_workflows=self._max_concurrent_workflows))
 
         # local backend
