@@ -5,6 +5,7 @@ Author:
     Jin Lee (leepc12@gmail.com) at ENCODE-DCC
 """
 
+import re
 import os
 import errno
 import json
@@ -83,6 +84,8 @@ class CaperURI(object):
     HTTP_PASSWORD = None
     USE_GSUTIL_OVER_AWS_S3 = False
     VERBOSE = False
+
+    RE_PATTERN_CURL_HTTP_ERR = r'curl: \(\d+\) The requested URL returned error: (.*)'
 
     def __init__(self, uri_or_path):
         if CaperURI.TMP_DIR is None:
@@ -213,12 +216,17 @@ class CaperURI(object):
                 path = self.__get_gcs_file_name()
             if self._uri_type == URI_URL:
                 ps = Popen(
-                    ['curl', '-u',
-                     '{}:{}'.format(CaperURI.HTTP_USER,
-                                    CaperURI.HTTP_PASSWORD),
-                     '-f', self._uri], stdout=PIPE)
+                    ['curl', '-L', '-f',
+                     '-u', '{}:{}'.format(CaperURI.HTTP_USER,
+                                          CaperURI.HTTP_PASSWORD),
+                     self._uri], stdout=PIPE, stderr=PIPE)
                 check_call(['gsutil', '-q', 'cp', '-n', '-', path],
                            stdin=ps.stdout)
+                _, stderr = ps.communicate()
+                stderr = stderr.decode()
+                rc = ps.returncode
+                if rc > 0:
+                    raise Exception('cURL RC: {}, STDERR: {}'.format(rc, stderr))
             elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
                     or self._uri_type == URI_LOCAL:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
@@ -230,10 +238,10 @@ class CaperURI(object):
                 path = self.__get_s3_file_name()
             if self._uri_type == URI_URL:
                 ps = Popen([
-                    'curl',
+                    'curl', '-L', '-f',
                     '-u', '{}:{}'.format(CaperURI.HTTP_USER,
                                          CaperURI.HTTP_PASSWORD),
-                    '-f', self._uri], stdout=PIPE)
+                    self._uri], stdout=PIPE, stderr=PIPE)
                 if CaperURI.USE_GSUTIL_OVER_AWS_S3:
                     check_call(['gsutil', 'cp', '-n', '-', path],
                                stdin=ps.stdout)
@@ -241,6 +249,11 @@ class CaperURI(object):
                     if not CaperURI.__file_exists(path):
                         check_call(['aws', 's3', 'cp', '--only-show-errors',
                                     '-', path], stdin=ps.stdout)
+                _, stderr = ps.communicate()
+                stderr = stderr.decode()
+                rc = ps.returncode
+                if rc > 0:
+                    raise Exception('cURL RC: {}, STDERR: {}'.format(rc, stderr))
             elif self._uri_type == URI_GCS:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
             elif self._uri_type == URI_S3 or self._uri_type == URI_LOCAL:
@@ -252,7 +265,7 @@ class CaperURI(object):
             else:
                 path = None
 
-        elif uri_type == URI_LOCAL:
+        elif uri_type == URI_LOCAL
             if path is None:
                 path = self.__get_local_file_name()
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -272,11 +285,46 @@ class CaperURI(object):
                     shutil.copy2(self._uri, path)
 
             elif self._uri_type == URI_URL:
-                check_call([
-                    'wget', '--no-check-certificate', '-qc',
-                    '--user', str(CaperURI.HTTP_USER),
-                    '--password', str(CaperURI.HTTP_PASSWORD),
-                    self._uri, '-O', path])
+                # we need "curl -C -" to resume downloading
+                # but it always fails with HTTP ERR 416 when file is
+                # already fully downloaded
+                try:
+                    if os.path.exists(path):
+                        ignore_curl_err_416 = True
+                    else:
+                        ignore_curl_err_416 = False
+                    p = Popen([
+                        'curl', '-RL', '-f', '-C', '-', '-u',
+                         '{}:{}'.format(CaperURI.HTTP_USER,
+                                        CaperURI.HTTP_PASSWORD),
+                         self._uri, '-o', path],
+                         stdout=PIPE, stderr=PIPE)
+                    _, stderr = p.communicate()
+                    stderr = stderr.decode()
+                    rc = p.returncode
+                    if rc > 0:
+                        m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR,
+                                                  stderr)
+                        if len(m) > 0:
+                            http_err = int(m[0])
+                        else:
+                            http_err = None
+                    else:
+                        http_err = None
+                except CalledProcessError as e:
+                    rc = e.returncode
+                    stderr = None
+                    http_err = None
+                if rc == 0:
+                    pass
+                elif ignore_curl_err_416 and http_err in [416]:  # range request
+                    if CaperURI.VERBOSE:
+                        print('[CaperURI] file already exists. '
+                              'skip downloading and ignore cURL error 416')
+                else:
+                    raise Exception('cURL RC: {}, HTTP_ERR: {}, STDERR: {}'.format(
+                        rc, http_err, stderr))
+
             elif self._uri_type == URI_GCS or \
                 self._uri_type == URI_S3 and \
                     CaperURI.USE_GSUTIL_OVER_AWS_S3:
@@ -308,10 +356,10 @@ class CaperURI(object):
 
         if self._uri_type == URI_URL:
             return check_output([
-                'curl',
+                'curl', '-f',
                 '-u', '{}:{}'.format(CaperURI.HTTP_USER,
                                      CaperURI.HTTP_PASSWORD),
-                '-f', self._uri]).decode()
+                self._uri]).decode()
 
         elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
                 and CaperURI.USE_GSUTIL_OVER_AWS_S3:
@@ -556,7 +604,7 @@ class CaperURI(object):
             try:
                 if uri_type == URI_URL:
                     rc = check_call([
-                        'curl', '--head', '--silent', '--fail',
+                        'curl', '--head', '--silent', '-f',
                         '-u', '{}:{}'.format(CaperURI.HTTP_USER,
                                              CaperURI.HTTP_PASSWORD),
                         uri])
@@ -564,7 +612,7 @@ class CaperURI(object):
                         and CaperURI.USE_GSUTIL_OVER_AWS_S3:
                     rc = check_call(['gsutil', '-q', 'ls', uri])
                 elif uri_type == URI_S3:
-                    rc = check_call(['aws', 's3', 'ls', path])
+                    rc = check_call(['aws', 's3', 'ls', uri])
                 else:
                     raise NotImplementedError('uri_type: {}'.format(uri_type))
             except CalledProcessError as e:
@@ -573,7 +621,40 @@ class CaperURI(object):
 
 
 def main():
-    pass
+    """To test CaperURI
+    """
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('src', help='Source URI')
+    parser.add_argument('target', help='Target URI')
+    parser.add_argument(
+        '--tmp-dir', help='Temporary directory for local backend')
+    parser.add_argument(
+        '--tmp-s3-bucket', help='Temporary S3 bucket for AWS backend')
+    parser.add_argument(
+        '--use-gsutil-over-aws-s3', action='store_true',
+        help='Use gsutil instead of aws s3 CLI even for S3 buckets.')
+    parser.add_argument(
+        '--tmp-gcs-bucket', help='Temporary GCS bucket for GC backend')
+    parser.add_argument(
+        '--http-user',
+        help='Username to directly download data from URLs')
+    parser.add_argument(
+        '--http-password',
+        help='Password to directly download data from URLs')
+
+    args = parser.parse_args()
+
+    init_caper_uri(
+        args.tmp_dir,
+        tmp_s3_bucket=args.tmp_s3_bucket,
+        tmp_gcs_bucket=args.tmp_gcs_bucket,
+        http_user=args.http_user,
+        http_password=args.http_password,
+        use_gsutil_over_aws_s3=args.use_gsutil_over_aws_s3,
+        verbose=True)
+
+    print(CaperURI(args.src).copy(target_uri=args.target))
 
 
 if __name__ == '__main__':
