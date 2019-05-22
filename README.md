@@ -4,7 +4,7 @@ Caper (Cromwell Assisted Pipeline ExecutoR) is a wrapper Python package for [Cro
 
 ## Introduction
 
-Caper is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aws`) and provides easier way of running Cromwell server/run modes by automatically composing necessary input files for Cromwell. Also, Caper supports easy automatic file transfer between local/cloud storages (local path, `s3://`, `gs://` and `http(s)://`). You can use these URIs in input JSON file or for a WDL file itself.
+Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and provides easier way of running Cromwell server/run modes by automatically composing necessary input files for Cromwell. Also, Caper supports easy automatic file transfer between local/cloud storages (local path, `s3://`, `gs://` and `http(s)://`). You can use these URIs in input JSON file or for a WDL file itself.
 
 ## Features
 
@@ -12,13 +12,13 @@ Caper is based on Unix and cloud platform CLIs (`wget`, `curl`, `gsutil` and `aw
 
 * **Built-in backends**: You don't need your own backend configuration file. Caper provides built-in backends.
 
-* **Automatic transfer between local/cloud storages**: You can use URIs (e.g. `gs://`, `http://` and `s3://) instead of paths in a command line arguments, also in your input JSON file. Files associated with these URIs will be automatically transfered to a specified temporary directory on a target remote storage.
+* **Automatic transfer between local/cloud storages**: You can use URIs (e.g. `gs://`, `http://` and `s3://`) instead of paths in a command line arguments, also in your input JSON file. Files associated with these URIs will be automatically transfered to a specified temporary directory on a target remote storage.
 
 * **Deepcopy for input JSON file**: Recursively copy all data files in (`.json`, `.tsv` and `.csv`) to a target remote storage.
 
 * **Docker/Singularity integration**: You can run a WDL workflow in a specifed docker/singularity container.
 
-* **MySQL database integration**: We provides shells scripts to run MySQL database in a docker/singularity container. Using Caper with MySQL database will allow you to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks.
+* **MySQL database integration**: We provide shell scripts to run a MySQL database server in a docker/singularity container. Using Caper with MySQL database will allow you to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks. This will be useful to resume a failed workflow where it left off.
 
 * **One configuration file for all**: You may not want to repeat writing same command line parameters for every pipeline run. Define parameters in a configuration file at `~/.caper/default.conf`.
 
@@ -63,24 +63,28 @@ metadata | WF_ID or STR_LABEL |Retrieve metadata JSONs for workflows
 Examples:
 
 * `run`: To run a single workflow. Add `--hold` to put an hold to submitted workflows.
-```bash
-$ caper run [WDL] -i [INPUT_JSON]
-```
+
+	```bash
+	$ caper run [WDL] -i [INPUT_JSON]
+	```
 
 * `server`: To start a server
-```bash
-$ caper server
-```
+
+	```bash
+	$ caper server
+	```
 
 * `submit`: To submit a workflow to a server. `-s` is optional but useful for other subcommands to find submitted workflow with matching string label.
-```bash
-$ caper submit [WDL] -i [INPUT_JSON] -s [STR_LABEL]
-```
+
+	```bash
+	$ caper submit [WDL] -i [INPUT_JSON] -s [STR_LABEL]
+	```
 
 * `list`: To show list of all workflows submitted to a cromwell server. Wildcard search with using `*` and `?` is allowed for such label for the following subcommands with `STR_LABEL`. 
-```bash
-$ caper list [WF_ID or STR_LABEL]
-```
+
+	```bash
+	$ caper list [WF_ID or STR_LABEL]
+	```
 
 * Other subcommands: Other subcommands work similar to `list`. It does a corresponding action for matched workflows.
 
@@ -109,7 +113,7 @@ We highly recommend to use a default configuration file explained in the section
 
 * Basic parameters that are similar to Cromwell.
 
-	**Cmd. line arg.**|**Description**
+	**Cmd. line**|**Description**
 	:-----|:-----
 	--inputs, -i|Workflow inputs JSON file
 	--options, -o|Workflow options JSON file
@@ -118,7 +122,7 @@ We highly recommend to use a default configuration file explained in the section
 
 * Caper's special parameters. You can define a docker/singularity image to run your workflow with.
 
-	**Cmd. line arg.**|**Description**
+	**Cmd. line**|**Description**
 	:-----|:-----
 	--str-label, -s|Caper's special label for a workflow. This will be used to identify a workflow submitted by Caper
 	--docker|Docker image URI for a WDL
@@ -128,24 +132,24 @@ We highly recommend to use a default configuration file explained in the section
 
 * Choose a default backend. Use `--deepcopy` to recursively auto-copy data files in your input JSON file. All data files will be automatically transferred to a target local/remote storage corresponding to a chosen backend. Make sure that you correctly configure temporary directories for source/target storages (`--tmp-dir`, `--tmp-gcs-bucket` and `--tmp-s3-bucket`).
 
-	**Conf. file**|**Cmd. line arg.**|**Default**|**Description**
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
 	backend|-b, --backend|local|Caper's built-in backend to run a workflow. Supported backends: `local`, `gcp`, `aws`, `slurm`, `sge` and `pbs`. Make sure to configure for chosen backend
 	hold|--hold| |Put a hold on a workflow when submitted to a Cromwell server
 	deepcopy|--deepcopy| |Deepcopy input files to corresponding file local/remote storage
 	deepcopy-ext|--deepcopy-ext|json,<br>tsv|Comma-separated list of file extensions to be deepcopied. Supported exts: .json, .tsv  and .csv.
-	format|--format, -f|id,status,name,<br>str\_label,submission|Comma-separated list of items to be shown for `list` subcommand. Supported formats: `id` (workflow UUID), `status`, `name` (WDL basename), `str\_label` (Caper's special string label), `submission`, `start`, `end`
+	format|--format, -f|id,status,<br>name,<br>str_label,<br>submission|Comma-separated list of items to be shown for `list` subcommand. Supported formats: `id` (workflow UUID), `status`, `name` (WDL basename), `str\_label` (Caper's special string label), `submission`, `start`, `end`
 
 * Local backend settings
 
-	**Conf. file**|**Cmd. line arg.**|**Default**|**Description**
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
 	out-dir|--out-dir|`$CWD`|Output directory for local backend
 	tmp-dir|--tmp-dir|`$CWD/caper\_tmp`|Tmp. directory for local backend
 
 * Google Cloud Platform backend settings
 
-	**Conf. file**|**Cmd. line arg.**|**Description**
+	**Conf. file**|**Cmd. line**|**Description**
 	:-----|:-----|:-----
 	gcp-prj|--gcp-prj|Google Cloud project
 	out-gcs-bucket|--out-gcs-bucket|Output GCS bucket for GC backend
@@ -153,7 +157,7 @@ We highly recommend to use a default configuration file explained in the section
 
 * AWS backend settings
 
-	**Conf. file**|**Cmd. line arg.**|**Description**
+	**Conf. file**|**Cmd. line**|**Description**
 	:-----|:-----|:-----
 	aws-batch-arn|--aws-batch-arn|ARN for AWS Batch
 	aws-region|--aws-region|AWS region (e.g. us-west-1)
@@ -163,14 +167,14 @@ We highly recommend to use a default configuration file explained in the section
 
 * Private URLs settings. This is useful, particularly for [ENCODE portal](https://www.encodeproject.org/), to use private URLs (`http(s)://`) in your input JSON.
 
-	**Conf. file**|**Cmd. line arg.**|**Description**
+	**Conf. file**|**Cmd. line**|**Description**
 	:-----|:-----|:-----
 	http-user|--http-user|HTTP Auth username to download data from private URLs
 	http-password|--http-password|HTTP Auth password to download data from private URLs
 
 * MySQL settings. Run a MySQL server with [shell scripts](/mysql) we provide and make Cromwell server connect to it instead of using its in-memory database. This is useful when you need to re-use outputs from previous failed workflows when you resume them.
 
-	**Conf. file**|**Cmd. line arg.**|**Default**|**Description**
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
 	mysql-db-ip|--mysql-db-ip|localhost|MySQL DB IP address
 	mysql-db-port|--mysql-db-port|3306|MySQL DB port
@@ -179,7 +183,7 @@ We highly recommend to use a default configuration file explained in the section
 
 * Cromwell server settings. IP address and port for a Cromwell server.
 
-	**Conf. file**|**Cmd. line arg.**|**Default**|**Description**
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
 	ip|--ip|localhost|Cromwell server IP address or hostname
 	port|--port|8000|Cromwell server port
@@ -191,7 +195,7 @@ We highly recommend to use a default configuration file explained in the section
 
 * SLURM backend settings. This is useful for Stanford Clusters (Sherlock, SCG). Define `--slurm-partition` for Sherlock and `--slurm-account` for SCG.
 
-	**Conf. file**|**Cmd. line arg.**|**Description**
+	**Conf. file**|**Cmd. line**|**Description**
 	:-----|:-----|:-----
 	slurm-partition|--slurm-partition|SLURM partition
 	slurm-account|--slurm-account|SLURM account
@@ -199,7 +203,7 @@ We highly recommend to use a default configuration file explained in the section
 
 * SGE backend settings. Make sure to have a parallel environment configured on your system. Ask your admin to add it if not exists.
 
-	**Conf. file**|**Cmd. line arg.**|**Description**
+	**Conf. file**|**Cmd. line**|**Description**
 	:-----|:-----|:-----
 	sge-pe|--sge-pe|SGE parallel environment. Check with `qconf -spl`
 	sge-queue|--sge-queue|SGE queue to submit tasks. Check with `qconf -sql`
@@ -207,7 +211,7 @@ We highly recommend to use a default configuration file explained in the section
 
 * PBS backend settings.
 
-	**Conf. file**|**Cmd. line arg.**|**Description**
+	**Conf. file**|**Cmd. line**|**Description**
 	:-----|:-----|:-----
 	pbs-queue|--pbs-queue|PBS queue to submit tasks.
 	pbs-extra-param|--pbs-extra-param|Extra parameters for PBS `qsub` command
@@ -231,9 +235,7 @@ There are six built-in backends for Caper. Each backend must run on its designat
 
 ## MySQL server
 
-We provide [shell scripts](mysql/) to run a MySQL server in a container with docker/singularity. Once you have a running MySQL server, define MySQL-related parameters in Caper to make Cromwell server connect to it. One of the advantages of using MySQL server is to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks. You can simply re-run failed workflows with the same command line you used to start them.
-
- You can take advan
+We provide [shell scripts](mysql/) to run a MySQL server in a container with docker/singularity. Once you have a running MySQL server, define MySQL-related parameters in Caper to make Cromwell server connect to it. One of the advantages of using MySQL server is to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks. You can simply restart failed workflows with the same command line you used to start them.
 
 1) docker
 
@@ -318,6 +320,54 @@ We provide [shell scripts](mysql/) to run a MySQL server in a container with doc
 	$ singularity instance stop [CONTAINER_NAME]
 	```
 
+## HPC clusters
+
+For users on Stanford HPC clusters (Sherlock and SCG). We recommend to run a MySQL server and run a Cromwell server attached to it. Set up a configuration file like the following.
+
+```bash
+[defaults]
+
+# define your SLURM partition for Sherlock
+slurm-partition=
+
+# define your SLURM account for SCG
+slurm-account=
+
+# for both cluster, define a temporary directory
+# all temporary files will be stored here
+# scratch directory is recommended
+# do not use /tmp
+tmp-dir=
+
+# for both cluster, define a output directory
+# actual pipeline outputs will be stored here
+out-dir=
+
+# MySQL database settings
+# default port is 3306 but if it's already taken
+# use a different port
+mysql-db-port=3307
+```
+
+Run a MySQL database server in a singularity container.
+```bash
+$ run_mysql_server_singularity.sh [PORT]
+```
+
+Run a Cromwell server. Make sure to keep the SSH session alive where a Cromwell server runs on.
+```bash
+$ caper server
+```
+
+Submit a workflow to it instead of `sbatch`ing it. `STR_LABEL` will be useful to find your workflows.
+```bash
+$ caper submit [WDL] -i [INPUT_JSON] -s [STR_LABEL]
+```
+
+Monitor your workflows. Find by `STR_LABEL` or `WF_ID` (UUID). Wildcard search (`*` and `?`) is available.
+```bash
+$ caper list [WF_ID or STR_LABEL]
+```
 
 ## Temporary directory
 
@@ -363,9 +413,9 @@ A local file `/home/user/a/b/c/hello.gz` can be copied (on demand) to
 File transfer is done by using the following command lines using various CLIs:
 
 * `gsutil -q cp -n [SRC] [TARGET]`
-* `aws s3 cp '--only-show-errors' [SRC] [TARGET]`
-* `wget --no-check-certificate -qc [URL_SRC] -O [LOCAL_TARGET]`
-* `curl -f [URL_SRC] | gsutil -q cp -n - [TARGET]`
+* `aws s3 cp --only-show-errors [SRC] [TARGET]`
+* `curl -RL -f -C - [URL_SRC] -o [TARGET]`
+* `curl -RL -f [URL_SRC] | gsutil -q cp -n - [TARGET]`
 
 > **WARNING**: Caper does not ensure a fail-safe file transfer when it's interrupted by user or system. Also, there can be race conditions if multiple users try to access/copy files. This will be later addressed in the future release. Until then DO NOT interrupt file transfer until you see the following `copying done` message.
 
@@ -373,15 +423,6 @@ Example:
 ```
 [CaperURI] copying from gcs to local, src: gs://encode-pipeline-test-runs/test_wdl_imports/main.wdl
 [CaperURI] copying done, target: /srv/scratch/leepc12/caper_tmp_dir/encode-pipeline-test-runs/test_wdl_imports/main.wdl
-```
-
-### Working with private URLs
-
-To have access to password-protected (HTTP Auth) private URLs, provide username and password in command line arguments (`--http-user` and `--http-password`) or in a configuration file. This is particularly useful for downloading genomic data files on [ENCODE portal](https://www.encodeproject.org/).
-
-Example:
-```
-$ caper run http://password.protected.server.com/my.wdl -i http://password.protected.server.com/my.inputs.json --http-user [HTTP_USERNAME] --http-password [HTTP_PASSWORD] 
 ```
 
 ### Security
