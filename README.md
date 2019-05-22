@@ -65,22 +65,22 @@ Examples:
 * `run`: To run a single workflow. Add `--hold` to put an hold to submitted workflows.
 ```bash
 $ caper run [WDL] -i [INPUT_JSON]
-``
+```
 
 * `server`: To start a server
 ```bash
 $ caper server
-``
+```
 
 * `submit`: To submit a workflow to a server. `-s` is optional but useful for other subcommands to find submitted workflow with matching string label.
 ```bash
 $ caper submit [WDL] -i [INPUT_JSON] -s [STR_LABEL]
-``
+```
 
 * `list`: To show list of all workflows submitted to a cromwell server. Wildcard search with using `*` and `?` is allowed for such label for the following subcommands with `STR_LABEL`. 
 ```bash
 $ caper list [WF_ID or STR_LABEL]
-``
+```
 
 * Other subcommands: Other subcommands work similar to `list`. It does a corresponding action for matched workflows.
 
