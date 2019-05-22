@@ -192,8 +192,8 @@ class Caper(object):
             tmp_dir, Caper.TMP_FILE_BASENAME_METADATA_JSON)
 
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
-        cmd = ['java', '-DLOG_LEVEL=INFO', '-jar',
-               '-Dconfig.file={}'.format(backend_file),
+        cmd = ['java', '-Xmx1G', '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
+               '-jar', '-Dconfig.file={}'.format(backend_file),
                CaperURI(self._cromwell).get_local_file(), 'run',
                CaperURI(self._wdl).get_local_file(),
                '-i', input_file,
@@ -251,8 +251,8 @@ class Caper(object):
         backend_file = self.__create_backend_conf_file(tmp_dir)
 
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
-        cmd = ['java', '-DLOG_LEVEL=INFO', '-jar',
-               '-Dconfig.file={}'.format(backend_file),
+        cmd = ['java', '-Xmx2G', '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
+               '-jar', '-Dconfig.file={}'.format(backend_file),
                CaperURI(self._cromwell).get_local_file(), 'server']
         print('[Caper] cmd: ', cmd)
 
