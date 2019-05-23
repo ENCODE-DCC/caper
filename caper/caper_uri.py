@@ -12,7 +12,7 @@ import json
 import shutil
 from copy import deepcopy
 from collections import OrderedDict
-from subprocess import Popen, check_call, check_output, run, \
+from subprocess import Popen, check_call, check_output, \
     PIPE, CalledProcessError
 
 
@@ -368,11 +368,13 @@ class CaperURI(object):
                 fp.write(s)
         elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
                 and CaperURI.USE_GSUTIL_OVER_AWS_S3:
-            run(['gsutil', '-q', 'cp', '-', self._uri],
-                input=s.encode('ascii'))
+            p = Popen(['gsutil', '-q', 'cp', '-',
+                       self._uri], stdin=PIPE)
+            p.communicate(input=s.encode('ascii'))
         elif self._uri_type == URI_S3:
-            run(['aws', 's3', 'cp', '--only-show-errors', '-', self._uri],
-                input=s.encode('ascii'))
+            p = Popen(['aws', 's3', 'cp', '--only-show-errors', '-',
+                       self._uri], stdin=PIPE)
+            p.communicate(input=s.encode('ascii'))
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
         return self
@@ -608,6 +610,9 @@ def main():
     parser.add_argument('src', help='Source URI')
     parser.add_argument('target', help='Target URI')
     parser.add_argument(
+        '--test-write-to-str', action='store_true',
+        help='Write [SRC] (string) on [TARGET] instead of copying')
+    parser.add_argument(
         '--tmp-dir', help='Temporary directory for local backend')
     parser.add_argument(
         '--tmp-s3-bucket', help='Temporary S3 bucket for AWS backend')
@@ -634,7 +639,10 @@ def main():
         use_gsutil_over_aws_s3=args.use_gsutil_over_aws_s3,
         verbose=True)
 
-    print(CaperURI(args.src).copy(target_uri=args.target))
+    if args.test_write_to_str:
+        CaperURI(args.target).write_str_to_file(args.src)
+    else:
+        print(CaperURI(args.src).copy(target_uri=args.target))
 
 
 if __name__ == '__main__':
