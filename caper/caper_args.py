@@ -380,13 +380,18 @@ def parse_caper_arguments():
     # convert to dict
     args_d = vars(args)
 
+    # boolean string to boolean
     disable_call_caching = args_d.get('disable_call_caching')
-    if disable_call_caching is not None and isinstance(disable_call_caching, str):
-        args_d['disable_call_caching'] = bool(strtobool(disable_call_caching))
+    if disable_call_caching is not None \
+            and isinstance(disable_call_caching, str):
+        args_d['disable_call_caching'] = \
+            bool(strtobool(disable_call_caching))
 
     use_gsutil_over_aws_s3 = args_d.get('use_gsutil_over_aws_s3')
-    if use_gsutil_over_aws_s3 is not None and isinstance(use_gsutil_over_aws_s3, str):
-        args_d['use_gsutil_over_aws_s3'] = bool(strtobool(use_gsutil_over_aws_s3))
+    if use_gsutil_over_aws_s3 is not None \
+            and isinstance(use_gsutil_over_aws_s3, str):
+        args_d['use_gsutil_over_aws_s3'] = \
+            bool(strtobool(use_gsutil_over_aws_s3))
 
     hold = args_d.get('hold')
     if hold is not None and isinstance(hold, str):
@@ -404,12 +409,15 @@ def parse_caper_arguments():
     if use_singularity is not None and isinstance(use_singularity, str):
         args_d['use_singularity'] = bool(strtobool(use_singularity))
 
+    # int string to int
     max_concurrent_tasks = args_d.get('max_concurrent_tasks')
-    if max_concurrent_tasks is not None and isinstance(max_concurrent_tasks, str):
+    if max_concurrent_tasks is not None \
+            and isinstance(max_concurrent_tasks, str):
         args_d['max_concurrent_tasks'] = int(max_concurrent_tasks)
 
     max_concurrent_workflows = args_d.get('max_concurrent_workflows')
-    if max_concurrent_workflows is not None and isinstance(max_concurrent_workflows, str):
+    if max_concurrent_workflows is not None \
+            and isinstance(max_concurrent_workflows, str):
         args_d['max_concurrent_workflows'] = int(max_concurrent_workflows)
 
     # init some important path variables
