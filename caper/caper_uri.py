@@ -85,7 +85,7 @@ class CaperURI(object):
     USE_GSUTIL_OVER_AWS_S3 = False
     VERBOSE = False
 
-    RE_PATTERN_CURL_HTTP_ERR = r'The requested URL returned error: (.*)'
+    RE_PATTERN_CURL_HTTP_ERR = r'The requested URL returned error: (\d*)'
 
     def __init__(self, uri_or_path):
         if CaperURI.TMP_DIR is None:
@@ -267,45 +267,11 @@ class CaperURI(object):
             elif self._uri_type == URI_URL:
                 # we need "curl -C -" to resume downloading
                 # but it always fails with HTTP ERR 416 when file is
-                # already fully downloaded
-                try:
-                    if os.path.exists(path):
-                        ignore_curl_err_416 = True
-                    else:
-                        ignore_curl_err_416 = False
-                    p = Popen([
-                        'curl', '-RL', '-f', '-C', '-', '-u',
-                        '{}:{}'.format(CaperURI.HTTP_USER,
-                                       CaperURI.HTTP_PASSWORD),
-                        self._uri, '-o', path],
-                        stdout=PIPE, stderr=PIPE)
-                    _, stderr = p.communicate()
-                    stderr = stderr.decode()
-                    rc = p.returncode
-                    if rc > 0:
-                        m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR,
-                                       stderr)
-                        if len(m) > 0:
-                            http_err = int(m[0])
-                        else:
-                            http_err = None
-                    else:
-                        http_err = None
-                except CalledProcessError as e:
-                    rc = e.returncode
-                    stderr = None
-                    http_err = None
-                if rc == 0:
-                    pass
-                elif ignore_curl_err_416 and http_err in [416]:
-                    # range request bug in curl
-                    if CaperURI.VERBOSE:
-                        print('[CaperURI] file already exists. '
-                              'skip downloading and ignore cURL error 416')
-                else:
-                    raise Exception(
-                        'cURL RC: {}, HTTP_ERR: {}, STDERR: {}'.format(
-                            rc, http_err, stderr))
+                # already fully downloaded, i.e. path exists
+                CaperURI.__curl_auto_auth(
+                    ['curl', '-RL', '-f', '-C', '-',
+                     self._uri, '-o', path],
+                    ignored_http_err=(416,))
 
             elif self._uri_type == URI_GCS or \
                 self._uri_type == URI_S3 and \
@@ -337,11 +303,9 @@ class CaperURI(object):
                 src=self._uri_type, uri=self._uri))
 
         if self._uri_type == URI_URL:
-            return check_output([
-                'curl', '-f',
-                '-u', '{}:{}'.format(CaperURI.HTTP_USER,
-                                     CaperURI.HTTP_PASSWORD),
-                self._uri]).decode()
+            stdout, _, _, _ = CaperURI.__curl_auto_auth(
+                ['curl', '-L', '-f', self._uri])
+            return stdout
 
         elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
                 and CaperURI.USE_GSUTIL_OVER_AWS_S3:
@@ -587,11 +551,10 @@ class CaperURI(object):
         else:
             try:
                 if uri_type == URI_URL:
-                    rc = check_call([
-                        'curl', '--head', '--silent', '-f',
-                        '-u', '{}:{}'.format(CaperURI.HTTP_USER,
-                                             CaperURI.HTTP_PASSWORD),
-                        uri])
+                    # ignore 416, 404, 403 since it's just a checking
+                    _, _, rc, _ = CaperURI.__curl_auto_auth(
+                        ['curl', '--head', '-f', uri],
+                        ignored_http_err=(416, 404, 403, 401))
                 elif uri_type == URI_GCS or uri_type == URI_S3 \
                         and CaperURI.USE_GSUTIL_OVER_AWS_S3:
                     rc = check_call(['gsutil', '-q', 'ls', uri])
@@ -602,6 +565,70 @@ class CaperURI(object):
             except CalledProcessError as e:
                 rc = e.returncode
             return rc == 0
+
+    @staticmethod
+    def __curl_auto_auth(cmd_wo_auth, ignored_http_err=()):
+        """Try without HTTP auth first if it fails then try with auth
+
+        Returns:
+            stdout: decoded STDOUT
+            stderr: decoded STDERR
+            rc: return code
+        """
+        try:
+            p = Popen(cmd_wo_auth, stdout=PIPE, stderr=PIPE)
+            stdout, stderr = p.communicate()
+            stdout = stdout.decode()
+            stderr = stderr.decode()
+            rc = p.returncode
+            if rc > 0:
+                m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR,
+                               stderr)
+                http_err = int(m[0]) if len(m) > 0 else None
+            else:
+                http_err = None
+
+            if CaperURI.HTTP_USER is None:  # if auth info is given
+                pass
+            elif http_err in (401, 403):  # permission or auth http error
+                if CaperURI.VERBOSE:
+                    print('[CaperURI] got HTTP_ERR {}. '
+                          're-trying with auth...'.format(http_err))
+                # now try with AUTH
+                cmd_w_auth = cmd_wo_auth + [
+                    '-u', '{}:{}'.format(CaperURI.HTTP_USER,
+                                         CaperURI.HTTP_PASSWORD)]
+                p = Popen(cmd_w_auth, stdout=PIPE, stderr=PIPE)
+                stdout, stderr = p.communicate()
+                stdout = stdout.decode()
+                stderr = stderr.decode()
+                rc = p.returncode
+                if rc > 0:
+                    m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR,
+                                   stderr)
+                    http_err = int(m[0]) if len(m) > 0 else None
+                else:
+                    http_err = None
+
+        except CalledProcessError as e:
+            stdout = None
+            stderr = None
+            rc = e.returncode
+            http_err = None
+
+        if rc == 0:
+            pass
+        elif http_err in ignored_http_err:
+            # range request bug in curl
+            if http_err in (416,):
+                if CaperURI.VERBOSE:
+                    print('[CaperURI] file already exists. '
+                          'skip downloading and ignore HTTP_ERR 416')
+        else:
+            raise Exception(
+                'cURL RC: {}, HTTP_ERR: {}, STDERR: {}'.format(
+                    rc, http_err, stderr))
+        return stdout, stderr, rc, http_err
 
 
 def main():
@@ -614,6 +641,12 @@ def main():
     parser.add_argument(
         '--test-write-to-str', action='store_true',
         help='Write [SRC] (string) on [TARGET] instead of copying')
+    parser.add_argument(
+        '--test-file-exists', action='store_true',
+        help='Check if [SRC] exists')
+    parser.add_argument(
+        '--test-get-file-contents', action='store_true',
+        help='Get file contents of [SRC]')
     parser.add_argument(
         '--tmp-dir', help='Temporary directory for local backend')
     parser.add_argument(
@@ -643,6 +676,10 @@ def main():
 
     if args.test_write_to_str:
         CaperURI(args.target).write_str_to_file(args.src)
+    elif args.test_file_exists:
+        print(CaperURI(args.src).file_exists())
+    elif args.test_get_file_contents:
+        print(CaperURI(args.src).get_file_contents())
     else:
         print(CaperURI(args.src).copy(target_uri=args.target))
 
