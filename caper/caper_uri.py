@@ -85,7 +85,7 @@ class CaperURI(object):
     USE_GSUTIL_OVER_AWS_S3 = False
     VERBOSE = False
 
-    RE_PATTERN_CURL_HTTP_ERR = r'curl: \(\d+\) The requested URL returned error: (.*)'
+    RE_PATTERN_CURL_HTTP_ERR = r'The requested URL returned error: (.*)'
 
     def __init__(self, uri_or_path):
         if CaperURI.TMP_DIR is None:
