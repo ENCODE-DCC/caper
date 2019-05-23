@@ -216,8 +216,8 @@ class CaperURI(object):
                 path = self.__get_gcs_file_name()
 
             if self._uri_type == URI_URL:
-                tmp_local_file = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
-                CaperURI(tmp_local_file).copy(target_uri=path)
+                tmp_local_f = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
+                CaperURI(tmp_local_f).copy(target_uri=path)
 
             elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
                     or self._uri_type == URI_LOCAL:
@@ -230,8 +230,8 @@ class CaperURI(object):
                 path = self.__get_s3_file_name()
 
             if self._uri_type == URI_URL:
-                tmp_local_file = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
-                CaperURI(tmp_local_file).copy(target_uri=path)
+                tmp_local_f = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
+                CaperURI(tmp_local_f).copy(target_uri=path)
 
             elif self._uri_type == URI_GCS:
                 check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
@@ -275,16 +275,16 @@ class CaperURI(object):
                         ignore_curl_err_416 = False
                     p = Popen([
                         'curl', '-RL', '-f', '-C', '-', '-u',
-                         '{}:{}'.format(CaperURI.HTTP_USER,
-                                        CaperURI.HTTP_PASSWORD),
-                         self._uri, '-o', path],
-                         stdout=PIPE, stderr=PIPE)
+                        '{}:{}'.format(CaperURI.HTTP_USER,
+                                       CaperURI.HTTP_PASSWORD),
+                        self._uri, '-o', path],
+                        stdout=PIPE, stderr=PIPE)
                     _, stderr = p.communicate()
                     stderr = stderr.decode()
                     rc = p.returncode
                     if rc > 0:
                         m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR,
-                                                  stderr)
+                                       stderr)
                         if len(m) > 0:
                             http_err = int(m[0])
                         else:
@@ -297,13 +297,15 @@ class CaperURI(object):
                     http_err = None
                 if rc == 0:
                     pass
-                elif ignore_curl_err_416 and http_err in [416]:  # range request
+                elif ignore_curl_err_416 and http_err in [416]:
+                    # range request bug in curl
                     if CaperURI.VERBOSE:
                         print('[CaperURI] file already exists. '
                               'skip downloading and ignore cURL error 416')
                 else:
-                    raise Exception('cURL RC: {}, HTTP_ERR: {}, STDERR: {}'.format(
-                        rc, http_err, stderr))
+                    raise Exception(
+                        'cURL RC: {}, HTTP_ERR: {}, STDERR: {}'.format(
+                            rc, http_err, stderr))
 
             elif self._uri_type == URI_GCS or \
                 self._uri_type == URI_S3 and \
