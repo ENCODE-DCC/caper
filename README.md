@@ -116,7 +116,7 @@ $ caper
 
 ## How to run it on a local computer
 
-Define two important parameters in your default configuration JSON file (`~/.caper/default.json`).
+Define two important parameters in your default configuration file (`~/.caper/default.json`).
 ```
 # directory to store all outputs
 out-dir=[LOCAL_OUT_DIR]
@@ -137,7 +137,7 @@ $ caper run [WDL] -i [INPUT_JSON] --deepcopy
 
 Install [gsutil](https://cloud.google.com/storage/docs/gsutil_install). [Configure for gcloud and gsutil](docs/conf_gcp).
 
-Define three important parameters in your default configuration JSON file (`~/.caper/default.json`).
+Define three important parameters in your default configuration file (`~/.caper/default.json`).
 ```
 # your project name on Google Cloud platform
 gcp-prj=YOUR_PRJ_NAME
@@ -158,7 +158,7 @@ $ caper run [WDL] -i [INPUT_JSON] --backend gcp --deepcopy
 
 Install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html). [Configure for AWS](docs/conf_aws).
 
-Define three important parameters in your default configuration JSON file (`~/.caper/default.json`).
+Define three important parameters in your default configuration file (`~/.caper/default.json`).
 ```
 # ARN for your AWS Batch
 aws-batch-arn=ARN_FOR_YOUR_AWS_BATCH
@@ -178,7 +178,7 @@ $ caper run [WDL] -i [INPUT_JSON] --backend aws --deepcopy
 
 ## How to run it on SLURM cluster
 
-Define five important parameters in your default configuration JSON file (`~/.caper/default.json`).
+Define five important parameters in your default configuration file (`~/.caper/default.json`).
 ```
 # directory to store all outputs
 out-dir=[LOCAL_OUT_DIR]
@@ -209,7 +209,7 @@ Run Caper. `--deepcopy` is optional for remote (http://, gs://, s3://, ...) `INP
 $ caper run [WDL] -i [INPUT_JSON] --backend slurm --deepcopy
 ```
 
-Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive. If there is any conflicting port. Change port in your default configuration JSON file.
+Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive. If there is any conflicting port. Change port in your default configuration file.
 ```bash
 $ caper server
 ```
@@ -231,7 +231,7 @@ $ caper submit [WDL] -i [INPUT_JSON] --deepcopy -p [PORT]
 
 ## How to run it on SGE cluster
 
-Define four important parameters in your default configuration JSON file (`~/.caper/default.json`).
+Define four important parameters in your default configuration file (`~/.caper/default.json`).
 ```
 # directory to store all outputs
 out-dir=[LOCAL_OUT_DIR]
@@ -256,7 +256,7 @@ Run Caper. `--deepcopy` is optional for remote (http://, gs://, s3://, ...)  `IN
 $ caper run [WDL] -i [INPUT_JSON] --backend sge --deepcopy
 ```
 
-Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive. If there is any conflicting port. Change port in your default configuration JSON file.
+Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive. If there is any conflicting port. Change port in your default configuration file (`~/.caper/default.json`).
 ```bash
 $ caper server
 ```
