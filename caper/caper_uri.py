@@ -10,6 +10,7 @@ import os
 import errno
 import json
 import shutil
+import hashlib
 from copy import deepcopy
 from collections import OrderedDict
 from subprocess import Popen, check_call, check_output, \
@@ -390,7 +391,8 @@ class CaperURI(object):
 
         elif self._uri_type == URI_URL:
             # for URLs use hash of the whole URL as a base for filename
-            rel_uri = os.path.join(str(hash(self._uri)), os.path.basename(self._uri))
+            hash_str = hashlib.md5(self._uri.encode('utf-8')).hexdigest()
+            rel_uri = os.path.join(hash_str, os.path.basename(self._uri))
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
         return rel_uri
