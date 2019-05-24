@@ -140,7 +140,7 @@ Install [gsutil](https://cloud.google.com/storage/docs/gsutil_install). [Configu
 Define three important parameters in your default configuration JSON file (`~/.caper/default.json`).
 ```
 # your project name on Google Cloud platform
-gcp-project=YOUR_PRJ_NAME
+gcp-prj=YOUR_PRJ_NAME
 
 # directory to store all outputs
 out-gcs-bucket=gs://YOUR_OUTPUT_ROOT_BUCKET/ANY/WHERE
@@ -204,7 +204,7 @@ slurm-account=YOUR_ACCOUMT
 port=8000
 ```
 
-Run Caper. `--deepcopy` is optional for remote (http://, gs://, s3://, ...)  `INPUT_JSON` file.
+Run Caper. `--deepcopy` is optional for remote (http://, gs://, s3://, ...) `INPUT_JSON` file.
 ```bash
 $ caper run [WDL] -i [INPUT_JSON] --backend slurm --deepcopy
 ```
@@ -214,7 +214,7 @@ Or run a Cromwell server with Caper. Make sure to keep server's SSH session aliv
 $ caper server
 ```
 
-On HPC cluster with Singularity installed, run Caper with a Singularity container if that is defined inside `WDL`.
+On HPC cluster with Singularity installed, run Caper with a Singularity container if that is [defined inside `WDL`](DETAILS.md/#wdl-customization).
 ```bash
 $ caper run [WDL] -i [INPUT_JSON] --backend slurm --deepcopy --use-singularity
 ```
@@ -268,7 +268,7 @@ $ caper submit [WDL] -i [INPUT_JSON] --deepcopy -p [PORT]
 
 ## How to resume a failed workflow
 
-You need to set up a [MySQL database server](DETAILS.md/#MySQL server) to use Cromwell's call-caching feature, which allows a failed workflow to start from where it left off. Use the same command line that you used to start a workflow then Caper will automatically skip tasks that are already done successfully.
+You need to set up a [MySQL database server](DETAILS.md/#mysql-server) to use Cromwell's call-caching feature, which allows a failed workflow to start from where it left off. Use the same command line that you used to start a workflow then Caper will automatically skip tasks that are already done successfully.
 
 Make sure you have Docker or Singularity installed on your system. Singularity does not require super-user privilege to be installed.
 
