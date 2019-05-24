@@ -211,7 +211,7 @@ class CaperURI(object):
                 path = 'http://s3.amazonaws.com/{}'.format(
                     self._uri.replace('s3://', '', 1))
 
-        if uri_type == URI_GCS:
+        elif uri_type == URI_GCS:
             if path is None:
                 path = self.__get_gcs_file_name()
 
