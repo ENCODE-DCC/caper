@@ -127,6 +127,13 @@ class CaperURI(object):
         self._uri = self.get_file(value)
         self._uri_type = value
 
+    def set_uri_type_no_copy(self, value):
+        assert(value in (URI_URL, URI_S3, URI_GCS, URI_LOCAL))
+        if self._uri_type == value:
+            return
+        self._uri = self.get_file(value, no_copy=True)
+        self._uri_type = value
+
     def get_uri(self):
         return self._uri
 
@@ -158,12 +165,13 @@ class CaperURI(object):
     def get_url(self):
         return self.get_file(uri_type=URI_URL)
 
-    def get_file(self, uri_type):
+    def get_file(self, uri_type, no_copy=False):
         """Get a URI on a specified storage. Make a copy if required
         """
-        return self.copy(target_uri_type=uri_type)
+        return self.copy(target_uri_type=uri_type, no_copy=no_copy)
 
-    def copy(self, target_uri_type=None, target_uri=None, soft_link=False):
+    def copy(self, target_uri_type=None, target_uri=None, soft_link=False,
+             no_copy=False):
         """Make a copy of self on a "target_uri_type" tmp_dir or
         tmp_bucket. Or copy self to "target_uri".
 
@@ -215,7 +223,9 @@ class CaperURI(object):
             if path is None:
                 path = self.__get_gcs_file_name()
 
-            if self._uri_type == URI_URL:
+            if no_copy:
+                pass
+            elif self._uri_type == URI_URL:
                 tmp_local_f = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
                 CaperURI(tmp_local_f).copy(target_uri=path)
 
@@ -229,7 +239,9 @@ class CaperURI(object):
             if path is None:
                 path = self.__get_s3_file_name()
 
-            if self._uri_type == URI_URL:
+            if no_copy:
+                pass
+            elif self._uri_type == URI_URL:
                 tmp_local_f = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
                 CaperURI(tmp_local_f).copy(target_uri=path)
 
@@ -249,7 +261,10 @@ class CaperURI(object):
             if path is None:
                 path = self.__get_local_file_name()
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            if self._uri_type == URI_LOCAL:
+
+            if no_copy:
+                pass            
+            elif self._uri_type == URI_LOCAL:
                 if soft_link:
                     if CaperURI.VERBOSE:
                         method = 'symlinking'
@@ -374,7 +389,8 @@ class CaperURI(object):
                     CaperURI.TMP_S3_BUCKET, '', 1)
 
         elif self._uri_type == URI_URL:
-            rel_uri = os.path.basename(self._uri)
+            # for URLs use hash of the whole URL as a base for filename
+            rel_uri = os.path.join(str(hash(self._uri)), os.path.basename(self._uri))
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
         return rel_uri
@@ -457,8 +473,12 @@ class CaperURI(object):
             print(ext)
             new_uri = '{prefix}.{uri_type}{ext}'.format(
                 prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
-            return CaperURI(new_uri).write_str_to_file(
-                '\n'.join(new_contents))
+            s = '\n'.join(new_contents)
+            cu = CaperURI(new_uri)
+            # we can't write on URLs
+            if cu.uri_type == URI_URL:
+                cu.set_uri_type_no_copy(uri_type)
+            return cu.write_str_to_file(s)
         else:
             return self
 
@@ -511,7 +531,11 @@ class CaperURI(object):
             new_uri = '{prefix}.{uri_type}{ext}'.format(
                 prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
             j = json.dumps(new_d, indent=4)
-            return CaperURI(new_uri).write_str_to_file(j)
+            cu = CaperURI(new_uri)
+            # we can't write on URLs
+            if cu.uri_type == URI_URL:
+                cu.set_uri_type_no_copy(uri_type)
+            return cu.write_str_to_file(j)
         else:
             return self
 

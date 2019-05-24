@@ -214,11 +214,20 @@ Or run a Cromwell server with Caper. Make sure to keep server's SSH session aliv
 $ caper server
 ```
 
+On HPC cluster with Singularity installed, run Caper with a Singularity container if that is defined inside `WDL`.
+```bash
+$ caper run [WDL] -i [INPUT_JSON] --backend slurm --deepcopy --use-singularity
+```
+
+Or specify your own Singularity container.
+```bash
+$ caper run [WDL] -i [INPUT_JSON] --backend slurm --deepcopy --singularity [YOUR_SINGULARITY_IMAGE]
+```
+
 Then submit pipelines to the server.
 ```bash
 $ caper submit [WDL] -i [INPUT_JSON] --deepcopy -p [PORT]
 ```
-
 
 ## How to run it on SGE cluster
 
@@ -284,6 +293,12 @@ mysql-db-port=3307
 	$ run_mysql_server_singularity.sh [DB_DIR] [DB_PORT]
 	```
 
+## Using Conda?
+
+Just activate your `CONDA_ENV` before running Caper (both for `run` and `server` modes).
+```bash
+$ conda activate [COND_ENV]
+```
 
 # DETAILS
 

@@ -476,7 +476,8 @@ class Caper(object):
                     uri_type = URI_S3
                 else:
                     uri_type = URI_LOCAL
-                c = c.deepcopy(uri_type=uri_type, uri_exts=self._deepcopy_ext)
+                c = c.deepcopy(uri_type=uri_type,
+                               uri_exts=self._deepcopy_ext)
             return c.get_local_file()
         else:
             input_file = os.path.join(directory, fname)
