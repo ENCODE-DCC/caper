@@ -86,7 +86,9 @@ class CaperURI(object):
     USE_GSUTIL_OVER_AWS_S3 = False
     VERBOSE = False
 
-    RE_PATTERN_CURL_HTTP_ERR = r'The requested URL returned error: (\d*)'
+    CURL_HTTP_ERROR_PREFIX = '_CaperURI_HTTP_ERROR_'
+    CURL_HTTP_ERROR_WRITE_OUT = CURL_HTTP_ERROR_PREFIX + '%{http_code}'
+    RE_PATTERN_CURL_HTTP_ERR = r'_CaperURI_HTTP_ERROR_(\d*)'
 
     def __init__(self, uri_or_path):
         if CaperURI.TMP_DIR is None:
@@ -602,17 +604,30 @@ class CaperURI(object):
             rc: return code
         """
         try:
+            # print http_code to STDOUT
+            cmd_wo_auth = cmd_wo_auth + [
+                '-w', CaperURI.CURL_HTTP_ERROR_WRITE_OUT]
+
             p = Popen(cmd_wo_auth, stdout=PIPE, stderr=PIPE)
             stdout, stderr = p.communicate()
             stdout = stdout.decode()
             stderr = stderr.decode()
             rc = p.returncode
-            if rc > 0:
-                m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR,
-                               stderr)
-                http_err = int(m[0]) if len(m) > 0 else None
+            # parse stdout to get http_error
+            m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR, stdout)
+            if len(m) > 0:
+                http_err = int(m[-1])
+                # remove error code from stdout
+                stdout = CaperURI.CURL_HTTP_ERROR_PREFIX.join(
+                    stdout.split(CaperURI.CURL_HTTP_ERROR_WRITE_OUT)[:-1])
             else:
                 http_err = None
+            # if rc > 0:
+            #     m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR,
+            #                    stderr)
+            #     http_err = int(m[0]) if len(m) > 0 else None
+            # else:
+            #     http_err = None
 
             if CaperURI.HTTP_USER is None:  # if auth info is given
                 pass
@@ -629,12 +644,23 @@ class CaperURI(object):
                 stdout = stdout.decode()
                 stderr = stderr.decode()
                 rc = p.returncode
-                if rc > 0:
-                    m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR,
-                                   stderr)
-                    http_err = int(m[0]) if len(m) > 0 else None
+
+                # parse stdout to get http_error
+                m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR, stdout)
+                if len(m) > 0:
+                    http_err = int(m[-1])
+                    if CURL_HTTP_ERROR_PREFIX in stdout:
+                        # remove error code from stdout
+                        stdout = CaperURI.CURL_HTTP_ERROR_PREFIX.join(
+                            stdout.split(CaperURI.CURL_HTTP_ERROR_WRITE_OUT)[:-1])
                 else:
                     http_err = None
+                # if rc > 0:
+                #     m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR,
+                #                    stderr)
+                #     http_err = int(m[0]) if len(m) > 0 else None
+                # else:
+                #     http_err = None
 
         except CalledProcessError as e:
             stdout = None
@@ -642,7 +668,7 @@ class CaperURI(object):
             rc = e.returncode
             http_err = None
 
-        if rc == 0:
+        if rc == 0 or http_err in (200,):  # OKAY
             pass
         elif http_err in ignored_http_err:
             # range request bug in curl
@@ -712,3 +738,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

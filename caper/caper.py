@@ -131,7 +131,7 @@ class Caper(object):
         self._labels = args.get('labels')
         self._imports = args.get('imports')
         self._metadata_output = args.get('metadata_output')
-        self._singularity_cachedir = args.get('singularity-cachedir')
+        self._singularity_cachedir = args.get('singularity_cachedir')
 
         # backend and default backend
         self._backend = args.get('backend')
@@ -830,9 +830,10 @@ class Caper(object):
             cmd = ['singularity', 'exec', singularity,
                    'echo', '[Caper] building done.']
             if self._singularity_cachedir is not None:
-                cmd = ['SINGULARITY_CACHEDIR={}'.format(
-                            self._singularity_cachedir)] + cmd
-            return check_call(cmd)
+                env = {'SINGULARITY_CACHEDIR': self._singularity_cachedir}
+            else:
+                env = None
+            return check_call(cmd, env=env)
         else:
             return None
 
