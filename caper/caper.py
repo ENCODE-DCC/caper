@@ -442,26 +442,27 @@ class Caper(object):
         with open(input_json_file, 'r') as fp:
             input_json = json.loads(fp.read())
 
-            # find dirnme of all files
+            # find dirname of all files
             def recurse_dict(d, d_parent=None, d_parent_key=None,
                              lst=None, lst_idx=None):
-                result = ()
+                result = set()
                 if isinstance(d, dict):
                     for k, v in d.items():
-                        result.add(recurse_dict(v, d_parent=d,
-                                                   d_parent_key=k))
+                        result |= recurse_dict(v, d_parent=d,
+                                               d_parent_key=k)
                 elif isinstance(d, list):
                     for i, v in enumerate(d):
-                        result.add(recurse_dict(v, lst=d,
-                                                   lst_idx=i))
+                        result |= recurse_dict(v, lst=d,
+                                               lst_idx=i)
                 elif type(d) == str:
                     assert(d_parent is not None or lst is not None)
                     c = CaperURI(d)
                     # local absolute path only
-                    if c.uri_type == URI_LOCAL and c.is_valid():
+                    if c.uri_type == URI_LOCAL and c.is_valid_uri():
                         dirname, basename = os.path.split(c.get_uri())
                         result.add(dirname)
-            return result
+
+                return result
 
             all_dirnames = recurse_dict(input_json)
         # add all (but not too high level<4) parent directories
@@ -477,16 +478,18 @@ class Caper(object):
         for d in all_dirnames:
             dir_arr = d.split(os.sep)
             for i, _ in enumerate(
-                    dir_arr[COMMON_ROOT_SEARCH_LEVEL:]):
+                    dir_arr[Caper.COMMON_ROOT_SEARCH_LEVEL:]):
                 d_child = os.sep.join(
-                    dir_arr[:i + COMMON_ROOT_SEARCH_LEVEL])
+                    dir_arr[:i + Caper.COMMON_ROOT_SEARCH_LEVEL])
                 all_dnames_incl_parents.add(d_child)
 
-        bindpaths = ()
+        bindpaths = set()
         # remove overlapping directories
-        for i, d1 in enumerate(all_dnames_incl_parents):
+        for i, d1 in enumerate(sorted(all_dnames_incl_parents,
+                                      reverse=True)):
             overlap_found = False
-            for j, d2 in enumerate(all_dnames_incl_parents):
+            for j, d2 in enumerate(sorted(all_dnames_incl_parents,
+                                          reverse=True)):
                 if i >= j:
                     continue
                 if d1.startswith(d2):
