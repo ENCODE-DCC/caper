@@ -181,7 +181,6 @@ $ caper run [WDL] -i [INPUT_JSON] --backend aws --deepcopy
 Define five important parameters in your default configuration file (`~/.caper/default.conf`).
 ```
 # for workflows with singularity support.
-# singularity container cache directory
 # local singularity image will be built here
 # define it to prevent repeatedly building
 # singularity image for every pipeline task
@@ -241,7 +240,6 @@ $ caper submit [WDL] -i [INPUT_JSON] --deepcopy -p [PORT]
 Define four important parameters in your default configuration file (`~/.caper/default.conf`).
 ```
 # for workflows with singularity support.
-# singularity container cache directory
 # local singularity image will be built here
 # define it to prevent repeatedly building
 # singularity image for every pipeline task
@@ -317,6 +315,8 @@ In order to run workflow's tasks in a Singularity container. Define the followin
 # for workflows with singularity support
 singularity-cachedir=[SINGULARITY_CACHEDIR]
 ```
+
+Or Caper can also read it from an environment variable `SINGULARITY_CACHEDIR`.
 
 ## Conda
 
