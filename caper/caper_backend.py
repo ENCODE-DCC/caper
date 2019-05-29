@@ -205,10 +205,15 @@ class CaperBackendLocal(dict):
         String? docker
         String? docker_user
         String? singularity
+        String? singularity_bindpath
+        String? singularity_cachedir
     """
     SUBMIT = """
         ${if defined(singularity) then "" else "/bin/bash ${script} #"} \
-        if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
+        if [ -z $SINGULARITY_BINDPATH ]; then \
+        export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
+        if [ -z $SINGULARITY_CACHEDIR ]; then \
+        export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
         singularity exec --cleanenv --home ${cwd} \
         ${if defined(gpu) then '--nv' else ''} \
         ${singularity} /bin/bash ${script}
@@ -256,7 +261,9 @@ class CaperBackendSLURM(dict):
         String? slurm_partition
         String? slurm_account
         String? slurm_extra_param
-        String singularity
+        String? singularity
+        String? singularity_bindpath
+        String? singularity_cachedir
     """
     SUBMIT = """
         sbatch \
@@ -275,8 +282,11 @@ class CaperBackendSLURM(dict):
         ${true="--gres gpu:" false="" defined(gpu)}${gpu} \
         ${slurm_extra_param} \
         --wrap "${if defined(singularity) then '' else \
-            '/bin/bash ${script} #'} if [ -z $SINGULARITY_BINDPATH ]; then \
-            SINGULARITY_BINDPATH=/; fi; \
+            '/bin/bash ${script} #'} \
+            if [ -z $SINGULARITY_BINDPATH ]; then \
+            export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
+            if [ -z $SINGULARITY_CACHEDIR ]; then \
+            export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
             singularity exec --cleanenv --home ${cwd} \
             ${if defined(gpu) then '--nv' else ''} \
             ${singularity} /bin/bash ${script}"
@@ -338,11 +348,16 @@ class CaperBackendSGE(dict):
         Int? memory_mb
         String? sge_queue
         String? sge_extra_param
-        String singularity
+        String? singularity
+        String? singularity_bindpath
+        String? singularity_cachedir
     """
     SUBMIT = """
         echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
-        if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
+        if [ -z $SINGULARITY_BINDPATH ]; then \
+        export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
+        if [ -z $SINGULARITY_CACHEDIR ]; then \
+        export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
         singularity exec --cleanenv --home ${cwd} \
         ${if defined(gpu) then '--nv' else ''} \
         ${singularity} /bin/bash ${script}" | qsub \
@@ -424,11 +439,16 @@ class CaperBackendPBS(dict):
         Int? memory_mb
         String? pbs_queue
         String? pbs_extra_param
-        String singularity
+        String? singularity
+        String? singularity_bindpath
+        String? singularity_cachedir
     """
     SUBMIT = """
         echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
-        if [ -z $SINGULARITY_BINDPATH ]; then SINGULARITY_BINDPATH=/; fi; \
+        if [ -z $SINGULARITY_BINDPATH ]; then \
+        export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
+        if [ -z $SINGULARITY_CACHEDIR ]; then \
+        export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
         singularity exec --cleanenv --home ${cwd} \
         ${if defined(gpu) then '--nv' else ''} \
         ${singularity} /bin/bash ${script}" | qsub \

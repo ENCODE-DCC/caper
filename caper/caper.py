@@ -82,6 +82,7 @@ class Caper(object):
     TMP_FILE_BASENAME_BACKEND_CONF = 'backend.conf'
     TMP_FILE_BASENAME_LABELS_JSON = 'labels.json'
     TMP_FILE_BASENAME_IMPORTS_ZIP = 'imports.zip'
+    COMMON_ROOT_SEARCH_LEVEL = 5  # to find common roots of files for singularity_bindpath
 
     def __init__(self, args):
         """Initializes from args dict
@@ -131,6 +132,7 @@ class Caper(object):
         self._labels = args.get('labels')
         self._imports = args.get('imports')
         self._metadata_output = args.get('metadata_output')
+        self._singularity_cachedir = args.get('singularity_cachedir')
 
         # backend and default backend
         self._backend = args.get('backend')
@@ -183,7 +185,8 @@ class Caper(object):
         # all input files
         backend_file = self.__create_backend_conf_file(tmp_dir)
         input_file = self.__create_input_json_file(tmp_dir)
-        workflow_opts_file = self.__create_workflow_opts_json_file(tmp_dir)
+        workflow_opts_file = self.__create_workflow_opts_json_file(
+            input_file, tmp_dir)
         labels_file = self.__create_labels_json_file(tmp_dir)
         imports_file = self.__create_imports_zip_file_from_wdl(tmp_dir)
 
@@ -325,7 +328,8 @@ class Caper(object):
         # all input files
         input_file = self.__create_input_json_file(tmp_dir)
         imports_file = self.__create_imports_zip_file_from_wdl(tmp_dir)
-        workflow_opts_file = self.__create_workflow_opts_json_file(tmp_dir)
+        workflow_opts_file = self.__create_workflow_opts_json_file(
+            input_file, tmp_dir)
         labels_file = self.__create_labels_json_file(tmp_dir)
         on_hold = self._hold if self._hold is not None else False
 
@@ -430,6 +434,72 @@ class Caper(object):
                   str(e), workflow_ids)
         return False
 
+    @staticmethod
+    def __find_singularity_bindpath(input_json_file):
+        """Read input JSON file and find paths to be bound for singularity
+        by finding common roots for all files in input JSON file
+        """
+        with open(input_json_file, 'r') as fp:
+            input_json = json.loads(fp.read())
+
+            # find dirname of all files
+            def recurse_dict(d, d_parent=None, d_parent_key=None,
+                             lst=None, lst_idx=None):
+                result = set()
+                if isinstance(d, dict):
+                    for k, v in d.items():
+                        result |= recurse_dict(v, d_parent=d,
+                                               d_parent_key=k)
+                elif isinstance(d, list):
+                    for i, v in enumerate(d):
+                        result |= recurse_dict(v, lst=d,
+                                               lst_idx=i)
+                elif type(d) == str:
+                    assert(d_parent is not None or lst is not None)
+                    c = CaperURI(d)
+                    # local absolute path only
+                    if c.uri_type == URI_LOCAL and c.is_valid_uri():
+                        dirname, basename = os.path.split(c.get_uri())
+                        result.add(dirname)
+
+                return result
+
+            all_dirnames = recurse_dict(input_json)
+        # add all (but not too high level<4) parent directories
+        # to all_dirnames. start from self
+        # e.g. /a/b/c/d/e/f/g/h with COMMON_ROOT_SEARCH_LEVEL = 5
+        # add all the followings:
+        # /a/b/c/d/e/f/g/h (self)
+        # /a/b/c/d/e/f/g
+        # /a/b/c/d/e/f
+        # /a/b/c/d/e
+        # /a/b/c/d (minimum level = COMMON_ROOT_SEARCH_LEVEL-1)
+        all_dnames_incl_parents = set(all_dirnames)
+        for d in all_dirnames:
+            dir_arr = d.split(os.sep)
+            for i, _ in enumerate(
+                    dir_arr[Caper.COMMON_ROOT_SEARCH_LEVEL:]):
+                d_child = os.sep.join(
+                    dir_arr[:i + Caper.COMMON_ROOT_SEARCH_LEVEL])
+                all_dnames_incl_parents.add(d_child)
+
+        bindpaths = set()
+        # remove overlapping directories
+        for i, d1 in enumerate(sorted(all_dnames_incl_parents,
+                                      reverse=True)):
+            overlap_found = False
+            for j, d2 in enumerate(sorted(all_dnames_incl_parents,
+                                          reverse=True)):
+                if i >= j:
+                    continue
+                if d1.startswith(d2):
+                    overlap_found = True
+                    break
+            if not overlap_found:
+                bindpaths.add(d1)
+
+        return ','.join(bindpaths)
+
     def __write_metadata_json(self, workflow_id, metadata_json,
                               backend=None, wdl=None):
         if backend is None:
@@ -506,16 +576,24 @@ class Caper(object):
         return labels_file
 
     def __create_workflow_opts_json_file(
-            self, directory, fname=TMP_FILE_BASENAME_WORKFLOW_OPTS_JSON):
+            self, input_json_file,
+            directory, fname=TMP_FILE_BASENAME_WORKFLOW_OPTS_JSON,):
         """Creates Cromwell's workflow options JSON file
+
+        input_json_file is required to find singularity_bindpath,
+        which is a common root for all data input JSON.
 
         Items written to workflow options JSON file:
             * very important backend
             backend: a backend to run workflows on
 
             * important dep resolver
-            docker: docker image URI (e.g. ubuntu:latest)
-            singularity: singularity image URI (docker://, shub://)
+            docker:
+                docker image URI (e.g. ubuntu:latest)
+            singularity:
+                singularity image URI (docker://, shub://)
+                singularity_bindpath (calculate common root of files in input JSON)
+                singularity_cachedir
 
             * SLURM params (can also be defined in backend conf file)
             slurm_partition
@@ -562,7 +640,15 @@ class Caper(object):
             assert(singularity is not None)
             # build singularity image before running a pipeline
             self.__build_singularity_image(singularity)
+
+            # important singularity settings (cachedir, bindpath)
             template['default_runtime_attributes']['singularity'] = singularity
+            if self._singularity_cachedir is not None:
+                template['default_runtime_attributes']['singularity_cachedir'] = \
+                        self._singularity_cachedir
+            # calculate bindpath from all file paths in input JSON file
+            template['default_runtime_attributes']['singularity_bindpath'] = \
+                    Caper.__find_singularity_bindpath(input_json_file)
 
         if self._slurm_partition is not None:
             template['default_runtime_attributes']['slurm_partition'] = \
@@ -823,8 +909,13 @@ class Caper(object):
                 and self._backend not in (BACKEND_AWS, BACKEND_GCP):
             print('[Caper] building local singularity image: ',
                   singularity)
-            return check_call(['singularity', 'exec', singularity,
-                               'echo', '[Caper] building done.'])
+            cmd = ['singularity', 'exec', singularity,
+                   'echo', '[Caper] building done.']
+            if self._singularity_cachedir is not None:
+                env = {'SINGULARITY_CACHEDIR': self._singularity_cachedir}
+            else:
+                env = None
+            return check_call(cmd, env=env)
         else:
             return None
 

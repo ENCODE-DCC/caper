@@ -116,7 +116,7 @@ $ caper
 
 ## How to run it on a local computer
 
-Define two important parameters in your default configuration file (`~/.caper/default.json`).
+Define two important parameters in your default configuration file (`~/.caper/default.conf`).
 ```
 # directory to store all outputs
 out-dir=[LOCAL_OUT_DIR]
@@ -137,7 +137,7 @@ $ caper run [WDL] -i [INPUT_JSON] --deepcopy
 
 Install [gsutil](https://cloud.google.com/storage/docs/gsutil_install). [Configure for gcloud and gsutil](docs/conf_gcp).
 
-Define three important parameters in your default configuration file (`~/.caper/default.json`).
+Define three important parameters in your default configuration file (`~/.caper/default.conf`).
 ```
 # your project name on Google Cloud platform
 gcp-prj=YOUR_PRJ_NAME
@@ -158,7 +158,7 @@ $ caper run [WDL] -i [INPUT_JSON] --backend gcp --deepcopy
 
 Install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html). [Configure for AWS](docs/conf_aws).
 
-Define three important parameters in your default configuration file (`~/.caper/default.json`).
+Define three important parameters in your default configuration file (`~/.caper/default.conf`).
 ```
 # ARN for your AWS Batch
 aws-batch-arn=ARN_FOR_YOUR_AWS_BATCH
@@ -178,8 +178,14 @@ $ caper run [WDL] -i [INPUT_JSON] --backend aws --deepcopy
 
 ## How to run it on SLURM cluster
 
-Define five important parameters in your default configuration file (`~/.caper/default.json`).
+Define five important parameters in your default configuration file (`~/.caper/default.conf`).
 ```
+# for workflows with singularity support.
+# local singularity image will be built here
+# define it to prevent repeatedly building
+# singularity image for every pipeline task
+singularity-cachedir=[SINGULARITY_CACHEDIR]
+
 # directory to store all outputs
 out-dir=[LOCAL_OUT_DIR]
 
@@ -231,8 +237,14 @@ $ caper submit [WDL] -i [INPUT_JSON] --deepcopy -p [PORT]
 
 ## How to run it on SGE cluster
 
-Define four important parameters in your default configuration file (`~/.caper/default.json`).
+Define four important parameters in your default configuration file (`~/.caper/default.conf`).
 ```
+# for workflows with singularity support.
+# local singularity image will be built here
+# define it to prevent repeatedly building
+# singularity image for every pipeline task
+singularity-cachedir=[SINGULARITY_CACHEDIR]
+
 # directory to store all outputs
 out-dir=[LOCAL_OUT_DIR]
 
@@ -256,7 +268,7 @@ Run Caper. `--deepcopy` is optional for remote (http://, gs://, s3://, ...)  `IN
 $ caper run [WDL] -i [INPUT_JSON] --backend sge --deepcopy
 ```
 
-Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive. If there is any conflicting port. Change port in your default configuration file (`~/.caper/default.json`).
+Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive. If there is any conflicting port. Change port in your default configuration file (`~/.caper/default.conf`).
 ```bash
 $ caper server
 ```
@@ -293,9 +305,22 @@ mysql-db-port=3307
 	$ run_mysql_server_singularity.sh [DB_DIR] [DB_PORT]
 	```
 
-## Using Conda?
+## Singularity container
 
-Just activate your `CONDA_ENV` before running Caper (both for `run` and `server` modes).
+In order to run workflow's tasks in a Singularity container. Define the following parameter in your default configuration file (`~/.caper/default.conf`). Caper can work without defining this parameter but Singularity will try to pull the image from a remote repo and build it locally everytime for each task.
+
+> ***WARNING***: To prevent overhead of repeatedly building Singularity image for each pipeline run, define the following parameter.
+
+```
+# for workflows with singularity support
+singularity-cachedir=[SINGULARITY_CACHEDIR]
+```
+
+Or Caper can also read it from an environment variable `SINGULARITY_CACHEDIR`.
+
+## Conda
+
+Activate your `CONDA_ENV` before running Caper (both for `run` and `server` modes).
 ```bash
 $ conda activate [COND_ENV]
 ```
