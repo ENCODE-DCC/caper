@@ -224,7 +224,8 @@ class Caper(object):
                         if status == 'started' or status == 'finished':
                             workflow_id = wf_id
                             break
-                print(stdout)
+                if stdout != '':
+                    print(stdout)
             # get final RC
             rc = p.poll()
         except CalledProcessError as e:
@@ -271,7 +272,8 @@ class Caper(object):
 
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
-                print(stdout)
+                if stdout != '':
+                    print(stdout)
 
                 # find workflow id from Cromwell server's STDOUT
                 wf_ids_with_status = \
