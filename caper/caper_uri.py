@@ -619,7 +619,7 @@ class CaperURI(object):
                 http_err = int(m[-1])
                 # remove error code from stdout
                 stdout = CaperURI.CURL_HTTP_ERROR_PREFIX.join(
-                    stdout.split(CaperURI.CURL_HTTP_ERROR_WRITE_OUT)[:-1])
+                    stdout.split(CaperURI.CURL_HTTP_ERROR_PREFIX)[:-1])
             else:
                 http_err = None
             # if rc > 0:
