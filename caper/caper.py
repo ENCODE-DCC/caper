@@ -131,6 +131,7 @@ class Caper(object):
         self._labels = args.get('labels')
         self._imports = args.get('imports')
         self._metadata_output = args.get('metadata_output')
+        self._singularity_cachedir = args.get('singularity-cachedir')
 
         # backend and default backend
         self._backend = args.get('backend')
@@ -563,6 +564,9 @@ class Caper(object):
             # build singularity image before running a pipeline
             self.__build_singularity_image(singularity)
             template['default_runtime_attributes']['singularity'] = singularity
+            if self._singularity_cachedir is not None:
+                template['default_runtime_attributes']['singularity_cachedir'] = \
+                        self._singularity_cachedir
 
         if self._slurm_partition is not None:
             template['default_runtime_attributes']['slurm_partition'] = \
@@ -823,8 +827,12 @@ class Caper(object):
                 and self._backend not in (BACKEND_AWS, BACKEND_GCP):
             print('[Caper] building local singularity image: ',
                   singularity)
-            return check_call(['singularity', 'exec', singularity,
-                               'echo', '[Caper] building done.'])
+            cmd = ['singularity', 'exec', singularity,
+                   'echo', '[Caper] building done.']
+            if self._singularity_cachedir is not None:
+                cmd = ['SINGULARITY_CACHEDIR={}'.format(
+                            self._singularity_cachedir)] + cmd
+            return check_call(cmd)
         else:
             return None
 

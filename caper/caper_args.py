@@ -41,7 +41,21 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 #deepcopy-ext=json,tsv
 
 ############# local backend
+## Singularity image will be pulled to this directory
+## if you don't specify this, then Singularity will pull image
+## from remote repo everytime for each task.
+## to prevent this overhead DEFINE IT
+## user's scratch is recommended
+#singularity-cachedir=
+
+## actual workflow outputs will be written to
+## out-dir/[WDL_NAME]/[WORKFLOW_ID]/
 #out-dir=
+
+## all temporary files (including deepcopied data files,
+## cromwell.jar, backend conf, worflow_opts JSONs, ...)
+## will be written to this directory
+## DON'T USE /tmp. User's scratch directory is recommended
 #tmp-dir=
 
 ############# Google Cloud Platform backend
@@ -54,6 +68,8 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 #aws-region=us-west-1
 #out-s3-bucket=s3://encode-pipeline-test-runs/caper/out
 #tmp-s3-bucket=s3://encode-pipeline-test-runs/caper/tmp
+
+## gsutil can work with s3 buckets it outperforms over aws s3 CLI
 #use-gsutil-over-aws-s3=True
 
 ############# HTTP auth to download from URLs (http://, https://)
@@ -243,7 +259,12 @@ def parse_caper_arguments():
     parent_submit.add_argument(
         '--hold', action='store_true',
         help='Put a hold on a workflow when submitted to a Cromwell server.')
-
+    parent_submit.add_argument(
+        '--singularity-cachedir',
+        help='Singularity cache directory. Equivalent to exporting an '
+             'environment variable SINGULARITY_CACHEDIR. '
+             'Define it to prevent repeatedly building a singularity image '
+             'for every pipeline task')
     # run
     parent_run = argparse.ArgumentParser(add_help=False)
     parent_run.add_argument(
