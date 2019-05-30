@@ -135,7 +135,7 @@ $ caper run [WDL] -i [INPUT_JSON] --deepcopy
 
 ## How to run it on Google Cloud Platform (GCP)
 
-Install [gsutil](https://cloud.google.com/storage/docs/gsutil_install). [Configure for gcloud and gsutil](docs/conf_gcp).
+Install [gsutil](https://cloud.google.com/storage/docs/gsutil_install). [Configure for gcloud and gsutil](docs/conf_gcp.md).
 
 Define three important parameters in your default configuration file (`~/.caper/default.conf`).
 ```
@@ -156,7 +156,7 @@ $ caper run [WDL] -i [INPUT_JSON] --backend gcp --deepcopy
 
 ## How to run it on AWS
 
-Install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html). [Configure for AWS](docs/conf_aws).
+Install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html). [Configure for AWS](docs/conf_aws.md).
 
 Define three important parameters in your default configuration file (`~/.caper/default.conf`).
 ```
