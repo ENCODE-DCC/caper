@@ -318,12 +318,13 @@ class CaperBackendSLURM(dict):
         }
     }
 
-    def __init__(self, partition=None, account=None, extra_param=None,
+    def __init__(self, out_dir, partition=None, account=None, extra_param=None,
                  concurrent_job_limit=None):
         super(CaperBackendSLURM, self).__init__(
             CaperBackendSLURM.TEMPLATE)
         config = self['backend']['providers'][BACKEND_SLURM]['config']
         key = 'default-runtime-attributes'
+        config['root'] = out_dir
 
         if partition is not None and partition != '':
             config[key]['slurm_partition'] = partition
@@ -410,12 +411,13 @@ ${true=")m" false="" defined(memory_mb)} \
         }
     }
 
-    def __init__(self, pe=None, queue=None, extra_param=None,
+    def __init__(self, out_dir, pe=None, queue=None, extra_param=None,
                  concurrent_job_limit=None):
         super(CaperBackendSGE, self).__init__(
             CaperBackendSGE.TEMPLATE)
         config = self['backend']['providers'][BACKEND_SGE]['config']
         key = 'default-runtime-attributes'
+        config['root'] = out_dir
 
         if pe is not None and pe != '':
             config[key]['sge_pe'] = pe
@@ -488,12 +490,13 @@ ${true=":0:0" false="" defined(time)} \
         }
     }
 
-    def __init__(self, queue=None, extra_param=None,
+    def __init__(self, out_dir, queue=None, extra_param=None,
                  concurrent_job_limit=None):
         super(CaperBackendPBS, self).__init__(
             CaperBackendPBS.TEMPLATE)
         config = self['backend']['providers'][BACKEND_PBS]['config']
         key = 'default-runtime-attributes'
+        config['root'] = out_dir
 
         if queue is not None and queue != '':
             config[key]['pbs_queue'] = queue

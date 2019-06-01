@@ -153,6 +153,7 @@ class Caper(object):
 
         # containers
         self._use_singularity = args.get('use_singularity')
+        self._no_build_singularity = args.get('no_build_singularity')
         self._use_docker = args.get('use_docker')
         self._singularity = args.get('singularity')
         self._docker = args.get('docker')
@@ -796,6 +797,7 @@ class Caper(object):
         merge_dict(
             backend_dict,
             CaperBackendSLURM(
+                out_dir=self._out_dir,
                 partition=self._slurm_partition,
                 account=self._slurm_account,
                 extra_param=self._slurm_extra_param,
@@ -804,6 +806,7 @@ class Caper(object):
         merge_dict(
             backend_dict,
             CaperBackendSGE(
+                out_dir=self._out_dir,
                 pe=self._sge_pe,
                 queue=self._sge_queue,
                 extra_param=self._sge_extra_param,
@@ -813,6 +816,7 @@ class Caper(object):
         merge_dict(
             backend_dict,
             CaperBackendPBS(
+                out_dir=self._out_dir,
                 queue=self._pbs_queue,
                 extra_param=self._pbs_extra_param,
                 concurrent_job_limit=self._max_concurrent_tasks))
@@ -906,8 +910,10 @@ class Caper(object):
         return tmp_dir
 
     def __build_singularity_image(self, singularity):
-        if (self._ip is None or self._ip == DEFAULT_IP) \
-            and self._backend is not None \
+        if self._no_build_singularity is not None \
+                and self._no_build_singularity:
+            pass
+        elif self._backend is not None \
                 and self._backend not in (BACKEND_AWS, BACKEND_GCP):
             print('[Caper] building local singularity image: ',
                   singularity)
@@ -918,8 +924,9 @@ class Caper(object):
             else:
                 env = None
             return check_call(cmd, env=env)
-        else:
-            return None
+
+        print('[Caper] skip building local singularity image.')
+        return None
 
     @staticmethod
     def __get_workflow_ids_from_cromwell_stdout(stdout):

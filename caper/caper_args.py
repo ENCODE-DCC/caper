@@ -48,6 +48,11 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ## user's scratch is recommended
 #singularity-cachedir=
 
+## local singularity image will not be built before running
+## a workflow. this can result in conflicts between tasks
+## trying to write on the same image file.
+#no-build-singularity=True
+
 ## actual workflow outputs will be written to
 ## out-dir/[WDL_NAME]/[WORKFLOW_ID]/
 #out-dir=
@@ -312,6 +317,9 @@ def parse_caper_arguments():
     group_dep_local.add_argument(
         '--use-singularity', action='store_true',
         help='Use Singularity to resolve dependency for local backend.')
+    group_dep_local.add_argument(
+        '--no-build-singularity', action='store_true',
+        help='Do not build singularity image before running a workflow. ')
 
     group_slurm = parent_submit.add_argument_group('SLURM arguments')
     group_slurm.add_argument('--slurm-partition', help='SLURM partition')
@@ -429,6 +437,10 @@ def parse_caper_arguments():
     use_singularity = args_d.get('use_singularity')
     if use_singularity is not None and isinstance(use_singularity, str):
         args_d['use_singularity'] = bool(strtobool(use_singularity))
+
+    no_build_singularity = args_d.get('no_build_singularity')
+    if no_build_singularity is not None and isinstance(no_build_singularity, str):
+        args_d['no_build_singularity'] = bool(strtobool(no_build_singularity))
 
     # int string to int
     max_concurrent_tasks = args_d.get('max_concurrent_tasks')
