@@ -913,13 +913,15 @@ class Caper(object):
         if self._no_build_singularity is not None \
                 and self._no_build_singularity:
             pass
+
         elif self._backend is not None \
                 and self._backend not in (BACKEND_AWS, BACKEND_GCP):
             print('[Caper] building local singularity image: ',
                   singularity)
             cmd = ['singularity', 'exec', singularity,
                    'echo', '[Caper] building done.']
-            if self._singularity_cachedir is not None:
+            if self._singularity_cachedir is not None \
+                    and 'SINGULARITY_CACHEDIR' not in os.environ:
                 env = {'SINGULARITY_CACHEDIR': self._singularity_cachedir}
             else:
                 env = None
