@@ -210,7 +210,7 @@ class Caper(object):
         print('[Caper] cmd: ', cmd)
 
         try:
-            p = Popen(cmd, stdout=PIPE, universal_newlines=True, cwd=tmp_dir)
+            p = Popen(cmd, stdout=PIPE, universal_newlines=True)
             workflow_id = None
             rc = None
             while p.poll() is None:
@@ -272,7 +272,7 @@ class Caper(object):
         # completed, aborted or terminated workflows
         finished_wf_ids = set()
         try:
-            p = Popen(cmd, stdout=PIPE, universal_newlines=True, cwd=tmp_dir)
+            p = Popen(cmd, stdout=PIPE, universal_newlines=True)
             rc = None
             t0 = time.perf_counter()  # tickcount
 
