@@ -14,7 +14,7 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 
 * **Automatic transfer between local/cloud storages**: You can use URIs (e.g. `gs://`, `http://` and `s3://`) instead of paths in a command line arguments, also in your input JSON file. Files associated with these URIs will be automatically transfered to a specified temporary directory on a target remote storage.
 
-* **Deepcopy for input JSON file**: Recursively copy all data files in (`.json`, `.tsv` and `.csv`) to a target remote storage.
+* **Deepcopy for input JSON file**: Recursively copy all data files in (`.json`, `.tsv` and `.csv`) to a target remote storage. Use `--deepcopy` for this feature.
 
 * **Docker/Singularity integration**: You can run a WDL workflow in a specifed docker/singularity container.
 
@@ -115,7 +115,7 @@ tmp-dir=[LOCAL_TMP_DIR]
 
 ## Before running it
 
-Run Caper to generate a default configuration file.
+Run Caper without parameters to generate a default configuration file.
 
 ```bash
 $ caper
@@ -185,7 +185,7 @@ $ caper run [WDL] -i [INPUT_JSON] --backend aws --deepcopy
 
 ## How to run it on SLURM cluster
 
-Define five important parameters in your default configuration file (`~/.caper/default.conf`).
+Define the following important parameters in your default configuration file (`~/.caper/default.conf`).
 ```
 # for workflows with singularity support.
 # local singularity image will be built here
@@ -214,7 +214,7 @@ slurm-account=YOUR_ACCOUMT
 # server mode
 # ip is an IP address or hostname of a Cromwell server
 # it's localhost by default but if you are submitting to
-# a remote Cromwell server (e.g. on a different compute node)
+# a remote Cromwell server (e.g. from login node to a compute node)
 # then take IP address of the server and write it here
 ip=localhost
 
@@ -223,7 +223,7 @@ ip=localhost
 port=8000
 ```
 
-Run Caper. `--deepcopy` is optional for remote (http://, gs://, s3://, ...) `INPUT_JSON` file.
+Run Caper. `--deepcopy` is optional for remote (http://, gs://, s3://, ...) `INPUT_JSON` file. Make sure to keep your SSH session alive. We don't recommend to run it on a login node. Cromwell is a Java application which is not lightweight. A cluster can kill your workflow.
 ```bash
 $ caper run [WDL] -i [INPUT_JSON] --backend slurm --deepcopy
 ```
@@ -234,6 +234,11 @@ $ hostname  # get hostname of a compute/login node
 $ caper server
 ```
 
+Then submit a workflow to the server.
+```bash
+$ caper submit [WDL] -i [INPUT_JSON] --deepcopy -p [PORT]
+```
+
 On HPC cluster with Singularity installed, run Caper with a Singularity container if that is [defined inside `WDL`](DETAILS.md/#wdl-customization).
 ```bash
 $ caper run [WDL] -i [INPUT_JSON] --backend slurm --deepcopy --use-singularity
@@ -242,11 +247,6 @@ $ caper run [WDL] -i [INPUT_JSON] --backend slurm --deepcopy --use-singularity
 Or specify your own Singularity container.
 ```bash
 $ caper run [WDL] -i [INPUT_JSON] --backend slurm --deepcopy --singularity [YOUR_SINGULARITY_IMAGE]
-```
-
-Then submit a workflow to the server.
-```bash
-$ caper submit [WDL] -i [INPUT_JSON] --deepcopy -p [PORT]
 ```
 
 ## How to run it on SGE cluster
@@ -272,18 +272,25 @@ tmp-dir=[LOCAL_TMP_DIR]
 sge-pe=YOUR_PARALLEL_ENVIRONMENT
 
 # server mode
+# ip is an IP address or hostname of a Cromwell server
+# it's localhost by default but if you are submitting to
+# a remote Cromwell server (e.g. from login node to a compute node)
+# then take IP address of the server and write it here
+ip=localhost
+
 # port is 8000 by default. but if it's already taken 
 # then try other ports like 8001
 port=8000
 ```
 
-Run Caper. `--deepcopy` is optional for remote (http://, gs://, s3://, ...)  `INPUT_JSON` file.
+Run Caper. `--deepcopy` is optional for remote (http://, gs://, s3://, ...) `INPUT_JSON` file. Make sure to keep your SSH session alive. We don't recommend to run it on a login node. Cromwell is a Java application which is not lightweight. A cluster can kill your workflow.
 ```bash
 $ caper run [WDL] -i [INPUT_JSON] --backend sge --deepcopy
 ```
 
-Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive. If there is any conflicting port. Change port in your default configuration file (`~/.caper/default.conf`).
+Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive. We recommend to run a server on a non-login node with at least one CPU, 2GB RAM and long enough walltime. Take IP address of your compute node and update your default configuration file with it. If there is any conflicting port, then change port in your configuration file.
 ```bash
+$ hostname  # get hostname of a compute/login node
 $ caper server
 ```
 
