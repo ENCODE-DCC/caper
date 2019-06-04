@@ -24,7 +24,7 @@ import shutil
 from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 
-from .caper_args import parse_caper_arguments, DEFAULT_IP
+from .caper_args import parse_caper_arguments
 from .cromwell_rest_api import CromwellRestAPI
 from .caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
     init_caper_uri, CaperURI
@@ -247,6 +247,11 @@ class Caper(object):
         else:
             metadata_uri = None
 
+        # troubleshoot if metadata is available
+        if metadata_uri is not None:
+            Caper.__troubleshoot(
+                CaperURI(metadata_uri).get_local_file())
+
         print('[Caper] run: ', rc, workflow_id, metadata_uri)
         return workflow_id
 
@@ -411,6 +416,28 @@ class Caper(object):
             print('\t'.join(row))
         return workflows
 
+    def troubleshoot(self):
+        """Troubleshoot errors based on information from Cromwell's metadata
+        """
+        if self._wf_id_or_label is None or len(self._wf_id_or_label) == 0:
+            return
+        # if it's a file
+        wf_id_or_label = []
+        metadatas = []
+        for f in self._wf_id_or_label:
+            cu = CaperURI(f)
+            if cu.file_exists():
+                metadatas.append(cu.get_local_file())
+            else:
+                wf_id_or_label.append(f)
+
+        if len(wf_id_or_label) > 0:
+            self._wf_id_or_label = wf_id_or_label
+            metadatas.extend(self.metadata())
+
+        for metadata in metadatas:
+            Caper.__troubleshoot(metadata)
+
     def __write_metadata_jsons(self, workflow_ids):
         try:
             for wf_id in workflow_ids:
@@ -436,6 +463,60 @@ class Caper(object):
                   'metadata from Cromwell server. Keeping running... ',
                   str(e), workflow_ids)
         return False
+
+    @staticmethod
+    def __troubleshoot(metadata_json):
+        if isinstance(metadata_json, dict):
+            metadata = metadata_json
+        else:
+            f = CaperURI(metadata_json).get_local_file()
+            with open(f, 'r') as fp:
+                metadata = json.loads(fp.read())
+        workflow_id = metadata['id']
+        workflow_status = metadata['status']
+        print('[Caper] troubleshooting {} ...'.format(workflow_id))
+        if workflow_status == 'Succeeded':
+            print('This workflow ran successfully. '
+                  'There is nothing to troubleshoot')
+            return
+
+        def recurse_calls(calls, failures=None):
+            if failures is not None:
+                s = json.dumps(failures, indent=4)
+                print('Found failures:\n{}'.format(s))
+            for task_name, call_ in calls.items():
+                for call in call_:
+                    # if it is a subworkflow, then recursively dive into it
+                    if 'subWorkflowMetadata' in call:
+                        subworkflow = call['subWorkflowMetadata']
+                        recurse_calls(
+                            subworkflow['calls'],
+                            subworkflow['failures']
+                            if 'failures' in subworkflow else None)
+                        continue
+                    task_status = call['executionStatus']
+                    rc = call['returnCode'] if 'returnCode' in call else None
+                    stdout = call['stdout'] if 'stdout' in call else None
+                    stderr = call['stderr']
+                    shard_index = call['shardIndex']
+                    if task_status in ('Done', 'Succeeded'):
+                        continue
+                    elif task_status in ('Failed',):
+                        local_stderr_f = CaperURI(stderr).get_local_file()
+                        with open(local_stderr_f, 'r') as fp:
+                            s = fp.read()
+                        print('\n{}[{}] Failed. RC={}, STDOUT={}, STDERR={}'
+                              .format(task_name, shard_index, rc,
+                                      stdout, stderr))
+                        if s != '':
+                            print('STDERR_CONTENTS=\n{}'.format(s))
+                    else:
+                        print('\n{}[{}] {}'.format(task_name, shard_index,
+                                                   task_status))
+
+        calls = metadata['calls']
+        failures = metadata['failures'] if 'failures' in metadata else None
+        recurse_calls(calls, failures)
 
     @staticmethod
     def __find_singularity_bindpath(input_json_file):
@@ -595,7 +676,8 @@ class Caper(object):
                 docker image URI (e.g. ubuntu:latest)
             singularity:
                 singularity image URI (docker://, shub://)
-                singularity_bindpath (calculate common root of files in input JSON)
+                singularity_bindpath (calculate common root of
+                                      files in input JSON)
                 singularity_cachedir
 
             * SLURM params (can also be defined in backend conf file)
@@ -651,7 +733,7 @@ class Caper(object):
                         self._singularity_cachedir
             # calculate bindpath from all file paths in input JSON file
             template['default_runtime_attributes']['singularity_bindpath'] = \
-                    Caper.__find_singularity_bindpath(input_json_file)
+                Caper.__find_singularity_bindpath(input_json_file)
 
         if self._slurm_partition is not None:
             template['default_runtime_attributes']['slurm_partition'] = \
@@ -981,6 +1063,9 @@ def main():
         c.metadata()
     elif action == 'unhold':
         c.unhold()
+    elif action == 'troubleshoot':
+        c.troubleshoot()
+
     else:
         raise Exception('Unsupported or unspecified action.')
     return 0

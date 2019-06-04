@@ -395,9 +395,14 @@ def parse_caper_arguments():
         'metadata',
         help='Retrieve metadata JSON for workflows from a Cromwell server',
         parents=[parent_server_client, parent_client, parent_search_wf])
+    p_troubleshoot = subparser.add_parser(
+        'troubleshoot',
+        help='Troubleshoot workflow problems from metadata JSON file or '
+             'workflow IDs',
+        parents=[parent_server_client, parent_client, parent_search_wf])
 
     for p in [p_run, p_server, p_submit, p_abort, p_unhold, p_list,
-              p_metadata]:
+              p_metadata, p_troubleshoot]:
         p.set_defaults(**defaults)
 
     if len(sys.argv[1:]) == 0:
@@ -439,7 +444,8 @@ def parse_caper_arguments():
         args_d['use_singularity'] = bool(strtobool(use_singularity))
 
     no_build_singularity = args_d.get('no_build_singularity')
-    if no_build_singularity is not None and isinstance(no_build_singularity, str):
+    if no_build_singularity is not None \
+            and isinstance(no_build_singularity, str):
         args_d['no_build_singularity'] = bool(strtobool(no_build_singularity))
 
     # int string to int
