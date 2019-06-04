@@ -59,6 +59,7 @@ abort    | WF_ID or STR_LABEL |Abort submitted workflows on a Cromwell server
 unhold   | WF_ID or STR_LABEL |Release hold of workflows on a Cromwell server
 list     | WF_ID or STR_LABEL |List submitted workflows on a Cromwell server
 metadata | WF_ID or STR_LABEL |Retrieve metadata JSONs for workflows
+troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason for errors
 
 Examples:
 
@@ -84,6 +85,12 @@ Examples:
 
 	```bash
 	$ caper list [WF_ID or STR_LABEL]
+	```
+
+* `troubleshoot`: To analyze reasons for workflow failures. You can specify a metadata JSON file. or workflow IDs and labels. Wildcard search with using `*` and `?` is allowed for string lables.
+
+	```bash
+	$ caper troubleshoot [WF_ID, STR_LABEL or METADATA_JSON_FILE]
 	```
 
 * Other subcommands: Other subcommands work similar to `list`. It does a corresponding action for matched workflows.
@@ -205,6 +212,12 @@ slurm-account=YOUR_ACCOUMT
 # since most SLURM clusters have default rules for partition/account
 
 # server mode
+# ip is an IP address or hostname of a Cromwell server
+# it's localhost by default but if you are submitting to
+# a remote Cromwell server (e.g. on a different compute node)
+# then take IP address of the server and write it here
+ip=localhost
+
 # port is 8000 by default. but if it's already taken 
 # then try other ports like 8001
 port=8000
@@ -215,8 +228,9 @@ Run Caper. `--deepcopy` is optional for remote (http://, gs://, s3://, ...) `INP
 $ caper run [WDL] -i [INPUT_JSON] --backend slurm --deepcopy
 ```
 
-Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive. If there is any conflicting port. Change port in your default configuration file.
+Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive. We recommend to run a server on a non-login node with at least one CPU, 2GB RAM and long enough walltime. Take IP address of your compute node and update your default configuration file with it. If there is any conflicting port, then change port in your configuration file.
 ```bash
+$ hostname  # get hostname of a compute/login node
 $ caper server
 ```
 
@@ -230,7 +244,7 @@ Or specify your own Singularity container.
 $ caper run [WDL] -i [INPUT_JSON] --backend slurm --deepcopy --singularity [YOUR_SINGULARITY_IMAGE]
 ```
 
-Then submit pipelines to the server.
+Then submit a workflow to the server.
 ```bash
 $ caper submit [WDL] -i [INPUT_JSON] --deepcopy -p [PORT]
 ```
