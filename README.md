@@ -168,212 +168,174 @@ Activate your `CONDA_ENV` before running Caper (both for `run` and `server` mode
 $ conda activate [COND_ENV]
 ```
 
-## How to run it on a local computer
+## How to run it
 
-Define two important parameters in your default configuration file (`~/.caper/default.conf`).
-```
-# if you want to run your workflow in a Singularity container
-singularity-cachedir=[SINGULARITY_CACHEDIR]
+According to your chosen backend, define the following parameters in your default configuration file (`~/.caper/default.conf`).
 
-# directory to store all outputs
-out-dir=[LOCAL_OUT_DIR]
+* Local
+	```
+	# if you want to run your workflow in a Singularity container
+	singularity-cachedir=[SINGULARITY_CACHEDIR]
 
-# temporary directory for Caper
-# lots of temporary files will be created and stored here
-# e.g. backend.conf, workflow_opts.json, input.json, labels.json
-# don't use /tmp
-tmp-dir=[LOCAL_TMP_DIR]
-```
+	# directory to store all outputs
+	out-dir=[LOCAL_OUT_DIR]
 
-Run Caper. `--deepcopy` is optional to recursively make local copies of remote files (`http(s)://`, `gs://` and `s3://`) in an `INPUT_JSON` file.
-```bash
-$ caper run [WDL] -i [INPUT_JSON] --deepcopy
-```
+	# temporary directory for Caper
+	# lots of temporary files will be created and stored here
+	# e.g. backend.conf, workflow_opts.json, input.json, labels.json
+	# don't use /tmp
+	tmp-dir=[LOCAL_TMP_DIR]
+	```
 
-Or run a server and submit a workflow to it.
-```bash
-$ caper server
-$ caper submit [WDL] -i [INPUT_JSON] --deepcopy
-```
+* Google Cloud Platform (GCP): Install [gsutil](https://cloud.google.com/storage/docs/gsutil_install). [Configure for gcloud and gsutil](docs/conf_gcp.md).
 
-## How to run it on Google Cloud Platform (GCP)
+	```
+	# specify default backend as gcp
+	backend=gcp
 
-Install [gsutil](https://cloud.google.com/storage/docs/gsutil_install). [Configure for gcloud and gsutil](docs/conf_gcp.md).
+	# your project name on Google Cloud platform
+	gcp-prj=YOUR_PRJ_NAME
 
-Define three important parameters in your default configuration file (`~/.caper/default.conf`).
-```
-# your project name on Google Cloud platform
-gcp-prj=YOUR_PRJ_NAME
+	# directory to store all outputs
+	out-gcs-bucket=gs://YOUR_OUTPUT_ROOT_BUCKET/ANY/WHERE
 
-# directory to store all outputs
-out-gcs-bucket=gs://YOUR_OUTPUT_ROOT_BUCKET/ANY/WHERE
+	# temporary bucket directory for Caper
+	tmp-gcs-bucket=gs://YOUR_TEMP_BUCKET/SOME/WHERE
+	```
 
-# temporary bucket directory for Caper
-tmp-gcs-bucket=gs://YOUR_TEMP_BUCKET/SOME/WHERE
-```
+* AWS: Install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html). [Configure for AWS](docs/conf_aws.md).
 
-Run Caper. `--deepcopy` is optional to recursively make GCS copies of remote files (`http(s)://`, `s3://` and local path) in an `INPUT_JSON` file.
-```bash
-$ caper run [WDL] -i [INPUT_JSON] --backend gcp --deepcopy
-```
+	```
+	# specify default backend as aws
+	backend=aws
 
-Or run a server and submit a workflow to it.
-```bash
-$ caper server
-$ caper submit [WDL] -i [INPUT_JSON] --backend gcp --deepcopy
-```
+	# ARN for your AWS Batch
+	aws-batch-arn=ARN_FOR_YOUR_AWS_BATCH
 
-## How to run it on AWS
+	# directory to store all outputs
+	out-s3-bucket=s3://YOUR_OUTPUT_ROOT_BUCKET/ANY/WHERE
 
-Install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html). [Configure for AWS](docs/conf_aws.md).
+	# temporary bucket directory for Caper
+	tmp-s3-bucket=s3://YOUR_TEMP_BUCKET/SOME/WHERE
+	```
 
-Define three important parameters in your default configuration file (`~/.caper/default.conf`).
-```
-# ARN for your AWS Batch
-aws-batch-arn=ARN_FOR_YOUR_AWS_BATCH
+* SLURM
+	```
+	# specify default backend as slurm
+	backend=slurm
 
-# directory to store all outputs
-out-s3-bucket=s3://YOUR_OUTPUT_ROOT_BUCKET/ANY/WHERE
+	# if you want to run your workflow in a Singularity container
+	singularity-cachedir=[SINGULARITY_CACHEDIR]
 
-# temporary bucket directory for Caper
-tmp-s3-bucket=s3://YOUR_TEMP_BUCKET/SOME/WHERE
-```
+	# directory to store all outputs
+	out-dir=[LOCAL_OUT_DIR]
 
-Run Caper. `--deepcopy` is optional to recursively make S3 copies of remote files (`http(s)://`, `gs://` and local path) in an `INPUT_JSON` file.
-```bash
-$ caper run [WDL] -i [INPUT_JSON] --backend aws --deepcopy
-```
+	# temporary directory for Caper
+	# don't use /tmp
+	tmp-dir=[LOCAL_TMP_DIR]
 
-Or run a server and submit a workflow to it.
-```bash
-$ caper server
-$ caper submit [WDL] -i [INPUT_JSON] --backend aws --deepcopy
-```
+	# SLURM partition if required (e.g. on Stanford Sherlock)
+	slurm-partition=[YOUR_PARTITION]
 
-## How to run it on SLURM cluster
+	# SLURM account if required (e.g. on Stanford SCG4)
+	slurm-account=[YOUR_ACCOUMT]
 
-Define the following important parameters in your default configuration file (`~/.caper/default.conf`).
-```
-# if you want to run your workflow in a Singularity container
-singularity-cachedir=[SINGULARITY_CACHEDIR]
+	# You may not need to specify the above two
+	# since most SLURM clusters have default rules for partition/account
 
-# directory to store all outputs
-out-dir=[LOCAL_OUT_DIR]
+	# server mode
+	# ip is an IP address or hostname of a Cromwell server
+	# it's localhost by default but if you are submitting to
+	# a remote Cromwell server (e.g. from login node to a compute node)
+	# then take IP address of the server and write it here
+	ip=localhost
 
-# temporary directory for Caper
-# don't use /tmp
-tmp-dir=[LOCAL_TMP_DIR]
+	# port is 8000 by default. but if it's already taken 
+	# then try other ports like 8001
+	port=8000
+	```
 
-# SLURM partition if required (e.g. on Stanford Sherlock)
-slurm-partition=[YOUR_PARTITION]
+* SGE
 
-# SLURM account if required (e.g. on Stanford SCG4)
-slurm-account=[YOUR_ACCOUMT]
+	```
+	# specify default backend as sge
+	backend=sge
 
-# You may not need to specify the above two
-# since most SLURM clusters have default rules for partition/account
+	# if you want to run your workflow in a Singularity container
+	singularity-cachedir=[SINGULARITY_CACHEDIR]
 
-# server mode
-# ip is an IP address or hostname of a Cromwell server
-# it's localhost by default but if you are submitting to
-# a remote Cromwell server (e.g. from login node to a compute node)
-# then take IP address of the server and write it here
-ip=localhost
+	# directory to store all outputs
+	out-dir=[LOCAL_OUT_DIR]
 
-# port is 8000 by default. but if it's already taken 
-# then try other ports like 8001
-port=8000
-```
+	# temporary directory for Caper
+	# don't use /tmp
+	tmp-dir=[LOCAL_TMP_DIR]
+
+	# SGE PE
+	sge-pe=[YOUR_PARALLEL_ENVIRONMENT]
+
+	# server mode
+	# ip is an IP address or hostname of a Cromwell server
+	# it's localhost by default but if you are submitting to
+	# a remote Cromwell server (e.g. from login node to a compute node)
+	# then take IP address of the server and write it here
+	ip=localhost
+
+	# port is 8000 by default. but if it's already taken 
+	# then try other ports like 8001
+	port=8000
+	```
 
 Run Caper. Make sure to keep your SSH session alive.
 
-> **WARNING** We don't recommend to run it on a login node. Caper will be killed while building a local Singularity image or deepcopying remote files. Also Cromwell is a Java application which is not lightweight. Reserve an interactive node with `srun` with at least one CPU, 1GB RAM and long enough walltime first.
+> **Run mode on HPCs**: We don't recommend to run it on a login node. Caper/Cromwell will be killed while building a local Singularity image or deepcopying remote files. Also Cromwell is a Java application which is not lightweight. Reserve an interactive node with `srun` or `qlogin` with at least one CPU, 1GB RAM and long enough walltime first.
+
+	1) SLURM: 1 cpu, 2GB of RAM and 7 days of walltime. `--partition` and `--account` are optional and depend on your cluster's SLURM configuration.
+	```
+	$ srun -n 1 --mem 2G -t 7-0 --partition [YOUR_SLURM_PARTITON] --account [YOUR_SLURM_ACCOUNT] --qos normal --pty /bin/bash -i -l 
+	```
+
+	2) SGE: 1 cpu, 2GB of RAM and 7 days of walltime.
+	```
+	$ qlogin -l h_rt=144:00:00 -l h_vmem=2G
+	```
 
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] --backend slurm
+$ caper run [WDL] -i [INPUT_JSON]
 ```
 
 Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive.
 
-> **WARNING** We recommend to run a server on a non-login node with at least one CPU, 2GB RAM and long enough walltime. Take IP address of your compute node and update your default configuration file with it. If there is any conflicting port, then change port in your configuration file.
+> **Server/client mode on HPCs**: We recommend to run a server on a non-login node with at least one CPU, 2GB RAM and long enough walltime. Take IP address of your compute node and update your default configuration file with it. If there is any conflicting port, then change port in your configuration file.
+
 ```bash
 $ hostname  # get IP address or hostname of a compute/login node
-$ caper server --backend slurm
+$ caper server
 ```
 
-Then submit a workflow to the server. A TCP port `-p` are optional if you have changed the default port `8000`.
+Then submit a workflow to the server. A TCP port `--port` are optional if you have changed the default port `8000`. Server IP address `--ip` is optional for a local server.
 ```bash
 $ caper submit [WDL] -i [INPUT_JSON] --ip [SERVER_HOSTNAME] --port [PORT]
 ```
 
-On HPC cluster with Singularity installed, run Caper with a Singularity container if that is [defined inside `WDL`](DETAILS.md/#wdl-customization). For example, ENCODE [ATAC-seq](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/atac.wdl#L5) and [ChIP-seq](https://github.com/ENCODE-DCC/chip-seq-pipeline2/blob/master/chip.wdl#L5) pipelines.
+You can run Caper with a Singularity container if that is [defined inside `WDL`](DETAILS.md/#wdl-customization). For example, ENCODE [ATAC-seq](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/atac.wdl#L5) and [ChIP-seq](https://github.com/ENCODE-DCC/chip-seq-pipeline2/blob/master/chip.wdl#L5) pipelines.
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] --backend slurm --use-singularity
+$ caper run [WDL] -i [INPUT_JSON] --use-singularity
 ```
 
 Or specify your own Singularity container.
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] --backend slurm --singularity [SINGULARITY_IMAGE_URI]
+$ caper run [WDL] -i [INPUT_JSON] --singularity [SINGULARITY_IMAGE_URI]
 ```
 
-## How to run it on SGE cluster
-
-Define the following important parameters in your default configuration file (`~/.caper/default.conf`).
-```
-# if you want to run your workflow in a Singularity container
-singularity-cachedir=[SINGULARITY_CACHEDIR]
-
-# directory to store all outputs
-out-dir=[LOCAL_OUT_DIR]
-
-# temporary directory for Caper
-# don't use /tmp
-tmp-dir=[LOCAL_TMP_DIR]
-
-# SGE PE
-sge-pe=[YOUR_PARALLEL_ENVIRONMENT]
-
-# server mode
-# ip is an IP address or hostname of a Cromwell server
-# it's localhost by default but if you are submitting to
-# a remote Cromwell server (e.g. from login node to a compute node)
-# then take IP address of the server and write it here
-ip=localhost
-
-# port is 8000 by default. but if it's already taken 
-# then try other ports like 8001
-port=8000
-```
-Run Caper. Make sure to keep your SSH session alive.
-
-> **WARNING** We don't recommend to run it on a login node. Caper will be killed while building a local Singularity image or deepcopying remote files. Also Cromwell is a Java application which is not lightweight. Reserve an interactive node with `srun` with at least one CPU, 1GB RAM and long enough walltime first.
-
+Similarly for Docker.
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] --backend sge
+$ caper run [WDL] -i [INPUT_JSON] --use-docker
 ```
-
-Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive.
-
-> **WARNING** We recommend to run a server on a non-login node with at least one CPU, 2GB RAM and long enough walltime. Take IP address of your compute node and update your default configuration file with it. If there is any conflicting port, then change port in your configuration file.
 ```bash
-$ hostname  # get IP address or hostname of a compute/login node
-$ caper server --backend sge
+$ caper run [WDL] -i [INPUT_JSON] --docker [DOCKER_IMAGE_URI]
 ```
 
-Then submit a workflow to the server. A TCP port `-p` are optional if you have changed the default port `8000`.
-```bash
-$ caper submit [WDL] -i [INPUT_JSON] --ip [SERVER_HOSTNAME] --port [PORT]
-```
-
-On HPC cluster with Singularity installed, run Caper with a Singularity container if that is [defined inside `WDL`](DETAILS.md/#wdl-customization). For example, ENCODE [ATAC-seq](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/atac.wdl#L5) and [ChIP-seq](https://github.com/ENCODE-DCC/chip-seq-pipeline2/blob/master/chip.wdl#L5) pipelines.
-```bash
-$ caper run [WDL] -i [INPUT_JSON] --backend sge --use-singularity
-```
-
-Or specify your own Singularity container.
-```bash
-$ caper run [WDL] -i [INPUT_JSON] --backend sge --singularity [SINGULARITY_IMAGE_URI]
-```
 
 # DETAILS
 
