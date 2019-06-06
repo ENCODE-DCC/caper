@@ -301,8 +301,10 @@ Run Caper. Make sure to keep your SSH session alive.
 	$ qlogin -l h_rt=144:00:00 -l h_vmem=2G
 	```
 
+`--deepcopy` is optional for input JSON file with remote URIs defined in it. Those URIs (`http(s)://`, `s3://`, `gs://`, ...) will be recursively copied into a target storage for a corresponding chosen backend. For example, GCS bucket (`gs://`) for GCP backend (`gcp`).
+
 ```bash
-$ caper run [WDL] -i [INPUT_JSON]
+$ caper run [WDL] -i [INPUT_JSON] --deepcopy
 ```
 
 Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive.
