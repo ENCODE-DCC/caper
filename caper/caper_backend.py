@@ -54,8 +54,8 @@ class CaperBackendCommon(dict):
                 max_concurrent_workflows
 
 
-class CaperBackendMySQL(dict):
-    """Common stanzas for MySQL
+class CaperBackendDatabase(dict):
+    """Common stanzas for database
     """
     TEMPLATE = {
         "database": {
@@ -72,15 +72,23 @@ class CaperBackendMySQL(dict):
         }
     }
 
-    def __init__(self, ip, port, user, password):
-        super(CaperBackendMySQL, self).__init__(
-            CaperBackendMySQL.TEMPLATE)
-        db = self['database']['db']
-        db['user'] = user
-        db['password'] = password
-        db['url'] = db['url'].replace('localhost:3306', '{ip}:{port}'.format(
-            ip=ip, port=port))
-
+    def __init__(self, file_db=None, mysql_ip=None, mysql_port=None,
+                 mysql_user=None, mysql_password=None):
+        super(CaperBackendDatabase, self).__init__(
+            CaperBackendDatabase.TEMPLATE)
+        if mysql_user is not None and mysql_password is not None:
+            db = self['database']['db']
+            db['user'] = mysql_user
+            db['password'] = mysql_password
+            db['url'] = db['url'].replace('localhost:3306', '{ip}:{port}'.format(
+                ip=mysql_ip, port=mysql_port))
+        else:
+            self['database'] = {}
+            if file_db is not None:
+                self['database']['db'] = {
+                    'url': 'jdbc:hsqldb:file:{};shutdown=false;'
+                    'hsqldb.tx=mvcc'.format(file_db)
+                }
 
 class CaperBackendGCP(dict):
     """Google Cloud backend

@@ -29,7 +29,7 @@ from .cromwell_rest_api import CromwellRestAPI
 from .caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
     init_caper_uri, CaperURI
 from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
-    CaperBackendCommon, CaperBackendMySQL, CaperBackendGCP, \
+    CaperBackendCommon, CaperBackendDatabase, CaperBackendGCP, \
     CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
     CaperBackendSGE, CaperBackendPBS
 
@@ -119,10 +119,7 @@ class Caper(object):
         self._sge_extra_param = args.get('sge_extra_param')
         self._pbs_queue = args.get('pbs_queue')
         self._pbs_extra_param = args.get('pbs_extra_param')
-        self._mysql_db_ip = args.get('mysql_db_ip')
-        self._mysql_db_port = args.get('mysql_db_port')
-        self._mysql_db_user = args.get('mysql_db_user')
-        self._mysql_db_password = args.get('mysql_db_password')
+
         self._backend_file = args.get('backend_file')
         self._wdl = args.get('wdl')
         self._inputs = args.get('inputs')
@@ -133,6 +130,16 @@ class Caper(object):
         self._imports = args.get('imports')
         self._metadata_output = args.get('metadata_output')
         self._singularity_cachedir = args.get('singularity_cachedir')
+
+        # file DB
+        self._file_db = args.get('file_db')
+        self._no_file_db = args.get('no_file_db')
+
+        # MySQL DB
+        self._mysql_db_ip = args.get('mysql_db_ip')
+        self._mysql_db_port = args.get('mysql_db_port')
+        self._mysql_db_user = args.get('mysql_db_user')
+        self._mysql_db_password = args.get('mysql_db_password')
 
         # backend and default backend
         self._backend = args.get('backend')
@@ -526,29 +533,29 @@ class Caper(object):
         with open(input_json_file, 'r') as fp:
             input_json = json.loads(fp.read())
 
-            # find dirname of all files
-            def recurse_dict(d, d_parent=None, d_parent_key=None,
-                             lst=None, lst_idx=None):
-                result = set()
-                if isinstance(d, dict):
-                    for k, v in d.items():
-                        result |= recurse_dict(v, d_parent=d,
-                                               d_parent_key=k)
-                elif isinstance(d, list):
-                    for i, v in enumerate(d):
-                        result |= recurse_dict(v, lst=d,
-                                               lst_idx=i)
-                elif type(d) == str:
-                    assert(d_parent is not None or lst is not None)
-                    c = CaperURI(d)
-                    # local absolute path only
-                    if c.uri_type == URI_LOCAL and c.is_valid_uri():
-                        dirname, basename = os.path.split(c.get_uri())
-                        result.add(dirname)
+        # find dirname of all files
+        def recurse_dict(d, d_parent=None, d_parent_key=None,
+                         lst=None, lst_idx=None):
+            result = set()
+            if isinstance(d, dict):
+                for k, v in d.items():
+                    result |= recurse_dict(v, d_parent=d,
+                                           d_parent_key=k)
+            elif isinstance(d, list):
+                for i, v in enumerate(d):
+                    result |= recurse_dict(v, lst=d,
+                                           lst_idx=i)
+            elif type(d) == str:
+                assert(d_parent is not None or lst is not None)
+                c = CaperURI(d)
+                # local absolute path only
+                if c.uri_type == URI_LOCAL and c.is_valid_uri():
+                    dirname, basename = os.path.split(c.get_uri())
+                    result.add(dirname)
 
-                return result
+            return result
 
-            all_dirnames = recurse_dict(input_json)
+        all_dirnames = recurse_dict(input_json)
         # add all (but not too high level<4) parent directories
         # to all_dirnames. start from self
         # e.g. /a/b/c/d/e/f/g/h with COMMON_ROOT_SEARCH_LEVEL = 5
@@ -903,16 +910,19 @@ class Caper(object):
                 extra_param=self._pbs_extra_param,
                 concurrent_job_limit=self._max_concurrent_tasks))
 
-        # MySQL is optional
-        if self._mysql_db_user is not None \
-                and self._mysql_db_password is not None:
-            merge_dict(
-                backend_dict,
-                CaperBackendMySQL(
-                    ip=self._mysql_db_ip,
-                    port=self._mysql_db_port,
-                    user=self._mysql_db_user,
-                    password=self._mysql_db_password))
+        # Database
+        if self._no_file_db is not None and self._no_file_db:
+            file_db = None
+        else:
+            file_db = self._file_db
+        merge_dict(
+            backend_dict,
+            CaperBackendDatabase(
+                file_db=file_db,
+                mysql_ip=self._mysql_db_ip,
+                mysql_port=self._mysql_db_port,
+                mysql_user=self._mysql_db_user,
+                mysql_password=self._mysql_db_password))
 
         # set header for conf ("include ...")
         assert(Caper.BACKEND_CONF_HEADER.endswith('\n'))
