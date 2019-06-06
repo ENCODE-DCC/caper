@@ -175,6 +175,16 @@ def parse_caper_arguments():
     # run, server
     parent_host = argparse.ArgumentParser(add_help=False)
 
+    group_file_db = parent_host.add_argument_group(
+        title='HyperSQL file DB arguments')
+    group_file_db.add_argument(
+        '--file-db', default=DEFAULT_FILE_DB,
+        help='Default DB file for Cromwell\'s built-in HyperSQL database.')
+    group_file_db.add_argument(
+        '--no-file-db', action='store_true',
+        help='Disable file DB for Cromwell\'s built-in HyperSQL database. '
+             'An in-memory DB will still be available for server mode.')
+
     group_mysql = parent_host.add_argument_group(
         title='MySQL arguments')
     group_mysql.add_argument(
@@ -284,14 +294,6 @@ def parse_caper_arguments():
              'environment variable SINGULARITY_CACHEDIR. '
              'Define it to prevent repeatedly building a singularity image '
              'for every pipeline task')
-    parent_submit.add_argument(
-        '--file-db', default=DEFAULT_FILE_DB,
-        help='Default DB file for Cromwell\'s built-in HyperSQL database.')
-    parent_submit.add_argument(
-        '--no-file-db', action='store_true',
-        help='Disable file DB for Cromwell\'s built-in HyperSQL database. '
-             'An in-memory DB will still be available for server mode.')
-
     # run
     parent_run = argparse.ArgumentParser(add_help=False)
     parent_run.add_argument(
