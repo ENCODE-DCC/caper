@@ -67,12 +67,12 @@ troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason for err
 	$ caper run [WDL] -i [INPUT_JSON] -s [STR_LABEL]
 	```
 
-	> **WARNING**:If you try to run multiple workflows at the same time then you will see a DB connection error message since multiple Caper instances will try to lock the same DB file `~/.caper/default_file_db`. Use a server-based [MySQL database](DETAILS.md/#mysql-server) instead or disable connection to DB with `--no-file-db` but you will not be able to take advantage of [Cromwell's call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous workflows. We recomend to use `server` and `submit` for multiple concurrent workflows.
+	> **WARNING**: If you try to run multiple workflows at the same time then you will see a DB connection error message since multiple Caper instances will try to lock the same DB file `~/.caper/default_file_db`. Use a server-based [MySQL database](DETAILS.md/#mysql-server) instead or disable connection to DB with `--no-file-db` but you will not be able to take advantage of [Cromwell's call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous workflows. We recomend to use `server` and `submit` for multiple concurrent workflows.
 
 	```bash
-	[2019-06-06 03:40:00,39] [error] Failed to instantiate Cromwell System. Shutting down Cromwell.
+	[error] Failed to instantiate Cromwell System. Shutting down Cromwell.
 	java.sql.SQLTransientConnectionException: db - Connection is not available, request timed out after 3000ms.
-	```bash
+	```
 
 * `server`: To start a server.
 
@@ -142,6 +142,14 @@ Caper supports Singularity for its local built-in backend (`local`, `slurm`, `sg
 $ caper run [WDL] -i [INPUT_JSON] --singularity [SINGULARITY_IMAGE_URI]
 ```
 
+Define a cache directory where local Singularity images will be built. You can also define an environment variable `SINGULARITY_CACHEDIR`.
+```
+singularity-cachedir=[SINGULARITY_CACHEDIR]
+```
+
+Singularity image will be built first before running a workflow to prevent mutiple tasks from competing to write on the same local image file. If you don't define it, every task in a workflow will try to repeatedly build a local Singularity image on their temporary directory. 
+
+
 ## Docker
 
 Caper supports Docker for its non-HPC backends (`local`, `aws` and `gcp`). 
@@ -153,13 +161,6 @@ Tasks in a workflow will run inside a container and outputs will be pulled out t
 ```bash
 $ caper run [WDL] -i [INPUT_JSON] --docker [DOCKER_IMAGE_URI]
 ```
-
-Define a cache directory where local Singularity images will be built. You can also define an environment variable `SINGULARITY_CACHEDIR`.
-```
-singularity-cachedir=[SINGULARITY_CACHEDIR]
-```
-
-Singularity image will be built first before running a workflow to prevent mutiple tasks from competing to write on the same local image file. If you don't define it, every task in a workflow will try to repeatedly build a local Singularity image on their temporary directory. 
 
 ## Conda
 
@@ -318,7 +319,7 @@ Then submit a workflow to the server. A TCP port `--port` are optional if you ha
 $ caper submit [WDL] -i [INPUT_JSON] --ip [SERVER_HOSTNAME] --port [PORT]
 ```
 
-You can run Caper with a Singularity container if that is [defined inside `WDL`](DETAILS.md/#wdl-customization). For example, ENCODE [ATAC-seq](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/atac.wdl#L5) and [ChIP-seq](https://github.com/ENCODE-DCC/chip-seq-pipeline2/blob/master/chip.wdl#L5) pipelines.
+On HPCs (e.g. Stanford Sherlock and SCG), you can run Caper with a Singularity container if that is [defined inside `WDL`](DETAILS.md/#wdl-customization). For example, ENCODE [ATAC-seq](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/atac.wdl#L5) and [ChIP-seq](https://github.com/ENCODE-DCC/chip-seq-pipeline2/blob/master/chip.wdl#L5) pipelines.
 ```bash
 $ caper run [WDL] -i [INPUT_JSON] --use-singularity
 ```
@@ -332,6 +333,7 @@ Similarly for Docker.
 ```bash
 $ caper run [WDL] -i [INPUT_JSON] --use-docker
 ```
+
 ```bash
 $ caper run [WDL] -i [INPUT_JSON] --docker [DOCKER_IMAGE_URI]
 ```
