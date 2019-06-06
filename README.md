@@ -291,17 +291,17 @@ Run Caper. Make sure to keep your SSH session alive.
 
 > **Run mode on HPCs**: We don't recommend to run it on a login node. Caper/Cromwell will be killed while building a local Singularity image or deepcopying remote files. Also Cromwell is a Java application which is not lightweight. Reserve an interactive node with `srun` or `qlogin` with at least one CPU, 1GB RAM and long enough walltime first.
 
-	1) SLURM: 1 cpu, 2GB of RAM and 7 days of walltime. `--partition` and `--account` are optional and depend on your cluster's SLURM configuration.
+1) SLURM: 1 cpu, 2GB of RAM and 7 days of walltime. `--partition` and `--account` are optional and depend on your cluster's SLURM configuration.
 
-		```bash
-		$ srun -n 1 --mem 2G -t 7-0 --partition [YOUR_SLURM_PARTITON] --account [YOUR_SLURM_ACCOUNT] --qos normal --pty /bin/bash -i -l 
-		```
+	```bash
+	$ srun -n 1 --mem 2G -t 7-0 --partition [YOUR_SLURM_PARTITON] --account [YOUR_SLURM_ACCOUNT] --qos normal --pty /bin/bash -i -l 
+	```
 
-	2) SGE: 1 cpu, 2GB of RAM and 7 days of walltime.
+2) SGE: 1 cpu, 2GB of RAM and 7 days of walltime.
 
-		```bash
-		$ qlogin -l h_rt=144:00:00 -l h_vmem=2G
-		```
+	```bash
+	$ qlogin -l h_rt=144:00:00 -l h_vmem=2G
+	```
 
 `--deepcopy` is optional for input JSON file with remote URIs defined in it. Those URIs (`http(s)://`, `s3://`, `gs://`, ...) will be recursively copied into a target storage for a corresponding chosen backend. For example, GCS bucket (`gs://`) for GCP backend (`gcp`).
 
