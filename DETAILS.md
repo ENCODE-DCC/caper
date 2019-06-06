@@ -18,10 +18,14 @@ We highly recommend to use a default configuration file described in the section
 	:-----|:-----
 	--str-label, -s|Caper's special label for a workflow. This will be used to identify a workflow submitted by Caper
 	--docker|Docker image URI for a WDL
-	--singularity|Singaularity image URI for a WDL
+	--singularity|Singularity image URI for a WDL
 	--use-docker|Use docker image for all tasks in a workflow by adding docker URI into docker runtime-attribute
 	--use-singularity|Use singularity image for all tasks in a workflow
 	--no-build-singularity|Local singularity image will not be built before running/submitting a workflow
+	--singularity-cachedir|Singularity image URI for a WDL
+	--file-db|DB file for Cromwell's built-in HyperSQL database
+	--no-file-db|Do not use file-db. Call-caching (re-using outputs) will be disabled
+
 
 * Choose a default backend. Use `--deepcopy` to recursively auto-copy data files in your input JSON file. All data files will be automatically transferred to a target local/remote storage corresponding to a chosen backend. Make sure that you correctly configure temporary directories for source/target storages (`--tmp-dir`, `--tmp-gcs-bucket` and `--tmp-s3-bucket`).
 

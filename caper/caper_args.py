@@ -13,6 +13,7 @@ from distutils.util import strtobool
 
 
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
+DEFAULT_FILE_DB = '~/.caper/default_file_db'
 DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
@@ -81,7 +82,19 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 #http-user=
 #http-password=
 
+############# Cromwell's built-in HyperSQL database settings
+## DB file prefix path
+#file-db=~/.caper/default_file_db
+
+## disable file-db
+## Detach DB from Cromwell
+## you can run multiple workflows with 'caper run' command
+## but Caper will not be able re-use outputs from previous workflows
+#no-file-db=True
+
 ############# MySQL database settings
+## both caper run/server modes will attach to MySQL db
+## uncomment/define all of the followings to use MySQL database
 #mysql-db-ip=
 #mysql-db-port=
 #mysql-db-user=cromwell
@@ -270,6 +283,14 @@ def parse_caper_arguments():
              'environment variable SINGULARITY_CACHEDIR. '
              'Define it to prevent repeatedly building a singularity image '
              'for every pipeline task')
+    parent_submit.add_argument(
+        '--file-db', default=DEFAULT_FILE_DB,
+        help='Default DB file for Cromwell\'s built-in HyperSQL database.')
+    parent_submit.add_argument(
+        '--no-file-db', action='store_true',
+        help='Disable file DB for Cromwell\'s built-in HyperSQL database. '
+             'An in-memory DB will still be available for server mode.')
+
     # run
     parent_run = argparse.ArgumentParser(add_help=False)
     parent_run.add_argument(
@@ -448,6 +469,10 @@ def parse_caper_arguments():
             and isinstance(no_build_singularity, str):
         args_d['no_build_singularity'] = bool(strtobool(no_build_singularity))
 
+    no_file_db = args_d.get('no_file_db')
+    if no_file_db is not None and isinstance(no_file_db, str):
+        args_d['no_file_db'] = bool(strtobool(no_file_db))
+
     # int string to int
     max_concurrent_tasks = args_d.get('max_concurrent_tasks')
     if max_concurrent_tasks is not None \
@@ -470,9 +495,13 @@ def parse_caper_arguments():
         if args_d.get('out_s3_bucket'):
             args_d['tmp_s3_bucket'] = os.path.join(args_d['out_s3_bucket'],
                                                    'caper_tmp')
-
     if args_d.get('tmp_gcs_bucket') is None:
         if args_d.get('out_gcs_bucket'):
             args_d['tmp_gcs_bucket'] = os.path.join(args_d['out_gcs_bucket'],
                                                     'caper_tmp')
+    file_db = args_d.get('file_db')
+    if file_db is not None:
+        file_db = os.path.abspath(os.path.expanduser(file_db))
+        args_d['file_db'] = file_db
+
     return args_d
