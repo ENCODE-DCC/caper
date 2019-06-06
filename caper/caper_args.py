@@ -14,6 +14,7 @@ from distutils.util import strtobool
 
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_FILE_DB = '~/.caper/default_file_db'
+DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
 DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
@@ -47,7 +48,7 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ## from remote repo everytime for each task.
 ## to prevent this overhead DEFINE IT
 ## user's scratch is recommended
-#singularity-cachedir=
+#singularity-cachedir=~/.caper/singularity_cachedir
 
 ## local singularity image will not be built before running
 ## a workflow. this can result in conflicts between tasks
@@ -278,7 +279,7 @@ def parse_caper_arguments():
         '--hold', action='store_true',
         help='Put a hold on a workflow when submitted to a Cromwell server.')
     parent_submit.add_argument(
-        '--singularity-cachedir',
+        '--singularity-cachedir', default=DEFAULT_SINGULARITY_CACHEDIR,
         help='Singularity cache directory. Equivalent to exporting an '
              'environment variable SINGULARITY_CACHEDIR. '
              'Define it to prevent repeatedly building a singularity image '
@@ -503,5 +504,12 @@ def parse_caper_arguments():
     if file_db is not None:
         file_db = os.path.abspath(os.path.expanduser(file_db))
         args_d['file_db'] = file_db
+
+    singularity_cachedir = args_d.get('singularity_cachedir')
+    if singularity_cachedir is not None:
+        singularity_cachedir = os.path.abspath(
+            os.path.expanduser(singularity_cachedir))
+        args_d['singularity_cachedir'] = singularity_cachedir
+        os.makedirs(singularity_cachedir, exist_ok=True)
 
     return args_d
