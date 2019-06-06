@@ -378,8 +378,7 @@ def parse_caper_arguments():
     parent_server_client.add_argument(
         '--port', default=DEFAULT_PORT,
         help='Port for Caper server')
-    parent_client = argparse.ArgumentParser(add_help=False)
-    parent_client.add_argument(
+    parent_server_client.add_argument(
         '--ip', default=DEFAULT_IP,
         help='IP address for Caper server')
     parent_list = argparse.ArgumentParser(add_help=False)
@@ -401,27 +400,27 @@ def parse_caper_arguments():
         parents=[parent_server_client, parent_host, parent_backend])
     p_submit = subparser.add_parser(
         'submit', help='Submit a workflow to a Cromwell server',
-        parents=[parent_server_client, parent_client, parent_submit,
+        parents=[parent_server_client, parent_submit,
                  parent_backend])
     p_abort = subparser.add_parser(
         'abort', help='Abort running/pending workflows on a Cromwell server',
-        parents=[parent_server_client, parent_client, parent_search_wf])
+        parents=[parent_server_client, parent_search_wf])
     p_unhold = subparser.add_parser(
         'unhold', help='Release hold of workflows on a Cromwell server',
-        parents=[parent_server_client, parent_client, parent_search_wf])
+        parents=[parent_server_client, parent_search_wf])
     p_list = subparser.add_parser(
         'list', help='List running/pending workflows on a Cromwell server',
-        parents=[parent_server_client, parent_client, parent_search_wf,
+        parents=[parent_server_client, parent_search_wf,
                  parent_list])
     p_metadata = subparser.add_parser(
         'metadata',
         help='Retrieve metadata JSON for workflows from a Cromwell server',
-        parents=[parent_server_client, parent_client, parent_search_wf])
+        parents=[parent_server_client, parent_search_wf])
     p_troubleshoot = subparser.add_parser(
         'troubleshoot',
         help='Troubleshoot workflow problems from metadata JSON file or '
              'workflow IDs',
-        parents=[parent_server_client, parent_client, parent_search_wf])
+        parents=[parent_server_client, parent_search_wf])
 
     for p in [p_run, p_server, p_submit, p_abort, p_unhold, p_list,
               p_metadata, p_troubleshoot]:
