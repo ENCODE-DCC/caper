@@ -25,6 +25,7 @@ URI_LOCAL = 'local'
 
 def init_caper_uri(tmp_dir, tmp_s3_bucket=None, tmp_gcs_bucket=None,
                    http_user=None, http_password=None,
+                   use_netrc=False,
                    use_gsutil_over_aws_s3=False, verbose=False):
     """Initialize static members in CaperURI class
     """
@@ -40,6 +41,7 @@ def init_caper_uri(tmp_dir, tmp_s3_bucket=None, tmp_gcs_bucket=None,
         assert(CaperURI.TMP_GCS_BUCKET.startswith('gs://'))
     CaperURI.HTTP_USER = http_user
     CaperURI.HTTP_PASSWORD = http_password
+    CaperURI.USE_NETRC = use_netrc
     CaperURI.USE_GSUTIL_OVER_AWS_S3 = use_gsutil_over_aws_s3
     CaperURI.VERBOSE = verbose
 
@@ -83,6 +85,7 @@ class CaperURI(object):
     TMP_GCS_BUCKET = None
     HTTP_USER = None
     HTTP_PASSWORD = None
+    USE_NETRC = False
     USE_GSUTIL_OVER_AWS_S3 = False
     VERBOSE = False
 
@@ -266,7 +269,7 @@ class CaperURI(object):
             os.makedirs(os.path.dirname(path), exist_ok=True)
 
             if no_copy:
-                pass            
+                pass
             elif self._uri_type == URI_LOCAL:
                 if soft_link:
                     if CaperURI.VERBOSE:
@@ -628,17 +631,21 @@ class CaperURI(object):
             #     http_err = int(m[0]) if len(m) > 0 else None
             # else:
             #     http_err = None
-
-            if CaperURI.HTTP_USER is None:  # if auth info is given
+            if CaperURI.HTTP_USER is None and not CaperURI.USE_NETRC:
+                # if auth info is not given
                 pass
             elif http_err in (401, 403):  # permission or auth http error
                 if CaperURI.VERBOSE:
                     print('[CaperURI] got HTTP_ERR {}. '
                           're-trying with auth...'.format(http_err))
+
                 # now try with AUTH
-                cmd_w_auth = cmd_wo_auth + [
-                    '-u', '{}:{}'.format(CaperURI.HTTP_USER,
-                                         CaperURI.HTTP_PASSWORD)]
+                if CaperURI.USE_NETRC:
+                    cmd_w_auth = cmd_wo_auth + ['-n']
+                else:
+                    cmd_w_auth = cmd_wo_auth + [
+                        '-u', '{}:{}'.format(CaperURI.HTTP_USER,
+                                             CaperURI.HTTP_PASSWORD)]
                 p = Popen(cmd_w_auth, stdout=PIPE, stderr=PIPE)
                 stdout, stderr = p.communicate()
                 stdout = stdout.decode()
@@ -649,10 +656,11 @@ class CaperURI(object):
                 m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR, stdout)
                 if len(m) > 0:
                     http_err = int(m[-1])
-                    if CURL_HTTP_ERROR_PREFIX in stdout:
+                    if CaperURI.CURL_HTTP_ERROR_PREFIX in stdout:
                         # remove error code from stdout
                         stdout = CaperURI.CURL_HTTP_ERROR_PREFIX.join(
-                            stdout.split(CaperURI.CURL_HTTP_ERROR_WRITE_OUT)[:-1])
+                            stdout.split(
+                                CaperURI.CURL_HTTP_ERROR_WRITE_OUT)[:-1])
                 else:
                     http_err = None
                 # if rc > 0:
@@ -738,4 +746,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

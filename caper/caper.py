@@ -1052,6 +1052,7 @@ def main():
         tmp_gcs_bucket=args.get('tmp_gcs_bucket'),
         http_user=args.get('http_user'),
         http_password=args.get('http_password'),
+        use_netrc=args.get('use_netrc'),
         use_gsutil_over_aws_s3=args.get('use_gsutil_over_aws_s3'),
         verbose=True)
 

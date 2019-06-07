@@ -79,9 +79,22 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ## gsutil can work with s3 buckets it outperforms over aws s3 CLI
 #use-gsutil-over-aws-s3=True
 
-############# HTTP auth to download from URLs (http://, https://)
+############# HTTP auth to download from private URLs (http://, https://)
+## username and password are exposed in a command line
+## so visible to other users on a local computer by 'ps' command
 #http-user=
 #http-password=
+
+## using cURL's ~/.netrc is more secure, we recommend to use it
+## keep ~/.netrc secure and use this at your own risk
+## see more details at
+## https://github.com/bagder/everything-curl/blob/master/usingcurl-netrc.md
+## for example of encode portal. look at the following .netrc contents
+## machine www.encodeproject.org
+## login ZSFDUCEJ
+## password YOUR_PASSWORD
+
+#use-netrc=True
 
 ############# Cromwell's built-in HyperSQL database settings
 ## DB file prefix path
@@ -253,10 +266,22 @@ def parse_caper_arguments():
         title='HTTP/HTTPS authentication arguments')
     group_http.add_argument(
         '--http-user',
-        help='Username to directly download data from URLs')
+        help='Username to download data from private URLs. '
+             'SECURITY WARNING: '
+             'Your username will be exposed in a command line so that '
+             'other users on your system can see it with "ps" command.')
     group_http.add_argument(
         '--http-password',
-        help='Password to directly download data from URLs')
+        help='Password to to download data from private URLs. '
+             'SECURITY WARNING: '
+             'Your password will be exposed in a command line so that '
+             'other users on your system can see it with "ps" command.')
+    group_http.add_argument(
+        '--use-netrc', action='store_true',
+        help='RECOMMENDED: Use ~/.netrc for HTTP/HTTPS authentication. '
+             'See details about how to make a ~/.netrc file at '
+             'https://github.com/bagder/everything-curl/blob/master/'
+             'usingcurl-netrc.md')
 
     # run, submit
     parent_submit = argparse.ArgumentParser(add_help=False)
@@ -474,6 +499,10 @@ def parse_caper_arguments():
     no_file_db = args_d.get('no_file_db')
     if no_file_db is not None and isinstance(no_file_db, str):
         args_d['no_file_db'] = bool(strtobool(no_file_db))
+
+    use_netrc = args_d.get('use_netrc')
+    if use_netrc is not None and isinstance(use_netrc, str):
+        args_d['use_netrc'] = bool(strtobool(use_netrc))
 
     # int string to int
     max_concurrent_tasks = args_d.get('max_concurrent_tasks')
