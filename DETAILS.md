@@ -64,10 +64,13 @@ We highly recommend to use a default configuration file described in the section
 
 * Private URLs settings. This is useful, particularly for [ENCODE portal](https://www.encodeproject.org/), to use private URLs (`http(s)://`) in your input JSON.
 
+> **SERCURITY WARNING**: We recommend to use `--use-netrc` instead of `--http-user` and `--http-password` since the latter can be exposed in a command line visible by other users on the system with `ps` command. Keep your `~/.netrc` secure.
+
 	**Conf. file**|**Cmd. line**|**Description**
 	:-----|:-----|:-----
-	http-user|--http-user|HTTP Auth username to download data from private URLs
-	http-password|--http-password|HTTP Auth password to download data from private URLs
+	http-user|--http-user|NOT SECURE. HTTP Auth username to download data from private URLs
+	http-password|--http-password|NOT SECURE. HTTP Auth password to download data from private URLs
+	use-netrc|--use-netrc|RECOMMENDED: Use ~/.netrc
 
 * MySQL settings. Run a MySQL server with [shell scripts](/mysql) we provide and make Cromwell server connect to it instead of using its in-memory database. This is useful when you need to re-use outputs from previous failed workflows when you resume them.
 
