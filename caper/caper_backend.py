@@ -218,9 +218,9 @@ class CaperBackendLocal(dict):
     """
     SUBMIT = """
         ${if defined(singularity) then "" else "/bin/bash ${script} #"} \
-        if [ -z $SINGULARITY_BINDPATH ]; then \
+        if [ -z "$SINGULARITY_BINDPATH" ]; then \
         export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
-        if [ -z $SINGULARITY_CACHEDIR ]; then \
+        if [ -z "$SINGULARITY_CACHEDIR" ]; then \
         export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
         singularity exec --cleanenv --home ${cwd} \
         ${if defined(gpu) then '--nv' else ''} \
@@ -291,18 +291,15 @@ class CaperBackendSLURM(dict):
         ${slurm_extra_param} \
         --wrap "${if defined(singularity) then '' else \
             '/bin/bash ${script} #'} \
-            if [ -z $SINGULARITY_BINDPATH ]; then \
+            if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then \
             export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
-            if [ -z $SINGULARITY_CACHEDIR ]; then \
+            if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then \
             export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
             singularity exec --cleanenv --home ${cwd} \
             ${if defined(gpu) then '--nv' else ''} \
             ${singularity} /bin/bash ${script}"
     """
-    CHECK_ALIVE = """
-        CHK_ALIVE=$(squeue --noheader -j ${job_id}); if [ -z $CHK_ALIVE ]; \
-        then /bin/bash -c 'exit 1'; else echo $CHK_ALIVE; fi
-    """
+    CHECK_ALIVE = "squeue -j ${job_id}"
     TEMPLATE = {
         "backend": {
             "providers": {
@@ -363,9 +360,9 @@ class CaperBackendSGE(dict):
     """
     SUBMIT = """
         echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
-        if [ -z $SINGULARITY_BINDPATH ]; then \
+        if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then \
         export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
-        if [ -z $SINGULARITY_CACHEDIR ]; then \
+        if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then \
         export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
         singularity exec --cleanenv --home ${cwd} \
         ${if defined(gpu) then '--nv' else ''} \
@@ -455,9 +452,9 @@ class CaperBackendPBS(dict):
     """
     SUBMIT = """
         echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
-        if [ -z $SINGULARITY_BINDPATH ]; then \
+        if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then \
         export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
-        if [ -z $SINGULARITY_CACHEDIR ]; then \
+        if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then \
         export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
         singularity exec --cleanenv --home ${cwd} \
         ${if defined(gpu) then '--nv' else ''} \
