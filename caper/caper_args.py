@@ -139,9 +139,12 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 #pbs-queue=q
 #pbs-extra-param=
 
+############# Misc. settings
 ## list workflow format
 #format=id,status,name,str_label,submission
 
+## for troubleshooting, show successully completed tasks too
+#show-completed-task=True
 """
 
 
@@ -418,6 +421,11 @@ def parse_caper_arguments():
         '"name" (WDL/CWL name), "submission" (date/time), "start", "end". '
         '"str_label" is a special key for Caper. See help context '
         'of "--str-label" for details')
+    # troubleshoot
+    parent_troubleshoot = argparse.ArgumentParser(add_help=False)
+    parent_troubleshoot.add_argument(
+        '--show-completed-task', action='store_true',
+        help='Show information about completed tasks.')
 
     p_run = subparser.add_parser(
         'run', help='Run a single workflow without server',
@@ -447,7 +455,7 @@ def parse_caper_arguments():
         'troubleshoot',
         help='Troubleshoot workflow problems from metadata JSON file or '
              'workflow IDs',
-        parents=[parent_server_client, parent_search_wf])
+        parents=[parent_troubleshoot, parent_server_client, parent_search_wf])
 
     for p in [p_run, p_server, p_submit, p_abort, p_unhold, p_list,
               p_metadata, p_troubleshoot]:
@@ -503,6 +511,10 @@ def parse_caper_arguments():
     use_netrc = args_d.get('use_netrc')
     if use_netrc is not None and isinstance(use_netrc, str):
         args_d['use_netrc'] = bool(strtobool(use_netrc))
+
+    show_completed_task = args_d.get('show_completed_task')
+    if show_completed_task is not None and isinstance(show_completed_task, str):
+        args_d['show_completed_task'] = bool(strtobool(show_completed_task))
 
     # int string to int
     max_concurrent_tasks = args_d.get('max_concurrent_tasks')

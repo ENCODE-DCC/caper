@@ -73,6 +73,9 @@ class Caper(object):
     RE_PATTERN_WORKFLOW_ID = \
         r'\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b'
     RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s+as\s+'
+    # RE_PATTERN_DB_ERROR = r'db - Connection is not available'
+    USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
+
     SEC_INTERVAL_UPDATE_METADATA = 240.0
     # added to cromwell labels file
     KEY_CAPER_STR_LABEL = 'caper-str-label'
@@ -140,6 +143,9 @@ class Caper(object):
         self._mysql_db_port = args.get('mysql_db_port')
         self._mysql_db_user = args.get('mysql_db_user')
         self._mysql_db_password = args.get('mysql_db_password')
+
+        # troubleshoot
+        self._show_completed_task = args.get('show_completed_task')
 
         # backend and default backend
         self._backend = args.get('backend')
@@ -239,6 +245,7 @@ class Caper(object):
         except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
+            print(Caper.USER_INTERRUPT_WARNING)
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
                 print(stdout)
@@ -257,7 +264,8 @@ class Caper(object):
         # troubleshoot if metadata is available
         if metadata_uri is not None:
             Caper.__troubleshoot(
-                CaperURI(metadata_uri).get_local_file())
+                CaperURI(metadata_uri).get_local_file(),
+                self._show_completed_task)
 
         print('[Caper] run: ', rc, workflow_id, metadata_uri)
         return workflow_id
@@ -316,6 +324,7 @@ class Caper(object):
         except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
+            print(Caper.USER_INTERRUPT_WARNING)
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
                 print(stdout)
@@ -443,7 +452,7 @@ class Caper(object):
             metadatas.extend(self.metadata())
 
         for metadata in metadatas:
-            Caper.__troubleshoot(metadata)
+            Caper.__troubleshoot(metadata, self._show_completed_task)
 
     def __write_metadata_jsons(self, workflow_ids):
         try:
@@ -471,23 +480,45 @@ class Caper(object):
                   str(e), workflow_ids)
         return False
 
+    # @staticmethod
+    # def __troubleshoot_from_cromwell_stdout(stdout):
+    #     """Troubleshoot from STDOUT of Cromwell
+    #     """
+    #     for line in stdout.strip('\n').split('\n'):
+    #         # File DB error due to locked DB file
+    #         r = re.findall(Caper.RE_PATTERN_DB_ERROR, line)
+    #         if len(r) > 0:
+    #             print('[Caper] troubleshoot: DB file is locked. '
+    #                   'Did you try to run (caper run) multiple workflows '
+    #                   'with the same file DB (--file-db)? '
+    #                   'Try with a different --file-db. Or try without file DB'
+    #                   ' (--no-file-db).'
+    #                   'But you will not be able to re-use cached results '
+    #                   'without a file DB.')
+    #     return
+
     @staticmethod
-    def __troubleshoot(metadata_json):
+    def __troubleshoot(metadata_json, show_completed_task=False):
+        """Troubleshoot from metadata JSON obj/file
+        """
         if isinstance(metadata_json, dict):
             metadata = metadata_json
         else:
             f = CaperURI(metadata_json).get_local_file()
             with open(f, 'r') as fp:
                 metadata = json.loads(fp.read())
+        if isinstance(metadata, list):
+            metadata = metadata[0]
+
         workflow_id = metadata['id']
         workflow_status = metadata['status']
         print('[Caper] troubleshooting {} ...'.format(workflow_id))
-        if workflow_status == 'Succeeded':
+        if not show_completed_task and workflow_status == 'Succeeded':
             print('This workflow ran successfully. '
                   'There is nothing to troubleshoot')
             return
 
-        def recurse_calls(calls, failures=None):
+        def recurse_calls(calls, failures=None, show_completed_task=False):
             if failures is not None:
                 s = json.dumps(failures, indent=4)
                 print('Found failures:\n{}'.format(s))
@@ -499,31 +530,49 @@ class Caper(object):
                         recurse_calls(
                             subworkflow['calls'],
                             subworkflow['failures']
-                            if 'failures' in subworkflow else None)
+                            if 'failures' in subworkflow else None,
+                            show_completed_task)
                         continue
                     task_status = call['executionStatus']
-                    rc = call['returnCode'] if 'returnCode' in call else None
-                    stdout = call['stdout'] if 'stdout' in call else None
-                    stderr = call['stderr']
                     shard_index = call['shardIndex']
-                    if task_status in ('Done', 'Succeeded'):
-                        continue
-                    elif task_status in ('Failed',):
-                        local_stderr_f = CaperURI(stderr).get_local_file()
-                        with open(local_stderr_f, 'r') as fp:
-                            s = fp.read()
-                        print('\n{}[{}] Failed. RC={}, STDOUT={}, STDERR={}'
-                              .format(task_name, shard_index, rc,
-                                      stdout, stderr))
-                        if s != '':
-                            print('STDERR_CONTENTS=\n{}'.format(s))
+                    rc = call['returnCode'] if 'returnCode' in call else None
+                    job_id = call['jobId'] if 'stderr' in call else None
+                    stdout = call['stdout'] if 'stdout' in call else None
+                    stderr = call['stderr'] if 'stderr' in call else None
+                    if 'executionEvents' in call:
+                        for ev in call['executionEvents']:
+                            if ev['description'].startswith('Running'):
+                                run_start = ev['startTime']
+                                run_end = ev['endTime']
+                                break
                     else:
-                        print('\n{}[{}] {}'.format(task_name, shard_index,
-                                                   task_status))
+                        run_start = None
+                        run_end = None
+
+                    if stderr is not None:
+                        cu = CaperURI(stderr)
+                        if cu.file_exists():
+                            local_stderr_f = cu.get_local_file()
+                            with open(local_stderr_f, 'r') as fp:
+                                stderr_contents = fp.read()
+                        else:
+                            stderr_contents = None
+                    else:
+                        stderr_contents = None
+
+                    if not show_completed_task and task_status in ('Done', 'Succeeded'):
+                        continue
+                    print('\n{} {}. SHARD_IDX={}, RC={}, JOBID={}, '
+                          'RUN_START={}, RUN_END={}, '
+                          'STDOUT={}, STDERR={}'.format(
+                            task_name, task_status, shard_index, rc, job_id,
+                            run_start, run_end, stdout, stderr))
+                    if stderr_contents is not None:
+                        print('STDERR_CONTENTS=\n{}'.format(stderr_contents))
 
         calls = metadata['calls']
         failures = metadata['failures'] if 'failures' in metadata else None
-        recurse_calls(calls, failures)
+        recurse_calls(calls, failures, show_completed_task)
 
     @staticmethod
     def __find_singularity_bindpath(input_json_file):
