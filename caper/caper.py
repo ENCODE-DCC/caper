@@ -387,14 +387,15 @@ class Caper(object):
         print("[Caper] unhold: ", r)
         return r
 
-    def metadata(self):
+    def metadata(self, no_print=False):
         """Retrieve metadata for workflows from a Cromwell server
         """
         m = self._cromwell_rest_api.get_metadata(
                 self._wf_id_or_label,
                 [(Caper.KEY_CAPER_STR_LABEL, v)
                  for v in self._wf_id_or_label])
-        print(json.dumps(m, indent=4))
+        if not no_print:
+            print(json.dumps(m, indent=4))
         return m
 
     def list(self):
@@ -449,7 +450,7 @@ class Caper(object):
 
         if len(wf_id_or_label) > 0:
             self._wf_id_or_label = wf_id_or_label
-            metadatas.extend(self.metadata())
+            metadatas.extend(self.metadata(no_print=True))
 
         for metadata in metadatas:
             Caper.__troubleshoot(metadata, self._show_completed_task)
@@ -536,7 +537,7 @@ class Caper(object):
                     task_status = call['executionStatus']
                     shard_index = call['shardIndex']
                     rc = call['returnCode'] if 'returnCode' in call else None
-                    job_id = call['jobId'] if 'stderr' in call else None
+                    job_id = call['jobId'] if 'jobId' in call else None
                     stdout = call['stdout'] if 'stdout' in call else None
                     stderr = call['stderr'] if 'stderr' in call else None
                     if 'executionEvents' in call:
@@ -549,26 +550,21 @@ class Caper(object):
                         run_start = None
                         run_end = None
 
+                    if not show_completed_task and task_status in ('Done', 'Succeeded'):
+                        continue
+                    print('\n{} {}. SHARD_IDX={}, RC={}, JOB_ID={}, '
+                          'RUN_START={}, RUN_END={}, '
+                          'STDOUT={}, STDERR={}'.format(
+                            task_name, task_status, shard_index, rc, job_id,
+                            run_start, run_end, stdout, stderr))
+
                     if stderr is not None:
                         cu = CaperURI(stderr)
                         if cu.file_exists():
                             local_stderr_f = cu.get_local_file()
                             with open(local_stderr_f, 'r') as fp:
                                 stderr_contents = fp.read()
-                        else:
-                            stderr_contents = None
-                    else:
-                        stderr_contents = None
-
-                    if not show_completed_task and task_status in ('Done', 'Succeeded'):
-                        continue
-                    print('\n{} {}. SHARD_IDX={}, RC={}, JOBID={}, '
-                          'RUN_START={}, RUN_END={}, '
-                          'STDOUT={}, STDERR={}'.format(
-                            task_name, task_status, shard_index, rc, job_id,
-                            run_start, run_end, stdout, stderr))
-                    if stderr_contents is not None:
-                        print('STDERR_CONTENTS=\n{}'.format(stderr_contents))
+                            print('STDERR_CONTENTS=\n{}'.format(stderr_contents))
 
         calls = metadata['calls']
         failures = metadata['failures'] if 'failures' in metadata else None
