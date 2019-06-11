@@ -289,20 +289,6 @@ According to your chosen backend, define the following parameters in your defaul
 
 Run Caper. Make sure to keep your SSH session alive.
 
-> **Run mode on HPCs**: We don't recommend to run it on a login node. Caper/Cromwell will be killed while building a local Singularity image or deepcopying remote files. Also Cromwell is a Java application which is not lightweight. Reserve an interactive node with `srun` or `qlogin` with at least one CPU, 1GB RAM and long enough walltime first.
-
-1) SLURM: 1 cpu, 2GB of RAM and 7 days of walltime. `--partition` and `--account` are optional and depend on your cluster's SLURM configuration.
-
-	```bash
-	$ srun -n 1 --mem 2G -t 7-0 --partition [YOUR_SLURM_PARTITON] --account [YOUR_SLURM_ACCOUNT] --qos normal --pty /bin/bash -i -l 
-	```
-
-2) SGE: 1 cpu, 2GB of RAM and 7 days of walltime.
-
-	```bash
-	$ qlogin -l h_rt=144:00:00 -l h_vmem=2G
-	```
-
 `--deepcopy` is optional for input JSON file with remote URIs defined in it. Those URIs (`http(s)://`, `s3://`, `gs://`, ...) will be recursively copied into a target storage for a corresponding chosen backend. For example, GCS bucket (`gs://`) for GCP backend (`gcp`).
 
 ```bash
@@ -310,8 +296,6 @@ $ caper run [WDL] -i [INPUT_JSON] --deepcopy
 ```
 
 Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive.
-
-> **Server/client mode on HPCs**: We recommend to run a server on a non-login node with at least one CPU, 2GB RAM and long enough walltime. Take IP address of your compute node and update your default configuration file with it. If there is any conflicting port, then change port in your configuration file.
 
 ```bash
 $ hostname  # get IP address or hostname of a compute/login node
@@ -340,6 +324,63 @@ $ caper run [WDL] -i [INPUT_JSON] --use-docker
 
 ```bash
 $ caper run [WDL] -i [INPUT_JSON] --docker [DOCKER_IMAGE_URI]
+```
+
+## HPCs
+
+> **Run mode on HPCs**: We don't recommend to run Caper on a login node. Caper/Cromwell will be killed while building a local Singularity image or deepcopying remote files. Also Cromwell is a Java application which is not lightweight.
+
+You are not submitting workflows to your cluster engine (e.g. SLURM). You are submitting Caper to the engine and Caper will work as another job manager which `will `sbatch` and `qsub` subtasks defined in WDL. So don't give Caper too much resource. one CPU, 1GB RAM and long enough walltime will be enough.
+
+For Caper run mode, you cannot `caper run` multiple workflows with a single `--file-db` because they will try to write on the same DB file. Give each workflow a different `--file-db`. `--file-db` is important when you want to resume your failed workflows and automatically re-use outputs from previous workflows.
+
+1) SLURM: 1 cpu, 2GB of RAM and 7 days of walltime. `--partition` (e.g. Stanford Sherlock) and `--account` (e.g. Stanford SCG) are optional and depend on your cluster's SLURM configuration.
+
+	```bash
+	$ sbatch -n 1 --mem 2G -t 7-0 --partition [YOUR_SLURM_PARTITON] --account [YOUR_SLURM_ACCOUNT] --wrap "caper run [WDL] -i [INPUT_JSON] [YOUR_CAPER_RUN_EXTRA_PARAMS] --file-db [YOUR_FILE_DB]"
+	```
+
+2) SGE: 1 cpu, 2GB of RAM and 7 days of walltime.
+
+	```bash
+	$ echo "caper run [WDL] -i [INPUT_JSON] [YOUR_CAPER_RUN_EXTRA_PARAMS] --file-db [YOUR_FILE_DB]" | qsub -l h_rt=144:00:00 -l h_vmem=2G
+	```
+
+> **Server/client mode on HPCs**: We recommend to run a server on a non-login node with at least one CPU, 2GB RAM and long enough walltime. Take IP address of your compute node and update your default configuration file with it. If there is any conflicting port, then change port in your configuration file. If default port 8000 is already taken the try with another port.
+
+For Caper server mode, you can submit multiple workflows with a single `--file-db`.
+
+1) SLURM: 1 cpu, 2GB of RAM and 7 days of walltime. `--partition` (e.g. Stanford Sherlock) and `--account` (e.g. Stanford SCG) are optional and depend on your cluster's SLURM configuration.
+
+	```bash
+	$ sbatch -n 1 --mem 2G -t 7-0 --partition [YOUR_SLURM_PARTITON] --account [YOUR_SLURM_ACCOUNT] --wrap "caper server --port 8000 [YOUR_CAPER_SERVER_EXTRA_PARAMS]"
+
+	# get hostname of Cromwell server 
+	$ squeue -u $USER
+	```
+
+	For example on Stanford Sherlock. Hostname is `sh-102-32` for this example.
+	```bash
+	[leepc12@sh-ln07 login ~]$ sbatch -n 1 --mem 3G -t 7-0 -p akundaje -o ~/caper_server.o -e ~/caper_server.e --wrap "caper server --port 8000"
+	Submitted batch job 44439486
+
+	[leepc12@sh-ln07 login ~]$ squeue -u $USER
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+          44439486  akundaje     wrap  leepc12  R       2:34      1 sh-102-32
+	```
+
+2) SGE: 1 cpu, 2GB of RAM and 7 days of walltime.
+
+	```bash
+	$ echo "caper server --port 8000 [YOUR_CAPER_SERVER_EXTRA_PARAMS] --file-db [YOUR_FILE_DB]" | qsub -l h_rt=144:00:00 -l h_vmem=2G
+
+	# get hostname of Cromwell server 
+	$ qstat
+	```
+
+Submit workflows to the server.
+```bash
+$ caper submit [WDL] -i [INPUT_JSPN] -s [ANY_LABEL_FOR_WORKFLOW] --ip [SERVER_HOSTNAME] --port 8000
 ```
 
 
