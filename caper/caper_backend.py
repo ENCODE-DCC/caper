@@ -299,7 +299,9 @@ class CaperBackendSLURM(dict):
             ${if defined(gpu) then '--nv' else ''} \
             ${singularity} /bin/bash ${script}"
     """
-    CHECK_ALIVE = "squeue -j ${job_id}"
+    CHECK_ALIVE = """CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id}); if [ -z "$CHK_ALIVE" ]; \
+then /bin/bash -c 'exit 1'; else echo $CHK_ALIVE; fi"""
+
     TEMPLATE = {
         "backend": {
             "providers": {
