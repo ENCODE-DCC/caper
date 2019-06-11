@@ -26,7 +26,6 @@ We highly recommend to use a default configuration file described in the section
 	--file-db|DB file for Cromwell's built-in HyperSQL database
 	--no-file-db|Do not use file-db. Call-caching (re-using outputs) will be disabled
 
-
 * Choose a default backend. Use `--deepcopy` to recursively auto-copy data files in your input JSON file. All data files will be automatically transferred to a target local/remote storage corresponding to a chosen backend. Make sure that you correctly configure temporary directories for source/target storages (`--tmp-dir`, `--tmp-gcs-bucket` and `--tmp-s3-bucket`).
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
@@ -92,6 +91,12 @@ We highly recommend to use a default configuration file described in the section
 	max-concurrent-workflows|--max-concurrent-workflows|40|Maximum number of concurrent workflows
 	disable-call-caching|--disable-call-caching| |Disable Cromwell's call-caching (re-using outputs)
 	backend-file|--backend-file| |Custom Cromwell backend conf file. This will override Caper's built-in backends
+
+* Troubleshoot parameters for `caper troubleshoot` subcommand.
+
+	**Cmd. line**|**Description**
+	:-----|:-----
+	--show-completed-task|Show completed tasks when troubleshooting
 
 * SLURM backend settings. This is useful for Stanford Clusters (Sherlock, SCG). Define `--slurm-partition` for Sherlock and `--slurm-account` for SCG.
 
