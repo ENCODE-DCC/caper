@@ -647,7 +647,7 @@ class Caper(object):
         if backend == BACKEND_GCP:
             out_dir = self._out_gcs_bucket
         elif backend == BACKEND_AWS:
-            out_dir = self._out_aws_bucket
+            out_dir = self._out_s3_bucket
         else:
             out_dir = self._out_dir
 
