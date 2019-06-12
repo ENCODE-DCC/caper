@@ -31,6 +31,10 @@ class CaperBackendCommon(dict):
             }
         },
         "system": {
+            "job-rate-control": {
+                "jobs": 1,
+                "per": "2 seconds"
+            },
             "abort-jobs-on-terminate": True,
             "graceful-server-shutdown": True,
             "max-concurrent-workflows": 40
@@ -97,8 +101,8 @@ class CaperBackendGCP(dict):
         "backend": {
             "providers": {
                 BACKEND_GCP: {
-                    "actor-factory": "cromwell.backend.impl.jes."
-                    "JesBackendLifecycleActorFactory",
+                    "actor-factory": "cromwell.backend.google.pipelines.v1alpha2."
+                    "PipelinesApiLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
                         },
