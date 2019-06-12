@@ -269,7 +269,7 @@ class CaperURI(object):
             # if target file not exists or file sizes are different
             # then do copy!
             if not cu_target.file_exists() or \
-                     self.get_file_size() != cu_target.get_file_size():
+                    self.get_file_size() != cu_target.get_file_size():
 
                 action = 'done'
                 cu_lock = CaperURI(path + CaperURI.LOCK_EXT)
@@ -283,10 +283,12 @@ class CaperURI(object):
 
                     elif uri_type == URI_GCS:
                         if self._uri_type == URI_URL:
-                            tmp_local_f = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
+                            tmp_local_f = CaperURI(self._uri).get_file(
+                                uri_type=URI_LOCAL)
                             CaperURI(tmp_local_f).copy(target_uri=path)
 
-                        elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
+                        elif self._uri_type == URI_GCS or \
+                                self._uri_type == URI_S3 \
                                 or self._uri_type == URI_LOCAL:
                             check_call(['gsutil', '-q', 'cp', self._uri, path])
                         else:
@@ -294,17 +296,21 @@ class CaperURI(object):
 
                     elif uri_type == URI_S3:
                         if self._uri_type == URI_URL:
-                            tmp_local_f = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
+                            tmp_local_f = CaperURI(self._uri).get_file(
+                                uri_type=URI_LOCAL)
                             CaperURI(tmp_local_f).copy(target_uri=path)
 
                         elif self._uri_type == URI_GCS:
                             check_call(['gsutil', '-q', 'cp', self._uri, path])
 
-                        elif self._uri_type == URI_S3 or self._uri_type == URI_LOCAL:
+                        elif self._uri_type == URI_S3 or \
+                                self._uri_type == URI_LOCAL:
                             if CaperURI.USE_GSUTIL_OVER_AWS_S3:
-                                check_call(['gsutil', '-q', 'cp', self._uri, path])
+                                check_call(['gsutil', '-q', 'cp',
+                                            self._uri, path])
                             elif not CaperURI.__file_exists(path):
-                                check_call(['aws', 's3', 'cp', '--only-show-errors',
+                                check_call(['aws', 's3', 'cp',
+                                            '--only-show-errors',
                                             self._uri, path])
                         else:
                             path = None
@@ -327,8 +333,8 @@ class CaperURI(object):
 
                         elif self._uri_type == URI_URL:
                             # we need "curl -C -" to resume downloading
-                            # but it always fails with HTTP ERR 416 when file is
-                            # already fully downloaded, i.e. path exists
+                            # but it always fails with HTTP ERR 416 when file
+                            # is already fully downloaded, i.e. path exists
                             _, _, _, http_err = CaperURI.__curl_auto_auth(
                                 ['curl', '-RL', '-f', '-C', '-',
                                  self._uri, '-o', path],
@@ -342,13 +348,15 @@ class CaperURI(object):
                             check_call(['gsutil', '-q', 'cp', self._uri, path])
                         elif self._uri_type == URI_S3:
                             if not CaperURI.__file_exists(path):
-                                check_call(['aws', 's3', 'cp', '--only-show-errors',
+                                check_call(['aws', 's3', 'cp',
+                                            '--only-show-errors',
                                             self._uri, path])
                         else:
                             path = None
 
                     else:
-                        raise NotImplementedError('uri_type: {}'.format(uri_type))
+                        raise NotImplementedError('uri_type: {}'.format(
+                            uri_type))
 
                     if path is None:
                         raise NotImplementedError('uri_types: {}, {}'.format(
@@ -646,7 +654,7 @@ class CaperURI(object):
 
         elif self._uri_type == URI_S3:
             return check_call(['aws', 's3', 'rm', '--only-show-errors',
-                                 self._uri])
+                               self._uri])
 
         elif self._uri_type == URI_LOCAL:
             os.remove(self._uri)

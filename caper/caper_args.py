@@ -519,7 +519,8 @@ def parse_caper_arguments():
         args_d['use_netrc'] = bool(strtobool(use_netrc))
 
     show_completed_task = args_d.get('show_completed_task')
-    if show_completed_task is not None and isinstance(show_completed_task, str):
+    if show_completed_task is not None and \
+            isinstance(show_completed_task, str):
         args_d['show_completed_task'] = bool(strtobool(show_completed_task))
 
     # int string to int
