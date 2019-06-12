@@ -15,7 +15,7 @@ from distutils.util import strtobool
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_FILE_DB = '~/.caper/default_file_db'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
-DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar'
+DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/42/cromwell-42.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
 DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
