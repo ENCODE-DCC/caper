@@ -89,6 +89,7 @@ We highly recommend to use a default configuration file described in the section
 	cromwell|--cromwell|[cromwell-40.jar](https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar)|Path or URL for Cromwell JAR file
 	max-concurrent-tasks|--max-concurrent-tasks|1000|Maximum number of concurrent tasks
 	max-concurrent-workflows|--max-concurrent-workflows|40|Maximum number of concurrent workflows
+	max-retries|--max-retries|1|Maximum number of retries for failing tasks
 	disable-call-caching|--disable-call-caching| |Disable Cromwell's call-caching (re-using outputs)
 	backend-file|--backend-file| |Custom Cromwell backend conf file. This will override Caper's built-in backends
 

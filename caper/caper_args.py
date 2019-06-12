@@ -20,6 +20,7 @@ DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
 DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
 DEFAULT_MAX_CONCURRENT_TASKS = 1000
+DEFAULT_MAX_RETRIES = 1
 DEFAULT_PORT = 8000
 DEFAULT_IP = 'localhost'
 DEFAULT_FORMAT = 'id,status,name,str_label,submission'
@@ -230,6 +231,11 @@ def parse_caper_arguments():
         type=int,
         help='Number of concurrent workflows. '
              '"system.max-concurrent-workflows" in backend configuration')
+    group_cromwell.add_argument(
+        '--max-retries', default=DEFAULT_MAX_RETRIES,
+        type=int,
+        help='Number of retries for failing tasks. '
+             'equivalent to "maxRetries" in workflow options JSON file.')
     group_cromwell.add_argument(
         '--disable-call-caching', action='store_true',
         help='Disable Cromwell\'s call caching, which re-uses outputs from '
@@ -526,6 +532,11 @@ def parse_caper_arguments():
     if max_concurrent_workflows is not None \
             and isinstance(max_concurrent_workflows, str):
         args_d['max_concurrent_workflows'] = int(max_concurrent_workflows)
+
+    max_retries = args_d.get('max_retries')
+    if max_retries is not None \
+            and isinstance(max_retries, str):
+        args_d['max_retries'] = int(max_retries)
 
     # init some important path variables
     if args_d.get('out_dir') is None:

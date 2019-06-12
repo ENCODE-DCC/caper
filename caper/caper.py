@@ -103,6 +103,7 @@ class Caper(object):
         self._disable_call_caching = args.get('disable_call_caching')
         self._max_concurrent_workflows = args.get('max_concurrent_workflows')
         self._max_concurrent_tasks = args.get('max_concurrent_tasks')
+        self._max_retries = args.get('max_retries')
         self._tmp_dir = args.get('tmp_dir')
         self._out_dir = args.get('out_dir')
         if self._out_dir is not None:
@@ -813,6 +814,10 @@ class Caper(object):
         if self._sge_extra_param is not None:
             template['default_runtime_attributes']['sge_extra_param'] = \
                 self._sge_extra_param
+
+        if self._max_retries is not None:
+            template['default_runtime_attributes']['maxRetries'] = \
+                self._max_retries
 
         # if workflow opts file is given by a user, merge it to template
         if self._workflow_opts is not None:
