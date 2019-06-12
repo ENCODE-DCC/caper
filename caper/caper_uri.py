@@ -10,6 +10,7 @@ import os
 import errno
 import json
 import shutil
+import time
 import hashlib
 from copy import deepcopy
 from collections import OrderedDict
@@ -92,6 +93,10 @@ class CaperURI(object):
     CURL_HTTP_ERROR_PREFIX = '_CaperURI_HTTP_ERROR_'
     CURL_HTTP_ERROR_WRITE_OUT = CURL_HTTP_ERROR_PREFIX + '%{http_code}'
     RE_PATTERN_CURL_HTTP_ERR = r'_CaperURI_HTTP_ERROR_(\d*)'
+
+    LOCK_EXT = '.lock'
+    LOCK_WAIT_SEC = 30
+    LOCK_MAX_ITER = 100
 
     def __init__(self, uri_or_path):
         if CaperURI.TMP_DIR is None:
@@ -183,7 +188,7 @@ class CaperURI(object):
 
         Args:
             target_uri_type, target_uri:
-                these are exclusive. Specify only one of them.
+                these are mutually exclusive. Specify only one of them.
 
             soft_link:
                 soft link target if possible. e.g. from local to local
@@ -215,8 +220,10 @@ class CaperURI(object):
                     method=method,
                     src=self._uri_type, target=uri_type, uri=self._uri))
 
+        # here, path is target path
+        # get target path
         if uri_type == URI_URL:
-            if path is not None:
+            if path is not None:  # since URL is readonly
                 path = None
             elif self._uri_type == URI_GCS:
                 path = 'http://storage.googleapis.com/{}'.format(
@@ -229,91 +236,138 @@ class CaperURI(object):
             if path is None:
                 path = self.__get_gcs_file_name()
 
-            if no_copy:
-                pass
-            elif self._uri_type == URI_URL:
-                tmp_local_f = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
-                CaperURI(tmp_local_f).copy(target_uri=path)
-
-            elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
-                    or self._uri_type == URI_LOCAL:
-                check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
-            else:
-                path = None
-
         elif uri_type == URI_S3:
             if path is None:
                 path = self.__get_s3_file_name()
-
-            if no_copy:
-                pass
-            elif self._uri_type == URI_URL:
-                tmp_local_f = CaperURI(self._uri).get_file(uri_type=URI_LOCAL)
-                CaperURI(tmp_local_f).copy(target_uri=path)
-
-            elif self._uri_type == URI_GCS:
-                check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
-
-            elif self._uri_type == URI_S3 or self._uri_type == URI_LOCAL:
-                if CaperURI.USE_GSUTIL_OVER_AWS_S3:
-                    check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
-                elif not CaperURI.__file_exists(path):
-                    check_call(['aws', 's3', 'cp', '--only-show-errors',
-                                self._uri, path])
-            else:
-                path = None
 
         elif uri_type == URI_LOCAL:
             if path is None:
                 path = self.__get_local_file_name()
             os.makedirs(os.path.dirname(path), exist_ok=True)
 
-            if no_copy:
-                pass
-            elif self._uri_type == URI_LOCAL:
-                if soft_link:
-                    if CaperURI.VERBOSE:
-                        method = 'symlinking'
-                    try:
-                        os.symlink(self._uri, path)
-                    except OSError as e:
-                        if e.errno == errno.EEXIST:
-                            os.remove(path)
-                            os.symlink(self._uri, path)
-                else:
-                    if CaperURI.VERBOSE:
-                        method = 'copying'
-                    shutil.copy2(self._uri, path)
-
-            elif self._uri_type == URI_URL:
-                # we need "curl -C -" to resume downloading
-                # but it always fails with HTTP ERR 416 when file is
-                # already fully downloaded, i.e. path exists
-                CaperURI.__curl_auto_auth(
-                    ['curl', '-RL', '-f', '-C', '-',
-                     self._uri, '-o', path],
-                    ignored_http_err=(416,))
-
-            elif self._uri_type == URI_GCS or \
-                self._uri_type == URI_S3 and \
-                    CaperURI.USE_GSUTIL_OVER_AWS_S3:
-                check_call(['gsutil', '-q', 'cp', '-n', self._uri, path])
-            elif self._uri_type == URI_S3:
-                if not CaperURI.__file_exists(path):
-                    check_call(['aws', 's3', 'cp', '--only-show-errors',
-                                self._uri, path])
-            else:
-                path = None
-
         else:
             raise NotImplementedError('uri_type: {}'.format(uri_type))
 
-        if path is None:
-            raise NotImplementedError('uri_types: {}, {}'.format(
-                self._uri_type, uri_type))
+        action = 'skipped'
+        if not no_copy:
+            assert(path is not None)
+            # wait until .lock file disappears
+            it = 0
+            cu_lock = CaperURI(path + CaperURI.LOCK_EXT)
+            while cu_lock.file_exists():
+                it += 1
+                if it > CaperURI.LOCK_MAX_ITER:
+                    raise Exception('File has been locked for too long.', path)
+                elif CaperURI.VERBOSE:
+                    print('[CaperURI] wait {} sec for file being unlocked. '
+                          'retries: {}, max_retries: {}. uri: {}'.format(
+                            CaperURI.LOCK_WAIT_SEC, it,
+                            CaperURI.LOCK_MAX_ITER, path))
+                time.sleep(CaperURI.LOCK_WAIT_SEC)
+
+            cu_target = CaperURI(path)
+            # if target file not exists or file sizes are different
+            # then do copy!
+            if not cu_target.file_exists() or \
+                    self.get_file_size() != cu_target.get_file_size():
+
+                action = 'done'
+                cu_lock = CaperURI(path + CaperURI.LOCK_EXT)
+                try:
+                    # create an empty .lock file
+                    cu_lock.write_str_to_file('', quiet=True)
+
+                    # do copy
+                    if uri_type == URI_URL:
+                        pass
+
+                    elif uri_type == URI_GCS:
+                        if self._uri_type == URI_URL:
+                            tmp_local_f = CaperURI(self._uri).get_file(
+                                uri_type=URI_LOCAL)
+                            CaperURI(tmp_local_f).copy(target_uri=path)
+
+                        elif self._uri_type == URI_GCS or \
+                                self._uri_type == URI_S3 \
+                                or self._uri_type == URI_LOCAL:
+                            check_call(['gsutil', '-q', 'cp', self._uri, path])
+                        else:
+                            path = None
+
+                    elif uri_type == URI_S3:
+                        if self._uri_type == URI_URL:
+                            tmp_local_f = CaperURI(self._uri).get_file(
+                                uri_type=URI_LOCAL)
+                            CaperURI(tmp_local_f).copy(target_uri=path)
+
+                        elif self._uri_type == URI_GCS:
+                            check_call(['gsutil', '-q', 'cp', self._uri, path])
+
+                        elif self._uri_type == URI_S3 or \
+                                self._uri_type == URI_LOCAL:
+                            if CaperURI.USE_GSUTIL_OVER_AWS_S3:
+                                check_call(['gsutil', '-q', 'cp',
+                                            self._uri, path])
+                            elif not CaperURI.__file_exists(path):
+                                check_call(['aws', 's3', 'cp',
+                                            '--only-show-errors',
+                                            self._uri, path])
+                        else:
+                            path = None
+
+                    elif uri_type == URI_LOCAL:
+                        if self._uri_type == URI_LOCAL:
+                            if soft_link:
+                                if CaperURI.VERBOSE:
+                                    method = 'symlinking'
+                                try:
+                                    os.symlink(self._uri, path)
+                                except OSError as e:
+                                    if e.errno == errno.EEXIST:
+                                        os.remove(path)
+                                        os.symlink(self._uri, path)
+                            else:
+                                if CaperURI.VERBOSE:
+                                    method = 'copying'
+                                shutil.copy2(self._uri, path)
+
+                        elif self._uri_type == URI_URL:
+                            # we need "curl -C -" to resume downloading
+                            # but it always fails with HTTP ERR 416 when file
+                            # is already fully downloaded, i.e. path exists
+                            _, _, _, http_err = CaperURI.__curl_auto_auth(
+                                ['curl', '-RL', '-f', '-C', '-',
+                                 self._uri, '-o', path],
+                                ignored_http_err=(416,))
+                            if http_err in (416,):
+                                action = 'skipped'
+
+                        elif self._uri_type == URI_GCS or \
+                            self._uri_type == URI_S3 and \
+                                CaperURI.USE_GSUTIL_OVER_AWS_S3:
+                            check_call(['gsutil', '-q', 'cp', self._uri, path])
+                        elif self._uri_type == URI_S3:
+                            if not CaperURI.__file_exists(path):
+                                check_call(['aws', 's3', 'cp',
+                                            '--only-show-errors',
+                                            self._uri, path])
+                        else:
+                            path = None
+
+                    else:
+                        raise NotImplementedError('uri_type: {}'.format(
+                            uri_type))
+
+                    if path is None:
+                        raise NotImplementedError('uri_types: {}, {}'.format(
+                            self._uri_type, uri_type))
+                finally:
+                    # remove .lock file
+                    cu_lock.rm(quiet=True)
+
         if CaperURI.VERBOSE:
-            print('[CaperURI] {method} done, target: {target}'.format(
-                    method=method, target=path))
+            print('[CaperURI] {method} {action}, target: {target}'.format(
+                    method=method, action=action, target=path))
         return path
 
     def get_file_contents(self):
@@ -343,8 +397,35 @@ class CaperURI(object):
             raise NotImplementedError('uri_type: {}'.format(
                 self._uri_type))
 
-    def write_str_to_file(self, s):
-        if CaperURI.VERBOSE:
+    def get_file_size(self):
+        """Get file size
+        Returns:
+            File size in bytes or None (for all URLS,
+                hard to estimate file size for redirected URLs)
+        """
+        if self._uri_type == URI_URL:
+            return None
+
+        elif self._uri_type == URI_GCS or self._uri_type == URI_S3 \
+                and CaperURI.USE_GSUTIL_OVER_AWS_S3:
+            s = check_output(['gsutil', '-q', 'ls', '-l', self._uri]).decode()
+            # example ['1000982', '2019-05-21T21:06:47Z', ...]
+            return int(s.strip('\n').split()[0])
+
+        elif self._uri_type == URI_S3:
+            s = check_output(['aws', 's3', 'ls', self._uri]).decode()
+            # example ['2019-05-21', '14:06:47', '1000982', 'x.txt']
+            return int(s.strip('\n').split()[2])
+
+        elif self._uri_type == URI_LOCAL:
+            return os.path.getsize(self._uri)
+
+        else:
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
+
+    def write_str_to_file(self, s, quiet=False):
+        if CaperURI.VERBOSE and not quiet:
             print('[CaperURI] write to '
                   '{target}, target: {uri}, size: {size}'.format(
                     target=self._uri_type, uri=self._uri, size=len(s)))
@@ -562,6 +643,25 @@ class CaperURI(object):
                 NotImplementedError('ext: {}.'.format(ext))
         return self
 
+    def rm(self, quiet=False):
+        """Remove file
+        """
+        if CaperURI.VERBOSE and not quiet:
+            print('[CaperURI] remove {}'.format(self._uri))
+        if self._uri_type == URI_GCS or self._uri_type == URI_S3 \
+                and CaperURI.USE_GSUTIL_OVER_AWS_S3:
+            return check_call(['gsutil', '-q', 'rm', self._uri])
+
+        elif self._uri_type == URI_S3:
+            return check_call(['aws', 's3', 'rm', '--only-show-errors',
+                               self._uri])
+
+        elif self._uri_type == URI_LOCAL:
+            os.remove(self._uri)
+        else:
+            raise NotImplementedError('uri_type: {}'.format(
+                self._uri_type))
+
     @staticmethod
     def __get_uri_type(uri):
         if uri.startswith(('http://', 'https://', 'ftp://')):
@@ -625,12 +725,7 @@ class CaperURI(object):
                     stdout.split(CaperURI.CURL_HTTP_ERROR_PREFIX)[:-1])
             else:
                 http_err = None
-            # if rc > 0:
-            #     m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR,
-            #                    stderr)
-            #     http_err = int(m[0]) if len(m) > 0 else None
-            # else:
-            #     http_err = None
+
             if CaperURI.HTTP_USER is None and not CaperURI.USE_NETRC:
                 # if auth info is not given
                 pass
@@ -663,12 +758,6 @@ class CaperURI(object):
                                 CaperURI.CURL_HTTP_ERROR_WRITE_OUT)[:-1])
                 else:
                     http_err = None
-                # if rc > 0:
-                #     m = re.findall(CaperURI.RE_PATTERN_CURL_HTTP_ERR,
-                #                    stderr)
-                #     http_err = int(m[0]) if len(m) > 0 else None
-                # else:
-                #     http_err = None
 
         except CalledProcessError as e:
             stdout = None

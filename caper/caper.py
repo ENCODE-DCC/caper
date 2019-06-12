@@ -482,23 +482,6 @@ class Caper(object):
                   str(e), workflow_ids)
         return False
 
-    # @staticmethod
-    # def __troubleshoot_from_cromwell_stdout(stdout):
-    #     """Troubleshoot from STDOUT of Cromwell
-    #     """
-    #     for line in stdout.strip('\n').split('\n'):
-    #         # File DB error due to locked DB file
-    #         r = re.findall(Caper.RE_PATTERN_DB_ERROR, line)
-    #         if len(r) > 0:
-    #             print('[Caper] troubleshoot: DB file is locked. '
-    #                   'Did you try to run (caper run) multiple workflows '
-    #                   'with the same file DB (--file-db)? '
-    #                   'Try with a different --file-db. Or try without file DB'
-    #                   ' (--no-file-db).'
-    #                   'But you will not be able to re-use cached results '
-    #                   'without a file DB.')
-    #     return
-
     @staticmethod
     def __troubleshoot(metadata_json, show_completed_task=False):
         """Troubleshoot from metadata JSON obj/file
@@ -551,7 +534,8 @@ class Caper(object):
                         run_start = None
                         run_end = None
 
-                    if not show_completed_task and task_status in ('Done', 'Succeeded'):
+                    if not show_completed_task and \
+                            task_status in ('Done', 'Succeeded'):
                         continue
                     print('\n{} {}. SHARD_IDX={}, RC={}, JOB_ID={}, '
                           'RUN_START={}, RUN_END={}, '
@@ -565,7 +549,8 @@ class Caper(object):
                             local_stderr_f = cu.get_local_file()
                             with open(local_stderr_f, 'r') as fp:
                                 stderr_contents = fp.read()
-                            print('STDERR_CONTENTS=\n{}'.format(stderr_contents))
+                            print('STDERR_CONTENTS=\n{}'.format(
+                                stderr_contents))
 
         calls = metadata['calls']
         failures = metadata['failures'] if 'failures' in metadata else None

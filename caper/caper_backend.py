@@ -84,8 +84,9 @@ class CaperBackendDatabase(dict):
             db = self['database']['db']
             db['user'] = mysql_user
             db['password'] = mysql_password
-            db['url'] = db['url'].replace('localhost:3306', '{ip}:{port}'.format(
-                ip=mysql_ip, port=mysql_port))
+            db['url'] = db['url'].replace(
+                'localhost:3306', '{ip}:{port}'.format(
+                    ip=mysql_ip, port=mysql_port))
         else:
             self['database'] = {}
             if file_db is not None:
@@ -94,6 +95,7 @@ class CaperBackendDatabase(dict):
                     'hsqldb.tx=mvcc'.format(file_db)
                 }
 
+
 class CaperBackendGCP(dict):
     """Google Cloud backend
     """
@@ -101,8 +103,8 @@ class CaperBackendGCP(dict):
         "backend": {
             "providers": {
                 BACKEND_GCP: {
-                    "actor-factory": "cromwell.backend.google.pipelines.v1alpha2."
-                    "PipelinesApiLifecycleActorFactory",
+                    "actor-factory": "cromwell.backend.google.pipelines."
+                    "v1alpha2.PipelinesApiLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
                         },
