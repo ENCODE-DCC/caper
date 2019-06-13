@@ -305,9 +305,9 @@ class CaperBackendSLURM(dict):
             ${if defined(gpu) then '--nv' else ''} \
             ${singularity} /bin/bash ${script}"
     """
-    CHECK_ALIVE = """CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id}); if [ -z "$CHK_ALIVE" ]; \
-then /bin/bash -c 'exit 1'; else echo $CHK_ALIVE; fi"""
-
+    # squeue every 20 second (up to 3 times)
+    # On Stanford Sherlock, squeue didn't work when server is busy
+    CHECK_ALIVE = """for ITER in 1 2 3; do CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id}); if [ -z "$CHK_ALIVE" ]; then if [ "$ITER" == 3 ]; then /bin/bash -c 'exit 1'; else sleep 20; fi; else echo $CHK_ALIVE; break; fi; done"""
     TEMPLATE = {
         "backend": {
             "providers": {
@@ -322,7 +322,7 @@ then /bin/bash -c 'exit 1'; else echo $CHK_ALIVE; fi"""
                         "runtime-attributes": RUNTIME_ATTRIBUTES,
                         "submit": SUBMIT,
                         "kill": "scancel ${job_id}",
-                        "exit-code-timeout-seconds": 180,
+                        "exit-code-timeout-seconds": 360,
                         "check-alive": CHECK_ALIVE,
                         "job-id-regex": "Submitted batch job (\\\\d+).*"
                     }
