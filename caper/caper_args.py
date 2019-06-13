@@ -23,7 +23,7 @@ DEFAULT_MAX_CONCURRENT_TASKS = 1000
 DEFAULT_MAX_RETRIES = 1
 DEFAULT_PORT = 8000
 DEFAULT_IP = 'localhost'
-DEFAULT_FORMAT = 'id,status,name,str_label,submission'
+DEFAULT_FORMAT = 'id,status,name,str_label,user,submission'
 DEFAULT_DEEPCOPY_EXT = 'json,tsv'
 DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 
@@ -142,7 +142,12 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 
 ############# Misc. settings
 ## list workflow format
-#format=id,status,name,str_label,submission
+#format=id,status,name,str_label,user,submission
+
+## hide workflows submitted before
+## use the same date/time format as shown in "caper list"
+## e.g. 2019-06-13, 2019-06-13T10:07
+#hide-result-before=
 
 ## for troubleshooting, show successully completed tasks too
 #show-completed-task=True
@@ -424,9 +429,16 @@ def parse_caper_arguments():
         'subcommand. Any key name in workflow JSON from Cromwell '
         'server\'s response is allowed. '
         'Available keys are "id" (workflow ID), "status", "str_label", '
-        '"name" (WDL/CWL name), "submission" (date/time), "start", "end". '
+        '"name" (WDL/CWL name), "submission" (date/time), "start", '
+        '"end" and "user". '
         '"str_label" is a special key for Caper. See help context '
         'of "--str-label" for details')
+    parent_list.add_argument(
+        '--hide-result-before',
+        help='Hide workflows submitted before this date/time. '
+             'Use the same (or shorter) date/time format shown in '
+             '"caper list". '
+             'e.g. 2019-06-13, 2019-06-13T10:07')
     # troubleshoot
     parent_troubleshoot = argparse.ArgumentParser(add_help=False)
     parent_troubleshoot.add_argument(

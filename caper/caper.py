@@ -17,6 +17,7 @@ Author:
 
 from pyhocon import ConfigFactory, HOCONConverter
 import os
+import pwd
 import json
 import re
 import time
@@ -79,6 +80,7 @@ class Caper(object):
     SEC_INTERVAL_UPDATE_METADATA = 240.0
     # added to cromwell labels file
     KEY_CAPER_STR_LABEL = 'caper-str-label'
+    KEY_CAPER_USER = 'caper-user'
     KEY_CAPER_BACKEND = 'caper-backend'
     TMP_FILE_BASENAME_METADATA_JSON = 'metadata.json'
     TMP_FILE_BASENAME_WORKFLOW_OPTS_JSON = 'workflow_opts.json'
@@ -100,6 +102,7 @@ class Caper(object):
         # self._keep_temp_backend_file = args.get('keep_temp_backend_file')
         self._hold = args.get('hold')
         self._format = args.get('format')
+        self._hide_result_before = args.get('hide_result_before')
         self._disable_call_caching = args.get('disable_call_caching')
         self._max_concurrent_workflows = args.get('max_concurrent_workflows')
         self._max_concurrent_tasks = args.get('max_concurrent_tasks')
@@ -421,6 +424,11 @@ class Caper(object):
         for w in workflows:
             row = []
             workflow_id = w['id'] if 'id' in w else None
+            submission = w['submission']
+
+            if self._hide_result_before is not None:
+                if submission <= self._hide_result_before:
+                    continue
             for f in formats:
                 if f == 'workflow_id':
                     row.append(str(workflow_id))
@@ -428,6 +436,11 @@ class Caper(object):
                     lbl = self._cromwell_rest_api.get_label(
                         workflow_id,
                         Caper.KEY_CAPER_STR_LABEL)
+                    row.append(str(lbl))
+                elif f == 'user':
+                    lbl = self._cromwell_rest_api.get_label(
+                        workflow_id,
+                        Caper.KEY_CAPER_USER)
                     row.append(str(lbl))
                 else:
                     row.append(str(w[f] if f in w else None))
@@ -691,6 +704,8 @@ class Caper(object):
         if self._str_label is not None:
             labels_dict[Caper.KEY_CAPER_STR_LABEL] = \
                 self._str_label
+        username = pwd.getpwuid(os.getuid())[0]
+        labels_dict[Caper.KEY_CAPER_USER] = username
 
         labels_file = os.path.join(directory, fname)
         with open(labels_file, 'w') as fp:
