@@ -158,23 +158,23 @@ class CaperURI(object):
     def file_exists(self):
         return CaperURI.__file_exists(self._uri)
 
-    def get_local_file(self):
+    def get_local_file(self, no_copy=False):
         """Get local version of URI. Make a copy if required
         """
-        return self.get_file(uri_type=URI_LOCAL)
+        return self.get_file(uri_type=URI_LOCAL, no_copy=no_copy)
 
-    def get_gcs_file(self):
+    def get_gcs_file(self, no_copy=False):
         """Get GCS bucket version of URI. Make a copy if required
         """
-        return self.get_file(uri_type=URI_GCS)
+        return self.get_file(uri_type=URI_GCS, no_copy=no_copy)
 
-    def get_s3_file(self):
+    def get_s3_file(self, no_copy=False):
         """Get S3 bucket version of URI. Make a copy if required
         """
-        return self.get_file(uri_type=URI_S3)
+        return self.get_file(uri_type=URI_S3, no_copy=no_copy)
 
-    def get_url(self):
-        return self.get_file(uri_type=URI_URL)
+    def get_url(self, no_copy=False):
+        return self.get_file(uri_type=URI_URL, no_copy=no_copy)
 
     def get_file(self, uri_type, no_copy=False):
         """Get a URI on a specified storage. Make a copy if required
@@ -209,17 +209,6 @@ class CaperURI(object):
         if path is None and uri_type == self._uri_type:
             return self._uri
 
-        if CaperURI.VERBOSE:
-            if soft_link and self._uri_type == URI_LOCAL \
-                    and uri_type == URI_LOCAL:
-                method = 'symlinking'
-            else:
-                method = 'copying'
-            print('[CaperURI] {method} from '
-                  '{src} to {target}, src: {uri}'.format(
-                    method=method,
-                    src=self._uri_type, target=uri_type, uri=self._uri))
-
         # here, path is target path
         # get target path
         if uri_type == URI_URL:
@@ -247,6 +236,31 @@ class CaperURI(object):
 
         else:
             raise NotImplementedError('uri_type: {}'.format(uri_type))
+
+        # special treatment for URL to cloud
+        # URL to local and then local to cloud
+        if uri_type == URI_GCS:
+            if self._uri_type == URI_URL:
+                tmp_local_f = CaperURI(self._uri).get_file(
+                    uri_type=URI_LOCAL, no_copy=no_copy)
+                return CaperURI(tmp_local_f).copy(target_uri=path,
+                                                  no_copy=no_copy)
+        elif uri_type == URI_S3:
+            if self._uri_type == URI_URL:
+                tmp_local_f = CaperURI(self._uri).get_file(
+                    uri_type=URI_LOCAL, no_copy=no_copy)
+                return CaperURI(tmp_local_f).copy(target_uri=path,
+                                                  no_copy=no_copy)
+        if CaperURI.VERBOSE:
+            if soft_link and self._uri_type == URI_LOCAL \
+                    and uri_type == URI_LOCAL:
+                method = 'symlinking'
+            else:
+                method = 'copying'
+            print('[CaperURI] {method} from '
+                  '{src} to {target}, src: {uri}'.format(
+                    method=method,
+                    src=self._uri_type, target=uri_type, uri=self._uri))
 
         action = 'skipped'
         if not no_copy:
@@ -283,9 +297,7 @@ class CaperURI(object):
 
                     elif uri_type == URI_GCS:
                         if self._uri_type == URI_URL:
-                            tmp_local_f = CaperURI(self._uri).get_file(
-                                uri_type=URI_LOCAL)
-                            CaperURI(tmp_local_f).copy(target_uri=path)
+                            assert(False)
 
                         elif self._uri_type == URI_GCS or \
                                 self._uri_type == URI_S3 \
@@ -296,9 +308,7 @@ class CaperURI(object):
 
                     elif uri_type == URI_S3:
                         if self._uri_type == URI_URL:
-                            tmp_local_f = CaperURI(self._uri).get_file(
-                                uri_type=URI_LOCAL)
-                            CaperURI(tmp_local_f).copy(target_uri=path)
+                            assert(False)
 
                         elif self._uri_type == URI_GCS:
                             check_call(['gsutil', '-q', 'cp', self._uri, path])
@@ -558,7 +568,6 @@ class CaperURI(object):
             new_contents.append(delim.join(new_values))
 
         if updated:
-            print(ext)
             new_uri = '{prefix}.{uri_type}{ext}'.format(
                 prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
             s = '\n'.join(new_contents)
@@ -688,9 +697,9 @@ class CaperURI(object):
                         ignored_http_err=(416, 404, 403, 401))
                 elif uri_type == URI_GCS or uri_type == URI_S3 \
                         and CaperURI.USE_GSUTIL_OVER_AWS_S3:
-                    rc = check_call(['gsutil', '-q', 'ls', uri])
+                    rc = check_call(['gsutil', '-q', 'ls', uri], stderr=PIPE)
                 elif uri_type == URI_S3:
-                    rc = check_call(['aws', 's3', 'ls', uri])
+                    rc = check_call(['aws', 's3', 'ls', uri], stderr=PIPE)
                 else:
                     raise NotImplementedError('uri_type: {}'.format(uri_type))
             except CalledProcessError as e:
