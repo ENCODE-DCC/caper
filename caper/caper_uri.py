@@ -318,7 +318,7 @@ class CaperURI(object):
                             if CaperURI.USE_GSUTIL_OVER_AWS_S3:
                                 check_call(['gsutil', '-q', 'cp',
                                             self._uri, path])
-                            elif not CaperURI.__file_exists(path):
+                            else:
                                 check_call(['aws', 's3', 'cp',
                                             '--only-show-errors',
                                             self._uri, path])
@@ -357,10 +357,9 @@ class CaperURI(object):
                                 CaperURI.USE_GSUTIL_OVER_AWS_S3:
                             check_call(['gsutil', '-q', 'cp', self._uri, path])
                         elif self._uri_type == URI_S3:
-                            if not CaperURI.__file_exists(path):
-                                check_call(['aws', 's3', 'cp',
-                                            '--only-show-errors',
-                                            self._uri, path])
+                            check_call(['aws', 's3', 'cp',
+                                        '--only-show-errors',
+                                        self._uri, path])
                         else:
                             path = None
 
@@ -699,7 +698,13 @@ class CaperURI(object):
                         and CaperURI.USE_GSUTIL_OVER_AWS_S3:
                     rc = check_call(['gsutil', '-q', 'ls', uri], stderr=PIPE)
                 elif uri_type == URI_S3:
-                    rc = check_call(['aws', 's3', 'ls', uri], stderr=PIPE)
+                    s = check_output(['aws', 's3', 'ls', uri], stderr=PIPE).decode()
+                    rc = 1
+                    for line in s.strip('\n').split('\n'):
+                        basename = line.split()[-1]
+                        if basename == os.path.basename(uri):
+                            rc = 0
+                            break
                 else:
                     raise NotImplementedError('uri_type: {}'.format(uri_type))
             except CalledProcessError as e:
