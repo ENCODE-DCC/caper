@@ -232,6 +232,18 @@ class CaperBackendLocal(dict):
         ${if defined(gpu) then '--nv' else ''} \
         ${singularity} /bin/bash ${script}
     """
+    SUBMIT_DOCKER = """
+        # make sure there is no preexisting Docker CID file
+        rm -f ${docker_cid}
+        # run as in the original configuration without --rm flag (will remove later)
+        docker run \
+          --cidfile ${docker_cid} \
+          -i \
+          ${"--user " + docker_user} \
+          --entrypoint ${job_shell} \
+          -v ${cwd}:${docker_cwd} \
+          ${docker} ${docker_script}
+    """
     TEMPLATE = {
         "backend": {
             "providers": {
@@ -245,7 +257,8 @@ class CaperBackendLocal(dict):
                         "script-epilogue": "sleep 10 && sync",
                         "concurrent-job-limit": 1000,
                         "runtime-attributes": RUNTIME_ATTRIBUTES,
-                        "submit": SUBMIT
+                        "submit": SUBMIT,
+                        "submit-docker" : SUBMIT_DOCKER
                     }
                 }
             }
