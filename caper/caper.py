@@ -755,24 +755,19 @@ class Caper(object):
             template['backend'] = \
                 self._backend
 
-        # find docker/singularity from WDL or command line args
-        docker_from_wdl = self.__find_docker_from_wdl()
         # automatically add docker_from_wdl for cloud backend
-        if docker_from_wdl is not None \
-                and self._backend in (BACKEND_GCP, BACKEND_AWS):
-            template['default_runtime_attributes']['docker'] = docker_from_wdl
-        elif self._use_docker:
+        if self._use_docker or self._backend in (BACKEND_GCP, BACKEND_AWS):
             if self._docker is None:
-                docker = docker_from_wdl
+                # find docker/singularity from WDL or command line args
+                docker = self.__find_docker_from_wdl()
             else:
                 docker = self._docker
             assert(docker is not None)
             template['default_runtime_attributes']['docker'] = docker
 
-        singularity_from_wdl = self.__find_singularity_from_wdl()
         if self._use_singularity:
             if self._singularity is None:
-                singularity = singularity_from_wdl
+                singularity = self.__find_singularity_from_wdl()
             else:
                 singularity = self._singularity
             assert(singularity is not None)
