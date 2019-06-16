@@ -98,6 +98,10 @@ class Caper(object):
         self._cromwell_rest_api = CromwellRestAPI(
             ip=self._ip, port=self._port, verbose=False)
 
+        # java heap size
+        self._java_heap_server = args.get('java_heap_server')
+        self._java_heap_run = args.get('java_heap_run')
+
         # init others
         # self._keep_temp_backend_file = args.get('keep_temp_backend_file')
         self._hold = args.get('hold')
@@ -213,8 +217,9 @@ class Caper(object):
         metadata_file = os.path.join(
             tmp_dir, Caper.TMP_FILE_BASENAME_METADATA_JSON)
 
+        java_heap = '-Xmx{}'.format(self._java_heap_run)
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
-        cmd = ['java', '-Xmx1G', '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
+        cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
                '-jar', '-Dconfig.file={}'.format(backend_file),
                CaperURI(self._cromwell).get_local_file(), 'run',
                CaperURI(self._wdl).get_local_file(),
@@ -280,8 +285,9 @@ class Caper(object):
         tmp_dir = self.__mkdir_tmp_dir()
         backend_file = self.__create_backend_conf_file(tmp_dir)
 
+        java_heap = '-Xmx{}'.format(self._java_heap_server)
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
-        cmd = ['java', '-Xmx2G', '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
+        cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
                '-jar', '-Dconfig.file={}'.format(backend_file),
                CaperURI(self._cromwell).get_local_file(), 'server']
         print('[Caper] cmd: ', cmd)
@@ -762,7 +768,10 @@ class Caper(object):
                 docker = self.__find_docker_from_wdl()
             else:
                 docker = self._docker
-            assert(docker is not None)
+            if docker is None:
+                raise Exception('Docker image URI must be specified either in '
+                      'cmd line/conf file (--docker) or in WDL (#CAPER docker) '
+                      'for cloud backends (gcp, aws)')
             template['default_runtime_attributes']['docker'] = docker
 
         if self._use_singularity:

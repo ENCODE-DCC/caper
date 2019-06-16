@@ -11,7 +11,8 @@ import sys
 import os
 from distutils.util import strtobool
 
-
+DEFAULT_JAVA_HEAP_SERVER = '5G'
+DEFAULT_JAVA_HEAP_RUN = '1G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_FILE_DB = '~/.caper/default_file_db'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
@@ -31,6 +32,13 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 
 ## default backend
 #backend=local
+
+## cromwell.jar java heap
+## java -Xmx for "caper server"
+#java-heap-server=5G
+
+## java -Xmx for "caper run"
+#java-heap-run=1G
 
 ## Put a hold on submitted jobs.
 ## You need to run "caper unhold [WORKFLOW_ID]" to release hold
@@ -333,11 +341,20 @@ def parse_caper_arguments():
              'environment variable SINGULARITY_CACHEDIR. '
              'Define it to prevent repeatedly building a singularity image '
              'for every pipeline task')
+    # server
+    parent_server = argparse.ArgumentParser(add_help=False)
+    parent_server.add_argument(
+        '--java-heap-server', default=DEFAULT_JAVA_HEAP_SERVER,
+        help='Cromwell Java heap size for "server" mode (java -Xmx)')
+
     # run
     parent_run = argparse.ArgumentParser(add_help=False)
     parent_run.add_argument(
         '-m', '--metadata-output',
         help='An optional directory path to output metadata JSON file')
+    parent_run.add_argument(
+        '--java-heap-run', default=DEFAULT_JAVA_HEAP_RUN,
+        help='Cromwell Java heap size for "run" mode (java -Xmx)')
 
     parent_submit.add_argument(
         '--deepcopy', action='store_true',
@@ -450,7 +467,7 @@ def parse_caper_arguments():
         parents=[parent_submit, parent_run, parent_host, parent_backend])
     p_server = subparser.add_parser(
         'server', help='Run a Cromwell server',
-        parents=[parent_server_client, parent_host, parent_backend])
+        parents=[parent_server_client, parent_server, parent_host, parent_backend])
     p_submit = subparser.add_parser(
         'submit', help='Submit a workflow to a Cromwell server',
         parents=[parent_server_client, parent_submit,
