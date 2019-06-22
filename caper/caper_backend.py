@@ -329,6 +329,7 @@ class CaperBackendSLURM(dict):
                     "ConfigBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
+                            "time": 24
                         },
                         "script-epilogue": "sleep 10 && sync",
                         "concurrent-job-limit": 1000,
@@ -422,6 +423,7 @@ ${true=")m" false="" defined(memory_mb)} \
                     "ConfigBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
+                            "time": 24
                         },
                         "script-epilogue": "sleep 10 && sync",
                         "concurrent-job-limit": 1000,
@@ -501,6 +503,7 @@ ${true=":0:0" false="" defined(time)} \
                     "ConfigBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
+                            "time": 24
                         },
                         "script-epilogue": "sleep 30 && sync",
                         "concurrent-job-limit": 1000,
