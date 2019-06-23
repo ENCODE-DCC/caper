@@ -237,20 +237,28 @@ class CaperURI(object):
         else:
             raise NotImplementedError('uri_type: {}'.format(uri_type))
 
-        # special treatment for URL to cloud
-        # URL to local and then local to cloud
-        if uri_type == URI_GCS:
-            if self._uri_type == URI_URL:
-                tmp_local_f = CaperURI(self._uri).get_file(
-                    uri_type=URI_LOCAL, no_copy=no_copy)
-                return CaperURI(tmp_local_f).copy(target_uri=path,
-                                                  no_copy=no_copy)
-        elif uri_type == URI_S3:
-            if self._uri_type == URI_URL:
-                tmp_local_f = CaperURI(self._uri).get_file(
-                    uri_type=URI_LOCAL, no_copy=no_copy)
-                return CaperURI(tmp_local_f).copy(target_uri=path,
-                                                  no_copy=no_copy)
+        # special treatment for URL to cloud (gcs, s3)
+        if uri_type in (URI_GCS, URI_S3) and \
+                self._uri_type == URI_URL:
+            # # there is no way to get URL's file size before it's downloaded
+            # # (since "Content-Length" header is optional)
+            # # and not all websites support it (e.g. AWS)
+            # wait until .lock file disappears
+            # cu_target = CaperURI(path)
+            # cu_target.__wait_for_lock()
+            # if cu_target.file_exists() and \
+            #     self.get_file_size() == cu_target.get_file_size():
+            #     if CaperURI.VERBOSE:
+            #         print('[CaperURI] copying skipped, '
+            #               'target: {target}'.format(target=path))
+            #     return cu_target
+
+            # URL to local and then local to cloud
+            tmp_local_f = CaperURI(self._uri).get_file(
+                uri_type=URI_LOCAL, no_copy=no_copy)
+            return CaperURI(tmp_local_f).copy(target_uri=path,
+                                              no_copy=no_copy)
+
         if CaperURI.VERBOSE:
             if soft_link and self._uri_type == URI_LOCAL \
                     and uri_type == URI_LOCAL:
@@ -266,20 +274,9 @@ class CaperURI(object):
         if not no_copy:
             assert(path is not None)
             # wait until .lock file disappears
-            it = 0
-            cu_lock = CaperURI(path + CaperURI.LOCK_EXT)
-            while cu_lock.file_exists():
-                it += 1
-                if it > CaperURI.LOCK_MAX_ITER:
-                    raise Exception('File has been locked for too long.', path)
-                elif CaperURI.VERBOSE:
-                    print('[CaperURI] wait {} sec for file being unlocked. '
-                          'retries: {}, max_retries: {}. uri: {}'.format(
-                            CaperURI.LOCK_WAIT_SEC, it,
-                            CaperURI.LOCK_MAX_ITER, path))
-                time.sleep(CaperURI.LOCK_WAIT_SEC)
-
             cu_target = CaperURI(path)
+            cu_target.__wait_for_lock()
+
             # if target file not exists or file sizes are different
             # then do copy!
             if not cu_target.file_exists() or \
@@ -681,6 +678,21 @@ class CaperURI(object):
         else:
             return URI_LOCAL
 
+    def __wait_for_lock(self):
+        # wait until .lock file disappears
+        it = 0
+        cu_lock = CaperURI(self._uri + CaperURI.LOCK_EXT)
+        while cu_lock.file_exists():
+            it += 1
+            if it > CaperURI.LOCK_MAX_ITER:
+                raise Exception('File has been locked for too long.', self._uri)
+            elif CaperURI.VERBOSE:
+                print('[CaperURI] wait {} sec for file being unlocked. '
+                      'retries: {}, max_retries: {}. uri: {}'.format(
+                        CaperURI.LOCK_WAIT_SEC, it,
+                        CaperURI.LOCK_MAX_ITER, self._uri))
+            time.sleep(CaperURI.LOCK_WAIT_SEC)
+
     @staticmethod
     def __file_exists(uri):
         uri_type = CaperURI.__get_uri_type(uri)
@@ -792,7 +804,6 @@ class CaperURI(object):
                 'cURL RC: {}, HTTP_ERR: {}, STDERR: {}'.format(
                     rc, http_err, stderr))
         return stdout, stderr, rc, http_err
-
 
 def main():
     """To test CaperURI
