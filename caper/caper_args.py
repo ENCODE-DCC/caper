@@ -11,6 +11,9 @@ import sys
 import os
 from distutils.util import strtobool
 
+
+__version__ = '0.3.9'
+
 DEFAULT_JAVA_HEAP_SERVER = '5G'
 DEFAULT_JAVA_HEAP_RUN = '1G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
@@ -194,7 +197,12 @@ def parse_caper_arguments():
     conf_parser.add_argument('-c', '--conf', help='Specify config file',
                              metavar='FILE',
                              default=DEFAULT_CAPER_CONF)
+    conf_parser.add_argument('-v', '--version', action='store_true',
+                             help='Show version')
     known_args, remaining_argv = conf_parser.parse_known_args()
+    if known_args.version is not None and known_args.version:
+        print(__version__)
+        sys.exit(0)
 
     # read conf file if it exists
     defaults = {}
