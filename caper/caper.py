@@ -60,6 +60,7 @@ class Caper(object):
     """Cromwell/WDL wrapper
     """
 
+    CROMWELL_JAR_DIR = '~/.caper/cromwell_jar'
     BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
     DEFAULT_BACKEND = BACKEND_LOCAL
     RE_PATTERN_BACKEND_CONF_HEADER = r'^\s*include\s'
@@ -221,7 +222,7 @@ class Caper(object):
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
         cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
                '-jar', '-Dconfig.file={}'.format(backend_file),
-               CaperURI(self._cromwell).get_local_file(), 'run',
+               self.__download_cromwell_jar(), 'run',
                CaperURI(self._wdl).get_local_file(),
                '-i', input_file,
                '-o', workflow_opts_file,
@@ -289,7 +290,7 @@ class Caper(object):
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
         cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
                '-jar', '-Dconfig.file={}'.format(backend_file),
-               CaperURI(self._cromwell).get_local_file(), 'server']
+               self.__download_cromwell_jar(), 'server']
         print('[Caper] cmd: ', cmd)
 
         # pending/running workflows
@@ -475,6 +476,18 @@ class Caper(object):
         for metadata in metadatas:
             Caper.__troubleshoot(metadata, self._show_completed_task)
 
+    def __download_cromwell_jar(self):
+        """Download cromwell-X.jar
+        """
+        cu = CaperURI(self._cromwell)
+        if cu.uri_type == URI_LOCAL:
+            return cu.get_uri()
+
+        path = os.path.join(
+            os.path.expanduser(Caper.CROMWELL_JAR_DIR),
+            os.path.basename(self._cromwell))
+        return cu.copy(target_uri=path)
+
     def __write_metadata_jsons(self, workflow_ids):
         try:
             for wf_id in workflow_ids:
@@ -500,146 +513,6 @@ class Caper(object):
                   'metadata from Cromwell server. Keeping running... ',
                   str(e), workflow_ids)
         return False
-
-    @staticmethod
-    def __troubleshoot(metadata_json, show_completed_task=False):
-        """Troubleshoot from metadata JSON obj/file
-        """
-        if isinstance(metadata_json, dict):
-            metadata = metadata_json
-        else:
-            f = CaperURI(metadata_json).get_local_file()
-            with open(f, 'r') as fp:
-                metadata = json.loads(fp.read())
-        if isinstance(metadata, list):
-            metadata = metadata[0]
-
-        workflow_id = metadata['id']
-        workflow_status = metadata['status']
-        print('[Caper] troubleshooting {} ...'.format(workflow_id))
-        if not show_completed_task and workflow_status == 'Succeeded':
-            print('This workflow ran successfully. '
-                  'There is nothing to troubleshoot')
-            return
-
-        def recurse_calls(calls, failures=None, show_completed_task=False):
-            if failures is not None:
-                s = json.dumps(failures, indent=4)
-                print('Found failures:\n{}'.format(s))
-            for task_name, call_ in calls.items():
-                for call in call_:
-                    # if it is a subworkflow, then recursively dive into it
-                    if 'subWorkflowMetadata' in call:
-                        subworkflow = call['subWorkflowMetadata']
-                        recurse_calls(
-                            subworkflow['calls'],
-                            subworkflow['failures']
-                            if 'failures' in subworkflow else None,
-                            show_completed_task)
-                        continue
-                    task_status = call['executionStatus']
-                    shard_index = call['shardIndex']
-                    rc = call['returnCode'] if 'returnCode' in call else None
-                    job_id = call['jobId'] if 'jobId' in call else None
-                    stdout = call['stdout'] if 'stdout' in call else None
-                    stderr = call['stderr'] if 'stderr' in call else None
-                    if 'executionEvents' in call:
-                        for ev in call['executionEvents']:
-                            if ev['description'].startswith('Running'):
-                                run_start = ev['startTime']
-                                run_end = ev['endTime']
-                                break
-                    else:
-                        run_start = None
-                        run_end = None
-
-                    if not show_completed_task and \
-                            task_status in ('Done', 'Succeeded'):
-                        continue
-                    print('\n{} {}. SHARD_IDX={}, RC={}, JOB_ID={}, '
-                          'RUN_START={}, RUN_END={}, '
-                          'STDOUT={}, STDERR={}'.format(
-                            task_name, task_status, shard_index, rc, job_id,
-                            run_start, run_end, stdout, stderr))
-
-                    if stderr is not None:
-                        cu = CaperURI(stderr)
-                        if cu.file_exists():
-                            local_stderr_f = cu.get_local_file()
-                            with open(local_stderr_f, 'r') as fp:
-                                stderr_contents = fp.read()
-                            print('STDERR_CONTENTS=\n{}'.format(
-                                stderr_contents))
-
-        calls = metadata['calls']
-        failures = metadata['failures'] if 'failures' in metadata else None
-        recurse_calls(calls, failures, show_completed_task)
-
-    @staticmethod
-    def __find_singularity_bindpath(input_json_file):
-        """Read input JSON file and find paths to be bound for singularity
-        by finding common roots for all files in input JSON file
-        """
-        with open(input_json_file, 'r') as fp:
-            input_json = json.loads(fp.read())
-
-        # find dirname of all files
-        def recurse_dict(d, d_parent=None, d_parent_key=None,
-                         lst=None, lst_idx=None):
-            result = set()
-            if isinstance(d, dict):
-                for k, v in d.items():
-                    result |= recurse_dict(v, d_parent=d,
-                                           d_parent_key=k)
-            elif isinstance(d, list):
-                for i, v in enumerate(d):
-                    result |= recurse_dict(v, lst=d,
-                                           lst_idx=i)
-            elif type(d) == str:
-                assert(d_parent is not None or lst is not None)
-                c = CaperURI(d)
-                # local absolute path only
-                if c.uri_type == URI_LOCAL and c.is_valid_uri():
-                    dirname, basename = os.path.split(c.get_uri())
-                    result.add(dirname)
-
-            return result
-
-        all_dirnames = recurse_dict(input_json)
-        # add all (but not too high level<4) parent directories
-        # to all_dirnames. start from self
-        # e.g. /a/b/c/d/e/f/g/h with COMMON_ROOT_SEARCH_LEVEL = 5
-        # add all the followings:
-        # /a/b/c/d/e/f/g/h (self)
-        # /a/b/c/d/e/f/g
-        # /a/b/c/d/e/f
-        # /a/b/c/d/e
-        # /a/b/c/d (minimum level = COMMON_ROOT_SEARCH_LEVEL-1)
-        all_dnames_incl_parents = set(all_dirnames)
-        for d in all_dirnames:
-            dir_arr = d.split(os.sep)
-            for i, _ in enumerate(
-                    dir_arr[Caper.COMMON_ROOT_SEARCH_LEVEL:]):
-                d_child = os.sep.join(
-                    dir_arr[:i + Caper.COMMON_ROOT_SEARCH_LEVEL])
-                all_dnames_incl_parents.add(d_child)
-
-        bindpaths = set()
-        # remove overlapping directories
-        for i, d1 in enumerate(sorted(all_dnames_incl_parents,
-                                      reverse=True)):
-            overlap_found = False
-            for j, d2 in enumerate(sorted(all_dnames_incl_parents,
-                                          reverse=True)):
-                if i >= j:
-                    continue
-                if d1.startswith(d2):
-                    overlap_found = True
-                    break
-            if not overlap_found:
-                bindpaths.add(d1)
-
-        return ','.join(bindpaths)
 
     def __write_metadata_json(self, workflow_id, metadata_json,
                               backend=None, wdl=None):
@@ -1091,6 +964,146 @@ class Caper(object):
     @staticmethod
     def __get_time_str():
         return datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+
+    @staticmethod
+    def __troubleshoot(metadata_json, show_completed_task=False):
+        """Troubleshoot from metadata JSON obj/file
+        """
+        if isinstance(metadata_json, dict):
+            metadata = metadata_json
+        else:
+            f = CaperURI(metadata_json).get_local_file()
+            with open(f, 'r') as fp:
+                metadata = json.loads(fp.read())
+        if isinstance(metadata, list):
+            metadata = metadata[0]
+
+        workflow_id = metadata['id']
+        workflow_status = metadata['status']
+        print('[Caper] troubleshooting {} ...'.format(workflow_id))
+        if not show_completed_task and workflow_status == 'Succeeded':
+            print('This workflow ran successfully. '
+                  'There is nothing to troubleshoot')
+            return
+
+        def recurse_calls(calls, failures=None, show_completed_task=False):
+            if failures is not None:
+                s = json.dumps(failures, indent=4)
+                print('Found failures:\n{}'.format(s))
+            for task_name, call_ in calls.items():
+                for call in call_:
+                    # if it is a subworkflow, then recursively dive into it
+                    if 'subWorkflowMetadata' in call:
+                        subworkflow = call['subWorkflowMetadata']
+                        recurse_calls(
+                            subworkflow['calls'],
+                            subworkflow['failures']
+                            if 'failures' in subworkflow else None,
+                            show_completed_task)
+                        continue
+                    task_status = call['executionStatus']
+                    shard_index = call['shardIndex']
+                    rc = call['returnCode'] if 'returnCode' in call else None
+                    job_id = call['jobId'] if 'jobId' in call else None
+                    stdout = call['stdout'] if 'stdout' in call else None
+                    stderr = call['stderr'] if 'stderr' in call else None
+                    if 'executionEvents' in call:
+                        for ev in call['executionEvents']:
+                            if ev['description'].startswith('Running'):
+                                run_start = ev['startTime']
+                                run_end = ev['endTime']
+                                break
+                    else:
+                        run_start = None
+                        run_end = None
+
+                    if not show_completed_task and \
+                            task_status in ('Done', 'Succeeded'):
+                        continue
+                    print('\n{} {}. SHARD_IDX={}, RC={}, JOB_ID={}, '
+                          'RUN_START={}, RUN_END={}, '
+                          'STDOUT={}, STDERR={}'.format(
+                            task_name, task_status, shard_index, rc, job_id,
+                            run_start, run_end, stdout, stderr))
+
+                    if stderr is not None:
+                        cu = CaperURI(stderr)
+                        if cu.file_exists():
+                            local_stderr_f = cu.get_local_file()
+                            with open(local_stderr_f, 'r') as fp:
+                                stderr_contents = fp.read()
+                            print('STDERR_CONTENTS=\n{}'.format(
+                                stderr_contents))
+
+        calls = metadata['calls']
+        failures = metadata['failures'] if 'failures' in metadata else None
+        recurse_calls(calls, failures, show_completed_task)
+
+    @staticmethod
+    def __find_singularity_bindpath(input_json_file):
+        """Read input JSON file and find paths to be bound for singularity
+        by finding common roots for all files in input JSON file
+        """
+        with open(input_json_file, 'r') as fp:
+            input_json = json.loads(fp.read())
+
+        # find dirname of all files
+        def recurse_dict(d, d_parent=None, d_parent_key=None,
+                         lst=None, lst_idx=None):
+            result = set()
+            if isinstance(d, dict):
+                for k, v in d.items():
+                    result |= recurse_dict(v, d_parent=d,
+                                           d_parent_key=k)
+            elif isinstance(d, list):
+                for i, v in enumerate(d):
+                    result |= recurse_dict(v, lst=d,
+                                           lst_idx=i)
+            elif type(d) == str:
+                assert(d_parent is not None or lst is not None)
+                c = CaperURI(d)
+                # local absolute path only
+                if c.uri_type == URI_LOCAL and c.is_valid_uri():
+                    dirname, basename = os.path.split(c.get_uri())
+                    result.add(dirname)
+
+            return result
+
+        all_dirnames = recurse_dict(input_json)
+        # add all (but not too high level<4) parent directories
+        # to all_dirnames. start from self
+        # e.g. /a/b/c/d/e/f/g/h with COMMON_ROOT_SEARCH_LEVEL = 5
+        # add all the followings:
+        # /a/b/c/d/e/f/g/h (self)
+        # /a/b/c/d/e/f/g
+        # /a/b/c/d/e/f
+        # /a/b/c/d/e
+        # /a/b/c/d (minimum level = COMMON_ROOT_SEARCH_LEVEL-1)
+        all_dnames_incl_parents = set(all_dirnames)
+        for d in all_dirnames:
+            dir_arr = d.split(os.sep)
+            for i, _ in enumerate(
+                    dir_arr[Caper.COMMON_ROOT_SEARCH_LEVEL:]):
+                d_child = os.sep.join(
+                    dir_arr[:i + Caper.COMMON_ROOT_SEARCH_LEVEL])
+                all_dnames_incl_parents.add(d_child)
+
+        bindpaths = set()
+        # remove overlapping directories
+        for i, d1 in enumerate(sorted(all_dnames_incl_parents,
+                                      reverse=True)):
+            overlap_found = False
+            for j, d2 in enumerate(sorted(all_dnames_incl_parents,
+                                          reverse=True)):
+                if i >= j:
+                    continue
+                if d1.startswith(d2):
+                    overlap_found = True
+                    break
+            if not overlap_found:
+                bindpaths.add(d1)
+
+        return ','.join(bindpaths)
 
 
 def main():
