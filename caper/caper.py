@@ -67,7 +67,6 @@ class Caper(object):
     RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CAPER\s+docker\s(.+)'
     RE_PATTERN_WDL_COMMENT_SINGULARITY = \
         r'^\s*\#\s*CAPER\s+singularity\s(.+)'
-    RE_PATTERN_VALID_STR_LABEL = r'^[A-Za-z0-9\-\_]+$'
     RE_PATTERN_STARTED_WORKFLOW_ID = \
         r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
     RE_PATTERN_FINISHED_WORKFLOW_ID = \
@@ -191,18 +190,9 @@ class Caper(object):
         """Run a workflow using Cromwell run mode
         """
         timestamp = Caper.__get_time_str()
-        if self._str_label is not None:
-            # check if str label is valid
-            r = re.findall(Caper.RE_PATTERN_VALID_STR_LABEL,
-                           self._str_label)
-            if len(r) != 1:
-                raise ValueError('Invalid str_label.')
-            suffix = os.path.join(
-                self._str_label, timestamp)
-        else:
-            # otherwise, use WDL basename
-            suffix = os.path.join(
-                self.__get_wdl_basename_wo_ext(), timestamp)
+        # otherwise, use WDL basename
+        suffix = os.path.join(
+            self.__get_wdl_basename_wo_ext(), timestamp)
         tmp_dir = self.__mkdir_tmp_dir(suffix)
 
         # all input files
@@ -346,18 +336,9 @@ class Caper(object):
         """Submit a workflow to Cromwell server
         """
         timestamp = Caper.__get_time_str()
-        if self._str_label is not None:
-            # check if label is valid
-            r = re.findall(Caper.RE_PATTERN_VALID_STR_LABEL,
-                           self._str_label)
-            if len(r) != 1:
-                raise ValueError('Invalid str_label.')
-            suffix = os.path.join(
-                self._str_label, timestamp)
-        else:
-            # otherwise, use WDL basename
-            suffix = os.path.join(
-                self.__get_wdl_basename_wo_ext(), timestamp)
+        # otherwise, use WDL basename
+        suffix = os.path.join(
+            self.__get_wdl_basename_wo_ext(), timestamp)
         tmp_dir = self.__mkdir_tmp_dir(suffix)
 
         # all input files

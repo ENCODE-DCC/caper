@@ -622,4 +622,9 @@ def parse_caper_arguments():
         args_d['singularity_cachedir'] = singularity_cachedir
         os.makedirs(singularity_cachedir, exist_ok=True)
 
+    if args_d.get('str_label') is None:
+        if args_d.get('inputs') is not None:
+            basename = os.path.basename(args_d['inputs'])
+            args_d['str_label'] = os.path.splitext(basename)[0]
+
     return args_d
