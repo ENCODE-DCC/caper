@@ -1,11 +1,12 @@
 import setuptools
+from caper import caper_args
 
 with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name='caper',
-    version='v0.3.8',
+    version=caper_args.__version__,
     python_requires='>3.4.1',
     scripts=['bin/caper', 'mysql/run_mysql_server_docker.sh',
              'mysql/run_mysql_server_singularity.sh'],
