@@ -1,3 +1,29 @@
+## Important features of Caper
+
+* **Similar CLI**: Caper has a similar CLI as Cromwell.
+
+* **Built-in backends**: You don't need your own backend configuration file. Caper provides built-in backends.
+
+* **Automatic transfer between local/cloud storages**: You can use URIs (e.g. `gs://`, `http(s)://` and `s3://`) instead of paths in a command line arguments, also in your input JSON file. Files associated with these URIs will be automatically transfered to a specified temporary directory on a target remote storage.
+
+* **Deepcopy for input JSON file**: Recursively copy all data files in (`.json`, `.tsv` and `.csv`) to a target remote storage. Use `--deepcopy` for this feature.
+
+* **Docker/Singularity integration**: You can run a WDL workflow in a specifed docker/singularity container.
+
+* **MySQL database integration**: Caper defaults to use Cromwell's built-in HyperSQL DB to store metadata of all workflows. However, we also provide shell scripts to run a MySQL database server in a docker/singularity container. Using Caper with those databases will allow you to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks. This will be useful to resume a failed workflow where it left off.
+
+* **One configuration file for all**: You may not want to repeat writing same command line parameters for every pipeline run. Define parameters in a configuration file at `~/.caper/default.conf`.
+
+* **One server for six backends**: Built-in backends allow you to submit pipelines to any local/remote backend specified with `-b` or `--backend`.
+
+* **Cluster engine support**: SLURM, SGE and PBS are currently supported locally.
+
+* **Easy workflow management**: Find all workflows submitted to a Cromwell server by workflow IDs (UUIDs) or `str_label` (special label for a workflow submitted by Caper `submit` and `run`). You can define multiple keywords with wildcards (`*` and `?`) to search for matching workflows. Abort, release hold, retrieve metadata JSON for them.
+
+* **Automatic subworkflow packing**: Caper automatically creates an archive (`imports.zip`) of all imports and send it to Cromwell server/run.
+
+* **Special label** (`str_label`): You have a string label, specified with `-s` or `--str-label`, for your workflow so that you can search for your workflow by this label instead of Cromwell's workflow UUID (e.g. `f12526cb-7ed8-4bfa-8e2e-a463e94a61d0`).
+
 ## List of parameters
 
 We highly recommend to use a default configuration file described in the section [Configuration file](#configuration-file). Note that both dash (`-`) and underscore (`_`) are allowed for key names in a configuration file.
@@ -23,8 +49,8 @@ We highly recommend to use a default configuration file described in the section
 	--use-singularity|Use singularity image for all tasks in a workflow
 	--no-build-singularity|Local singularity image will not be built before running/submitting a workflow
 	--singularity-cachedir|Singularity image URI for a WDL
-	--file-db|DB file for Cromwell's built-in HyperSQL database
-	--no-file-db|Do not use file-db. Call-caching (re-using outputs) will be disabled
+	--file-db, -d|DB file for Cromwell's built-in HyperSQL database
+	--no-file-db, -n|Do not use file-db. Call-caching (re-using outputs) will be disabled
 
 * Choose a default backend. Use `--deepcopy` to recursively auto-copy data files in your input JSON file. All data files will be automatically transferred to a target local/remote storage corresponding to a chosen backend. Make sure that you correctly configure temporary directories for source/target storages (`--tmp-dir`, `--tmp-gcs-bucket` and `--tmp-s3-bucket`).
 
@@ -138,6 +164,49 @@ There are six built-in backends for Caper. Each backend must run on its designat
 |sge    |local SGE backend     | local | --out-dir, --tmp-dir, --sge-pe                                    |
 |pds    |local PBS backend     | local | --out-dir, --tmp-dir                                                |
 
+## Database
+
+Caper defaults to use Cromwell's built-in HyperSQL file database located at `~/.caper/default_file_db`. You can change default database file path prefix in a default configuration file (`~/.caper/default.conf`). Setting up a database is important for Caper to re-use outputs from previous failed/succeeded workflows.
+```
+file-db=[YOUR_FILE_DB_PATH_PREFIX]
+```
+
+You can also use your own MySQL database if you [configure MySQL for Caper](DETAILS.md/#mysql-server).
+
+## Singularity
+
+Caper supports Singularity for its local built-in backend (`local`, `slurm`, `sge` and `pbs`). Tasks in a workflow will run inside a container and outputs will be pulled out to a host from it at the end of each task. Or you can add `--use-singularity` to use a [Singularity image URI defined in your WDL as a comment](DETAILS.md/#wdl-customization).
+
+```bash
+$ caper run [WDL] -i [INPUT_JSON] --singularity [SINGULARITY_IMAGE_URI]
+```
+
+Define a cache directory where local Singularity images will be built. You can also define an environment variable `SINGULARITY_CACHEDIR`.
+```
+singularity-cachedir=[SINGULARITY_CACHEDIR]
+```
+
+Singularity image will be built first before running a workflow to prevent mutiple tasks from competing to write on the same local image file. If you don't define it, every task in a workflow will try to repeatedly build a local Singularity image on their temporary directory. 
+
+
+## Docker
+
+Caper supports Docker for its non-HPC backends (`local`, `aws` and `gcp`). 
+
+> **WARNING**: AWS and GCP backends will not work without a Docker image URI defined in a WDL file or specified with `--docker`. You can skip adding `--use-docker` since Caper will try to find it in your WDL first.
+
+Tasks in a workflow will run inside a container and outputs will be pulled out to a host from it at the end of each task. Or you can add `--use-docker` to use a [Docker image URI defined in your WDL as a comment](DETAILS.md/#wdl-customization).
+
+```bash
+$ caper run [WDL] -i [INPUT_JSON] --docker [DOCKER_IMAGE_URI]
+```
+
+## Conda
+
+Activate your `CONDA_ENV` before running Caper (both for `run` and `server` modes).
+```bash
+$ conda activate [COND_ENV]
+```
 
 ## MySQL server
 
