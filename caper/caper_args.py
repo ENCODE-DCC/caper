@@ -28,11 +28,53 @@ DEFAULT_FORMAT = 'id,status,name,str_label,user,submission'
 DEFAULT_DEEPCOPY_EXT = 'json,tsv'
 DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 
-############# Caper settings
+############ Minimum required parameters
+## Please read through carefully
 
-## default backend
+## Define file DB to use Cromwell's call-caching
+## Call-caching is important for restarting failed workflows
+## File DB can only be accessed by one caper process (caper run or server)
+## i.e. you cannot run multiple caper run with one file DB
+## For such case, we recommend to use caper server and submit multiple workflows to it
+## You can disable file DB with '--no-file-db' or '-n'
+#file-db=~/.caper/default_file_db
+
+## Define to use 'caper server' and all client subcommands like 'caper submit'
+## This is not required for 'caper run'
+#port=8000
+
+## Define default backend (local, gcp, aws, slurm, sge, pbs)
 #backend=local
 
+## Define output directory if you want to run pipelines locally
+#out-dir=
+
+## Define if you want to run pipelines on Google Cloud Platform
+#gcp-prj=encode-dcc-1016
+#out-gcs-bucket=gs://encode-pipeline-test-runs/caper_out_project1
+
+## Define if you want to run pipelines on AWS
+#aws-batch-arn=arn:....
+#aws-region=us-west-1
+#out-s3-bucket=s3://encode-pipeline-test-runs/caper_out_project1
+
+## Define if you want to run pipelines on SLURM
+## Define partition or account or both according to your cluster's requirements
+## For example, Stanford requires a partition and SCG requires an account.
+#slurm-partition=akundaje
+#slurm-account=akundaje
+
+## Define if you want to run pipelines on SGE
+#sge-pe=shm
+
+## Define if your SGE cluster requires a queue
+#sge-queue=q
+
+## Define if your PBS cluster requires a queue
+#pbs-queue=q
+
+
+############# Caper settings
 ## cromwell.jar java heap
 ## java -Xmx for "caper server"
 #java-heap-server=5G
@@ -40,15 +82,7 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ## java -Xmx for "caper run"
 #java-heap-run=1G
 
-## Put a hold on submitted jobs.
-## You need to run "caper unhold [WORKFLOW_ID]" to release hold
-#hold=True
-
 ### Workflow settings
-## deepcopy recursively all file URIs in a file URI
-##  with supported extensions (json,tsv,csv)
-##  to a target remote/local storage
-#deepcopy=True
 #deepcopy-ext=json,tsv
 
 ############# local backend
@@ -64,26 +98,17 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ## trying to write on the same image file.
 #no-build-singularity=True
 
-## actual workflow outputs will be written to
-## out-dir/[WDL_NAME]/[WORKFLOW_ID]/
-#out-dir=
-
 ## all temporary files (including deepcopied data files,
-## cromwell.jar, backend conf, worflow_opts JSONs, ...)
+## backend conf, worflow_opts JSONs, ...)
 ## will be written to this directory
 ## DON'T USE /tmp. User's scratch directory is recommended
 #tmp-dir=
 
 ############# Google Cloud Platform backend
-#gcp-prj=encode-dcc-1016
-#out-gcs-bucket=gs://encode-pipeline-test-runs/caper/out
-#tmp-gcs-bucket=gs://encode-pipeline-test-runs/caper/tmp
+#tmp-gcs-bucket=
 
 ############# AWS backend
-#aws-batch-arn=
-#aws-region=us-west-1
-#out-s3-bucket=s3://encode-pipeline-test-runs/caper/out
-#tmp-s3-bucket=s3://encode-pipeline-test-runs/caper/tmp
+#tmp-s3-bucket=
 
 ## gsutil can work with s3 buckets it outperforms over aws s3 CLI
 #use-gsutil-over-aws-s3=True
@@ -102,13 +127,9 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ## machine www.encodeproject.org
 ## login ZSFDUCEJ
 ## password YOUR_PASSWORD
-
 #use-netrc=True
 
 ############# Cromwell's built-in HyperSQL database settings
-## DB file prefix path
-#file-db=~/.caper/default_file_db
-
 ## disable file-db
 ## Detach DB from Cromwell
 ## you can run multiple workflows with 'caper run' command
@@ -124,7 +145,7 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 #mysql-db-password=cromwell
 
 ############# Cromwell general settings
-#cromwell=https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar
+#cromwell=https://github.com/broadinstitute/cromwell/releases/download/42/cromwell-42.jar
 #max-concurrent-tasks=1000
 #max-concurrent-workflows=40
 #disable-call-caching=False
@@ -132,20 +153,14 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 
 ## Cromwell server
 #ip=localhost
-#port=8000
 
 ############# SLURM backend
-#slurm-partition=akundaje
-#slurm-account=akundaje
 #slurm-extra-param=
 
 ############# SGE backend
-#sge-queue=q
-#sge-pe=shm
 #sge-extra-param=
 
 ############# PBS backend
-#pbs-queue=q
 #pbs-extra-param=
 
 ############# Misc. settings
@@ -208,10 +223,10 @@ def parse_caper_arguments():
     group_file_db = parent_host.add_argument_group(
         title='HyperSQL file DB arguments')
     group_file_db.add_argument(
-        '--file-db', default=DEFAULT_FILE_DB,
+        '--file-db', '-d', default=DEFAULT_FILE_DB,
         help='Default DB file for Cromwell\'s built-in HyperSQL database.')
     group_file_db.add_argument(
-        '--no-file-db', action='store_true',
+        '--no-file-db', '-n', action='store_true',
         help='Disable file DB for Cromwell\'s built-in HyperSQL database. '
              'An in-memory DB will still be available for server mode.')
 
@@ -284,7 +299,8 @@ def parse_caper_arguments():
         '--use-gsutil-over-aws-s3', action='store_true',
         help='Use gsutil instead of aws s3 CLI even for S3 buckets.')
 
-    group_http = parent_host.add_argument_group(
+    parent_http_auth = argparse.ArgumentParser(add_help=False)
+    group_http = parent_http_auth.add_argument_group(
         title='HTTP/HTTPS authentication arguments')
     group_http.add_argument(
         '--http-user',
@@ -464,14 +480,16 @@ def parse_caper_arguments():
 
     p_run = subparser.add_parser(
         'run', help='Run a single workflow without server',
-        parents=[parent_submit, parent_run, parent_host, parent_backend])
+        parents=[parent_submit, parent_run, parent_host, parent_backend,
+                 parent_http_auth])
     p_server = subparser.add_parser(
         'server', help='Run a Cromwell server',
-        parents=[parent_server_client, parent_server, parent_host, parent_backend])
+        parents=[parent_server_client, parent_server, parent_host,
+                 parent_backend, parent_http_auth])
     p_submit = subparser.add_parser(
         'submit', help='Submit a workflow to a Cromwell server',
         parents=[parent_server_client, parent_submit,
-                 parent_backend])
+                 parent_backend, parent_http_auth])
     p_abort = subparser.add_parser(
         'abort', help='Abort running/pending workflows on a Cromwell server',
         parents=[parent_server_client, parent_search_wf])
@@ -490,7 +508,8 @@ def parse_caper_arguments():
         'troubleshoot',
         help='Troubleshoot workflow problems from metadata JSON file or '
              'workflow IDs',
-        parents=[parent_troubleshoot, parent_server_client, parent_search_wf])
+        parents=[parent_troubleshoot, parent_server_client, parent_search_wf,
+                 parent_http_auth])
 
     for p in [p_run, p_server, p_submit, p_abort, p_unhold, p_list,
               p_metadata, p_troubleshoot]:
@@ -573,16 +592,16 @@ def parse_caper_arguments():
         args_d['out_dir'] = os.getcwd()
 
     if args_d.get('tmp_dir') is None:
-        args_d['tmp_dir'] = os.path.join(args_d['out_dir'], 'caper_tmp')
+        args_d['tmp_dir'] = os.path.join(args_d['out_dir'], '.caper_tmp')
 
     if args_d.get('tmp_s3_bucket') is None:
         if args_d.get('out_s3_bucket'):
             args_d['tmp_s3_bucket'] = os.path.join(args_d['out_s3_bucket'],
-                                                   'caper_tmp')
+                                                   '.caper_tmp')
     if args_d.get('tmp_gcs_bucket') is None:
         if args_d.get('out_gcs_bucket'):
             args_d['tmp_gcs_bucket'] = os.path.join(args_d['out_gcs_bucket'],
-                                                    'caper_tmp')
+                                                    '.caper_tmp')
     file_db = args_d.get('file_db')
     if file_db is not None:
         file_db = os.path.abspath(os.path.expanduser(file_db))

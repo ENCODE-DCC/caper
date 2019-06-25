@@ -6,32 +6,6 @@ Caper (Cromwell Assisted Pipeline ExecutoR) is a wrapper Python package for [Cro
 
 Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and provides easier way of running Cromwell server/run modes by automatically composing necessary input files for Cromwell. Also, Caper supports easy automatic file transfer between local/cloud storages (local path, `s3://`, `gs://` and `http(s)://`). You can use these URIs in input JSON file or for a WDL file itself.
 
-## Features
-
-* **Similar CLI**: Caper has a similar CLI as Cromwell.
-
-* **Built-in backends**: You don't need your own backend configuration file. Caper provides built-in backends.
-
-* **Automatic transfer between local/cloud storages**: You can use URIs (e.g. `gs://`, `http(s)://` and `s3://`) instead of paths in a command line arguments, also in your input JSON file. Files associated with these URIs will be automatically transfered to a specified temporary directory on a target remote storage.
-
-* **Deepcopy for input JSON file**: Recursively copy all data files in (`.json`, `.tsv` and `.csv`) to a target remote storage. Use `--deepcopy` for this feature.
-
-* **Docker/Singularity integration**: You can run a WDL workflow in a specifed docker/singularity container.
-
-* **MySQL database integration**: Caper defaults to use Cromwell's built-in HyperSQL DB to store metadata of all workflows. However, we also provide shell scripts to run a MySQL database server in a docker/singularity container. Using Caper with those databases will allow you to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks. This will be useful to resume a failed workflow where it left off.
-
-* **One configuration file for all**: You may not want to repeat writing same command line parameters for every pipeline run. Define parameters in a configuration file at `~/.caper/default.conf`.
-
-* **One server for six backends**: Built-in backends allow you to submit pipelines to any local/remote backend specified with `-b` or `--backend`.
-
-* **Cluster engine support**: SLURM, SGE and PBS are currently supported locally.
-
-* **Easy workflow management**: Find all workflows submitted to a Cromwell server by workflow IDs (UUIDs) or `str_label` (special label for a workflow submitted by Caper `submit` and `run`). You can define multiple keywords with wildcards (`*` and `?`) to search for matching workflows. Abort, release hold, retrieve metadata JSON for them.
-
-* **Automatic subworkflow packing**: Caper automatically creates an archive (`imports.zip`) of all imports and send it to Cromwell server/run.
-
-* **Special label** (`str_label`): You have a string label, specified with `-s` or `--str-label`, for your workflow so that you can search for your workflow by this label instead of Cromwell's workflow UUID (e.g. `f12526cb-7ed8-4bfa-8e2e-a463e94a61d0`).
-
 ## Installation
 
 Make sure that you have `python3`(> 3.4.1) installed on your system. Use `pip` to install Caper.
@@ -48,7 +22,7 @@ $ echo "export PATH=\"\$PATH:$PWD/caper/bin\"" >> ~/.bashrc
 
 ## Usage
 
-There are 7 subcommands available for Caper. Except for `run` other subcommands work with a running Cromwell server, which can be started with `server` subcommand. `server` does not require a positional argument. `WF_ID` (workflow ID) is a UUID generated from Cromwell to identify a workflow. `STR_LABEL` is Caper's special string label to be used to identify a workflow.
+There are 7 subcommands available for Caper. Except for `run` other subcommands work with a running Caper server, which can be started with `server` subcommand. `server` does not require a positional argument. `WF_ID` (workflow ID) is a UUID generated from Cromwell to identify a workflow. `STR_LABEL` is Caper's special string label to be used to identify a workflow.
 
 **Subcommand**|**Positional args** | **Description**
 :--------|:-----|:-----
@@ -64,17 +38,18 @@ troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason for err
 * `run`: To run a single workflow. A string label `-s` is optional and useful for other subcommands to indentify a workflow.
 
 	```bash
-	$ caper run [WDL] -i [INPUT_JSON] -s [STR_LABEL]
+	$ caper run [WDL] -i [INPUT_JSON]
 	```
 
-	> **WARNING**: If you try to run multiple workflows at the same time then you will see a DB connection error message since multiple Caper instances will try to lock the same DB file `~/.caper/default_file_db`. Use a server-based [MySQL database](DETAILS.md/#mysql-server) instead or disable connection to DB with `--no-file-db` but you will not be able to take advantage of [Cromwell's call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous workflows. We recomend to use `server` and `submit` for multiple concurrent workflows.
+	> **WARNING**: If you try to run multiple workflows at the same time then you will see a `db - Connection is not available` error message since multiple Caper instances will try to lock the same DB file `~/.caper/default_file_db`.
 
 	```bash
-	[error] Failed to instantiate Cromwell System. Shutting down Cromwell.
 	java.sql.SQLTransientConnectionException: db - Connection is not available, request timed out after 3000ms.
 	```
 
-* `server`: To start a server.
+	> **WORKAROUND**: Define a different DB file per run with `--file-db`. Or start a caper server and submit multiple workflows to it so that the DB file is taken by one caper server only. Or use a server-based [MySQL database](DETAILS.md/#mysql-server) instead or disable connection to DB with `--no-file-db` or `-n` but you will not be able to use [Cromwell's call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous workflows.
+
+* `server`: To start a server. You can define a server port with `--port`. Use a different port for each server for multiple servers. If you don't use a default port (`8000`). Then define `--port` for all client subcommands like `submit`, `list` and `troubleshoot`. If you run a server on a different IP address or hostname, then define it with `--ip` for all client subcomands like `submit`.
 
 	```bash
 	$ caper server
@@ -83,7 +58,7 @@ troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason for err
 * `submit`: To submit a workflow to a server. Define a string label for submitted workflow with `-s`. It is optional but useful for other subcommands to indentify a workflow.
 
 	```bash
-	$ caper submit [WDL] -i [INPUT_JSON] -s [STR_LABEL]
+	$ caper submit [WDL] -i [INPUT_JSON] -s [STR_LABEL] 
 	```
 
 * `list`: To show a list of all workflows submitted to a cromwell server. Wildcard search with using `*` and `?` is allowed for such label for the following subcommands with `STR_LABEL`. 
@@ -103,9 +78,14 @@ troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason for err
 
 ## Configuration file
 
+Run Caper without parameters to generate a default configuration file.
+```bash
+$ caper
+```
+
 Caper automatically creates a default configuration file at `~/.caper/default.conf`. Such configruation file comes with all available parameters commented out. You can uncomment/define any parameter to activate it.
 
-You can avoid repeatedly defining same parameters in your command line arguments by using a configuration file. For example, you can define `out-dir` and `tmp-dir` in your configuration file instead of defining them in command line arguments.
+You can avoid repeatedly defining same parameters in your command line arguments. For example, you can define `out-dir` and `tmp-dir` in your configuration file instead of defining them in command line arguments.
 ```
 $ caper run [WDL] --out-dir [LOCAL_OUT_DIR] --tmp-dir [LOCAL_TMP_DIR]
 ```
@@ -118,56 +98,104 @@ out-dir=[LOCAL_OUT_DIR]
 tmp-dir=[LOCAL_TMP_DIR]
 ```
 
-## Initialize it
+## Minimum required parameters
 
-Run Caper without parameters to generate a default configuration file.
-```bash
-$ caper
+An auto-generated default configuration has a `Minimum required parameters` section on top. Other parameters in other sections are optional and most users will not be interested in them. If you don't see this section then remove existing default configuration file and regenerate it.
+
+Edit your configuration file (`~/.caper/default.conf` by default) and uncomment/define parameters for your preferred backend.
+```
+[defaults]
+
+############ Minimum required parameters
+## Please read through carefully
+
+## Define file DB to use Cromwell's call-caching
+## Call-caching is important for restarting failed workflows
+## File DB can only be accessed by one caper process (caper run or server)
+## i.e. you cannot run multiple caper run with one file DB
+## For such case, we recommend to use caper server and submit multiple workflows to it
+## You can disable file DB with '--no-file-db' or '-n'
+#file-db=~/.caper/default_file_db
+
+## Define to use 'caper server' and all client subcommands like 'caper submit'
+## This is not required for 'caper run'
+#port=8000
+
+## Define default backend (local, gcp, aws, slurm, sge, pbs)
+#backend=local
+
+## Define output directory if you want to run pipelines locally
+#out-dir=
+
+## Define if you want to run pipelines on Google Cloud Platform
+#gcp-prj=encode-dcc-1016
+#out-gcs-bucket=gs://encode-pipeline-test-runs/project1/caper_out
+
+## Define if you want to run pipelines on AWS
+#aws-batch-arn=arn:....
+#aws-region=us-west-1
+#out-s3-bucket=s3://encode-pipeline-test-runs/project1/caper_out
+
+## Define if you want to run pipelines on SLURM
+## Define partition or account or both according to your cluster's requirements
+## For example, Stanford requires a partition and SCG requires an account.
+#slurm-partition=akundaje
+#slurm-account=akundaje
+
+## Define if you want to run pipelines on SGE
+#sge-pe=shm
+
+## Define if your SGE cluster requires a queue
+#sge-queue=q
+
+## Define if your PBS cluster requires a queue
+#pbs-queue=q
 ```
 
-## Database
-
-Caper defaults to use Cromwell's built-in HyperSQL file database located at `~/.caper/default_file_db`. You can change default database file path prefix in a default configuration file (`~/.caper/default.conf`). Setting up a database is important for Caper to re-use outputs from previous failed/succeeded workflows.
+> **RECOMMENDATION**: Instead of using a default configuration file at `~/.caper/default.conf`, you can specify your own configuration file with `caper -c`. This is useful when you want to manage a configuration file per project (e.g. use a different file DB `--file-db` per project to prevent locking).
 ```
-file-db=[YOUR_FILE_DB_PATH_PREFIX]
+$ caper -c [YOUR_CONF_FILE_FOR_PROJECT_1] ...
 ```
 
-You can also use your own MySQL database if you [configure MySQL for Caper](DETAILS.md/#mysql-server).
+## Running workflows on GCP/AWS backends
 
-## Singularity
+Cloud backends (AWS and GCP) write outputs on corresponding storage buckets (s3 and gcs). Caper internally uses cloud CLIs `gsutil` and `aws`. Therefore, make sure that these CLIs are installed and configured correctly.
 
-Caper supports Singularity for its local built-in backend (`local`, `slurm`, `sge` and `pbs`). Tasks in a workflow will run inside a container and outputs will be pulled out to a host from it at the end of each task. Or you can add `--use-singularity` to use a [Singularity image URI defined in your WDL as a comment](DETAILS.md/#wdl-customization).
+> **WARNING**: On GCP backend you can deploy a workflow from your local computer. However due to AWS security reasons, you cannot do it on AWS backend. You need to spin up a AWS instance on AWS Console and configure for `aws` on the instance and run Caper there.
 
-```bash
-$ caper run [WDL] -i [INPUT_JSON] --singularity [SINGULARITY_IMAGE_URI]
+1) Google Cloud Platform (GCP): Install [gsutil](https://cloud.google.com/storage/docs/gsutil_install). [Configure for gcloud and gsutil](docs/conf_gcp.md).
+
+2) AWS: [Configure for AWS](docs/conf_aws.md) first.
+
+## Deepcopy (auto inter-storage transfer)
+
+`--deepcopy` allows Caper to **RECURSIVELY** copy files defined in your input JSON into your target backend's temporary storage. For example, Cromwell cannot read directly from URLs in an [input JSON file](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/examples/caper/ENCSR356KRQ_subsampled.json), but Caper with `--deepcopy` makes copies of these URLs on your backend's temporary directory (e.g. `--tmp-dir` for `local`, `--tmp-gcs-bucket` for `gcp`) and pass them to Cromwell.
+
+## How to manage configuration file per project
+
+It is useful to have a configuration file per project. For example of two projects.
+
+We want to run pipelines locally for project-1, run a server with `caper -c project_1.conf server` and submit a workflow with `caper -c project_1.conf submit [WDL] ...` or run a single workflow `caper -c project_1.conf run [WDL] ...`.
+```
+[defaults]
+file-db=~/.caper/file_db_project_1
+port=8000
+backend=local
+out-dir=/scratch/user/caper_out_project_1
 ```
 
-Define a cache directory where local Singularity images will be built. You can also define an environment variable `SINGULARITY_CACHEDIR`.
+We want to run pipelines on Google Cloud Platform for project-2. Run a server with `caper -c project_2.conf server` and submit a workflow with `caper -c project_2.conf submit [WDL] ...` or run a single workflow `caper -c project_2.conf run [WDL] ...`.
 ```
-singularity-cachedir=[SINGULARITY_CACHEDIR]
-```
-
-Singularity image will be built first before running a workflow to prevent mutiple tasks from competing to write on the same local image file. If you don't define it, every task in a workflow will try to repeatedly build a local Singularity image on their temporary directory. 
-
-
-## Docker
-
-Caper supports Docker for its non-HPC backends (`local`, `aws` and `gcp`). 
-
-> **WARNING**: AWS and GCP backends will not work without a Docker image URI defined in a WDL file or specified with `--docker`. You can skip adding `--use-docker` since Caper will try to find it in your WDL first.
-
-Tasks in a workflow will run inside a container and outputs will be pulled out to a host from it at the end of each task. Or you can add `--use-docker` to use a [Docker image URI defined in your WDL as a comment](DETAILS.md/#wdl-customization).
-
-```bash
-$ caper run [WDL] -i [INPUT_JSON] --docker [DOCKER_IMAGE_URI]
+[defaults]
+file-db=~/.caper/file_db_project_2
+port=8001
+backend=gcp
+gcp-prj=YOUR_GCP_PRJ_NAME
+out-gcs-bucket=gs://caper_out_project_2
 ```
 
-## Conda
+Then you will see no conflict in file DBs and network ports (`8000` vs. `8001`) between two projects.
 
-Activate your `CONDA_ENV` before running Caper (both for `run` and `server` modes).
-```bash
-$ conda activate [COND_ENV]
-```
 
 ## How to run it
 
@@ -175,74 +203,8 @@ According to your chosen backend, define the following parameters in your defaul
 
 * Local
 	```
-	# if you want to run your workflow in a Singularity container
-	singularity-cachedir=[SINGULARITY_CACHEDIR]
-
-	# directory to store all outputs
+	backend=local
 	out-dir=[LOCAL_OUT_DIR]
-
-	# temporary directory for Caper
-	# lots of temporary files will be created and stored here
-	# e.g. backend.conf, workflow_opts.json, input.json, labels.json
-	# don't use /tmp
-	tmp-dir=[LOCAL_TMP_DIR]
-	```
-
-* Google Cloud Platform (GCP): Install [gsutil](https://cloud.google.com/storage/docs/gsutil_install). [Configure for gcloud and gsutil](docs/conf_gcp.md).
-
-	```
-	# specify default backend as gcp
-	backend=gcp
-
-	# your project name on Google Cloud platform
-	gcp-prj=YOUR_PRJ_NAME
-
-	# directory to store all outputs
-	out-gcs-bucket=gs://YOUR_OUTPUT_ROOT_BUCKET/ANY/WHERE
-
-	# temporary bucket directory for Caper
-	tmp-gcs-bucket=gs://YOUR_TEMP_BUCKET/SOME/WHERE
-	```
-
-* AWS: Install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-linux.html). [Configure for AWS](docs/conf_aws.md).
-
-	```
-	# specify default backend as aws
-	backend=aws
-
-	# ARN for your AWS Batch
-	aws-batch-arn=ARN_FOR_YOUR_AWS_BATCH
-
-	# directory to store all outputs
-	out-s3-bucket=s3://YOUR_OUTPUT_ROOT_BUCKET/ANY/WHERE
-
-	# temporary bucket directory for Caper
-	tmp-s3-bucket=s3://YOUR_TEMP_BUCKET/SOME/WHERE
-	```
-
-* SLURM
-	```
-	# specify default backend as slurm
-	backend=slurm
-
-	# if you want to run your workflow in a Singularity container
-	singularity-cachedir=[SINGULARITY_CACHEDIR]
-
-	# directory to store all outputs
-	out-dir=[LOCAL_OUT_DIR]
-
-	# temporary directory for Caper
-	# don't use /tmp
-	tmp-dir=[LOCAL_TMP_DIR]
-
-	# SLURM partition if required (e.g. on Stanford Sherlock)
-	slurm-partition=[YOUR_PARTITION]
-
-	# SLURM account if required (e.g. on Stanford SCG4)
-	slurm-account=[YOUR_ACCOUMT]
-
-	# You may not need to specify the above two
-	# since most SLURM clusters have default rules for partition/account
 
 	# server mode
 	# ip is an IP address or hostname of a Cromwell server
@@ -256,34 +218,49 @@ According to your chosen backend, define the following parameters in your defaul
 	port=8000
 	```
 
+* Google Cloud Platform (GCP): Install [gsutil](https://cloud.google.com/storage/docs/gsutil_install). [Configure for gcloud and gsutil](docs/conf_gcp.md).
+	```
+	backend=gcp
+	gcp-prj=YOUR_PRJ_NAME
+	out-gcs-bucket=gs://YOUR_OUTPUT_ROOT_BUCKET/ANY/WHERE
+	```
+
+* AWS: [Configure for AWS](docs/conf_aws.md) first.
+	```
+	backend=aws
+	aws-batch-arn=ARN_FOR_YOUR_AWS_BATCH
+	aws-region=YOUR_AWS_REGION
+	out-s3-bucket=s3://YOUR_OUTPUT_ROOT_BUCKET/ANY/WHERE
+	```
+
+* SLURM
+	```
+	backend=slurm
+	out-dir=[LOCAL_OUT_DIR]
+
+	# SLURM partition if required (e.g. on Stanford Sherlock)
+	slurm-partition=[YOUR_PARTITION]
+
+	# SLURM account if required (e.g. on Stanford SCG4)
+	slurm-account=[YOUR_ACCOUMT]
+
+	ip=localhost
+	port=8000
+	```
+
 * SGE
 
 	```
-	# specify default backend as sge
 	backend=sge
-
-	# if you want to run your workflow in a Singularity container
-	singularity-cachedir=[SINGULARITY_CACHEDIR]
-
-	# directory to store all outputs
 	out-dir=[LOCAL_OUT_DIR]
 
-	# temporary directory for Caper
-	# don't use /tmp
-	tmp-dir=[LOCAL_TMP_DIR]
-
-	# SGE PE
+	# SGE PE (if you don't have it, ask your admin to create one)
 	sge-pe=[YOUR_PARALLEL_ENVIRONMENT]
 
-	# server mode
-	# ip is an IP address or hostname of a Cromwell server
-	# it's localhost by default but if you are submitting to
-	# a remote Cromwell server (e.g. from login node to a compute node)
-	# then take IP address of the server and write it here
-	ip=localhost
+	# SGE queue if required
+	sge-queue=[YOUR_SGE_QUEUE]
 
-	# port is 8000 by default. but if it's already taken 
-	# then try other ports like 8001
+	ip=localhost
 	port=8000
 	```
 
