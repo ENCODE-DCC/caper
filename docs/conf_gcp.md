@@ -26,3 +26,7 @@
     ```bash
     $ gcloud config set project [YOUR_PROJECT_NAME]
     ```
+
+# Setting up a Caper server instance
+
+You will find [this](./conf_encode_workshop_2019.md) useful to set up your own Caper server on Google Cloud Platform.
