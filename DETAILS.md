@@ -74,6 +74,7 @@ We highly recommend to use a default configuration file described in the section
 	**Conf. file**|**Cmd. line**|**Description**
 	:-----|:-----|:-----
 	gcp-prj|--gcp-prj|Google Cloud project
+	gcp-zone|--gcp-zones|Comma-delimited Google Cloud Platform zones to provision worker instances (e.g. us-central1-c,us-west1-b)
 	out-gcs-bucket|--out-gcs-bucket|Output GCS bucket for GC backend
 	tmp-gcs-bucket|--tmp-gcs-bucket|Tmp. GCS bucket for GC backend
 

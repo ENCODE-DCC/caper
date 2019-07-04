@@ -12,7 +12,7 @@ import os
 from distutils.util import strtobool
 
 
-__version__ = '0.3.12'
+__version__ = '0.3.13'
 
 DEFAULT_JAVA_HEAP_SERVER = '5G'
 DEFAULT_JAVA_HEAP_RUN = '1G'
@@ -108,6 +108,9 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 #tmp-dir=
 
 ############# Google Cloud Platform backend
+## comma-separated zones for GCP (e.g. us-west1-b,us-central1-b)
+#gcp-zones=
+
 #tmp-gcs-bucket=
 
 ############# AWS backend
@@ -202,7 +205,7 @@ def parse_caper_arguments():
     known_args, remaining_argv = conf_parser.parse_known_args()
     if known_args.version is not None and known_args.version:
         print(__version__)
-        sys.exit(0)
+        conf_parser.exit()
 
     # read conf file if it exists
     defaults = {}
@@ -290,6 +293,8 @@ def parse_caper_arguments():
     group_gc = parent_host.add_argument_group(
         title='GC backend arguments')
     group_gc.add_argument('--gcp-prj', help='GC project')
+    group_gc.add_argument('--gcp-zones', help='GCP zones (e.g. us-west1-b,'
+                                              'us-central1-b)')
     group_gc.add_argument(
         '--out-gcs-bucket', help='Output GCS bucket for GC backend')
     group_gc.add_argument(

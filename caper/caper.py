@@ -74,7 +74,7 @@ class Caper(object):
     RE_PATTERN_WORKFLOW_ID = \
         r'\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b'
     RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s+as\s+'
-    # RE_PATTERN_DB_ERROR = r'db - Connection is not available'
+    RE_PATTERN_DELIMITER_GCP_ZONES = r',| '
     USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
 
     SEC_INTERVAL_UPDATE_METADATA = 240.0
@@ -118,6 +118,7 @@ class Caper(object):
         if self._tmp_dir is not None:
             self._tmp_dir = os.path.abspath(self._tmp_dir)
         self._gcp_prj = args.get('gcp_prj')
+        self._gcp_zones = args.get('gcp_zones')
         self._out_gcs_bucket = args.get('out_gcs_bucket')
         self._out_s3_bucket = args.get('out_s3_bucket')
         self._aws_batch_arn = args.get('aws_batch_arn')
@@ -649,6 +650,12 @@ class Caper(object):
             # calculate bindpath from all file paths in input JSON file
             template['default_runtime_attributes']['singularity_bindpath'] = \
                 Caper.__find_singularity_bindpath(input_json_file)
+
+        if self._gcp_zones is not None:
+            # delimiters: comma or whitespace
+            zones = ' '.join(re.split(Caper.RE_PATTERN_DELIMITER_GCP_ZONES,
+                                      self._gcp_zones))
+            template['default_runtime_attributes']['zones'] = zones
 
         if self._slurm_partition is not None:
             template['default_runtime_attributes']['slurm_partition'] = \
