@@ -373,7 +373,7 @@ class CaperURI(object):
                     # remove .lock file
                     cu_lock.rm(quiet=True)
 
-        if CaperURI.VERBOSE and uri_type not in (URI_URL,)::
+        if CaperURI.VERBOSE and uri_type not in (URI_URL,):
             print('[CaperURI] {method} {action}, target: {target}'.format(
                     method=method, action=action, target=path))
         return path
