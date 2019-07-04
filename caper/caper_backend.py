@@ -77,7 +77,7 @@ class CaperBackendDatabase(dict):
     }
 
     def __init__(self, file_db=None, mysql_ip=None, mysql_port=None,
-                 mysql_user=None, mysql_password=None):
+                 mysql_user=None, mysql_password=None, db_timeout=None):
         super(CaperBackendDatabase, self).__init__(
             CaperBackendDatabase.TEMPLATE)
         if mysql_user is not None and mysql_password is not None:
@@ -94,6 +94,8 @@ class CaperBackendDatabase(dict):
                     'url': 'jdbc:hsqldb:file:{};shutdown=false;'
                     'hsqldb.tx=mvcc'.format(file_db)
                 }
+        if db_timeout is not None:
+            self['database']['db']['connectionTimeout'] = db_timeout
 
 
 class CaperBackendGCP(dict):

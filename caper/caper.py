@@ -146,6 +146,7 @@ class Caper(object):
         # file DB
         self._file_db = args.get('file_db')
         self._no_file_db = args.get('no_file_db')
+        self._db_timeout = args.get('db_timeout')
 
         # MySQL DB
         self._mysql_db_ip = args.get('mysql_db_ip')
@@ -841,7 +842,8 @@ class Caper(object):
                 mysql_ip=self._mysql_db_ip,
                 mysql_port=self._mysql_db_port,
                 mysql_user=self._mysql_db_user,
-                mysql_password=self._mysql_db_password))
+                mysql_password=self._mysql_db_password,
+                db_timeout=self._db_timeout))
 
         # set header for conf ("include ...")
         assert(Caper.BACKEND_CONF_HEADER.endswith('\n'))

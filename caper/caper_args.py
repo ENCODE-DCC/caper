@@ -12,7 +12,7 @@ import os
 from distutils.util import strtobool
 
 
-__version__ = '0.3.13'
+__version__ = '0.3.14'
 
 DEFAULT_JAVA_HEAP_SERVER = '5G'
 DEFAULT_JAVA_HEAP_RUN = '1G'
@@ -22,6 +22,7 @@ DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
 DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/42/cromwell-42.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
+DEFAULT_DB_TIMEOUT_MS = 10000
 DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
 DEFAULT_MAX_CONCURRENT_TASKS = 1000
 DEFAULT_MAX_RETRIES = 1
@@ -41,6 +42,11 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ## For such case, we recommend to use caper server and submit multiple workflows to it
 ## You can disable file DB with '--no-file-db' or '-n'
 #file-db=~/.caper/default_file_db
+
+## DB timeout for both file DB and MySQL DB
+## If your DB file is large then you can see "db - Connection is not available" error
+## then try to increase this timeout
+#db-timeout=10000
 
 ## Define to use 'caper server' and all client subcommands like 'caper submit'
 ## This is not required for 'caper run'
@@ -230,6 +236,13 @@ def parse_caper_arguments():
 
     # run, server
     parent_host = argparse.ArgumentParser(add_help=False)
+
+    group_db = parent_host.add_argument_group(
+        title='General DB settings (for both file DB and MySQL DB)')
+    group_db.add_argument(
+        '--db-timeout', type=int, default=DEFAULT_DB_TIMEOUT_MS,
+        help='Milliseconds to wait for DB (both for file DB and MySQL DB) '
+             'connection.')
 
     group_file_db = parent_host.add_argument_group(
         title='HyperSQL file DB arguments')
@@ -594,6 +607,11 @@ def parse_caper_arguments():
     if max_concurrent_workflows is not None \
             and isinstance(max_concurrent_workflows, str):
         args_d['max_concurrent_workflows'] = int(max_concurrent_workflows)
+
+    db_timeout = args_d.get('db_timeout')
+    if db_timeout is not None \
+            and isinstance(db_timeout, str):
+        args_d['db_timeout'] = int(db_timeout)
 
     max_retries = args_d.get('max_retries')
     if max_retries is not None \
