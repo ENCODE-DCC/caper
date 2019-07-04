@@ -387,7 +387,11 @@ class Caper(object):
                 [(Caper.KEY_CAPER_STR_LABEL, v)
                  for v in self._wf_id_or_label])
         if not no_print:
-            print(json.dumps(m, indent=4))
+            if len(m) == 1:
+                m_ = m[0]
+            else:
+                m_ = m
+            print(json.dumps(m_, indent=4))
         return m
 
     def list(self):
@@ -398,7 +402,7 @@ class Caper(object):
             workflow_ids = ['*']
             labels = [(Caper.KEY_CAPER_STR_LABEL, '*')]
         else:
-            workflow_ids = self._wf_id_or_label,
+            workflow_ids = self._wf_id_or_label
             labels = [(Caper.KEY_CAPER_STR_LABEL, v)
                       for v in self._wf_id_or_label]
 
