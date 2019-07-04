@@ -258,8 +258,13 @@ class CaperURI(object):
                 uri_type=URI_LOCAL, no_copy=no_copy)
             return CaperURI(tmp_local_f).copy(target_uri=path,
                                               no_copy=no_copy)
+        if soft_link:
+            if uri_type == URI_GCS and self._uri_type == URI_GCS:
+                return self._uri
+            elif uri_type == URI_S3 and self._uri_type == URI_S3:
+                return self._uri
 
-        if CaperURI.VERBOSE:
+        if CaperURI.VERBOSE and uri_type not in (URI_URL,):
             if soft_link and self._uri_type == URI_LOCAL \
                     and uri_type == URI_LOCAL:
                 method = 'symlinking'
@@ -279,8 +284,8 @@ class CaperURI(object):
 
             # if target file not exists or file sizes are different
             # then do copy!
-            if not cu_target.file_exists() or \
-                    self.get_file_size() != cu_target.get_file_size():
+            if uri_type not in (URI_URL,) and (not cu_target.file_exists() or \
+                    self.get_file_size() != cu_target.get_file_size()):
 
                 action = 'done'
                 cu_lock = CaperURI(path + CaperURI.LOCK_EXT)
@@ -289,10 +294,7 @@ class CaperURI(object):
                     cu_lock.write_str_to_file('', quiet=True)
 
                     # do copy
-                    if uri_type == URI_URL:
-                        pass
-
-                    elif uri_type == URI_GCS:
+                    if uri_type == URI_GCS:
                         if self._uri_type == URI_URL:
                             assert(False)
 
@@ -371,7 +373,7 @@ class CaperURI(object):
                     # remove .lock file
                     cu_lock.rm(quiet=True)
 
-        if CaperURI.VERBOSE:
+        if CaperURI.VERBOSE and uri_type not in (URI_URL,)::
             print('[CaperURI] {method} {action}, target: {target}'.format(
                     method=method, action=action, target=path))
         return path
