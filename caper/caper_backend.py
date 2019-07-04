@@ -104,7 +104,7 @@ class CaperBackendGCP(dict):
             "providers": {
                 BACKEND_GCP: {
                     "actor-factory": "cromwell.backend.google.pipelines."
-                    "v1alpha2.PipelinesApiLifecycleActorFactory",
+                    "v2alpha1.PipelinesApiLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
                         },
