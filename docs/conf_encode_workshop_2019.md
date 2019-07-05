@@ -2,6 +2,8 @@
 
 ## Do this before the workshop
 
+0. Register by following instructions in the email you received with the subject "Welcome to Using ENCODE in the Cloud".
+
 1. Open a web browser (Chrome, Safari, or Edge - Firefox is not supported) and go to [Google Cloud Platform console](https://console.cloud.google.com/compute/instances?project=encode-workshop&instancessize=50).
 
 2. Look for the `workshop-server` instance and click on the `SSH` button under `Connect`.  It may sake several seconds to open a connection to the server instance.
