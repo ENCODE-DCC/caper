@@ -44,10 +44,10 @@ $ caper metadata [WORKFLOW_ID] > metadata.json
 
 8. Run Croo with the retrieved `metadata.json` to organized outputs on `--out-dir`.
 ```bash
-$ croo metadata.json --out-dir gs://encode-workshop-outputs/croo/$USER/[PIPELINE_NAME]
+$ croo metadata.json --out-dir gs://encode-workshop-croo/$USER
 ```
 
-9. Open a web browser and go to [Google Cloud Storage console](https://console.cloud.google.com/storage/browser/encode-workshop-outputs/croo/?project=encode-workshop&folder=true&organizationId=true). Navigate to your organized output directory. For example, `gs://encode-workshop-outputs/croo/[YOUR_USER_NAME]/[PIPELINE_NAME]`. Click on an HTML file then you will see a nice file table summarizing all outputs with description. Find any bigwig file in it and take a URL for it. That URL will be public so you can use it to visualize the track with your preferred genome browser.
+9. Open a web browser and go to [Google Cloud Storage console](https://console.cloud.google.com/storage/browser/encode-workshop-croo/?project=encode-workshop&folder=true&organizationId=true). Navigate to your organized output directory under your username. For example, `gs://encode-workshop-croo/[YOUR_USER_NAME]/`. Click on an HTML file then you will see a nice file table summarizing all outputs with description. Find any bigwig file in it and take a URL for it. That URL will be public so you can use it to visualize the track with your preferred genome browser.
 
 
 ## Setting up a Caper server instance (ADMIN ONLY)
@@ -138,3 +138,14 @@ $ ln -s /opt/code/default.conf default.conf
 ```bash
 $ caper server
 ```
+
+14. Make all buckets public (Read access to anyone).
+
+15. Give users the following IAM Roles:
+
+1) For the whole project
+	- Compute Engine > Compute Instance Admin (v1)
+	- Compute Engine > Compute OS Login
+
+2) For the croo bucket (`gs://encode-workshop-croo`)
+	- Storage Object Admin
