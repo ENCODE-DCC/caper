@@ -1,16 +1,18 @@
-# Welcome to ENCODE user's meeting 2019 at Seattle
+# Welcome to the 2019 ENCODE Users' Meeting Pipeline Workshop
 
 ## Do this before the workshop
 
-1. Open a web browser and go to [Google Cloud Platform console](https://console.cloud.google.com/compute/instances?project=encode-workshop&instancessize=50). Click on the `SSH` button on the `workshop-server` instance.
+1. Open a web browser (Chrome, Safari, or Edge - Firefox is not supported) and go to [Google Cloud Platform console](https://console.cloud.google.com/compute/instances?project=encode-workshop&instancessize=50).
 
-2. Soft-link a shared configuration file.
+2. Look for the `workshop-server` instance and click on the `SSH` button under `Connect`.  It may sake several seconds to open a connection to the server instance.
+
+3. Set up your server account:  Soft-link a shared configuration file.
 ```bash
 $ mkdir -p ~/.caper && cd ~/.caper
 $ ln -s /opt/code/default.conf default.conf
 ```
 
-3. Authenticate yourself to get access to buckets.
+4. Authenticate yourself to get access to buckets.
 ```bash
 $ gcloud auth login --no-launch-browser
 $ gcloud auth application-default login --no-launch-browser
@@ -20,30 +22,30 @@ $ gcloud auth application-default login --no-launch-browser
 
 > **WARNING**: **USERS SHOULD NOT FOLLOW THE BELOW STEPS BEFORE THE WORKSHOP**.
 
-4. Submit a workflow to Caper server. `--deepcopy` is optional for remote data files in your input JSON. If all files defined in your input JSON is on a Google Cloud bucket then skip it.
+5. Submit a workflow to Caper server.
 ```bash
-$ caper submit /opt/code/demo-pipeline/demo.wdl -i [INPUT_JSON] --deepcopy
+$ caper submit /opt/code/rna-seq-pipeline/rna-seq-pipeline.wdl -i [INPUT_JSON]
 # you will see the following message. make sure to remember the workflow_id
 # in this example, the workflow_id is f7094621-3d38-48a6-b877-1da2b0cec931
 [Caper] submit:  {'id': 'f7094621-3d38-48a6-b877-1da2b0cec931', 'status': 'Submitted'}
 ```
 
-5. Make sure to remember `workflow_id` of your submitted workflow. You can monitor workflows with:
+6. Make sure to remember `workflow_id` of your submitted workflow. You can monitor workflows with:
 ```bash
 $ caper list [WORKFLOW_ID]
 ```
 
-6. Once your workflow is done (marked as `Succeeded`). Retrieve a `metadata.json` with the following command:
+7. Once your workflow is done (marked as `Succeeded`). Retrieve a `metadata.json` with the following command:
 ```bash
 $ caper metadata [WORKFLOW_ID] > metadata.json
 ```
 
-7. Run Croo with the retrieved `metadata.json` to organized outputs on `--out-dir`.
+8. Run Croo with the retrieved `metadata.json` to organized outputs on `--out-dir`.
 ```bash
 $ croo metadata.json --out-dir gs://encode-workshop-outputs/croo/$USER/[PIPELINE_NAME]
 ```
 
-8. Open a web browser and go to [Google Cloud Storage console](https://console.cloud.google.com/storage/browser/encode-workshop-outputs/croo/?project=encode-workshop&folder=true&organizationId=true). Navigate to your organized output directory. For example, `gs://encode-workshop-outputs/croo/[YOUR_USER_NAME]/[PIPELINE_NAME]`. Click on an HTML file then you will see a nice file table summarizing all outputs with description. Find any bigwig file in it and take a URL of it. Visualize it with your preferred genome browser.
+9. Open a web browser and go to [Google Cloud Storage console](https://console.cloud.google.com/storage/browser/encode-workshop-outputs/croo/?project=encode-workshop&folder=true&organizationId=true). Navigate to your organized output directory. For example, `gs://encode-workshop-outputs/croo/[YOUR_USER_NAME]/[PIPELINE_NAME]`. Click on an HTML file then you will see a nice file table summarizing all outputs with description. Find any bigwig file in it and take a URL for it. That URL will be public so you can use it to visualize the track with your preferred genome browser.
 
 
 ## Setting up a Caper server instance (ADMIN ONLY)
@@ -60,7 +62,7 @@ $ sudo apt-get update && sudo apt-get install -y default-jdk acl python3 python3
 $ sudo pip3 install caper croo
 ```
 
-3. Clone pipeline codes and share them with users. This example will install ENCODE RNA-Seq/Demo pipelines on `/opt/code`.
+3. Clone pipeline codes and share them with users. This example will install ENCODE RNA-Seq and Demo pipelines on `/opt/code`.
 ```bash
 $ sudo mkdir /opt/code
 $ sudo chown $USER:$USER /opt/code
@@ -128,7 +130,7 @@ $ ln -s /opt/code/default.conf default.conf
 
 11. Make the bucket public by adding a `Storage Object Viewer` role for `allUsers` to the bucket. This will allow public HTTP access to all files on the bucket, which will be used to visualize some of pipeline outputs (e.g. bigwigs) on a genome browser.
 
-12. Give write permission to **ALL WORKSHOP PARTICIPANTS* (not for all public users). Add `Storage Object Creator` role to all participants. This is to give all participants write access to Caper tmp directory `gs://encode-workshop-outputs/caper_tmp` so that `--deepcopy` does not make duplicate files on the shared bucket. This will also give them write access to `gs://encode-workshop-outputs/croo` so that their organized outputs generates from Croo will be writte on that bucket directory.
+12. Give write permission to **ALL WORKSHOP PARTICIPANTS* (not for all public users). Add `Storage Object Creator` role to all participants. This is to give all participants write access to Caper tmp directory `gs://encode-workshop-outputs/caper_tmp` so that `--deepcopy` does not make duplicate files on the shared bucket. This will also give them write access to `gs://encode-workshop-outputs/croo` so that their organized outputs generates from Croo will be write on that bucket directory.
 
 13. Run a Caper server.
 ```bash
