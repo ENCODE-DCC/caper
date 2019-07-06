@@ -4,7 +4,7 @@
 
 0. Register by following instructions in the email you received with the subject "Welcome to Using ENCODE in the Cloud".
 
-1. Open a web browser (Chrome, Safari, or Edge - Firefox is not supported) and go to [Google Cloud Platform console](https://console.cloud.google.com/compute/instances?project=encode-workshop&instancessize=50).
+1. Open a web browser (Chrome, Safari, or Edge - Firefox is not supported) and go to [our workshop server instance on Google Cloud Platform console](https://console.cloud.google.com/compute/instancesDetail/zones/us-west1-b/instances/workshop-server?project=encode-workshop).
 
 2. Look for the `workshop-server` instance and click on the `SSH` button under `Connect`.  It may sake several seconds to open a connection to the server instance.
 
@@ -47,7 +47,9 @@ $ caper metadata [WORKFLOW_ID] > metadata.json
 $ croo metadata.json --out-dir gs://encode-workshop-croo/$USER
 ```
 
-9. Open a web browser and go to [Google Cloud Storage console](https://console.cloud.google.com/storage/browser/encode-workshop-croo/?project=encode-workshop&folder=true&organizationId=true). Navigate to your organized output directory under your username. For example, `gs://encode-workshop-croo/[YOUR_USER_NAME]/`. Click on an HTML file then you will see a nice file table summarizing all outputs with description. Find any bigwig file in it and take a URL for it. That URL will be public so you can use it to visualize the track with your preferred genome browser.
+9. Open a web browser and go to [Google Cloud Storage console](https://console.cloud.google.com/storage/browser/encode-workshop-croo/?project=encode-workshop&folder=true&organizationId=true).
+
+10. Navigate to your organized output directory under your username. For example, `gs://encode-workshop-croo/[YOUR_USER_NAME]/`. Click on an HTML file then you will see a nice file table summarizing all outputs with description. Find any bigwig file in it and take a URL for it. That URL will be public so you can use it to visualize the track with your preferred genome browser.
 
 
 ## Setting up a Caper server instance (ADMIN ONLY)
@@ -146,6 +148,7 @@ $ caper server
 1) For the whole project
 	- Compute Engine > Compute Instance Admin (v1)
 	- Compute Engine > Compute OS Login
+	- Service Account > Service Account User
 
 2) For the croo bucket (`gs://encode-workshop-croo`)
 	- Storage Object Admin
