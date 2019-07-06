@@ -27,7 +27,7 @@ $ gcloud auth application-default login --no-launch-browser
 
 5. Submit a workflow to Caper server.
 ```bash
-$ caper submit /opt/code/rna-seq-pipeline/rna-seq-pipeline.wdl -i [INPUT_JSON]
+$ caper submit /opt/code/rna-seq-pipeline/rna-seq-pipeline.wdl -i gs://encode-workshop-samples/rna-seq-pipeline/input_workshop_example_SSD.json
 # you will see the following message. make sure to remember the workflow_id
 # in this example, the workflow_id is f7094621-3d38-48a6-b877-1da2b0cec931
 [Caper] submit:  {'id': 'f7094621-3d38-48a6-b877-1da2b0cec931', 'status': 'Submitted'}
@@ -45,7 +45,7 @@ $ caper metadata [WORKFLOW_ID] > metadata.json
 
 8. Run Croo with the retrieved `metadata.json` to organized outputs on `--out-dir`.
 ```bash
-$ croo metadata.json --out-dir gs://encode-workshop-croo/$USER
+$ croo metadata.json --out-dir gs://encode-workshop-croo/$USER --out-def-json /opt/code/rna-seq-pipeline/output_definition.json
 ```
 
 9. Open a web browser and go to [Google Cloud Storage console](https://console.cloud.google.com/storage/browser/encode-workshop-croo/?project=encode-workshop&folder=true&organizationId=true).
