@@ -11,7 +11,7 @@
 
 3. Set up your server account:  Soft-link a shared configuration file.
 ```bash
-$ mkdir -p ~/.caper && cd ~/.caper
+$ mkdir -p ~/.caper && cd ~/.caper && rm -f ~/.caper/default.conf
 $ ln -s /opt/code/default.conf default.conf
 ```
 
