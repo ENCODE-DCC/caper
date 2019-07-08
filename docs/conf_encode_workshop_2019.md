@@ -36,6 +36,10 @@ $ caper submit /opt/code/rna-seq-pipeline/rna-seq-pipeline.wdl -i gs://encode-wo
 6. Make sure to remember `workflow_id` of your submitted workflow. You can monitor workflows with:
 ```bash
 $ caper list [WORKFLOW_ID]
+
+# you can also find it by your username
+
+$ caper list | grep $USER
 ```
 
 7. Once your workflow is done (marked as `Succeeded`). Retrieve a `metadata.json` with the following command:
