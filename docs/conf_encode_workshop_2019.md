@@ -50,7 +50,7 @@ $ croo metadata.json --out-dir gs://encode-workshop-croo/$USER --out-def-json /o
 
 9. Open a web browser and go to [Google Cloud Storage console](https://console.cloud.google.com/storage/browser/encode-workshop-croo/?project=encode-workshop&folder=true&organizationId=true).
 
-10. Navigate to your organized output directory under your username. For example, `gs://encode-workshop-croo/[YOUR_USER_NAME]/`. Click on an HTML file then you will see a nice file table summarizing all outputs with description. Find any bigwig file in it and take a URL for it. That URL will be public so you can use it to visualize the track with your preferred genome browser.
+10. Navigate to your organized output directory under your username. For example, `gs://encode-workshop-croo/[YOUR_USER_NAME]/`. Click on an HTML file then you will see a nice file table summarizing all outputs with description. Find any bigwig file in it and take a URL for it. That URL will be public so you can use it to visualize the track with your preferred genome browser (for example, you can use [this one](http://epigenomegateway.wustl.edu/legacy/)).
 
 
 ## Setting up a Caper server instance (ADMIN ONLY)
