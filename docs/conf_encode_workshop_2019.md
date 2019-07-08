@@ -6,7 +6,7 @@
 
 1. Open a web browser (Chrome, Safari, or Edge - Firefox is not supported) and go to [our workshop server instance on Google Cloud Platform console](https://console.cloud.google.com/compute/instancesDetail/zones/us-west1-b/instances/workshop-server?project=encode-workshop).
 
-2. Click on the `SSH` button under `Connect`.  It may sake several seconds to open a connection to the server instance.
+2. Click on the `SSH` button under `Remote Access`.  It may sake several seconds to open a connection to the server instance.
 > **WARNING**: If it takes too long (>2 minutes) to log in, then switch to a "Cloud Shell" method. Click on the inverse triangle next to "SSH" button and choose "View gcloud command". Click on "RUN IN CLOUD SHELL" button in the bottom-right corner. Push Enter to execute the copied command line. Answer "Y" to the question. Push Enter twice to pass two questions.
 
 3. Set up your server account:  Soft-link a shared configuration file.
