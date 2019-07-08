@@ -15,7 +15,7 @@ $ mkdir -p ~/.caper && cd ~/.caper
 $ ln -s /opt/code/default.conf default.conf
 ```
 
-4. Authenticate yourself to get access to buckets.
+4. Authenticate yourself to get access to buckets. After running each command, follow the link and copy and paste the authentication key into the console.
 ```bash
 $ gcloud auth login --no-launch-browser
 $ gcloud auth application-default login --no-launch-browser
