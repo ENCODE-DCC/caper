@@ -56,6 +56,18 @@ $ croo metadata.json --out-dir gs://encode-workshop-croo/$USER --out-def-json /o
 
 10. Navigate to your organized output directory under your username. For example, `gs://encode-workshop-croo/[YOUR_USER_NAME]/`. Click on an HTML file then you will see a nice file table summarizing all outputs with description. Find any bigwig file in it and take a URL for it. That URL will be public so you can use it to visualize the track with your preferred genome browser (for example, you can use [this one](http://epigenomegateway.wustl.edu/legacy/)).
 
+## To be done by admins
+
+0. Run Croo with the retrieved `metadata.json` to organized outputs locally.
+```bash
+$ cd /srv/scratch
+$ mkdir -p test_croo && cd test_croo
+
+$ caper metadata [WORKFLOW_ID] > metadata.json
+$ croo metadata.json --out-def-json /opt/code/rna-seq-pipeline/output_definition.json
+```
+
+
 
 ## Setting up a Caper server instance (ADMIN ONLY)
 
