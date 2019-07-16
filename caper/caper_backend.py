@@ -87,6 +87,8 @@ class CaperBackendDatabase(dict):
             db['url'] = db['url'].replace(
                 'localhost:3306', '{ip}:{port}'.format(
                     ip=mysql_ip, port=mysql_port))
+            if db_timeout is not None:
+                db['connectionTimeout'] = db_timeout
         else:
             self['database'] = {}
             if file_db is not None:
@@ -94,8 +96,9 @@ class CaperBackendDatabase(dict):
                     'url': 'jdbc:hsqldb:file:{};shutdown=false;'
                     'hsqldb.tx=mvcc'.format(file_db)
                 }
-        if db_timeout is not None:
-            self['database']['db']['connectionTimeout'] = db_timeout
+                if db_timeout is not None:
+                    self['database']['db']['connectionTimeout'] = db_timeout
+
 
 
 class CaperBackendGCP(dict):
