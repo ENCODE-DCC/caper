@@ -62,6 +62,7 @@ We highly recommend to use a default configuration file described in the section
 	deepcopy|--deepcopy| |Deepcopy input files to corresponding file local/remote storage
 	deepcopy-ext|--deepcopy-ext|json,<br>tsv|Comma-separated list of file extensions to be deepcopied. Supported exts: .json, .tsv  and .csv.
 	format|--format, -f|id,status,<br>name,<br>str_label,<br>submission|Comma-separated list of items to be shown for `list` subcommand. Supported formats: `id` (workflow UUID), `status`, `name` (WDL basename), `str\_label` (Caper's special string label), `submission`, `start`, `end`
+	hide-result-before|--hide-result-before| | Datetime string to hide old workflows submitted before it. This is based on a simple string sorting. (e.g. 2019-06-13, 2019-06-13T10:07)
 
 * Local backend settings
 

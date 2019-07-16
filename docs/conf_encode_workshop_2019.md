@@ -6,16 +6,16 @@
 
 1. Open a web browser (Chrome, Safari, or Edge - Firefox is not supported) and go to [our workshop server instance on Google Cloud Platform console](https://console.cloud.google.com/compute/instancesDetail/zones/us-west1-b/instances/workshop-server?project=encode-workshop).
 
-2. Click on the `SSH` button under `Connect`.  It may sake several seconds to open a connection to the server instance.
+2. Click on the `SSH` button under `Remote Access`.  It may sake several seconds to open a connection to the server instance.
 > **WARNING**: If it takes too long (>2 minutes) to log in, then switch to a "Cloud Shell" method. Click on the inverse triangle next to "SSH" button and choose "View gcloud command". Click on "RUN IN CLOUD SHELL" button in the bottom-right corner. Push Enter to execute the copied command line. Answer "Y" to the question. Push Enter twice to pass two questions.
 
 3. Set up your server account:  Soft-link a shared configuration file.
 ```bash
-$ mkdir -p ~/.caper && cd ~/.caper
+$ mkdir -p ~/.caper && cd ~/.caper && rm -f ~/.caper/default.conf
 $ ln -s /opt/code/default.conf default.conf
 ```
 
-4. Authenticate yourself to get access to buckets.
+4. Authenticate yourself to get access to buckets. After running each command, follow the link and copy and paste the authentication key into the console.
 ```bash
 $ gcloud auth login --no-launch-browser
 $ gcloud auth application-default login --no-launch-browser
@@ -27,7 +27,7 @@ $ gcloud auth application-default login --no-launch-browser
 
 5. Submit a workflow to Caper server.
 ```bash
-$ caper submit /opt/code/rna-seq-pipeline/rna-seq-pipeline.wdl -i [INPUT_JSON]
+$ caper submit /opt/code/rna-seq-pipeline/rna-seq-pipeline.wdl -i gs://encode-workshop-samples/rna-seq-pipeline/input_workshop_example_SSD.json
 # you will see the following message. make sure to remember the workflow_id
 # in this example, the workflow_id is f7094621-3d38-48a6-b877-1da2b0cec931
 [Caper] submit:  {'id': 'f7094621-3d38-48a6-b877-1da2b0cec931', 'status': 'Submitted'}
@@ -36,6 +36,10 @@ $ caper submit /opt/code/rna-seq-pipeline/rna-seq-pipeline.wdl -i [INPUT_JSON]
 6. Make sure to remember `workflow_id` of your submitted workflow. You can monitor workflows with:
 ```bash
 $ caper list [WORKFLOW_ID]
+
+# you can also find it by your username
+
+$ caper list | grep $USER
 ```
 
 7. Once your workflow is done (marked as `Succeeded`). Retrieve a `metadata.json` with the following command:
@@ -45,12 +49,24 @@ $ caper metadata [WORKFLOW_ID] > metadata.json
 
 8. Run Croo with the retrieved `metadata.json` to organized outputs on `--out-dir`.
 ```bash
-$ croo metadata.json --out-dir gs://encode-workshop-croo/$USER
+$ croo metadata.json --out-dir gs://encode-workshop-croo/$USER --out-def-json /opt/code/rna-seq-pipeline/output_definition.json
 ```
 
 9. Open a web browser and go to [Google Cloud Storage console](https://console.cloud.google.com/storage/browser/encode-workshop-croo/?project=encode-workshop&folder=true&organizationId=true).
 
-10. Navigate to your organized output directory under your username. For example, `gs://encode-workshop-croo/[YOUR_USER_NAME]/`. Click on an HTML file then you will see a nice file table summarizing all outputs with description. Find any bigwig file in it and take a URL for it. That URL will be public so you can use it to visualize the track with your preferred genome browser.
+10. Navigate to your organized output directory under your username. For example, `gs://encode-workshop-croo/[YOUR_USER_NAME]/`. Click on an HTML file then you will see a nice file table summarizing all outputs with description. Find any bigwig file in it and take a URL for it. That URL will be public so you can use it to visualize the track with your preferred genome browser (for example, you can use [this one](http://epigenomegateway.wustl.edu/legacy/)).
+
+## To be done by admins
+
+0. Run Croo with the retrieved `metadata.json` to organized outputs locally.
+```bash
+$ cd /srv/scratch
+$ mkdir -p test_croo && cd test_croo
+
+$ caper metadata [WORKFLOW_ID] > metadata.json
+$ croo metadata.json --out-def-json /opt/code/rna-seq-pipeline/output_definition.json
+```
+
 
 
 ## Setting up a Caper server instance (ADMIN ONLY)
