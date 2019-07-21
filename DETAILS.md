@@ -51,7 +51,9 @@ We highly recommend to use a default configuration file described in the section
 	--singularity-cachedir|Singularity image URI for a WDL
 	--file-db, -d|DB file for Cromwell's built-in HyperSQL database
 	--no-file-db, -n|Do not use file-db. Call-caching (re-using outputs) will be disabled
-	--db-timeout|Milliseconds to wait for DB connection (default: 10000)
+	--db-timeout|Milliseconds to wait for DB connection (default: 30000)
+	--java-heap-server|Java heap memory for caper server (default: 8GB)
+	--java-heap-run|Java heap memory for caper run (default: 2GB)
 
 * Choose a default backend. Use `--deepcopy` to recursively auto-copy data files in your input JSON file. All data files will be automatically transferred to a target local/remote storage corresponding to a chosen backend. Make sure that you correctly configure temporary directories for source/target storages (`--tmp-dir`, `--tmp-gcs-bucket` and `--tmp-s3-bucket`).
 

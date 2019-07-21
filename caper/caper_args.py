@@ -14,15 +14,15 @@ from distutils.util import strtobool
 
 __version__ = '0.3.15'
 
-DEFAULT_JAVA_HEAP_SERVER = '5G'
-DEFAULT_JAVA_HEAP_RUN = '1G'
+DEFAULT_JAVA_HEAP_SERVER = '8G'
+DEFAULT_JAVA_HEAP_RUN = '2G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_FILE_DB = '~/.caper/default_file_db'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
 DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/42/cromwell-42.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
-DEFAULT_DB_TIMEOUT_MS = 10000
+DEFAULT_DB_TIMEOUT_MS = 30000
 DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
 DEFAULT_MAX_CONCURRENT_TASKS = 1000
 DEFAULT_MAX_RETRIES = 1
@@ -46,7 +46,7 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ## DB timeout for both file DB and MySQL DB
 ## If your DB file is large then you can see "db - Connection is not available" error
 ## then try to increase this timeout
-#db-timeout=10000
+#db-timeout=30000
 
 ## Define to use 'caper server' and all client subcommands like 'caper submit'
 ## This is not required for 'caper run'
@@ -86,10 +86,10 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ############# Caper settings
 ## cromwell.jar java heap
 ## java -Xmx for "caper server"
-#java-heap-server=5G
+#java-heap-server=8G
 
 ## java -Xmx for "caper run"
-#java-heap-run=1G
+#java-heap-run=2G
 
 ### Workflow settings
 #deepcopy-ext=json,tsv
