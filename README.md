@@ -327,10 +327,10 @@ For Caper run mode, you cannot `caper run` multiple workflows with a single `--f
 
 For Caper server mode, you can submit multiple workflows with a single `--file-db`.
 
-1) SLURM: 1 cpu, 6GB of RAM and 7 days of walltime. `--partition` (e.g. Stanford Sherlock) and `--account` (e.g. Stanford SCG) are optional and depend on your cluster's SLURM configuration.
+1) SLURM: 1 cpu, 12GB of RAM and 7 days of walltime. `--partition` (e.g. Stanford Sherlock) and `--account` (e.g. Stanford SCG) are optional and depend on your cluster's SLURM configuration.
 
 	```bash
-	$ sbatch --export=ALL -n 1 --mem 6G -t 7-0 --partition [YOUR_SLURM_PARTITON] --account [YOUR_SLURM_ACCOUNT] --wrap "caper server --port 8000 [YOUR_CAPER_SERVER_EXTRA_PARAMS]"
+	$ sbatch --export=ALL -n 1 --mem 12G -t 7-0 --partition [YOUR_SLURM_PARTITON] --account [YOUR_SLURM_ACCOUNT] --wrap "caper server --port 8000 [YOUR_CAPER_SERVER_EXTRA_PARAMS]"
 
 	# get hostname of Cromwell server 
 	$ squeue -u $USER
@@ -338,7 +338,7 @@ For Caper server mode, you can submit multiple workflows with a single `--file-d
 
 	For example on Stanford Sherlock. Hostname is `sh-102-32` for this example.
 	```bash
-	[leepc12@sh-ln07 login ~]$ sbatch --export=ALL -n 1 --mem 6G -t 7-0 -p akundaje -o ~/caper_server.o -e ~/caper_server.e --wrap "caper server --port 8000"
+	[leepc12@sh-ln07 login ~]$ sbatch --export=ALL -n 1 --mem 12G -t 7-0 -p akundaje -o ~/caper_server.o -e ~/caper_server.e --wrap "caper server --port 8000"
 	Submitted batch job 44439486
 
 	[leepc12@sh-ln07 login ~]$ squeue -u $USER
@@ -349,7 +349,7 @@ For Caper server mode, you can submit multiple workflows with a single `--file-d
 2) SGE: 1 cpu, 2GB of RAM and 7 days of walltime.
 
 	```bash
-	$ echo "caper server --port 8000 [YOUR_CAPER_SERVER_EXTRA_PARAMS] --file-db [YOUR_FILE_DB]" | qsub -l h_rt=144:00:00 -l h_vmem=6G
+	$ echo "caper server --port 8000 [YOUR_CAPER_SERVER_EXTRA_PARAMS] --file-db [YOUR_FILE_DB]" | qsub -l h_rt=144:00:00 -l h_vmem=12G
 
 	# get hostname of Cromwell server 
 	$ qstat
