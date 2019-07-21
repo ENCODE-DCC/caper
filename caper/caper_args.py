@@ -14,8 +14,8 @@ from distutils.util import strtobool
 
 __version__ = '0.3.15'
 
-DEFAULT_JAVA_HEAP_SERVER = '8G'
-DEFAULT_JAVA_HEAP_RUN = '2G'
+DEFAULT_JAVA_HEAP_SERVER = '7G'
+DEFAULT_JAVA_HEAP_RUN = '1G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_FILE_DB = '~/.caper/default_file_db'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
@@ -86,10 +86,10 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ############# Caper settings
 ## cromwell.jar java heap
 ## java -Xmx for "caper server"
-#java-heap-server=8G
+#java-heap-server=7G
 
 ## java -Xmx for "caper run"
-#java-heap-run=2G
+#java-heap-run=1G
 
 ### Workflow settings
 #deepcopy-ext=json,tsv
