@@ -36,6 +36,8 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ## Please read through carefully
 
 ## Define file DB to use Cromwell's call-caching
+## This DB will grow fast to reach several GBs
+## Make sure that you have enough disk space for this file on the target directory.
 ## Call-caching is important for restarting failed workflows
 ## File DB can only be accessed by one caper process (caper run or server)
 ## i.e. you cannot run multiple caper run with one file DB
@@ -536,9 +538,14 @@ def parse_caper_arguments():
              'workflow IDs',
         parents=[parent_troubleshoot, parent_server_client, parent_search_wf,
                  parent_http_auth])
+    p_debug = subparser.add_parser(
+        'debug',
+        help='Identical to "troubleshoot"',
+        parents=[parent_troubleshoot, parent_server_client, parent_search_wf,
+                 parent_http_auth])
 
     for p in [p_run, p_server, p_submit, p_abort, p_unhold, p_list,
-              p_metadata, p_troubleshoot]:
+              p_metadata, p_troubleshoot, p_debug]:
         p.set_defaults(**defaults)
 
     if len(sys.argv[1:]) == 0:

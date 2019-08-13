@@ -1135,7 +1135,7 @@ def main():
         c.metadata()
     elif action == 'unhold':
         c.unhold()
-    elif action == 'troubleshoot':
+    elif action in ['troubleshoot', 'debug']:
         c.troubleshoot()
 
     else:
