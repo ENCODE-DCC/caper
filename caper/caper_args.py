@@ -12,7 +12,7 @@ import os
 from distutils.util import strtobool
 
 
-__version__ = '0.3.16'
+__version__ = '0.3.17'
 
 DEFAULT_JAVA_HEAP_SERVER = '7G'
 DEFAULT_JAVA_HEAP_RUN = '1G'
@@ -36,8 +36,12 @@ DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
 ## Please read through carefully
 
 ## Define file DB to use Cromwell's call-caching
-## This DB will grow fast to reach several GBs
+
+## IMPORTANT #########################################################
+## This DB file will grow fast to reach several GBs
 ## Make sure that you have enough disk space for this file on the target directory.
+## IMPORTANT ########################################################
+
 ## Call-caching is important for restarting failed workflows
 ## File DB can only be accessed by one caper process (caper run or server)
 ## i.e. you cannot run multiple caper run with one file DB
