@@ -42,11 +42,10 @@ We highly recommend to use a default configuration file described in the section
 
 	**Cmd. line**|**Description**
 	:-----|:-----
+	--dry-run|Caper generates all temporary files but does not take any action.
 	--str-label, -s|Caper's special label for a workflow. This will be used to identify a workflow submitted by Caper
-	--docker|Docker image URI for a WDL
-	--singularity|Singularity image URI for a WDL
-	--use-docker|Use docker image for all tasks in a workflow by adding docker URI into docker runtime-attribute
-	--use-singularity|Use singularity image for all tasks in a workflow
+	--docker|Docker image URI for a WDL. You can also use this as a flag. You can also use this as a flag to use Docker image defined in your WDL as a special comment `#CAPER docker [IMAGE]`.
+	--singularity|Singularity image URI for a WDL. You can also use this as a flag to use Singularity image defined in your WDL as a special comment `#CAPER singularity [IMAGE]`.
 	--no-build-singularity|Local singularity image will not be built before running/submitting a workflow
 	--singularity-cachedir|Singularity image URI for a WDL
 	--file-db, -d|DB file for Cromwell's built-in HyperSQL database
@@ -180,10 +179,10 @@ You can also use your own MySQL database if you [configure MySQL for Caper](DETA
 
 ## Singularity
 
-Caper supports Singularity for its local built-in backend (`local`, `slurm`, `sge` and `pbs`). Tasks in a workflow will run inside a container and outputs will be pulled out to a host from it at the end of each task. Or you can add `--use-singularity` to use a [Singularity image URI defined in your WDL as a comment](DETAILS.md/#wdl-customization).
+Caper supports Singularity for its local built-in backend (`local`, `slurm`, `sge` and `pbs`). Tasks in a workflow will run inside a container and outputs will be pulled out to a host from it at the end of each task. You need to add `--singularity` to use your own Singularity image. `SINGULARITY_IMAGE_URI` is **OPTIONAL**. You can omit it then Caper will try to find a [Singularity image URI defined in your WDL as a comment](DETAILS.md/#wdl-customization).
 
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] --singularity [SINGULARITY_IMAGE_URI]
+$ caper run [WDL] -i [INPUT_JSON] --singularity [SINGULARITY_IMAGE_URI_OR_LEAVE_IT_BLANK]
 ```
 
 Define a cache directory where local Singularity images will be built. You can also define an environment variable `SINGULARITY_CACHEDIR`.
@@ -198,12 +197,12 @@ Singularity image will be built first before running a workflow to prevent mutip
 
 Caper supports Docker for its non-HPC backends (`local`, `aws` and `gcp`). 
 
-> **WARNING**: AWS and GCP backends will not work without a Docker image URI defined in a WDL file or specified with `--docker`. You can skip adding `--use-docker` since Caper will try to find it in your WDL first.
+> **WARNING**: For `aws` and `gcp` backends Caper will try to find a [Docker image URI defined in your WDL as a comment](DETAILS.md/#wdl-customization) even if `--docker` is not explicitly defined.
 
-Tasks in a workflow will run inside a container and outputs will be pulled out to a host from it at the end of each task. Or you can add `--use-docker` to use a [Docker image URI defined in your WDL as a comment](DETAILS.md/#wdl-customization).
+Tasks in a workflow will run inside a container and outputs will be pulled out to a host from it at the end of each task. `DOCKER_IMAGE_URI` is **OPTIONAL**. If it's not defined then Caper will try to find a [Docker image URI defined in your WDL as a comment](DETAILS.md/#wdl-customization).
 
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] --docker [DOCKER_IMAGE_URI]
+$ caper run [WDL] -i [INPUT_JSON] --docker [DOCKER_IMAGE_URI_OR_LEAVE_IT_BLANK]
 ```
 
 ## Conda

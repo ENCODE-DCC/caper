@@ -288,21 +288,21 @@ $ caper submit [WDL] -i [INPUT_JSON] --ip [SERVER_HOSTNAME] --port [PORT]
 
 On HPCs (e.g. Stanford Sherlock and SCG), you can run Caper with a Singularity container if that is [defined inside `WDL`](DETAILS.md/#wdl-customization). For example, ENCODE [ATAC-seq](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/atac.wdl#L5) and [ChIP-seq](https://github.com/ENCODE-DCC/chip-seq-pipeline2/blob/master/chip.wdl#L5) pipelines.
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] --use-singularity
+$ caper run [WDL] -i [INPUT_JSON] --singularity
 ```
 
 Or specify your own Singularity container.
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] --singularity [SINGULARITY_IMAGE_URI]
+$ caper run [WDL] -i [INPUT_JSON] --singularity [YOUR_OWN_SINGULARITY_IMAGE_URI]
 ```
 
 Similarly for Docker.
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] --use-docker
+$ caper run [WDL] -i [INPUT_JSON] --docker
 ```
 
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] --docker [DOCKER_IMAGE_URI]
+$ caper run [WDL] -i [INPUT_JSON] --docker [YOUR_OWN_DOCKER_IMAGE_URI]
 ```
 
 ## HPCs

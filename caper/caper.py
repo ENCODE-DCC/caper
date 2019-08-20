@@ -92,6 +92,8 @@ class Caper(object):
     def __init__(self, args):
         """Initializes from args dict
         """
+        self._dry_run = args.get('dry_run')
+
         # init REST API
         self._port = args.get('port')
         self._ip = args.get('ip')
@@ -175,15 +177,11 @@ class Caper(object):
                 '.'+ext for ext in self._deepcopy_ext.split(',')]
 
         # containers
-        self._use_singularity = args.get('use_singularity')
         self._no_build_singularity = args.get('no_build_singularity')
         self._use_docker = args.get('use_docker')
+        self._use_singularity = args.get('use_singularity')
         self._singularity = args.get('singularity')
         self._docker = args.get('docker')
-        if self._singularity is not None:
-            self._use_singularity = True
-        if self._docker is not None:
-            self._use_docker = True
 
         # list of values
         self._wf_id_or_label = args.get('wf_id_or_label')
@@ -224,6 +222,8 @@ class Caper(object):
             cmd += ['-p', imports_file]
         print('[Caper] cmd: ', cmd)
 
+        if self._dry_run:
+            return -1
         try:
             p = Popen(cmd, stdout=PIPE, universal_newlines=True)
             workflow_id = None
@@ -289,6 +289,9 @@ class Caper(object):
         started_wf_ids = set()
         # completed, aborted or terminated workflows
         finished_wf_ids = set()
+
+        if self._dry_run:
+            return -1
         try:
             p = Popen(cmd, stdout=PIPE, universal_newlines=True)
             rc = None
@@ -351,6 +354,8 @@ class Caper(object):
         labels_file = self.__create_labels_json_file(tmp_dir)
         on_hold = self._hold if self._hold is not None else False
 
+        if self._dry_run:
+            return -1
         r = self._cromwell_rest_api.submit(
             source=CaperURI(self._wdl).get_local_file(),
             dependencies=imports_file,
@@ -364,6 +369,8 @@ class Caper(object):
     def abort(self):
         """Abort running/pending workflows on a Cromwell server
         """
+        if self._dry_run:
+            return -1
         r = self._cromwell_rest_api.abort(
                 self._wf_id_or_label,
                 [(Caper.KEY_CAPER_STR_LABEL, v)
@@ -374,6 +381,8 @@ class Caper(object):
     def unhold(self):
         """Release hold of workflows on a Cromwell server
         """
+        if self._dry_run:
+            return -1
         r = self._cromwell_rest_api.release_hold(
                 self._wf_id_or_label,
                 [(Caper.KEY_CAPER_STR_LABEL, v)
@@ -384,6 +393,8 @@ class Caper(object):
     def metadata(self, no_print=False):
         """Retrieve metadata for workflows from a Cromwell server
         """
+        if self._dry_run:
+            return -1
         m = self._cromwell_rest_api.get_metadata(
                 self._wf_id_or_label,
                 [(Caper.KEY_CAPER_STR_LABEL, v)
@@ -399,6 +410,8 @@ class Caper(object):
     def list(self):
         """Get list of running/pending workflows from a Cromwell server
         """
+        if self._dry_run:
+            return -1
         # if not argument, list all workflows using wildcard (*)
         if self._wf_id_or_label is None or len(self._wf_id_or_label) == 0:
             workflow_ids = ['*']
@@ -444,6 +457,8 @@ class Caper(object):
     def troubleshoot(self):
         """Troubleshoot errors based on information from Cromwell's metadata
         """
+        if self._dry_run:
+            return -1
         if self._wf_id_or_label is None or len(self._wf_id_or_label) == 0:
             return
         # if it's a file
@@ -626,7 +641,7 @@ class Caper(object):
         # automatically add docker_from_wdl for cloud backend
         if self._use_docker or self._backend in (BACKEND_GCP, BACKEND_AWS):
             if self._docker is None:
-                # find docker/singularity from WDL or command line args
+                # find docker from WDL or command line args
                 docker = self.__find_docker_from_wdl()
             else:
                 docker = self._docker
@@ -638,6 +653,7 @@ class Caper(object):
 
         if self._use_singularity:
             if self._singularity is None:
+                # find singularity from WDL or command line args
                 singularity = self.__find_singularity_from_wdl()
             else:
                 singularity = self._singularity

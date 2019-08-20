@@ -235,6 +235,12 @@ def parse_caper_arguments():
     parser = argparse.ArgumentParser(parents=[conf_parser])
     subparser = parser.add_subparsers(dest='action')
 
+    # all
+    parent_all = argparse.ArgumentParser(add_help=False)
+    parent_all.add_argument('--dry-run',
+        action='store_true',
+        help='Caper does not take any action.')
+
     # run, server, submit
     parent_backend = argparse.ArgumentParser(add_help=False)
     parent_backend.add_argument(
@@ -427,27 +433,24 @@ def parse_caper_arguments():
         'in the command line argument or as a comment "#CAPER '
         'docker URI_FOR_DOCKER_IMG" in a WDL file')
     group_dep.add_argument(
-        '--docker', help='URI for Docker image (e.g. ubuntu:latest). '
-        'Defining it automatically turn on flag "--use-docker"')
-    group_dep.add_argument(
-        '--use-docker', action='store_true',
-        help='Use Singularity to resolve dependency for local backend.')
+        '--docker', nargs='*',
+        help='URI for Docker image (e.g. ubuntu:latest). '
+        'This can also be used as a flag to use Docker image address '
+        'defined in your WDL file as a comment ("#CAPER docker").')
     group_dep_local = parent_submit.add_argument_group(
         title='dependency resolver for local backend',
         description=''
         'Singularity is for local backend only. Other backends '
         '(gcp and aws) will use Docker only. '
         'Local backend defaults to not use any container-based methods. '
-        'Activate "--use-singularity" or "--use-docker" to use containers')
+        'Use "--singularity" or "--docker" to use containers')
     group_dep_local.add_argument(
-        '--singularity',
+        '--singularity', nargs='*',
         help='URI or path for Singularity image '
              '(e.g. ~/.singularity/ubuntu-latest.simg, '
              'docker://ubuntu:latest, shub://vsoch/hello-world). '
-             'Defining it automatically turn on flag "--use-singularity"')
-    group_dep_local.add_argument(
-        '--use-singularity', action='store_true',
-        help='Use Singularity to resolve dependency for local backend.')
+             'This can also be used as a flag to use Docker image address '
+             'defined in your WDL file as a comment ("#CAPER singularity").')
     group_dep_local.add_argument(
         '--no-build-singularity', action='store_true',
         help='Do not build singularity image before running a workflow. ')
@@ -515,40 +518,40 @@ def parse_caper_arguments():
 
     p_run = subparser.add_parser(
         'run', help='Run a single workflow without server',
-        parents=[parent_submit, parent_run, parent_host, parent_backend,
+        parents=[parent_all, parent_submit, parent_run, parent_host, parent_backend,
                  parent_http_auth])
     p_server = subparser.add_parser(
         'server', help='Run a Cromwell server',
-        parents=[parent_server_client, parent_server, parent_host,
+        parents=[parent_all, parent_server_client, parent_server, parent_host,
                  parent_backend, parent_http_auth])
     p_submit = subparser.add_parser(
         'submit', help='Submit a workflow to a Cromwell server',
-        parents=[parent_server_client, parent_submit,
+        parents=[parent_all, parent_server_client, parent_submit,
                  parent_backend, parent_http_auth])
     p_abort = subparser.add_parser(
         'abort', help='Abort running/pending workflows on a Cromwell server',
-        parents=[parent_server_client, parent_search_wf])
+        parents=[parent_all, parent_server_client, parent_search_wf])
     p_unhold = subparser.add_parser(
         'unhold', help='Release hold of workflows on a Cromwell server',
-        parents=[parent_server_client, parent_search_wf])
+        parents=[parent_all, parent_server_client, parent_search_wf])
     p_list = subparser.add_parser(
         'list', help='List running/pending workflows on a Cromwell server',
-        parents=[parent_server_client, parent_search_wf,
+        parents=[parent_all, parent_server_client, parent_search_wf,
                  parent_list])
     p_metadata = subparser.add_parser(
         'metadata',
         help='Retrieve metadata JSON for workflows from a Cromwell server',
-        parents=[parent_server_client, parent_search_wf])
+        parents=[parent_all, parent_server_client, parent_search_wf])
     p_troubleshoot = subparser.add_parser(
         'troubleshoot',
         help='Troubleshoot workflow problems from metadata JSON file or '
              'workflow IDs',
-        parents=[parent_troubleshoot, parent_server_client, parent_search_wf,
+        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf,
                  parent_http_auth])
     p_debug = subparser.add_parser(
         'debug',
         help='Identical to "troubleshoot"',
-        parents=[parent_troubleshoot, parent_server_client, parent_search_wf,
+        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf,
                  parent_http_auth])
 
     for p in [p_run, p_server, p_submit, p_abort, p_unhold, p_list,
@@ -563,6 +566,10 @@ def parse_caper_arguments():
 
     # convert to dict
     args_d = vars(args)
+
+    dry_run = args_d.get('dry_run')
+    if dry_run is not None and isinstance(dry_run, str):
+        args_d['dry_run'] = bool(strtobool(dry_run))
 
     # boolean string to boolean
     disable_call_caching = args_d.get('disable_call_caching')
@@ -585,13 +592,38 @@ def parse_caper_arguments():
     if no_deepcopy is not None and isinstance(no_deepcopy, str):
         args_d['no_deepcopy'] = bool(strtobool(no_deepcopy))
 
-    use_docker = args_d.get('use_docker')
-    if use_docker is not None and isinstance(use_docker, str):
-        args_d['use_docker'] = bool(strtobool(use_docker))
+    docker = args_d.get('docker')
+    if docker is not None:
+        use_docker = True
+    else:
+        use_docker = False
+    if isinstance(docker, list):
+        if len(docker) > 0:
+            docker = docker[0]
+        else:
+            docker = None
+    elif isinstance(docker, str) and docker == '':
+        docker = None
+    args_d['docker'] = docker
+    args_d['use_docker'] = use_docker
 
-    use_singularity = args_d.get('use_singularity')
-    if use_singularity is not None and isinstance(use_singularity, str):
-        args_d['use_singularity'] = bool(strtobool(use_singularity))
+    singularity = args_d.get('singularity')
+    if singularity is not None:
+        use_singularity = True
+    else:
+        use_singularity = False
+    if isinstance(singularity, list):
+        if len(singularity) > 0:
+            singularity = singularity[0]
+        else:
+            singularity = None
+    elif isinstance(singularity, str) and singularity == '':
+        singularity = None
+    args_d['singularity'] = singularity
+    args_d['use_singularity'] = use_singularity
+
+    if use_docker and use_singularity:
+        raise Exception('--docker and --singularity are mutually exclusive')
 
     no_build_singularity = args_d.get('no_build_singularity')
     if no_build_singularity is not None \
