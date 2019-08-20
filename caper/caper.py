@@ -529,7 +529,7 @@ class Caper(object):
                 path, Caper.TMP_FILE_BASENAME_METADATA_JSON)
 
         return CaperURI(metadata_uri).write_str_to_file(
-            json.dumps(metadata_json, indent=4)).get_uri()
+            json.dumps(metadata_json, indent=4))
 
     def __create_input_json_file(
             self, directory, fname='inputs.json'):
@@ -538,6 +538,7 @@ class Caper(object):
         """
         if self._inputs is not None:
             c = CaperURI(self._inputs)
+            new_uri = c.get_local_file()
             if self._deepcopy and self._deepcopy_ext:
                 # deepcopy all files in JSON/TSV/CSV
                 #   to the target backend
@@ -547,9 +548,9 @@ class Caper(object):
                     uri_type = URI_S3
                 else:
                     uri_type = URI_LOCAL
-                c = c.deepcopy(uri_type=uri_type,
-                               uri_exts=self._deepcopy_ext)
-            return c.get_local_file()
+                new_uri, _ = CaperURI(new_uri).deepcopy(
+                    uri_type=uri_type, uri_exts=self._deepcopy_ext)
+            return new_uri
         else:
             input_file = os.path.join(directory, fname)
             with open(input_file, 'w') as fp:
