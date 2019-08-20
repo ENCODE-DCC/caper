@@ -6,7 +6,7 @@
 
 * **Automatic transfer between local/cloud storages**: You can use URIs (e.g. `gs://`, `http(s)://` and `s3://`) instead of paths in a command line arguments, also in your input JSON file. Files associated with these URIs will be automatically transfered to a specified temporary directory on a target remote storage.
 
-* **Deepcopy for input JSON file**: Recursively copy all data files in (`.json`, `.tsv` and `.csv`) to a target remote storage. Use `--deepcopy` for this feature.
+* **Deepcopy for input JSON file**: Recursively copy all data files in (`.json`, `.tsv` and `.csv`) to a target remote storage. It's activate by default. Use `--no-deepcopy` to disable this feature.
 
 * **Docker/Singularity integration**: You can run a WDL workflow in a specifed docker/singularity container.
 
@@ -55,13 +55,13 @@ We highly recommend to use a default configuration file described in the section
 	--java-heap-server|Java heap memory for caper server (default: 7GB)
 	--java-heap-run|Java heap memory for caper run (default: 1GB)
 
-* Choose a default backend. Use `--deepcopy` to recursively auto-copy data files in your input JSON file. All data files will be automatically transferred to a target local/remote storage corresponding to a chosen backend. Make sure that you correctly configure temporary directories for source/target storages (`--tmp-dir`, `--tmp-gcs-bucket` and `--tmp-s3-bucket`).
+* Choose a default backend. Deepcopy is enabled by default. All data files will be automatically transferred to a target local/remote storage corresponding to a chosen backend. Make sure that you correctly configure temporary directories for source/target storages (`--tmp-dir`, `--tmp-gcs-bucket` and `--tmp-s3-bucket`). To disable this feature use `--no-deepcopy`.
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
 	backend|-b, --backend|local|Caper's built-in backend to run a workflow. Supported backends: `local`, `gcp`, `aws`, `slurm`, `sge` and `pbs`. Make sure to configure for chosen backend
 	hold|--hold| |Put a hold on a workflow when submitted to a Cromwell server
-	deepcopy|--deepcopy| |Deepcopy input files to corresponding file local/remote storage
+	no-deepcopy|--no-deepcopy| |Disable deepcopy (copying files defined in an input JSON to corresponding file local/remote storage)
 	deepcopy-ext|--deepcopy-ext|json,<br>tsv|Comma-separated list of file extensions to be deepcopied. Supported exts: .json, .tsv  and .csv.
 	format|--format, -f|id,status,<br>name,<br>str_label,<br>submission|Comma-separated list of items to be shown for `list` subcommand. Supported formats: `id` (workflow UUID), `status`, `name` (WDL basename), `str\_label` (Caper's special string label), `submission`, `start`, `end`
 	hide-result-before|--hide-result-before| | Datetime string to hide old workflows submitted before it. This is based on a simple string sorting. (e.g. 2019-06-13, 2019-06-13T10:07)

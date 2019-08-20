@@ -168,7 +168,7 @@ class Caper(object):
             self._backend = BACKEND_LOCAL  # Local (capital L)
 
         # deepcopy
-        self._deepcopy = args.get('deepcopy')
+        self._no_deepcopy = args.get('no_deepcopy')
         self._deepcopy_ext = args.get('deepcopy_ext')
         if self._deepcopy_ext is not None:
             self._deepcopy_ext = [
@@ -539,7 +539,7 @@ class Caper(object):
         if self._inputs is not None:
             c = CaperURI(self._inputs)
             new_uri = c.get_local_file()
-            if self._deepcopy and self._deepcopy_ext:
+            if not self._no_deepcopy and self._deepcopy_ext:
                 # deepcopy all files in JSON/TSV/CSV
                 #   to the target backend
                 if self._backend == BACKEND_GCP:
@@ -550,6 +550,7 @@ class Caper(object):
                     uri_type = URI_LOCAL
                 new_uri, _ = CaperURI(new_uri).deepcopy(
                     uri_type=uri_type, uri_exts=self._deepcopy_ext)
+
             return new_uri
         else:
             input_file = os.path.join(directory, fname)

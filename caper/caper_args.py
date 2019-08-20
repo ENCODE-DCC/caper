@@ -405,8 +405,11 @@ def parse_caper_arguments():
         help='Cromwell Java heap size for "run" mode (java -Xmx)')
 
     parent_submit.add_argument(
-        '--deepcopy', action='store_true',
-        help='Deepcopy for JSON (.json), TSV (.tsv) and CSV (.csv) '
+        '--no-deepcopy', action='store_true',
+        help='(IMPORTANT) --deepcopy has been deprecated. '
+             'Deepcopying is now activated by default. '
+             'This flag disables deepcopy for '
+             'JSON (.json), TSV (.tsv) and CSV (.csv) '
              'files specified in an input JSON file (--inputs). '
              'Find all path/URI string values in an input JSON file '
              'and make copies of files on a local/remote storage '
@@ -578,9 +581,9 @@ def parse_caper_arguments():
     if hold is not None and isinstance(hold, str):
         args_d['hold'] = bool(strtobool(hold))
 
-    deepcopy = args_d.get('deepcopy')
-    if deepcopy is not None and isinstance(deepcopy, str):
-        args_d['deepcopy'] = bool(strtobool(deepcopy))
+    no_deepcopy = args_d.get('no_deepcopy')
+    if no_deepcopy is not None and isinstance(no_deepcopy, str):
+        args_d['no_deepcopy'] = bool(strtobool(no_deepcopy))
 
     use_docker = args_d.get('use_docker')
     if use_docker is not None and isinstance(use_docker, str):

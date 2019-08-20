@@ -169,7 +169,9 @@ Cloud backends (AWS and GCP) write outputs on corresponding storage buckets (s3 
 
 ## Deepcopy (auto inter-storage transfer)
 
-`--deepcopy` allows Caper to **RECURSIVELY** copy files defined in your input JSON into your target backend's temporary storage. For example, Cromwell cannot read directly from URLs in an [input JSON file](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/examples/caper/ENCSR356KRQ_subsampled.json), but Caper with `--deepcopy` makes copies of these URLs on your backend's temporary directory (e.g. `--tmp-dir` for `local`, `--tmp-gcs-bucket` for `gcp`) and pass them to Cromwell.
+> **IMPORTANT**: `--deepcopy` has been deprecated and it's activated by default. You can disable it with `--no-deepcopy`.
+
+Deepcopy allows Caper to **RECURSIVELY** copy files defined in your input JSON into your target backend's temporary storage. For example, Cromwell cannot read directly from URLs in an [input JSON file](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/examples/caper/ENCSR356KRQ_subsampled.json), but Caper makes copies of these URLs on your backend's temporary directory (e.g. `--tmp-dir` for `local`, `--tmp-gcs-bucket` for `gcp`) and pass them to Cromwell.
 
 ## How to manage configuration file per project
 
@@ -266,10 +268,10 @@ According to your chosen backend, define the following parameters in your defaul
 
 Run Caper. Make sure to keep your SSH session alive.
 
-`--deepcopy` is optional for input JSON file with remote URIs defined in it. Those URIs (`http(s)://`, `s3://`, `gs://`, ...) will be recursively copied into a target storage for a corresponding chosen backend. For example, GCS bucket (`gs://`) for GCP backend (`gcp`).
+Deepcopy is activate by default and URIs (`http(s)://`, `s3://`, `gs://`, ...) in your input JSON will be recursively copied into a target storage for a corresponding chosen backend. For example, GCS bucket (`gs://`) for GCP backend (`gcp`).
 
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] --deepcopy
+$ caper run [WDL] -i [INPUT_JSON]
 ```
 
 Or run a Cromwell server with Caper. Make sure to keep server's SSH session alive.
