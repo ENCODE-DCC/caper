@@ -453,7 +453,7 @@ class CaperURI(object):
             p.communicate(input=s.encode('ascii'))
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
-        return self
+        return self._uri
 
     def __get_rel_uri(self):
         if self._uri_type == URI_LOCAL:
@@ -538,7 +538,7 @@ class CaperURI(object):
 
     def __deepcopy_tsv(self, uri_type=None, uri_exts=(), delim='\t'):
         if uri_type is None or len(uri_exts) == 0:
-            return self
+            return self._uri
         fname_wo_ext, ext = os.path.splitext(self._uri)
         assert(ext in ('.tsv', '.csv'))
 
@@ -550,19 +550,14 @@ class CaperURI(object):
             new_values = []
             for v in line.split(delim):
                 c = CaperURI(v)
-                if c.can_deepcopy() and c.uri_type != uri_type:
-                    updated = True
-                    if CaperURI.VERBOSE:
-                        print('[CaperURI] deepcopy_tsv from '
-                              '{src} to {tgt}, src: {uri}, tsv: {uri2}'.format(
-                                src=c._uri_type, tgt=uri_type,
-                                uri=c._uri, uri2=self._uri))
-                    # copy file to target storage
-                    new_file = c.deepcopy(uri_type=uri_type,
-                                          uri_exts=uri_exts).get_file(uri_type)
+                new_file, updated_ = c.deepcopy(
+                    uri_type=uri_type, uri_exts=uri_exts)
+                updated |= updated_
+                if updated_:
                     new_values.append(new_file)
                 else:
                     new_values.append(v)
+
             new_contents.append(delim.join(new_values))
 
         if updated:
@@ -573,13 +568,13 @@ class CaperURI(object):
             # we can't write on URLs
             if cu.uri_type == URI_URL:
                 cu.set_uri_type_no_copy(uri_type)
-            return cu.write_str_to_file(s)
+            return cu.write_str_to_file(s), updated
         else:
-            return self
+            return self._uri, updated
 
     def __deepcopy_json(self, uri_type=None, uri_exts=()):
         if uri_type is None or len(uri_exts) == 0:
-            return self
+            return self._uri
         fname_wo_ext, ext = os.path.splitext(self._uri)
         assert(ext in ('.json'))
 
@@ -595,25 +590,22 @@ class CaperURI(object):
                 for i, v in enumerate(d):
                     updated |= recurse_dict(v, uri_type, lst=d,
                                             lst_idx=i, updated=updated)
-            elif type(d) == str:
+            elif isinstance(d, str):
                 assert(d_parent is not None or lst is not None)
                 c = CaperURI(d)
-                if c.can_deepcopy() and c.uri_type != uri_type:
-                    if CaperURI.VERBOSE:
-                        print('[CaperURI] deepcopy_json from '
-                              '{src} to {tgt}, src: {uri}, json: {u2}'.format(
-                                src=c._uri_type, tgt=uri_type,
-                                uri=c._uri, u2=self._uri))
-                    new_file = c.deepcopy(
-                        uri_type=uri_type, uri_exts=uri_exts).get_file(
-                            uri_type)
+                new_file, updated_ = c.deepcopy(
+                    uri_type=uri_type, uri_exts=uri_exts)
+                updated |= updated_
+
+                if updated_:
                     if d_parent is not None:
                         d_parent[d_parent_key] = new_file
                     elif lst is not None:
                         lst[lst_idx] = new_file
                     else:
                         raise ValueError('Recursion failed.')
-                    return True
+                return updated
+
             return updated
 
         org_d = json.loads(contents, object_pairs_hook=OrderedDict)
@@ -630,25 +622,31 @@ class CaperURI(object):
             # we can't write on URLs
             if cu.uri_type == URI_URL:
                 cu.set_uri_type_no_copy(uri_type)
-            return cu.write_str_to_file(j)
+            return cu.write_str_to_file(j), updated
         else:
-            return self
+            return self._uri, updated
 
     def deepcopy(self, uri_type=None, uri_exts=()):
         """Supported file extensions: .json, .tsv and .csv
         """
         fname_wo_ext, ext = os.path.splitext(self._uri)
 
-        if ext in uri_exts:
-            if ext == '.json':
-                return self.__deepcopy_json(uri_type, uri_exts)
-            elif ext == '.tsv':
-                return self.__deepcopy_tsv(uri_type, uri_exts, delim='\t')
-            elif ext == '.csv':
-                return self.__deepcopy_tsv(uri_type, uri_exts, delim=',')
-            else:
-                NotImplementedError('ext: {}.'.format(ext))
-        return self
+        if self._can_deepcopy:
+            if ext in uri_exts:
+                if ext == '.json':
+                    return self.__deepcopy_json(uri_type, uri_exts)
+                elif ext == '.tsv':
+                    return self.__deepcopy_tsv(uri_type, uri_exts, delim='\t')
+                elif ext == '.csv':
+                    return self.__deepcopy_tsv(uri_type, uri_exts, delim=',')
+                else:
+                    NotImplementedError('ext: {}.'.format(ext))
+
+            # copy if target URI type is different
+            if self._uri_type != uri_type:
+                return self.get_file(uri_type=uri_type), True
+
+        return self._uri, False
 
     def rm(self, quiet=False):
         """Remove file
