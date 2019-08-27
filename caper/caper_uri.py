@@ -570,9 +570,9 @@ class CaperURI(object):
                 cu.set_uri_type_no_copy(uri_type)
             return cu.write_str_to_file(s), updated
         elif self._uri_type != uri_type:
-            return self.get_file(uri_type=uri_type), updated
+            return self.get_file(uri_type=uri_type), True
         else:
-            return self._uri, updated
+            return self._uri, False
 
     def __deepcopy_json(self, uri_type=None, uri_exts=()):
         if uri_type is None or len(uri_exts) == 0:
@@ -626,9 +626,9 @@ class CaperURI(object):
                 cu.set_uri_type_no_copy(uri_type)
             return cu.write_str_to_file(j), updated
         elif self._uri_type != uri_type:
-            return self.get_file(uri_type=uri_type), updated
+            return self.get_file(uri_type=uri_type), True
         else:
-            return self._uri, updated
+            return self._uri, False
 
     def deepcopy(self, uri_type=None, uri_exts=()):
         """Supported file extensions: .json, .tsv and .csv
