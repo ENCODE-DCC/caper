@@ -569,6 +569,8 @@ class CaperURI(object):
             if cu.uri_type == URI_URL:
                 cu.set_uri_type_no_copy(uri_type)
             return cu.write_str_to_file(s), updated
+        elif self._uri_type != uri_type:
+            return self.get_file(uri_type=uri_type), updated
         else:
             return self._uri, updated
 
@@ -623,6 +625,8 @@ class CaperURI(object):
             if cu.uri_type == URI_URL:
                 cu.set_uri_type_no_copy(uri_type)
             return cu.write_str_to_file(j), updated
+        elif self._uri_type != uri_type:
+            return self.get_file(uri_type=uri_type), updated
         else:
             return self._uri, updated
 
