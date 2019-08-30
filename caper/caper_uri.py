@@ -536,7 +536,8 @@ class CaperURI(object):
         else:
             self._can_deepcopy = True
 
-    def __deepcopy_tsv(self, uri_type=None, uri_exts=(), delim='\t'):
+    def __deepcopy_tsv(self, uri_type=None, uri_exts=(), delim='\t',
+                       no_copy_root=False):
         if uri_type is None or len(uri_exts) == 0:
             return self._uri
         fname_wo_ext, ext = os.path.splitext(self._uri)
@@ -564,17 +565,21 @@ class CaperURI(object):
             new_uri = '{prefix}.{uri_type}{ext}'.format(
                 prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
             s = '\n'.join(new_contents)
+            if not no_copy_root:
+                new_uri = CaperURI(new_uri).get_file(uri_type=uri_type,
+                                                     no_copy=True)
             cu = CaperURI(new_uri)
             # we can't write on URLs
             if cu.uri_type == URI_URL:
                 cu.set_uri_type_no_copy(uri_type)
             return cu.write_str_to_file(s), updated
-        elif self._uri_type != uri_type:
+        elif not no_copy_root and self._uri_type != uri_type:
             return self.get_file(uri_type=uri_type), True
         else:
             return self._uri, False
 
-    def __deepcopy_json(self, uri_type=None, uri_exts=()):
+    def __deepcopy_json(self, uri_type=None, uri_exts=(),
+                        no_copy_root=False):
         if uri_type is None or len(uri_exts) == 0:
             return self._uri
         fname_wo_ext, ext = os.path.splitext(self._uri)
@@ -620,17 +625,21 @@ class CaperURI(object):
             new_uri = '{prefix}.{uri_type}{ext}'.format(
                 prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
             j = json.dumps(new_d, indent=4)
+            if not no_copy_root:
+                new_uri = CaperURI(new_uri).get_file(uri_type=uri_type,
+                                                     no_copy=True)
             cu = CaperURI(new_uri)
             # we can't write on URLs
             if cu.uri_type == URI_URL:
                 cu.set_uri_type_no_copy(uri_type)
             return cu.write_str_to_file(j), updated
-        elif self._uri_type != uri_type:
+        elif not no_copy_root and self._uri_type != uri_type:
             return self.get_file(uri_type=uri_type), True
         else:
             return self._uri, False
 
-    def deepcopy(self, uri_type=None, uri_exts=()):
+    def deepcopy(self, uri_type=None, uri_exts=(),
+                 no_copy_root=False):
         """Supported file extensions: .json, .tsv and .csv
         """
         fname_wo_ext, ext = os.path.splitext(self._uri)
@@ -638,18 +647,20 @@ class CaperURI(object):
         if self._can_deepcopy:
             if ext in uri_exts:
                 if ext == '.json':
-                    return self.__deepcopy_json(uri_type, uri_exts)
+                    return self.__deepcopy_json(uri_type, uri_exts,
+                                                no_copy_root=no_copy_root)
                 elif ext == '.tsv':
-                    return self.__deepcopy_tsv(uri_type, uri_exts, delim='\t')
+                    return self.__deepcopy_tsv(uri_type, uri_exts, delim='\t',
+                                               no_copy_root=no_copy_root)
                 elif ext == '.csv':
-                    return self.__deepcopy_tsv(uri_type, uri_exts, delim=',')
+                    return self.__deepcopy_tsv(uri_type, uri_exts, delim=',',
+                                               no_copy_root=no_copy_root)
                 else:
                     NotImplementedError('ext: {}.'.format(ext))
 
             # copy if target URI type is different
-            if self._uri_type != uri_type:
+            if not no_copy_root and self._uri_type != uri_type:
                 return self.get_file(uri_type=uri_type), True
-
         return self._uri, False
 
     def rm(self, quiet=False):

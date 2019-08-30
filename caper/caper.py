@@ -552,8 +552,9 @@ class Caper(object):
         Deepcopy to a specified storage if required.
         """
         if self._inputs is not None:
-            c = CaperURI(self._inputs)
-            new_uri = c.get_local_file()
+            # get a local copy first
+            new_uri = CaperURI(self._inputs).get_local_file()
+
             if not self._no_deepcopy and self._deepcopy_ext:
                 # deepcopy all files in JSON/TSV/CSV
                 #   to the target backend
@@ -563,8 +564,10 @@ class Caper(object):
                     uri_type = URI_S3
                 else:
                     uri_type = URI_LOCAL
+
                 new_uri, _ = CaperURI(new_uri).deepcopy(
-                    uri_type=uri_type, uri_exts=self._deepcopy_ext)
+                    uri_type=uri_type, uri_exts=self._deepcopy_ext,
+                    no_copy_root=True)
 
             return new_uri
         else:
