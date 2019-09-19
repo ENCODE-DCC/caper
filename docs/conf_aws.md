@@ -47,7 +47,7 @@ Now SSH to your instance (with the `.pem` key file generated during step 3). In 
 
 ```bash
 $ sudo yum install -y python3 java git curl
-$ pip3 install caper3
+$ pip3 install caper
 ```
 
 Now you are ready to run Caper on an AWS instance. Specify backend `-b` as `aws`.
