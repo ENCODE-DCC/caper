@@ -259,7 +259,7 @@ def parse_caper_arguments():
     group_file_db = parent_host.add_argument_group(
         title='HyperSQL file DB arguments')
     group_file_db.add_argument(
-        '--file-db', '-d', default=DEFAULT_FILE_DB,
+        '--file-db', '-d',
         help='Default DB file for Cromwell\'s built-in HyperSQL database.')
     group_file_db.add_argument(
         '--no-file-db', '-n', action='store_true',
@@ -640,10 +640,20 @@ def parse_caper_arguments():
         if args_d.get('out_gcs_bucket'):
             args_d['tmp_gcs_bucket'] = os.path.join(args_d['out_gcs_bucket'],
                                                     '.caper_tmp')
+    backend = args_d.get('backend')
+
     file_db = args_d.get('file_db')
     if file_db is not None:
         file_db = os.path.abspath(os.path.expanduser(file_db))
         args_d['file_db'] = file_db
+    elif backend is None or backend == 'local':
+        basename = os.path.basename(DEFAULT_FILE_DB)
+        out_dir = args_d['out_dir']
+        args_d['file_db'] = os.path.join(out_dir, basename)
+        out_dir = args_d['out_dir']
+    else:
+        args_d['file_db'] = os.path.abspath(
+            os.path.expanduser(DEFAULT_FILE_DB))
 
     singularity_cachedir = args_d.get('singularity_cachedir')
     if singularity_cachedir is not None:
