@@ -567,30 +567,30 @@ def parse_caper_arguments():
     # convert to dict
     args_d = vars(args)
 
-    dry_run = args_d.get('dry_run')
-    if dry_run is not None and isinstance(dry_run, str):
-        args_d['dry_run'] = bool(strtobool(dry_run))
+    # string to boolean
+    for k in [
+        'dry_run',
+        'disable_call_caching',
+        'use_gsutil_over_aws_s3',
+        'hold',
+        'no_deepcopy',
+        'no_build_singularity',
+        'no_file_db',
+        'use_netrc',
+        'show_completed_task']:
+        v = args_d.get(k)
+        if v is not None and isinstance(v, str):
+            args_d[k] = bool(strtobool(v))
 
-    # boolean string to boolean
-    disable_call_caching = args_d.get('disable_call_caching')
-    if disable_call_caching is not None \
-            and isinstance(disable_call_caching, str):
-        args_d['disable_call_caching'] = \
-            bool(strtobool(disable_call_caching))
-
-    use_gsutil_over_aws_s3 = args_d.get('use_gsutil_over_aws_s3')
-    if use_gsutil_over_aws_s3 is not None \
-            and isinstance(use_gsutil_over_aws_s3, str):
-        args_d['use_gsutil_over_aws_s3'] = \
-            bool(strtobool(use_gsutil_over_aws_s3))
-
-    hold = args_d.get('hold')
-    if hold is not None and isinstance(hold, str):
-        args_d['hold'] = bool(strtobool(hold))
-
-    no_deepcopy = args_d.get('no_deepcopy')
-    if no_deepcopy is not None and isinstance(no_deepcopy, str):
-        args_d['no_deepcopy'] = bool(strtobool(no_deepcopy))
+    # string to int
+    for k in [
+        'db_timeout',
+        'max_retries',
+        'max_concurrent_tasks',
+        'max_concurrent_workflows']:
+        v = args_d.get(k)
+        if v is not None and isinstance(v, str):
+            args_d[k] = int(v)
 
     docker = args_d.get('docker')
     if docker is not None:
@@ -624,45 +624,6 @@ def parse_caper_arguments():
 
     if use_docker and use_singularity:
         raise Exception('--docker and --singularity are mutually exclusive')
-
-    no_build_singularity = args_d.get('no_build_singularity')
-    if no_build_singularity is not None \
-            and isinstance(no_build_singularity, str):
-        args_d['no_build_singularity'] = bool(strtobool(no_build_singularity))
-
-    no_file_db = args_d.get('no_file_db')
-    if no_file_db is not None and isinstance(no_file_db, str):
-        args_d['no_file_db'] = bool(strtobool(no_file_db))
-
-    use_netrc = args_d.get('use_netrc')
-    if use_netrc is not None and isinstance(use_netrc, str):
-        args_d['use_netrc'] = bool(strtobool(use_netrc))
-
-    show_completed_task = args_d.get('show_completed_task')
-    if show_completed_task is not None and \
-            isinstance(show_completed_task, str):
-        args_d['show_completed_task'] = bool(strtobool(show_completed_task))
-
-    # int string to int
-    max_concurrent_tasks = args_d.get('max_concurrent_tasks')
-    if max_concurrent_tasks is not None \
-            and isinstance(max_concurrent_tasks, str):
-        args_d['max_concurrent_tasks'] = int(max_concurrent_tasks)
-
-    max_concurrent_workflows = args_d.get('max_concurrent_workflows')
-    if max_concurrent_workflows is not None \
-            and isinstance(max_concurrent_workflows, str):
-        args_d['max_concurrent_workflows'] = int(max_concurrent_workflows)
-
-    db_timeout = args_d.get('db_timeout')
-    if db_timeout is not None \
-            and isinstance(db_timeout, str):
-        args_d['db_timeout'] = int(db_timeout)
-
-    max_retries = args_d.get('max_retries')
-    if max_retries is not None \
-            and isinstance(max_retries, str):
-        args_d['max_retries'] = int(max_retries)
 
     # init some important path variables
     if args_d.get('out_dir') is None:
