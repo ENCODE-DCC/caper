@@ -1022,15 +1022,14 @@ class Caper(object):
                     job_id = call['jobId'] if 'jobId' in call else None
                     stdout = call['stdout'] if 'stdout' in call else None
                     stderr = call['stderr'] if 'stderr' in call else None
+                    run_start = None
+                    run_end = None
                     if 'executionEvents' in call:
                         for ev in call['executionEvents']:
                             if ev['description'].startswith('Running'):
                                 run_start = ev['startTime']
                                 run_end = ev['endTime']
                                 break
-                    else:
-                        run_start = None
-                        run_end = None
 
                     if not show_completed_task and \
                             task_status in ('Done', 'Succeeded'):
