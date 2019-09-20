@@ -641,6 +641,12 @@ def parse_caper_arguments():
             args_d['tmp_gcs_bucket'] = os.path.join(args_d['out_gcs_bucket'],
                                                     '.caper_tmp')
     backend = args_d.get('backend')
+    if backend is not None:
+        if backend == 'google':
+            backend = 'gcp'
+        elif backend == 'amazon':
+            backend = 'aws'
+        args_d['backend'] = backend
 
     file_db = args_d.get('file_db')
     if file_db is not None:
