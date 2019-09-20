@@ -12,7 +12,7 @@ import os
 from distutils.util import strtobool
 
 
-__version__ = '0.3.20'
+__version__ = '0.4.0'
 
 DEFAULT_JAVA_HEAP_SERVER = '7G'
 DEFAULT_JAVA_HEAP_RUN = '1G'
