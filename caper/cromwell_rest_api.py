@@ -262,6 +262,8 @@ class CromwellRestAPI(object):
         except Exception as e:
             # traceback.print_exc()
             print(e)
+            print('Help: cannot connect to server. '\
+                  'Check if server is dead or still spinning up.')
             sys.exit(1)
 
         if resp.ok:
