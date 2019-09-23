@@ -21,11 +21,14 @@ import pwd
 import json
 import re
 import time
+import socket
+from threading import Thread
 import shutil
 from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 
 from .caper_args import parse_caper_arguments
+from .caper_check import check_caper_conf
 from .cromwell_rest_api import CromwellRestAPI
 from .caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
     init_caper_uri, CaperURI
@@ -71,6 +74,8 @@ class Caper(object):
         r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
     RE_PATTERN_FINISHED_WORKFLOW_ID = \
         r'WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) is in a terminal state'
+    RE_PATTERN_STARTED_CROMWELL_SERVER = \
+        r'Cromwell \d+ service started on'
     RE_PATTERN_WORKFLOW_ID = \
         r'\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b'
     RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s+as\s+'
@@ -78,6 +83,7 @@ class Caper(object):
     USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
 
     SEC_INTERVAL_UPDATE_METADATA = 240.0
+    SEC_INTERVAL_UPDATE_SERVER_HEARTBEAT = 60.0
     # added to cromwell labels file
     KEY_CAPER_STR_LABEL = 'caper-str-label'
     KEY_CAPER_USER = 'caper-user'
@@ -95,10 +101,12 @@ class Caper(object):
         self._dry_run = args.get('dry_run')
 
         # init REST API
-        self._port = args.get('port')
-        self._ip = args.get('ip')
-        self._cromwell_rest_api = CromwellRestAPI(
-            ip=self._ip, port=self._port, verbose=False)
+        self.__init_cromwell_rest_api(
+            action=args.get('action'),
+            ip=args.get('ip'),
+            port=args.get('port'),
+            server_hearbeat_file=args.get('server_heartbeat_file'),
+            server_hearbeat_timeout=args.get('server_heartbeat_timeout'))
 
         # java heap size
         self._java_heap_server = args.get('java_heap_server')
@@ -278,6 +286,14 @@ class Caper(object):
         tmp_dir = self.__mkdir_tmp_dir()
         backend_file = self.__create_backend_conf_file(tmp_dir)
 
+        # check if port is open
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        result = sock.connect_ex((self._ip, self._port))
+        if result == 0:
+            err = '[Caper] Error: server port {} is already taken. '\
+                  'Try with a different --port'.format(self._port)
+            raise Exception(err)
+
         java_heap = '-Xmx{}'.format(self._java_heap_server)
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
         cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
@@ -290,12 +306,16 @@ class Caper(object):
         # completed, aborted or terminated workflows
         finished_wf_ids = set()
 
+        self._stop_heartbeat_thread = False
+        t_heartbeat = Thread(
+            target=self.__write_heartbeat_file)
         if self._dry_run:
             return -1
         try:
             p = Popen(cmd, stdout=PIPE, universal_newlines=True)
             rc = None
             t0 = time.perf_counter()  # tickcount
+            server_is_ready = False
 
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
@@ -305,6 +325,12 @@ class Caper(object):
                 # find workflow id from Cromwell server's STDOUT
                 wf_ids_with_status = \
                     Caper.__get_workflow_ids_from_cromwell_stdout(stdout)
+                if not server_is_ready:
+                    server_is_ready = \
+                        Caper.__check_cromwell_server_start_from_stdout(stdout)
+                    if server_is_ready:
+                        t_heartbeat.start()
+
                 for wf_id, status in wf_ids_with_status:
                     if status in 'started':
                         started_wf_ids.add(wf_id)
@@ -334,6 +360,9 @@ class Caper(object):
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
                 print(stdout)
+        time.sleep(1)
+        self._stop_heartbeat_thread = True
+        t_heartbeat.join()
         print('[Caper] server: ', rc, started_wf_ids, finished_wf_ids)
         return rc
 
@@ -477,6 +506,57 @@ class Caper(object):
 
         for metadata in metadatas:
             Caper.__troubleshoot(metadata, self._show_completed_task)
+
+    def __init_cromwell_rest_api(self, action, ip, port,
+                                 server_hearbeat_file,
+                                 server_hearbeat_timeout):
+        self._server_hearbeat_file = server_hearbeat_file
+        self._ip, self._port = \
+            self.__read_heartbeat_file(action, ip, port, server_hearbeat_timeout)
+
+        self._cromwell_rest_api = CromwellRestAPI(
+            ip=self._ip, port=self._port, verbose=False)
+
+    def __read_heartbeat_file(self, action, ip, port, server_hearbeat_timeout):
+        if self._server_hearbeat_file is not None:
+            self._server_hearbeat_file = os.path.expanduser(
+                self._server_hearbeat_file)
+            if action != 'server':
+                # print('[Caper] Reading heartbeat file',
+                #       self._server_hearbeat_file)
+                try:
+                    if os.path.exists(self._server_hearbeat_file):
+                        f_time = os.path.getmtime(self._server_hearbeat_file)
+                        if (time.time() - f_time) * 1000.0 < server_hearbeat_timeout:
+                            with open(self._server_hearbeat_file, 'r') as fp:
+                                ip, port = fp.read().strip('\n').split(':')
+                except:
+                    print('[Caper] Warning: failed to read server_heartbeat_file',
+                          self._server_hearbeat_file)
+        return ip, port
+
+    def __write_heartbeat_file(self):
+        if self._server_hearbeat_file is not None:
+            while True:
+                try:
+                    print('[Caper] Writing heartbeat',
+                          socket.gethostname(), self._port)
+                    with open(self._server_hearbeat_file, 'w') as fp:
+                        fp.write('{}:{}'.format(
+                            socket.gethostname(),
+                            self._port))
+                except Exception as e:
+                    print(e)
+                    print('[Caper] Warning: failed to write a '
+                          'heartbeat_file')
+                cnt = 0
+                while cnt < Caper.SEC_INTERVAL_UPDATE_SERVER_HEARTBEAT:
+                    cnt += 1
+                    if self._stop_heartbeat_thread:
+                        break
+                    time.sleep(1)
+                if self._stop_heartbeat_thread:
+                    break
 
     def __download_cromwell_jar(self):
         """Download cromwell-X.jar
@@ -977,6 +1057,14 @@ class Caper(object):
         return result
 
     @staticmethod
+    def __check_cromwell_server_start_from_stdout(stdout):
+        for line in stdout.split('\n'):
+            r1 = re.findall(Caper.RE_PATTERN_STARTED_CROMWELL_SERVER, line)
+            if len(r1) > 0:
+                return True
+        return False
+
+    @staticmethod
     def __get_time_str():
         return datetime.now().strftime('%Y%m%d_%H%M%S_%f')
 
@@ -1124,6 +1212,7 @@ def main():
     # parse arguments
     #   note that args is a dict
     args = parse_caper_arguments()
+    args = check_caper_conf(args)
 
     # init caper uri to transfer files across various storages
     #   e.g. gs:// to s3://, http:// to local, ...

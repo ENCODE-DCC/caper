@@ -17,7 +17,7 @@ __version__ = '0.4.0'
 DEFAULT_JAVA_HEAP_SERVER = '7G'
 DEFAULT_JAVA_HEAP_RUN = '1G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
-DEFAULT_FILE_DB = '~/.caper/default_file_db'
+DEFAULT_FILE_DB_PREFIX = 'caper_file_db'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
 DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/42/cromwell-42.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
@@ -30,169 +30,9 @@ DEFAULT_PORT = 8000
 DEFAULT_IP = 'localhost'
 DEFAULT_FORMAT = 'id,status,name,str_label,user,submission'
 DEFAULT_DEEPCOPY_EXT = 'json,tsv'
-DEFAULT_CAPER_CONF_CONTENTS = """[defaults]
-
-############ Minimum required parameters
-## Please read through carefully
-
-## Define file DB to use Cromwell's call-caching
-
-## IMPORTANT #########################################################
-## This DB file will grow fast to reach several GBs
-## Make sure that you have enough disk space for this file on the target directory.
-## IMPORTANT ########################################################
-
-## Call-caching is important for restarting failed workflows
-## File DB can only be accessed by one caper process (caper run or server)
-## i.e. you cannot run multiple caper run with one file DB
-## For such case, we recommend to use caper server and submit multiple workflows to it
-## You can disable file DB with '--no-file-db' or '-n'
-#file-db=~/.caper/default_file_db
-
-## DB timeout for both file DB and MySQL DB
-## If your DB file is large then you can see "db - Connection is not available" error
-## then try to increase this timeout
-#db-timeout=30000
-
-## Define to use 'caper server' and all client subcommands like 'caper submit'
-## This is not required for 'caper run'
-#port=8000
-
-## Define default backend (local, gcp, aws, slurm, sge, pbs)
-#backend=local
-
-## Define output directory if you want to run pipelines locally
-#out-dir=
-
-## Define if you want to run pipelines on Google Cloud Platform
-#gcp-prj=encode-dcc-1016
-#out-gcs-bucket=gs://encode-pipeline-test-runs/caper_out_project1
-
-## Define if you want to run pipelines on AWS
-#aws-batch-arn=arn:....
-#aws-region=us-west-1
-#out-s3-bucket=s3://encode-pipeline-test-runs/caper_out_project1
-
-## Define if you want to run pipelines on SLURM
-## Define partition or account or both according to your cluster's requirements
-## For example, Stanford requires a partition and SCG requires an account.
-#slurm-partition=akundaje
-#slurm-account=akundaje
-
-## Define if you want to run pipelines on SGE
-#sge-pe=shm
-
-## Define if your SGE cluster requires a queue
-#sge-queue=q
-
-## Define if your PBS cluster requires a queue
-#pbs-queue=q
-
-
-############# Caper settings
-## cromwell.jar java heap
-## java -Xmx for "caper server"
-#java-heap-server=7G
-
-## java -Xmx for "caper run"
-#java-heap-run=1G
-
-### Workflow settings
-#deepcopy-ext=json,tsv
-
-############# local backend
-## Singularity image will be pulled to this directory
-## if you don't specify this, then Singularity will pull image
-## from remote repo everytime for each task.
-## to prevent this overhead DEFINE IT
-## user's scratch is recommended
-#singularity-cachedir=~/.caper/singularity_cachedir
-
-## local singularity image will not be built before running
-## a workflow. this can result in conflicts between tasks
-## trying to write on the same image file.
-#no-build-singularity=True
-
-## all temporary files (including deepcopied data files,
-## backend conf, worflow_opts JSONs, ...)
-## will be written to this directory
-## DON'T USE /tmp. User's scratch directory is recommended
-#tmp-dir=
-
-############# Google Cloud Platform backend
-## comma-separated zones for GCP (e.g. us-west1-b,us-central1-b)
-#gcp-zones=
-
-#tmp-gcs-bucket=
-
-############# AWS backend
-#tmp-s3-bucket=
-
-## gsutil can work with s3 buckets it outperforms over aws s3 CLI
-#use-gsutil-over-aws-s3=True
-
-############# HTTP auth to download from private URLs (http://, https://)
-## username and password are exposed in a command line
-## so visible to other users on a local computer by 'ps' command
-#http-user=
-#http-password=
-
-## using cURL's ~/.netrc is more secure, we recommend to use it
-## keep ~/.netrc secure and use this at your own risk
-## see more details at
-## https://github.com/bagder/everything-curl/blob/master/usingcurl-netrc.md
-## for example of encode portal. look at the following .netrc contents
-## machine www.encodeproject.org
-## login ZSFDUCEJ
-## password YOUR_PASSWORD
-#use-netrc=True
-
-############# Cromwell's built-in HyperSQL database settings
-## disable file-db
-## Detach DB from Cromwell
-## you can run multiple workflows with 'caper run' command
-## but Caper will not be able re-use outputs from previous workflows
-#no-file-db=True
-
-############# MySQL database settings
-## both caper run/server modes will attach to MySQL db
-## uncomment/define all of the followings to use MySQL database
-#mysql-db-ip=
-#mysql-db-port=
-#mysql-db-user=cromwell
-#mysql-db-password=cromwell
-
-############# Cromwell general settings
-#cromwell=https://github.com/broadinstitute/cromwell/releases/download/42/cromwell-42.jar
-#max-concurrent-tasks=1000
-#max-concurrent-workflows=40
-#disable-call-caching=False
-#backend-file=
-
-## Cromwell server
-#ip=localhost
-
-############# SLURM backend
-#slurm-extra-param=
-
-############# SGE backend
-#sge-extra-param=
-
-############# PBS backend
-#pbs-extra-param=
-
-############# Misc. settings
-## list workflow format
-#format=id,status,name,str_label,user,submission
-
-## hide workflows submitted before
-## use the same date/time format as shown in "caper list"
-## e.g. 2019-06-13, 2019-06-13T10:07
-#hide-result-before=
-
-## for troubleshooting, show successully completed tasks too
-#show-completed-task=True
-"""
+DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
+DEFAULT_SERVER_HEARTBEAT_TIMEOUT_MS = 120000
+DEFAULT_CAPER_CONF_CONTENTS = "[defaults]\n\n"
 
 
 def parse_caper_arguments():
@@ -488,11 +328,22 @@ def parse_caper_arguments():
 
     parent_server_client = argparse.ArgumentParser(add_help=False)
     parent_server_client.add_argument(
-        '--port', default=DEFAULT_PORT,
+        '--port', default=DEFAULT_PORT, type=int,
         help='Port for Caper server')
     parent_server_client.add_argument(
         '--ip', default=DEFAULT_IP,
         help='IP address for Caper server')
+    parent_server_client.add_argument(
+        '--server-heartbeat-file',
+        default=DEFAULT_SERVER_HEARTBEAT_FILE,
+        help='Heartbeat file for Caper clients to get IP and port of a server')
+    parent_server_client.add_argument(
+        '--server-heartbeat-timeout',
+        default=DEFAULT_SERVER_HEARTBEAT_TIMEOUT_MS,
+        help='Timeout for a heartbeat file in Milliseconds. '
+             'A heartbeat file older than '
+             'this interval will be ignored.')
+
     parent_list = argparse.ArgumentParser(add_help=False)
     parent_list.add_argument(
         '-f', '--format', default=DEFAULT_FORMAT,
@@ -587,90 +438,11 @@ def parse_caper_arguments():
         'db_timeout',
         'max_retries',
         'max_concurrent_tasks',
-        'max_concurrent_workflows']:
+        'max_concurrent_workflows',
+        'server_heartbeat_timeout',
+        'port']:
         v = args_d.get(k)
         if v is not None and isinstance(v, str):
             args_d[k] = int(v)
-
-    docker = args_d.get('docker')
-    if docker is not None:
-        use_docker = True
-    else:
-        use_docker = False
-    if isinstance(docker, list):
-        if len(docker) > 0:
-            docker = docker[0]
-        else:
-            docker = None
-    elif isinstance(docker, str) and docker == '':
-        docker = None
-    args_d['docker'] = docker
-    args_d['use_docker'] = use_docker
-
-    singularity = args_d.get('singularity')
-    if singularity is not None:
-        use_singularity = True
-    else:
-        use_singularity = False
-    if isinstance(singularity, list):
-        if len(singularity) > 0:
-            singularity = singularity[0]
-        else:
-            singularity = None
-    elif isinstance(singularity, str) and singularity == '':
-        singularity = None
-    args_d['singularity'] = singularity
-    args_d['use_singularity'] = use_singularity
-
-    if use_docker and use_singularity:
-        raise Exception('--docker and --singularity are mutually exclusive')
-
-    # init some important path variables
-    if args_d.get('out_dir') is None:
-        args_d['out_dir'] = os.getcwd()
-
-    if args_d.get('tmp_dir') is None:
-        args_d['tmp_dir'] = os.path.join(args_d['out_dir'], '.caper_tmp')
-
-    if args_d.get('tmp_s3_bucket') is None:
-        if args_d.get('out_s3_bucket'):
-            args_d['tmp_s3_bucket'] = os.path.join(args_d['out_s3_bucket'],
-                                                   '.caper_tmp')
-    if args_d.get('tmp_gcs_bucket') is None:
-        if args_d.get('out_gcs_bucket'):
-            args_d['tmp_gcs_bucket'] = os.path.join(args_d['out_gcs_bucket'],
-                                                    '.caper_tmp')
-    backend = args_d.get('backend')
-    if backend is not None:
-        if backend == 'google':
-            backend = 'gcp'
-        elif backend == 'amazon':
-            backend = 'aws'
-        args_d['backend'] = backend
-
-    file_db = args_d.get('file_db')
-    if file_db is not None:
-        file_db = os.path.abspath(os.path.expanduser(file_db))
-        args_d['file_db'] = file_db
-    elif backend is None or backend == 'local':
-        basename = os.path.basename(DEFAULT_FILE_DB)
-        out_dir = args_d['out_dir']
-        args_d['file_db'] = os.path.join(out_dir, basename)
-        out_dir = args_d['out_dir']
-    else:
-        args_d['file_db'] = os.path.abspath(
-            os.path.expanduser(DEFAULT_FILE_DB))
-
-    singularity_cachedir = args_d.get('singularity_cachedir')
-    if singularity_cachedir is not None:
-        singularity_cachedir = os.path.abspath(
-            os.path.expanduser(singularity_cachedir))
-        args_d['singularity_cachedir'] = singularity_cachedir
-        os.makedirs(singularity_cachedir, exist_ok=True)
-
-    if args_d.get('str_label') is None:
-        if args_d.get('inputs') is not None:
-            basename = os.path.basename(args_d['inputs'])
-            args_d['str_label'] = os.path.splitext(basename)[0]
 
     return args_d
