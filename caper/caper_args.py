@@ -33,6 +33,33 @@ DEFAULT_DEEPCOPY_EXT = 'json,tsv'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 DEFAULT_SERVER_HEARTBEAT_TIMEOUT_MS = 120000
 DEFAULT_CAPER_CONF_CONTENTS = "[defaults]\n\n"
+DYN_FLAGS = ['--singularity', '--docker']
+INVALID_EXT_FOR_DYN_FLAG = '.wdl'
+
+
+def process_dyn_flags(remaining_args, dyn_flags,
+                      invalid_ext_for_dyn_flag):
+    """Special treatment for dynamic flags which can be used as
+    both params and flags
+
+    Example1: caper run --docker atac.wdl
+    atac.wdl can be misinterpreated as a docker image
+    This function switches the order of --docker and atac.wdl
+    Result1: caper run atac.wdl --docker
+
+    Example2: caper run --singularity --docker atac.wdl
+    This example switches twice. This is just for an example
+    --singularity and --docker are mutually exclusive
+    Result2: caper run atac.wdl --singularity --docker
+    """
+    for f in DYN_FLAGS:
+        if f in remaining_args:
+            loc = remaining_args.index(f)
+            if loc < len(remaining_args) - 1:
+                if remaining_args[loc + 1].endswith(INVALID_EXT_FOR_DYN_FLAG):
+                    remaining_args[loc], remaining_args[loc + 1] = \
+                        remaining_args[loc + 1], remaining_args[loc]
+    return remaining_args
 
 
 def parse_caper_arguments():
@@ -58,6 +85,7 @@ def parse_caper_arguments():
     if known_args.version is not None and known_args.version:
         print(__version__)
         conf_parser.exit()
+    process_dyn_flags(remaining_argv, DYN_FLAGS, INVALID_EXT_FOR_DYN_FLAG)
 
     # read conf file if it exists
     defaults = {}
