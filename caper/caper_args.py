@@ -17,7 +17,6 @@ __version__ = '0.4.0'
 DEFAULT_JAVA_HEAP_SERVER = '7G'
 DEFAULT_JAVA_HEAP_RUN = '1G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
-DEFAULT_FILE_DB_PREFIX = 'caper_file_db'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
 DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/42/cromwell-42.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
@@ -32,7 +31,7 @@ DEFAULT_FORMAT = 'id,status,name,str_label,user,submission'
 DEFAULT_DEEPCOPY_EXT = 'json,tsv'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 DEFAULT_SERVER_HEARTBEAT_TIMEOUT_MS = 120000
-DEFAULT_CAPER_CONF_CONTENTS = "[defaults]\n\n"
+DEFAULT_CAPER_CONF_CONTENTS = '\n\n'
 DYN_FLAGS = ['--singularity', '--docker']
 INVALID_EXT_FOR_DYN_FLAG = '.wdl'
 
@@ -95,8 +94,13 @@ def parse_caper_arguments():
         known_args.conf = os.path.expanduser(known_args.conf)
         if os.path.exists(known_args.conf):
             config = ConfigParser()
-            config.read([known_args.conf])
-            d = dict(config.items("defaults"))
+            with open(known_args.conf, 'r') as fp:
+                conf_contents = fp.read()
+            if '[defaults]' not in conf_contents.split('\n'):
+                conf_contents = '[defaults]\n' + conf_contents
+            print(conf_contents)
+            config.read_string(conf_contents)
+            d = dict(config.items('defaults'))
             # replace - with _
             defaults.update({k.replace('-', '_'): v for k, v in d.items()})
 

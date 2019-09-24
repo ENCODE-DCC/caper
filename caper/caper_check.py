@@ -8,6 +8,9 @@ Author:
 import os
 
 
+DEFAULT_FILE_DB_PREFIX = 'caper_file_db'
+
+
 def check_caper_conf(args_d):
     """Check arguments/configuration for Caper
     """
