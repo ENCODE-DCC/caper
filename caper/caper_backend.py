@@ -4,10 +4,37 @@
 
 BACKEND_GCP = 'gcp'
 BACKEND_AWS = 'aws'
-BACKEND_LOCAL = 'Local'  # must be CAPITAL L
+BACKEND_LOCAL = 'Local'  # should be CAPITAL L
 BACKEND_SLURM = 'slurm'
 BACKEND_SGE = 'sge'
 BACKEND_PBS = 'pbs'
+BACKENDS = [BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, BACKEND_SLURM,
+    BACKEND_SGE, BACKEND_PBS]
+
+BACKEND_ALIAS_LOCAL = 'local'  # with small L
+BACKEND_ALIAS_GOOGLE = 'google'
+BACKEND_ALIAS_AMAZON = 'amazon'
+BACKEND_ALIAS_SHERLOCK = 'sherlock'
+BACKEND_ALIAS_SCG = 'scg'
+BACKEND_ALIASES = [BACKEND_ALIAS_LOCAL, BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON, BACKEND_ALIAS_SHERLOCK,
+    BACKEND_ALIAS_SCG]
+
+BACKENDS_WITH_ALIASES = BACKENDS + BACKEND_ALIASES
+    
+
+
+def get_backend(backend):
+    if backend == BACKEND_ALIAS_GOOGLE:
+        backend = BACKEND_GCP
+    elif backend == BACKEND_ALIAS_AMAZON:
+        backend = BACKEND_AWS
+    elif backend == BACKEND_ALIAS_SHERLOCK:
+        backend = BACKEND_SLURM
+    elif backend == BACKEND_ALIAS_SCG:
+        backend = BACKEND_SLURM
+    if backend not in BACKENDS:
+        raise Exception('Unsupported backend: {}'.format(backend))
+    return backend
 
 
 class CaperBackendCommon(dict):
@@ -94,7 +121,7 @@ class CaperBackendDatabase(dict):
             if file_db is not None:
                 self['database']['db'] = {
                     'url': 'jdbc:hsqldb:file:{};shutdown=false;'
-                    'hsqldb.tx=mvcc'.format(file_db)
+                    'hsqldb.tx=mvcc;hsqldb.lob_compressed=true'.format(file_db)
                 }
                 if db_timeout is not None:
                     self['database']['db']['connectionTimeout'] = db_timeout

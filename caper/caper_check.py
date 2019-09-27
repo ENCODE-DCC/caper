@@ -6,7 +6,7 @@ Author:
 """
 
 import os
-
+from .caper_backend import BACKENDS, BACKEND_SLURM, get_backend
 
 DEFAULT_FILE_DB_PREFIX = 'caper_file_db'
 
@@ -14,6 +14,11 @@ DEFAULT_FILE_DB_PREFIX = 'caper_file_db'
 def check_caper_conf(args_d):
     """Check arguments/configuration for Caper
     """
+    backend = args_d.get('backend')
+    if backend is not None:
+        backend = get_backend(backend)
+    args_d['backend'] = backend
+
     docker = args_d.get('docker')
     if docker is not None:
         use_docker = True
@@ -62,14 +67,6 @@ def check_caper_conf(args_d):
         if args_d.get('out_gcs_bucket'):
             args_d['tmp_gcs_bucket'] = os.path.join(args_d['out_gcs_bucket'],
                                                     '.caper_tmp')
-    backend = args_d.get('backend')
-    if backend is not None:
-        if backend == 'google':
-            backend = 'gcp'
-        elif backend == 'amazon':
-            backend = 'aws'
-        args_d['backend'] = backend
-
     file_db = args_d.get('file_db')
     if file_db is not None:
         file_db = os.path.abspath(os.path.expanduser(file_db))
@@ -95,5 +92,33 @@ def check_caper_conf(args_d):
         if args_d.get('inputs') is not None:
             basename = os.path.basename(args_d['inputs'])
             args_d['str_label'] = os.path.splitext(basename)[0]
+
+    if backend == 'sge':
+        if args_d.get('sge_pe') is None:
+            raise Exception(
+                '--sge-pe (Sun GridEngine parallel environment) '
+                'is required for backend sge.')
+    elif backend =='gcp':
+        if args_d.get('gcp_prj') is None:
+            raise Exception(
+                '--gcp-prj (Google Cloud Platform project) '
+                'is required for backend gcp.')
+        if args_d.get('out_gcs_bucket') is None:
+            raise Exception(
+                '--out-gcs-bucket (gs:// output bucket path) '
+                'is required for backend gcp.')
+    elif backend =='aws':
+        if args_d.get('aws_batch_arn') is None:
+            raise Exception(
+                '--aws-batch-arn (ARN for AWS Batch) '
+                'is required for backend aws.')
+        if args_d.get('aws_region') is None:
+            raise Exception(
+                '--aws-region (AWS region) '
+                'is required for backend aws.')
+        if args_d.get('out_s3_bucket') is None:
+            raise Exception(
+                '--out-s3-bucket (s3:// output bucket path) '
+                'is required for backend aws.')
 
     return args_d

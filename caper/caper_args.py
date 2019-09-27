@@ -10,6 +10,13 @@ from configparser import ConfigParser
 import sys
 import os
 from distutils.util import strtobool
+from collections import OrderedDict
+from .caper_backend import BACKENDS, BACKENDS_WITH_ALIASES
+from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL
+from .caper_backend import BACKEND_SLURM, BACKEND_SGE, BACKEND_PBS
+from .caper_backend import BACKEND_ALIAS_LOCAL
+from .caper_backend import BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON
+from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
 
 
 __version__ = '0.4.0'
@@ -31,9 +38,52 @@ DEFAULT_FORMAT = 'id,status,name,str_label,user,submission'
 DEFAULT_DEEPCOPY_EXT = 'json,tsv'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 DEFAULT_SERVER_HEARTBEAT_TIMEOUT_MS = 120000
-DEFAULT_CAPER_CONF_CONTENTS = '\n\n'
+DEFAULT_CONF_CONTENTS = '\n\n'
 DYN_FLAGS = ['--singularity', '--docker']
 INVALID_EXT_FOR_DYN_FLAG = '.wdl'
+DEFAULT_CONF_CONTENTS_LOCAL = """backend=local
+
+tmp-dir=
+"""
+DEFAULT_CONF_CONTENTS_SHERLOCK = """backend=slurm
+slurm-partition=
+
+tmp-dir=
+"""
+DEFAULT_CONF_CONTENTS_SCG = """backend=slurm
+slurm-account=
+
+tmp-dir=
+"""
+DEFAULT_CONF_CONTENTS_SLURM = """backend=slurm
+
+# define one of the followings (or both) according to your
+# cluster's SLURM configuration.
+slurm-partition=
+slurm-account=
+
+tmp-dir=
+"""
+DEFAULT_CONF_CONTENTS_SGE = """backend=sge
+sge-pe=
+
+tmp-dir=
+"""
+DEFAULT_CONF_CONTENTS_PBS = """backend=pbs
+"""
+DEFAULT_CONF_CONTENTS_AWS = """backend=aws
+aws-batch-arn=
+aws-region=
+out-s3-bucket=
+
+tmp-dir=
+"""
+DEFAULT_CONF_CONTENTS_GCP = """backend=gcp
+gcp-prj=
+out-gcs-bucket=
+
+tmp-dir=
+"""
 
 
 def process_dyn_flags(remaining_args, dyn_flags,
@@ -61,6 +111,33 @@ def process_dyn_flags(remaining_args, dyn_flags,
     return remaining_args
 
 
+def init_caper_conf(args):
+    backend = args.get('platform')
+    assert(backend in BACKENDS_WITH_ALIASES)
+    if backend in (BACKEND_LOCAL, BACKEND_ALIAS_LOCAL):
+        contents = DEFAULT_CONF_CONTENTS_LOCAL
+    elif backend == BACKEND_ALIAS_SHERLOCK:
+        contents = DEFAULT_CONF_CONTENTS_SHERLOCK
+    elif backend == BACKEND_ALIAS_SCG:
+        contents = DEFAULT_CONF_CONTENTS_SCG
+    elif backend == BACKEND_SLURM:
+        contents = DEFAULT_CONF_CONTENTS_SLURM
+    elif backend == BACKEND_SGE:
+        contents = DEFAULT_CONF_CONTENTS_SGE
+    elif backend == BACKEND_PBS:
+        contents = DEFAULT_CONF_CONTENTS_PBS
+    elif backend in (BACKEND_GCP, BACKEND_ALIAS_GOOGLE):
+        contents = DEFAULT_CONF_CONTENTS_GCP
+    elif backend in (BACKEND_AWS, BACKEND_ALIAS_AMAZON):
+        contents = DEFAULT_CONF_CONTENTS_AWS
+    else:
+        raise Exception('Unsupported platform/backend/alias.')
+
+    conf_file = os.path.expanduser(args.get('conf'))
+    with open(conf_file, 'w') as fp:
+        fp.write(contents + '\n')
+
+
 def parse_caper_arguments():
     """Argument parser for Caper
     """
@@ -69,7 +146,7 @@ def parse_caper_arguments():
     if not os.path.exists(default_caper_conf):
         os.makedirs(os.path.dirname(default_caper_conf), exist_ok=True)
         with open(default_caper_conf, 'w') as fp:
-            fp.write(DEFAULT_CAPER_CONF_CONTENTS)
+            fp.write(DEFAULT_CONF_CONTENTS)
 
     conf_parser = argparse.ArgumentParser(
         description=__doc__,
@@ -98,14 +175,23 @@ def parse_caper_arguments():
                 conf_contents = fp.read()
             if '[defaults]' not in conf_contents.split('\n'):
                 conf_contents = '[defaults]\n' + conf_contents
-            print(conf_contents)
             config.read_string(conf_contents)
             d = dict(config.items('defaults'))
+            # remove keys with empty string
+            d = {k: v for k, v in d.items() if v != ''}
             # replace - with _
             defaults.update({k.replace('-', '_'): v for k, v in d.items()})
 
     parser = argparse.ArgumentParser(parents=[conf_parser])
     subparser = parser.add_subparsers(dest='action')
+
+    parent_init = argparse.ArgumentParser(add_help=False)
+    choices = list(BACKENDS)
+    choices.pop(choices.index(BACKEND_LOCAL))
+    choices += [BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG, BACKEND_ALIAS_LOCAL]
+    parent_init.add_argument('platform',
+        choices=choices,
+        help='Platform to initialize Caper for.')
 
     # all
     parent_all = argparse.ArgumentParser(add_help=False)
@@ -399,6 +485,11 @@ def parse_caper_arguments():
         '--show-completed-task', action='store_true',
         help='Show information about completed tasks.')
 
+    p_init = subparser.add_parser(
+        'init',
+        help='Initialize Caper\'s configuration file. THIS WILL OVERWRITE ON '
+             'A SPECIFIED(-c)/DEFAULT CONF FILE. e.g. ~/.caper/default.conf.',
+        parents=[parent_init])
     p_run = subparser.add_parser(
         'run', help='Run a single workflow without server',
         parents=[parent_all, parent_submit, parent_run, parent_host, parent_backend,
@@ -437,7 +528,7 @@ def parse_caper_arguments():
         parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf,
                  parent_http_auth])
 
-    for p in [p_run, p_server, p_submit, p_abort, p_unhold, p_list,
+    for p in [p_init, p_run, p_server, p_submit, p_abort, p_unhold, p_list,
               p_metadata, p_troubleshoot, p_debug]:
         p.set_defaults(**defaults)
 
@@ -476,5 +567,11 @@ def parse_caper_arguments():
         v = args_d.get(k)
         if v is not None and isinstance(v, str):
             args_d[k] = int(v)
+
+    # if action is 'init' then initialize Conf and exit
+    action = args_d['action']
+    if action == 'init':
+        init_caper_conf(args_d)
+        sys.exit(0)
 
     return args_d
