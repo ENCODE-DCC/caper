@@ -9,16 +9,18 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 ## Installation
 
 1) Make sure that you have Java (>= 1.8) installed on your system.
+
 	```bash
 	$ java -version
 	```
 
-2-1) Make sure that you have `python3`(> 3.4.1) installed on your system. Use `pip` to install Caper.
+2) Make sure that you have `python3`(> 3.4.1) installed on your system. Use `pip` to install Caper.
+
 	```bash
 	$ pip install caper
 	```
 
-2-2) Or `git clone` this repo and manually add `bin/` to your environment variable `PATH` in your BASH startup scripts (`~/.bashrc`).
+	If `pip` doesn't work then `git clone` this repo and manually add `bin/` to your environment variable `PATH` in your BASH startup scripts (`~/.bashrc`).
 
 	```bash
 	$ git clone https://github.com/ENCODE-DCC/caper
@@ -26,11 +28,13 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 	```
 
 3) Test-run Caper.
+
 	```bash
 	$ caper
 	```
 
-4) If you see an error message like `command unknown` then add the following line to the bottom of `~/.bashrc` and re-login.
+4) If you see an error message like `caper: command not found` then add the following line to the bottom of `~/.bashrc` and re-login.
+
 	```bash
 	export PATH=$PATH:~/.local/bin
 	```
