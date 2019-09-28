@@ -20,7 +20,6 @@ BACKEND_ALIASES = [BACKEND_ALIAS_LOCAL, BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZ
     BACKEND_ALIAS_SCG]
 
 BACKENDS_WITH_ALIASES = BACKENDS + BACKEND_ALIASES
-    
 
 
 def get_backend(backend):
@@ -32,6 +31,8 @@ def get_backend(backend):
         backend = BACKEND_SLURM
     elif backend == BACKEND_ALIAS_SCG:
         backend = BACKEND_SLURM
+    elif backend == BACKEND_ALIAS_LOCAL:
+        backend = BACKEND_LOCAL
     if backend not in BACKENDS:
         raise Exception('Unsupported backend: {}'.format(backend))
     return backend
