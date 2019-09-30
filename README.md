@@ -39,7 +39,7 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 	export PATH=$PATH:~/.local/bin
 	```
 
-5) Choose a platform from the following table and initialize Caper. This will create a default Caper configuration file `~/.caper/default.conf`. There are special platforms for Stanford Sherlock/SCG users.
+5) Choose a platform from the following table and initialize Caper. This will create a default Caper configuration file `~/.caper/default.conf`, which have only required parameters for each platform. There are special platforms for Stanford Sherlock/SCG users.
 	```bash
 	$ caper init [PLATFORM]
 	```
@@ -56,7 +56,7 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 	slurm | HPC with SLURM cluster engine
 
 6) Edit `~/.caper/default.conf` according to your chosen platform. Find instruction for each item in the following table.
-	> **IMPORTANT**: DEFINE ALL PARAMETERS IN THE CONFIGURATION FILE `~/.caper/default.conf` OR CAPER WILL NOT WORK CORRECTLY
+	> **IMPORTANT**: ONCE YOU HAVE INITIALIZED THE CONFIGURATION FILE `~/.caper/default.conf` WITH YOUR CHOSEN PLATFORM, THEN IT WILL HAVE ONLY REQUIRED PARAMETERS FOR THE CHOSEN PLATFORM. DO NOT LEAVE ANY PARAMETERS UNDEFINED OR CAPER WILL NOT WORK CORRECTLY.
 
 	**Parameter**|**Description**
 	:--------|:-----
@@ -71,8 +71,7 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 	out-gcs-bucket | Output bucket path for Google Cloud Platform. This should start with `gs://`.
 	file-db | Path for file DB to use Cromwell's call-caching (re-using previous workflow's output).
 
-7-1) To use Caper on Google Cloud Platform (GCP), [configure for GCP](docs/conf_gcp.md). 
-7-2) To use Caper on Amazon Web Service (AWS), [configure for AWS](docs/conf_aws.md).
+7) To use Caper on Google Cloud Platform (GCP), [configure for GCP](docs/conf_gcp.md). To use Caper on Amazon Web Service (AWS), [configure for AWS](docs/conf_aws.md).
 
 ## Output directory
 
