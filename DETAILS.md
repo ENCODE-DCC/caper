@@ -24,6 +24,178 @@
 
 * **Special label** (`str_label`): You have a string label, specified with `-s` or `--str-label`, for your workflow so that you can search for your workflow by this label instead of Cromwell's workflow UUID (e.g. `f12526cb-7ed8-4bfa-8e2e-a463e94a61d0`).
 
+
+## Usage
+
+There are 7 subcommands available for Caper. Except for `run` other subcommands work with a running Caper server, which can be started with `server` subcommand. `server` does not require a positional argument. `WF_ID` (workflow ID) is a UUID generated from Cromwell to identify a workflow. `STR_LABEL` is Caper's special string label to be used to identify a workflow.
+
+**Subcommand**|**Positional args** | **Description**
+:--------|:-----|:-----
+server   |      |Run a Cromwell server with built-in backends
+run      | WDL  |Run a single workflow (not recommened for multiple workflows)
+submit   | WDL  |Submit a workflow to a Cromwell server
+abort    | WF_ID or STR_LABEL |Abort submitted workflows on a Cromwell server
+unhold   | WF_ID or STR_LABEL |Release hold of workflows on a Cromwell server
+list     | WF_ID or STR_LABEL |List submitted workflows on a Cromwell server
+metadata | WF_ID or STR_LABEL |Retrieve metadata JSONs for workflows
+debug, troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason for errors
+
+* `run`: To run a single workflow. A string label `-s` is optional and useful for other subcommands to indentify a workflow.
+
+	```bash
+	$ caper run [WDL] -i [INPUT_JSON]
+	```
+
+	> **WARNING**: If you try to run multiple workflows at the same time then you will see a `db - Connection is not available` error message since multiple Caper instances will try to lock the same DB file `~/.caper/default_file_db`.
+
+	```bash
+	java.sql.SQLTransientConnectionException: db - Connection is not available, request timed out after 3000ms.
+	```
+
+	> **WORKAROUND**: Define a different DB file per run with `--file-db`. Or start a caper server and submit multiple workflows to it so that the DB file is taken by one caper server only. Or use a server-based [MySQL database](DETAILS.md/#mysql-server) instead or disable connection to DB with `--no-file-db` or `-n` but you will not be able to use [Cromwell's call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous workflows.
+
+* `server`: To start a server. You can define a server port with `--port`. Use a different port for each server for multiple servers. If you don't use a default port (`8000`). Then define `--port` for all client subcommands like `submit`, `list` and `troubleshoot`. If you run a server on a different IP address or hostname, then define it with `--ip` for all client subcomands like `submit`.
+
+	```bash
+	$ caper server
+	```
+
+* `submit`: To submit a workflow to a server. Define a string label for submitted workflow with `-s`. It is optional but useful for other subcommands to indentify a workflow.
+
+	```bash
+	$ caper submit [WDL] -i [INPUT_JSON] -s [STR_LABEL] 
+	```
+
+* `list`: To show a list of all workflows submitted to a cromwell server. Wildcard search with using `*` and `?` is allowed for such label for the following subcommands with `STR_LABEL`. 
+
+	```bash
+	$ caper list [WF_ID or STR_LABEL]
+	```
+
+* `debug` or `troubleshoot`: To analyze reasons for workflow failures. You can specify failed workflow's metadata JSON file or workflow IDs and labels. Wildcard search with using `*` and `?` is allowed for string labels.
+
+	```bash
+	$ caper debug [WF_ID, STR_LABEL or METADATA_JSON_FILE]
+	```
+
+* Other subcommands: Other subcommands work similar to `list`. It does a corresponding action for matched workflows.
+
+
+## Configuration file
+
+Run Caper without parameters to generate a default configuration file.
+```bash
+$ caper
+```
+
+Caper automatically creates a default configuration file at `~/.caper/default.conf`. Such configruation file comes with all available parameters commented out. You can uncomment/define any parameter to activate it.
+
+You can avoid repeatedly defining same parameters in your command line arguments. For example, you can define `out-dir` and `tmp-dir` in your configuration file instead of defining them in command line arguments.
+```
+$ caper run [WDL] --out-dir [LOCAL_OUT_DIR] --tmp-dir [LOCAL_TMP_DIR]
+```
+
+Equivalent settings in a configuration file.
+```
+[defaults]
+
+out-dir=[LOCAL_OUT_DIR]
+tmp-dir=[LOCAL_TMP_DIR]
+```
+
+## Minimum required parameters
+
+An auto-generated default configuration has a `Minimum required parameters` section on top. Other parameters in other sections are optional and most users will not be interested in them. If you don't see this section then remove existing default configuration file and regenerate it.
+
+Edit your configuration file (`~/.caper/default.conf` by default) and uncomment/define parameters for your preferred backend.
+```
+[defaults]
+
+############ Minimum required parameters
+## Please read through carefully
+
+## Define file DB to use Cromwell's call-caching
+## Call-caching is important for restarting failed workflows
+## File DB can only be accessed by one caper process (caper run or server)
+## i.e. you cannot run multiple caper run with one file DB
+## For such case, we recommend to use caper server and submit multiple workflows to it
+## You can disable file DB with '--no-file-db' or '-n'
+#file-db=~/.caper/default_file_db
+
+## Define to use 'caper server' and all client subcommands like 'caper submit'
+## This is not required for 'caper run'
+#port=8000
+
+## Define default backend (local, gcp, aws, slurm, sge, pbs)
+#backend=local
+
+## Define output directory if you want to run pipelines locally
+#out-dir=
+
+## Define if you want to run pipelines on Google Cloud Platform
+#gcp-prj=encode-dcc-1016
+#out-gcs-bucket=gs://encode-pipeline-test-runs/project1/caper_out
+
+## Define if you want to run pipelines on AWS
+#aws-batch-arn=arn:....
+#aws-region=us-west-1
+#out-s3-bucket=s3://encode-pipeline-test-runs/project1/caper_out
+
+## Define if you want to run pipelines on SLURM
+## Define partition or account or both according to your cluster's requirements
+## For example, Stanford requires a partition and SCG requires an account.
+#slurm-partition=akundaje
+#slurm-account=akundaje
+
+## Define if you want to run pipelines on SGE
+#sge-pe=shm
+
+## Define if your SGE cluster requires a queue
+#sge-queue=q
+
+## Define if your PBS cluster requires a queue
+#pbs-queue=q
+```
+
+> **RECOMMENDATION**: Instead of using a default configuration file at `~/.caper/default.conf`, you can specify your own configuration file with `caper -c`. This is useful when you want to manage a configuration file per project (e.g. use a different file DB `--file-db` per project to prevent locking).
+```
+$ caper -c [YOUR_CONF_FILE_FOR_PROJECT_1] ...
+```
+
+
+## Deepcopy (auto inter-storage transfer)
+
+> **IMPORTANT**: `--deepcopy` has been deprecated and it's activated by default. You can disable it with `--no-deepcopy`.
+
+Deepcopy allows Caper to **RECURSIVELY** copy files defined in your input JSON into your target backend's temporary storage. For example, Cromwell cannot read directly from URLs in an [input JSON file](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/examples/caper/ENCSR356KRQ_subsampled.json), but Caper makes copies of these URLs on your backend's temporary directory (e.g. `--tmp-dir` for `local`, `--tmp-gcs-bucket` for `gcp`) and pass them to Cromwell.
+
+## How to manage configuration file per project
+
+It is useful to have a configuration file per project. For example of two projects.
+
+We want to run pipelines locally for project-1, run a server with `caper -c project_1.conf server` and submit a workflow with `caper -c project_1.conf submit [WDL] ...` or run a single workflow `caper -c project_1.conf run [WDL] ...`.
+```
+[defaults]
+file-db=~/.caper/file_db_project_1
+port=8000
+backend=local
+out-dir=/scratch/user/caper_out_project_1
+```
+
+We want to run pipelines on Google Cloud Platform for project-2. Run a server with `caper -c project_2.conf server` and submit a workflow with `caper -c project_2.conf submit [WDL] ...` or run a single workflow `caper -c project_2.conf run [WDL] ...`.
+```
+[defaults]
+file-db=~/.caper/file_db_project_2
+port=8001
+backend=gcp
+gcp-prj=YOUR_GCP_PRJ_NAME
+out-gcs-bucket=gs://caper_out_project_2
+```
+
+Then you will see no conflict in file DBs and network ports (`8000` vs. `8001`) between two projects.
+
+
+
 ## List of parameters
 
 We highly recommend to use a default configuration file described in the section [Configuration file](#configuration-file). Note that both dash (`-`) and underscore (`_`) are allowed for key names in a configuration file.
