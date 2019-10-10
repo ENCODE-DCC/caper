@@ -93,6 +93,7 @@ class CaperURI(object):
     CURL_HTTP_ERROR_PREFIX = '_CaperURI_HTTP_ERROR_'
     CURL_HTTP_ERROR_WRITE_OUT = CURL_HTTP_ERROR_PREFIX + '%{http_code}'
     RE_PATTERN_CURL_HTTP_ERR = r'_CaperURI_HTTP_ERROR_(\d*)'
+    DELAY_SEC_CURL_AUTH = 2
 
     LOCK_EXT = '.lock'
     LOCK_WAIT_SEC = 30
@@ -772,8 +773,10 @@ class CaperURI(object):
                 pass
             elif http_err in (401, 403):  # permission or auth http error
                 if CaperURI.VERBOSE:
-                    print('[CaperURI] got HTTP_ERR {}. '
-                          're-trying with auth...'.format(http_err))
+                    print('[CaperURI] got HTTP_ERR {}. wait for {} seconds. '
+                          're-trying with auth...'.format(
+                            http_err, CaperURI.DELAY_SEC_CURL_AUTH))
+                time.sleep(CaperURI.DELAY_SEC_CURL_AUTH)
 
                 # now try with AUTH
                 if CaperURI.USE_NETRC:
