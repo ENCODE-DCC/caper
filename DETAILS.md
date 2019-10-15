@@ -31,6 +31,7 @@ There are 7 subcommands available for Caper. Except for `run` other subcommands 
 
 **Subcommand**|**Positional args** | **Description**
 :--------|:-----|:-----
+init   | PLATFORM |Generate a default configuration file for a specified PLATFORM
 server   |      |Run a Cromwell server with built-in backends
 run      | WDL  |Run a single workflow (not recommened for multiple workflows)
 submit   | WDL  |Submit a workflow to a Cromwell server
@@ -79,89 +80,6 @@ debug, troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason 
 	```
 
 * Other subcommands: Other subcommands work similar to `list`. It does a corresponding action for matched workflows.
-
-
-## Configuration file
-
-Run Caper without parameters to generate a default configuration file.
-```bash
-$ caper
-```
-
-Caper automatically creates a default configuration file at `~/.caper/default.conf`. Such configruation file comes with all available parameters commented out. You can uncomment/define any parameter to activate it.
-
-You can avoid repeatedly defining same parameters in your command line arguments. For example, you can define `out-dir` and `tmp-dir` in your configuration file instead of defining them in command line arguments.
-```
-$ caper run [WDL] --out-dir [LOCAL_OUT_DIR] --tmp-dir [LOCAL_TMP_DIR]
-```
-
-Equivalent settings in a configuration file.
-```
-[defaults]
-
-out-dir=[LOCAL_OUT_DIR]
-tmp-dir=[LOCAL_TMP_DIR]
-```
-
-## Minimum required parameters
-
-An auto-generated default configuration has a `Minimum required parameters` section on top. Other parameters in other sections are optional and most users will not be interested in them. If you don't see this section then remove existing default configuration file and regenerate it.
-
-Edit your configuration file (`~/.caper/default.conf` by default) and uncomment/define parameters for your preferred backend.
-```
-[defaults]
-
-############ Minimum required parameters
-## Please read through carefully
-
-## Define file DB to use Cromwell's call-caching
-## Call-caching is important for restarting failed workflows
-## File DB can only be accessed by one caper process (caper run or server)
-## i.e. you cannot run multiple caper run with one file DB
-## For such case, we recommend to use caper server and submit multiple workflows to it
-## You can disable file DB with '--no-file-db' or '-n'
-#file-db=~/.caper/default_file_db
-
-## Define to use 'caper server' and all client subcommands like 'caper submit'
-## This is not required for 'caper run'
-#port=8000
-
-## Define default backend (local, gcp, aws, slurm, sge, pbs)
-#backend=local
-
-## Define output directory if you want to run pipelines locally
-#out-dir=
-
-## Define if you want to run pipelines on Google Cloud Platform
-#gcp-prj=encode-dcc-1016
-#out-gcs-bucket=gs://encode-pipeline-test-runs/project1/caper_out
-
-## Define if you want to run pipelines on AWS
-#aws-batch-arn=arn:....
-#aws-region=us-west-1
-#out-s3-bucket=s3://encode-pipeline-test-runs/project1/caper_out
-
-## Define if you want to run pipelines on SLURM
-## Define partition or account or both according to your cluster's requirements
-## For example, Stanford requires a partition and SCG requires an account.
-#slurm-partition=akundaje
-#slurm-account=akundaje
-
-## Define if you want to run pipelines on SGE
-#sge-pe=shm
-
-## Define if your SGE cluster requires a queue
-#sge-queue=q
-
-## Define if your PBS cluster requires a queue
-#pbs-queue=q
-```
-
-> **RECOMMENDATION**: Instead of using a default configuration file at `~/.caper/default.conf`, you can specify your own configuration file with `caper -c`. This is useful when you want to manage a configuration file per project (e.g. use a different file DB `--file-db` per project to prevent locking).
-```
-$ caper -c [YOUR_CONF_FILE_FOR_PROJECT_1] ...
-```
-
 
 ## Deepcopy (auto inter-storage transfer)
 
