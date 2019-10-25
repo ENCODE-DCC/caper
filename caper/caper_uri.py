@@ -620,8 +620,7 @@ class CaperURI(object):
                     ['gsutil', '-q', 'signurl', '-d',
                      str(CaperURI.DURATION_SEC_PRESIGNED_URL_GCS) + 's',
                      CaperURI.GCP_PRIVATE_KEY_FILE,
-                     self._uri],
-                    stderr=PIPE).decode()
+                     self._uri]).decode()
                 # example: URL     HTTP Method     Expiration      Signed URL
                 # taking fourth column of line 2
                 url = s.strip('\n').split('\n')[1].split('\t')[3]
@@ -640,8 +639,7 @@ class CaperURI(object):
                 url = check_output(
                     ['aws', 's3', 'presign', '--expires-in',
                      CaperURI.DURATION_SEC_PRESIGNED_URL_S3,
-                     self._uri],
-                    stderr=PIPE).decode().strip('\n')
+                     self._uri]).decode().strip('\n')
                 if CaperURI.VERBOSE:
                     print('[CaperURI] presigned s3 url for {dur} sec. '
                           'src: {src}, url: {url}'.format(
