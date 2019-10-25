@@ -1,12 +1,12 @@
 import setuptools
-from caper import caper_args
+import caper
 
 with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name='caper',
-    version=caper_args.__version__,
+    version=caper.__version__,
     python_requires='>3.4.1',
     scripts=['bin/caper', 'mysql/run_mysql_server_docker.sh',
              'mysql/run_mysql_server_singularity.sh'],
@@ -22,5 +22,5 @@ setuptools.setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: POSIX :: Linux',
     ],
-    install_requires=['pyhocon', 'requests']
+    install_requires=['pyhocon', 'requests', 'pyopenssl']
 )
