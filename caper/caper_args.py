@@ -19,7 +19,7 @@ from .caper_backend import BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON
 from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
 
 
-__version__ = '0.4.1'
+__version__ = '0.5.0'
 
 DEFAULT_JAVA_HEAP_SERVER = '7G'
 DEFAULT_JAVA_HEAP_RUN = '1G'

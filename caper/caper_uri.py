@@ -23,12 +23,79 @@ URI_S3 = 's3'       # AWS S3 bucket
 URI_GCS = 'gcs'     # Google Cloud Storage bucket
 URI_LOCAL = 'local'
 
+MAX_DURATION_SEC_PRESIGNED_URL_S3 = 604800
+MIN_DURATION_SEC_PRESIGNED_URL_S3 = 3600
+MAX_DURATION_SEC_PRESIGNED_URL_GCS = 604800
+MIN_DURATION_SEC_PRESIGNED_URL_GCS = 3600
 
 def init_caper_uri(tmp_dir, tmp_s3_bucket=None, tmp_gcs_bucket=None,
                    http_user=None, http_password=None,
                    use_netrc=False,
-                   use_gsutil_over_aws_s3=False, verbose=False):
+                   use_gsutil_over_aws_s3=False,
+                   use_presigned_url_s3=False,
+                   use_presigned_url_gcs=False,
+                   gcp_private_key_file=None,
+                   public_gcs=False,
+                   duration_sec_presigned_url_s3=MAX_DURATION_SEC_PRESIGNED_URL_S3,
+                   duration_sec_presigned_url_gcs=MAX_DURATION_SEC_PRESIGNED_URL_GCS,
+                   mapping_path_to_url=None,
+                   verbose=False):
     """Initialize static members in CaperURI class
+    Arguments:
+        use_netrc:
+            Use ~/.netrc to authenticate for private URLs.
+
+        use_gsutil_over_aws_s3:
+            Always use "gsutil" over "aws s3" except for presigning URLs
+            ("aws s3 presign").
+
+        use_presigned_url_s3:
+            Use a presigned URL when converting S3 URI (s3://) to URL.
+
+        use_presigned_url_gcs:
+            Use a presigned URL when converting GCS URI (gs://) to URL.
+            gcp_private_key_file must be provided together.
+
+        gcp_private_key_file:
+            Private key file (JSON/PKCS12) for a service account on GCP.
+
+        public_gcs:
+            All parameters related to presigning URLs will be ignored.
+            gs:// to URL conversion will be static without presigning.
+                Public: http://storage.googleapis.com/
+                    This link will directly open a file
+                Private: https://storage.cloud.google.com/
+                    This link will redirect you to a link on a GC console
+                    Authentication is done in a web browser level
+            This parameter is for GCS bucket only.
+                AWS (s3://) bucket uses the same URL prefixes for both public/private
+
+        duration_sec_presigned_url_s3:
+            Expiration period in second for presigned URLs for S3 URI
+            "aws s3 presign --expires-in <duration_sec_presigned_url_s3>"
+
+        duration_sec_presigned_url_gcs:
+            Expiration period in second for presigned URLs for GCS URI
+            "gsutil signurl -d <duration_sec_presigned_url_gcs>s"
+
+        mapping_path_to_url:
+            A dict that defines a mapping from local file path prefix
+            to URL prefix. It is similar to define alises in your web server's
+            configuration file.
+            For example of the following mapping:
+            {
+              '/var/www/some/where': 'http://my.server.com/some/where'
+            }
+
+            /var/www/some/where/a.txt -> http://my.server.com/some/where/a.txt
+            /var/www/some/where/b.txt -> http://my.server.com/some/where/b.txt
+
+            You cannot define multiple entries with overlapping key names.
+            For example:
+            {
+              '/var/www/some': 'http://my.server.com/some',
+              '/var/www/some/where': 'http://my.server.com/some/where'
+            }
     """
     assert(tmp_dir is not None)
     path = os.path.abspath(os.path.expanduser(tmp_dir))
@@ -44,6 +111,35 @@ def init_caper_uri(tmp_dir, tmp_s3_bucket=None, tmp_gcs_bucket=None,
     CaperURI.HTTP_PASSWORD = http_password
     CaperURI.USE_NETRC = use_netrc
     CaperURI.USE_GSUTIL_OVER_AWS_S3 = use_gsutil_over_aws_s3
+    CaperURI.USE_PRESIGNED_URL_S3 = use_presigned_url_s3
+    CaperURI.USE_PRESIGNED_URL_GCS = use_presigned_url_gcs
+    if gcp_private_key_file is not None:
+        CaperURI.GCP_PRIVATE_KEY_FILE = os.path.abspath(
+            os.path.expanduser(gcp_private_key_file))
+    elif use_presigned_url_gcs:
+        raise ValueError('gcp_private_key must be provided to use '
+                         'presigned URLs for gs://')
+    if duration_sec_presigned_url_s3 > MAX_DURATION_SEC_PRESIGNED_URL_S3 \
+            or duration_sec_presigned_url_s3 < MIN_DURATION_SEC_PRESIGNED_URL_S3:
+        raise ValueError('duration_sec_presigned_url_s3 is too long. '
+                         'It must be <= {max} and >= {min}'.format(
+                            min=MIN_DURATION_SEC_PRESIGNED_URL_S3,
+                            max=MAX_DURATION_SEC_PRESIGNED_URL_S3)
+                        )
+    if duration_sec_presigned_url_gcs > MAX_DURATION_SEC_PRESIGNED_URL_GCS \
+            or duration_sec_presigned_url_gcs < MIN_DURATION_SEC_PRESIGNED_URL_GCS:
+        raise ValueError('duration_sec_presigned_url_gcs is too long. '
+                         'It must be <= {max} and >= {min}'.format(
+                            min=MIN_DURATION_SEC_PRESIGNED_URL_GCS,
+                            max=MAX_DURATION_SEC_PRESIGNED_URL_GCS)
+                        )
+    CaperURI.DURATION_SEC_PRESIGNED_URL_S3 = duration_sec_presigned_url_s3
+    CaperURI.DURATION_SEC_PRESIGNED_URL_GCS = duration_sec_presigned_url_gcs
+    CaperURI.PUBLIC_GCS = public_gcs
+    if mapping_path_to_url is not None:
+        CaperURI.MAPPING_PATH_TO_URL = {}
+        for k, v in mapping_path_to_url.items():
+            CaperURI.MAPPING_PATH_TO_URL[k] = v.rstrip().rstrip('/')
     CaperURI.VERBOSE = verbose
 
 
@@ -88,6 +184,13 @@ class CaperURI(object):
     HTTP_PASSWORD = None
     USE_NETRC = False
     USE_GSUTIL_OVER_AWS_S3 = False
+    USE_PRESIGNED_URL_S3 = False
+    USE_PRESIGNED_URL_GCS = False
+    GCP_PRIVATE_KEY_FILE = None
+    PUBLIC_GCS = False
+    DURATION_SEC_PRESIGNED_URL_S3 = None
+    DURATION_SEC_PRESIGNED_URL_GCS = None
+    MAPPING_PATH_TO_URL = {}
     VERBOSE = False
 
     CURL_HTTP_ERROR_PREFIX = '_CaperURI_HTTP_ERROR_'
@@ -174,8 +277,12 @@ class CaperURI(object):
         """
         return self.get_file(uri_type=URI_S3, no_copy=no_copy)
 
-    def get_url(self, no_copy=False):
-        return self.get_file(uri_type=URI_URL, no_copy=no_copy)
+    def get_url(self):
+        """Get URL version of URI. <no_copy> is always activated since
+        URL is read-only. URIs on cloud buckets can be converted to a 
+        presigned URLs. Local path URI can also be converted to a URL.
+        """
+        return self.get_file(uri_type=URI_URL, no_copy=True)
 
     def get_file(self, uri_type, no_copy=False):
         """Get a URI on a specified storage. Make a copy if required
@@ -213,14 +320,9 @@ class CaperURI(object):
         # here, path is target path
         # get target path
         if uri_type == URI_URL:
-            if path is not None:  # since URL is readonly
-                path = None
-            elif self._uri_type == URI_GCS:
-                path = 'http://storage.googleapis.com/{}'.format(
-                    self._uri.replace('gs://', '', 1))
-            elif self._uri_type == URI_S3:
-                path = 'http://s3.amazonaws.com/{}'.format(
-                    self._uri.replace('s3://', '', 1))
+            assert(path is None and no_copy)
+            path = self.__get_url()
+            method = 'url_forming'
 
         elif uri_type == URI_GCS:
             if path is None:
@@ -487,7 +589,9 @@ class CaperURI(object):
         elif self._uri_type == URI_URL:
             # for URLs use hash of the whole URL as a base for filename
             hash_str = hashlib.md5(self._uri.encode('utf-8')).hexdigest()
-            rel_uri = os.path.join(hash_str, os.path.basename(self._uri))
+            # some URLs have parameters (starting with ?) appended to the basename
+            basename = os.path.basename(self._uri).split('?')[0]
+            rel_uri = os.path.join(hash_str, basename)
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
         return rel_uri
@@ -500,6 +604,74 @@ class CaperURI(object):
             return os.path.join(CaperURI.TMP_DIR, self.__get_rel_uri())
         else:
             raise NotImplementedError('uri_type: {}'.format(self._uri_type))
+
+    def __get_url(self):
+        if self._uri_type == URI_URL:
+            return self._uri
+
+        elif self._uri_type == URI_GCS:
+            if CaperURI.PUBLIC_GCS:
+                url = 'http://storage.googleapis.com/{}'.format(
+                    self._uri.replace('gs://', '', 1))
+
+            elif CaperURI.USE_PRESIGNED_URL_GCS:
+                assert(CaperURI.GCP_PRIVATE_KEY_FILE is not None)
+                s = check_output(
+                    ['gsutil', '-q', 'signurl', '-d',
+                     str(CaperURI.DURATION_SEC_PRESIGNED_URL_GCS) + 's',
+                     CaperURI.GCP_PRIVATE_KEY_FILE,
+                     self._uri],
+                    stderr=PIPE).decode()
+                # example: URL     HTTP Method     Expiration      Signed URL
+                # taking fourth column of line 2
+                url = s.strip('\n').split('\n')[1].split('\t')[3]
+                if CaperURI.VERBOSE:
+                    print('[CaperURI] presigned gcs url for {dur} sec. '
+                          'src: {src}, url: {url}'.format(
+                            dur=CaperURI.DURATION_SEC_PRESIGNED_URL_GCS,
+                            src=self._uri_type, url=url))
+            else:
+                url = 'https://storage.cloud.google.com/{}'.format(
+                    self._uri.replace('gs://', '', 1))
+            return url
+
+        elif self._uri_type == URI_S3:
+            if CaperURI.use_presigned_url_s3:
+                url = check_output(
+                    ['aws', 's3', 'presign', '--expires-in',
+                     CaperURI.DURATION_SEC_PRESIGNED_URL_S3,
+                     self._uri],
+                    stderr=PIPE).decode().strip('\n')
+                if CaperURI.VERBOSE:
+                    print('[CaperURI] presigned s3 url for {dur} sec. '
+                          'src: {src}, url: {url}'.format(
+                            dur=CaperURI.DURATION_SEC_PRESIGNED_URL_S3,
+                            src=self._uri_type, url=url))
+            else:
+                s3_uri_wo_prefix = self._uri.replace('s3://', '', 1).split('/', 1)
+                s3_bucket_name = s3_uri_wo_prefix[0]
+                if len(s3_uri_wo_prefix) > 1:
+                    s3_bucket_path = s3_uri_wo_prefix[1]
+                else:
+                    s3_bucket_path = ''
+                url = 'http://{name}.s3.amazonaws.com/{path}'.format(
+                    name=s3_bucket_name,
+                    path=s3_bucket_path)
+            return url
+
+        elif self._uri_type == URI_LOCAL:
+            if CaperURI.MAPPING_PATH_TO_URL is not None:
+                for k, v in CaperURI.MAPPING_PATH_TO_URL.items():
+                    if self._uri.startswith(k):
+                        return self._uri.replace(k, v, 1)
+                raise NotImplementedError(
+                    'Cannot find a mapping from path to URL '
+                    'in MAPPING_PATH_TO_URL for path {path}'.format(
+                        path=self._uri))
+            else:
+                return None
+
+        raise NotImplementedError('uri_type: {}'.format(self._uri_type))
 
     def __get_gcs_file_name(self):
         if self._uri_type == URI_GCS:
