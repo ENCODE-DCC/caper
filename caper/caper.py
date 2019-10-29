@@ -1034,7 +1034,7 @@ class Caper(object):
                   singularity)
             cmd = ['singularity', 'exec', singularity,
                    'echo', '[Caper] building done.']
-            env=os.environ.copy()
+            env = os.environ.copy()
             if self._singularity_cachedir is not None \
                     and 'SINGULARITY_CACHEDIR' not in env:
                 env['SINGULARITY_CACHEDIR'] = self._singularity_cachedir
