@@ -544,7 +544,7 @@ ${true=":0:0" false="" defined(time)} \
                         "submit": SUBMIT,
                         "exit-code-timeout-seconds": 180,
                         "kill": "qdel ${job_id}",
-                        "check-alive": "qstat -j ${job_id}",
+                        "check-alive": "qstat ${job_id}",
                         "job-id-regex": "(\\\\d+)"
                     }
                 }
