@@ -821,6 +821,7 @@ class Caper(object):
             # ignore imports as HTTP URL or absolute PATH
             if CaperURI(imp).uri_type == URI_LOCAL \
                     or not os.path.isabs(imp):
+                files_to_zip.append(imp)
                 # download imports relative to WDL (which can exists remotely)
                 wdl_dirname = os.path.dirname(self._wdl)
                 c_imp_ = CaperURI(os.path.join(wdl_dirname, imp))
@@ -1034,11 +1035,10 @@ class Caper(object):
                   singularity)
             cmd = ['singularity', 'exec', singularity,
                    'echo', '[Caper] building done.']
+            env = os.environ.copy()
             if self._singularity_cachedir is not None \
-                    and 'SINGULARITY_CACHEDIR' not in os.environ:
-                env = {'SINGULARITY_CACHEDIR': self._singularity_cachedir}
-            else:
-                env = None
+                    and 'SINGULARITY_CACHEDIR' not in env:
+                env['SINGULARITY_CACHEDIR'] = self._singularity_cachedir
             return check_call(cmd, env=env)
 
         print('[Caper] skip building local singularity image.')
