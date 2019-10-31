@@ -821,6 +821,7 @@ class Caper(object):
             # ignore imports as HTTP URL or absolute PATH
             if CaperURI(imp).uri_type == URI_LOCAL \
                     or not os.path.isabs(imp):
+                files_to_zip.append(imp)
                 # download imports relative to WDL (which can exists remotely)
                 wdl_dirname = os.path.dirname(self._wdl)
                 c_imp_ = CaperURI(os.path.join(wdl_dirname, imp))
