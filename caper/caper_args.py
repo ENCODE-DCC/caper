@@ -70,6 +70,8 @@ sge-pe=
 tmp-dir=
 """
 DEFAULT_CONF_CONTENTS_PBS = """backend=pbs
+
+tmp-dir=
 """
 DEFAULT_CONF_CONTENTS_AWS = """backend=aws
 aws-batch-arn=
