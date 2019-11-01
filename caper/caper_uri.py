@@ -242,18 +242,10 @@ class CaperURI(object):
         self._uri = self.get_file(value)
         self._uri_type = value
 
-    def set_uri_type_no_copy(self, value):
-        assert(value in (URI_URL, URI_S3, URI_GCS, URI_LOCAL))
-        if self._uri_type == value:
-            return
-        self._uri = self.get_file(value, no_copy=True)
-        self._uri_type = value
-
     def get_uri(self):
         return self._uri
 
     def is_valid_uri(self):
-        # deepcopy is only available for valid URIs
         return self._can_deepcopy
 
     def can_deepcopy(self):
@@ -279,7 +271,7 @@ class CaperURI(object):
 
     def get_url(self):
         """Get URL version of URI. <no_copy> is always activated since
-        URL is read-only. URIs on cloud buckets can be converted to a 
+        URL is read-only. URIs on cloud buckets can be converted to
         presigned URLs. Local path URI can also be converted to a URL.
         """
         return self.get_file(uri_type=URI_URL, no_copy=True)
@@ -736,16 +728,11 @@ class CaperURI(object):
             new_uri = '{prefix}.{uri_type}{ext}'.format(
                 prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
             s = '\n'.join(new_contents)
-            if not no_copy_root:
-                new_uri = CaperURI(new_uri).get_file(uri_type=uri_type,
-                                                     no_copy=True)
-            cu = CaperURI(new_uri)
-            # we can't write on URLs
-            if cu.uri_type == URI_URL:
-                cu.set_uri_type_no_copy(uri_type)
-            return cu.write_str_to_file(s), updated
-        elif not no_copy_root and self._uri_type != uri_type:
-            return self.get_file(uri_type=uri_type), True
+            local_tmp_uri = os.path.join(
+                CaperURI.TMP_DIR,
+                hashlib.md5(new_uri.encode('utf-8')).hexdigest(),
+                os.path.basename(new_uri))
+            return CaperURI(local_tmp_uri).write_str_to_file(s), True
         else:
             return self._uri, False
 
@@ -796,43 +783,51 @@ class CaperURI(object):
             new_uri = '{prefix}.{uri_type}{ext}'.format(
                 prefix=fname_wo_ext, uri_type=uri_type, ext=ext)
             j = json.dumps(new_d, indent=4)
-            if not no_copy_root:
-                new_uri = CaperURI(new_uri).get_file(uri_type=uri_type,
-                                                     no_copy=True)
-            cu = CaperURI(new_uri)
-            # we can't write on URLs
-            if cu.uri_type == URI_URL:
-                cu.set_uri_type_no_copy(uri_type)
-            return cu.write_str_to_file(j), updated
-        elif not no_copy_root and self._uri_type != uri_type:
-            return self.get_file(uri_type=uri_type), True
+            local_tmp_uri = os.path.join(
+                CaperURI.TMP_DIR,
+                hashlib.md5(new_uri.encode('utf-8')).hexdigest(),
+                os.path.basename(new_uri))
+            return CaperURI(local_tmp_uri).write_str_to_file(j), True
         else:
             return self._uri, False
 
     def deepcopy(self, uri_type=None, uri_exts=(),
                  no_copy_root=False):
         """Supported file extensions: .json, .tsv and .csv
+        If there is any update in the file then
+        CaperURI always writes on local instead of specified "uri_type"
+        because some cloud buckets and URLs are read-only
+
+        Args:
+            no_copy_root:
+                deprecated but left for backward compatibility
         """
         fname_wo_ext, ext = os.path.splitext(self._uri)
 
         if self._can_deepcopy:
             if ext in uri_exts:
                 if ext == '.json':
-                    return self.__deepcopy_json(uri_type, uri_exts,
-                                                no_copy_root=no_copy_root)
+                    new_uri, updated = self.__deepcopy_json(
+                        uri_type=uri_type, uri_exts=uri_exts)
                 elif ext == '.tsv':
-                    return self.__deepcopy_tsv(uri_type, uri_exts, delim='\t',
-                                               no_copy_root=no_copy_root)
+                    new_uri, updated = self.__deepcopy_tsv(
+                        uri_type=uri_type, uri_exts=uri_exts, delim='\t')
                 elif ext == '.csv':
-                    return self.__deepcopy_tsv(uri_type, uri_exts, delim=',',
-                                               no_copy_root=no_copy_root)
+                    new_uri, updated = self.__deepcopy_tsv(
+                        uri_type=uri_type, uri_exts=uri_exts, delim=',')
                 else:
-                    NotImplementedError('ext: {}.'.format(ext))
+                    NotImplementedError(
+                        'Not supported deepcopy ext: {}.'.format(ext))
+            else:
+                new_uri, updated = self._uri, False
 
-            # copy if target URI type is different
-            if not no_copy_root and self._uri_type != uri_type:
-                return self.get_file(uri_type=uri_type), True
-        return self._uri, False
+            cu = CaperURI(new_uri)
+            if cu._uri_type != uri_type:
+                return cu.get_file(uri_type=uri_type), True
+            else:
+                return new_uri, updated
+        else:
+            return self._uri, False
 
     def rm(self, quiet=False):
         """Remove file

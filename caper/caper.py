@@ -646,8 +646,7 @@ class Caper(object):
                     uri_type = URI_LOCAL
 
                 new_uri, _ = CaperURI(new_uri).deepcopy(
-                    uri_type=uri_type, uri_exts=self._deepcopy_ext,
-                    no_copy_root=True)
+                    uri_type=uri_type, uri_exts=self._deepcopy_ext)
 
             return new_uri
         else:
