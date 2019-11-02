@@ -17,6 +17,7 @@ Author:
 
 from pyhocon import ConfigFactory, HOCONConverter
 import os
+import sys
 import pwd
 import json
 import re
@@ -44,6 +45,7 @@ class Caper(object):
     """
 
     CROMWELL_JAR_DIR = '~/.caper/cromwell_jar'
+    WOMTOOL_JAR_DIR = '~/.caper/womtool_jar'
     BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
     DEFAULT_BACKEND = BACKEND_LOCAL
     RE_PATTERN_BACKEND_CONF_HEADER = r'^\s*include\s'
@@ -132,6 +134,8 @@ class Caper(object):
         self._imports = args.get('imports')
         self._metadata_output = args.get('metadata_output')
         self._singularity_cachedir = args.get('singularity_cachedir')
+        self._ignore_womtool = args.get('ignore_womtool')
+        self._womtool = args.get('womtool')
 
         # file DB
         self._file_db = args.get('file_db')
@@ -208,8 +212,21 @@ class Caper(object):
                '-m', metadata_file]
         if imports_file is not None:
             cmd += ['-p', imports_file]
-        print('[Caper] cmd: ', cmd)
 
+        if not self._ignore_womtool:
+            # run womtool first to validate WDL and input JSON
+            cmd_womtool = ['java', '-jar', self.__download_womtool_jar(),
+                           'validate', CaperURI(self._wdl).get_local_file(),
+                           '-i', input_file]
+            try:
+                print("[Caper] Validating WDL/input JSON with womtool...")
+                check_call(cmd_womtool)
+            except CalledProcessError as e:
+                print("[Caper] Error (womtool): WDL or input JSON is invalid.")
+                rc = e.returncode
+                sys.exit(rc)
+
+        print('[Caper] cmd: ', cmd)
         if self._dry_run:
             return -1
         try:
@@ -362,6 +379,19 @@ class Caper(object):
             input_file, tmp_dir)
         labels_file = self.__create_labels_json_file(tmp_dir)
         on_hold = self._hold if self._hold is not None else False
+
+        # run womtool first to validate WDL and input JSON
+        if not self._ignore_womtool:
+            cmd_womtool = ['java', '-jar', self.__download_womtool_jar(),
+                           'validate', CaperURI(self._wdl).get_local_file(),
+                           '-i', input_file]
+            try:
+                print("[Caper] Validating WDL/input JSON with womtool...")
+                check_call(cmd_womtool)
+            except CalledProcessError as e:
+                print("[Caper] Error (womtool): WDL or input JSON is invalid.")
+                rc = e.returncode
+                sys.exit(rc)
 
         if self._dry_run:
             return -1
@@ -548,6 +578,18 @@ class Caper(object):
         path = os.path.join(
             os.path.expanduser(Caper.CROMWELL_JAR_DIR),
             os.path.basename(self._cromwell))
+        return cu.copy(target_uri=path)
+
+    def __download_womtool_jar(self):
+        """Download womtool-X.jar
+        """
+        cu = CaperURI(self._womtool)
+        if cu.uri_type == URI_LOCAL:
+            return cu.get_uri()
+
+        path = os.path.join(
+            os.path.expanduser(Caper.WOMTOOL_JAR_DIR),
+            os.path.basename(self._womtool))
         return cu.copy(target_uri=path)
 
     def __write_metadata_jsons(self, workflow_ids):
