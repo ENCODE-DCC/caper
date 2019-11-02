@@ -27,6 +27,7 @@ import shutil
 from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 
+from .dict_tool import merge_dict
 from .caper_args import parse_caper_arguments
 from .caper_check import check_caper_conf
 from .cromwell_rest_api import CromwellRestAPI
@@ -36,27 +37,6 @@ from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CaperBackendCommon, CaperBackendDatabase, CaperBackendGCP, \
     CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
     CaperBackendSGE, CaperBackendPBS
-
-
-def merge_dict(a, b, path=None):
-    """Merge b into a recursively. This mutates a and overwrites
-    items in b on a for conflicts.
-
-    Ref: https://stackoverflow.com/questions/7204805/dictionaries
-    -of-dictionaries-merge/7205107#7205107
-    """
-    if path is None:
-        path = []
-    for key in b:
-        if key in a:
-            if isinstance(a[key], dict) and isinstance(b[key], dict):
-                merge_dict(a[key], b[key], path + [str(key)])
-            elif a[key] == b[key]:
-                pass
-            else:
-                a[key] = b[key]
-        else:
-            a[key] = b[key]
 
 
 class Caper(object):
