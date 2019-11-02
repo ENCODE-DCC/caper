@@ -19,13 +19,14 @@ from .caper_backend import BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON
 from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
 
 
-__version__ = '0.5.3'
+__version__ = '0.5.4'
 
 DEFAULT_JAVA_HEAP_SERVER = '10G'
 DEFAULT_JAVA_HEAP_RUN = '2G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
 DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/42/cromwell-42.jar'
+DEFAULT_WOMTOOL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/42/womtool-42.jar'
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
 DEFAULT_DB_TIMEOUT_MS = 30000
@@ -384,6 +385,12 @@ def parse_caper_arguments():
     parent_submit.add_argument(
         '--deepcopy-ext', default=DEFAULT_DEEPCOPY_EXT,
         help='Comma-separated list of file extensions to be deepcopied')
+    parent_submit.add_argument(
+        '--ignore-womtool', action='store_true',
+        help='Ignore warnings from womtool.jar.')
+    parent_submit.add_argument(
+        '--womtool', default=DEFAULT_WOMTOOL_JAR,
+        help='Path or URL for Cromwell\'s womtool JAR file')
 
     group_dep = parent_submit.add_argument_group(
         title='dependency resolver for all backends',
@@ -550,6 +557,7 @@ def parse_caper_arguments():
         'use_gsutil_over_aws_s3',
         'hold',
         'no_deepcopy',
+        'ignore_womtool',
         'no_build_singularity',
         'no_file_db',
         'use_netrc',
