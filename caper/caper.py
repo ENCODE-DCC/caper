@@ -215,7 +215,8 @@ class Caper(object):
 
         if not self._ignore_womtool:
             # run womtool first to validate WDL and input JSON
-            cmd_womtool = ['java', '-jar', self.__download_womtool_jar(),
+            cmd_womtool = ['java', '-Xmx512M', '-jar',
+                           self.__download_womtool_jar(),
                            'validate', CaperURI(self._wdl).get_local_file(),
                            '-i', input_file]
             try:
@@ -382,7 +383,8 @@ class Caper(object):
 
         # run womtool first to validate WDL and input JSON
         if not self._ignore_womtool:
-            cmd_womtool = ['java', '-jar', self.__download_womtool_jar(),
+            cmd_womtool = ['java', '-Xmx512M', '-jar',
+                           self.__download_womtool_jar(),
                            'validate', CaperURI(self._wdl).get_local_file(),
                            '-i', input_file]
             try:
