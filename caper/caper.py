@@ -754,10 +754,9 @@ class Caper(object):
             else:
                 docker = self._docker
             if docker is None:
-                raise Exception('Docker image URI must be specified either in '
-                      'cmd line/conf file (--docker) or in WDL (#CAPER docker) '
-                      'for cloud backends (gcp, aws)')
-            template['default_runtime_attributes']['docker'] = docker
+                print('[Caper] Warning: No docker image specified with --docker.')
+            else:
+                template['default_runtime_attributes']['docker'] = docker
 
         if self._use_singularity:
             if self._singularity is None:
