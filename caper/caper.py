@@ -203,6 +203,7 @@ class Caper(object):
         java_heap = '-Xmx{}'.format(self._java_heap_run)
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
         cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
+               '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
                self.__download_cromwell_jar(), 'run',
                CaperURI(self._wdl).get_local_file(),
@@ -295,6 +296,7 @@ class Caper(object):
         java_heap = '-Xmx{}'.format(self._java_heap_server)
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
         cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
+               '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
                self.__download_cromwell_jar(), 'server']
         print('[Caper] cmd: ', cmd)
