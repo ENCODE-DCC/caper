@@ -89,44 +89,90 @@ class CaperBackendCommon(dict):
 class CaperBackendDatabase(dict):
     """Common stanzas for database
     """
+    DB_TYPE_IN_MEMORY = 'in-memory'
+    DB_TYPE_FILE = 'file'
+    DB_TYPE_MYSQL = 'mysql'
+    DB_TYPE_POSTGRESQL = 'postgresql'
+
     TEMPLATE = {
-        "database": {
-            "profile": "slick.jdbc.MySQLProfile$",
-            "db": {
-                "url": "jdbc:mysql://localhost:3306/cromwell_db?"
-                "allowPublicKeyRetrieval=true&useSSL=false&"
-                "rewriteBatchedStatements=true&serverTimezone=UTC",
-                "user": "cromwell",
-                "password": "cromwell",
-                "driver": "com.mysql.cj.jdbc.Driver",
-                "connectionTimeout": 5000
-            }
+    }
+
+    TEMPLATE_DB_IN_MEMORY = {
+    }
+
+    TEMPLATE_DB_FILE = {
+        "db": {
+            "url": "jdbc:hsqldb:file:{file};shutdown=false;"
+                "hsqldb.tx=mvcc;hsqldb.lob_compressed=true",
+            "connectionTimeout": 5000
         }
     }
 
-    def __init__(self, file_db=None, mysql_ip=None, mysql_port=None,
-                 mysql_user=None, mysql_password=None, db_timeout=None):
+    TEMPLATE_DB_MYSQL = {
+        "profile": "slick.jdbc.MySQLProfile$",
+        "db": {
+            "driver": "com.mysql.cj.jdbc.Driver",
+            "url": "jdbc:mysql://{ip}:{port}/cromwell_db?"
+                "allowPublicKeyRetrieval=true&useSSL=false&"
+                "rewriteBatchedStatements=true&serverTimezone=UTC",
+            "user": "cromwell",
+            "password": "cromwell",
+            "connectionTimeout": 5000
+        }
+    }
+
+    TEMPLATE_DB_POSTGRESQL = {
+        "profile": "slick.jdbc.PostgresProfile$",
+        "db": {
+            "driver": "org.postgresql.Driver",
+            "url": "jdbc:postgresql://{ip}:{port}/cromwell",
+            "port": 5432,
+            "user": "cromwell",
+            "password": "cromwell",
+            "connectionTimeout": 5000
+        }
+    }
+
+    def __init__(self, db_type=None, db_timeout=None,
+                 file_db=None,
+                 mysql_ip=None, mysql_port=None,
+                 mysql_user=None, mysql_password=None,
+                 postgresql_ip=None, postgresql_port=None,
+                 postgresql_user=None, postgresql_password=None):
         super(CaperBackendDatabase, self).__init__(
             CaperBackendDatabase.TEMPLATE)
-        if mysql_user is not None and mysql_password is not None:
+
+        if db_type == CaperBackendDatabase.DB_TYPE_IN_MEMORY:
+            self['database'] = CaperBackendDatabase.TEMPLATE_DB_IN_MEMORY
+
+        elif db_type == CaperBackendDatabase.DB_TYPE_FILE:
+            self['database'] = CaperBackendDatabase.TEMPLATE_DB_FILE
             db = self['database']['db']
+            db['url'] = db['url'].format(
+                file=file_db)
+
+        elif db_type == CaperBackendDatabase.DB_TYPE_MYSQL:
+            self['database'] = CaperBackendDatabase.TEMPLATE_DB_MYSQL            
+            db = self['database']['db']
+            db['url'] = db['url'].format(
+                ip=mysql_ip, port=mysql_port)
             db['user'] = mysql_user
             db['password'] = mysql_password
-            db['url'] = db['url'].replace(
-                'localhost:3306', '{ip}:{port}'.format(
-                    ip=mysql_ip, port=mysql_port))
-            if db_timeout is not None:
-                db['connectionTimeout'] = db_timeout
-        else:
-            self['database'] = {}
-            if file_db is not None:
-                self['database']['db'] = {
-                    'url': 'jdbc:hsqldb:file:{};shutdown=false;'
-                    'hsqldb.tx=mvcc;hsqldb.lob_compressed=true'.format(file_db)
-                }
-                if db_timeout is not None:
-                    self['database']['db']['connectionTimeout'] = db_timeout
 
+        elif db_type == CaperBackendDatabase.DB_TYPE_POSTGRESQL:
+            self['database'] = CaperBackendDatabase.TEMPLATE_DB_POSTGRESQL
+            db = self['database']['db']
+            db['url'] = db['url'].format(
+                ip=postgresql_ip, port=postgresql_port)
+            db['port'] = postgresql_port
+            db['user'] = postgresql_user
+            db['password'] = postgresql_password
+
+        else:
+            raise Exception('Unsupported DB type {}'.format(db_type))
+
+        if db_timeout is not None and 'db' in self['database']:
+            self['database']['db']['connectionTimeout'] = db_timeout
 
 
 class CaperBackendGCP(dict):
