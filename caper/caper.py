@@ -677,7 +677,7 @@ class Caper(object):
                 new_uri, _ = CaperURI(new_uri).deepcopy(
                     uri_type=uri_type, uri_exts=self._deepcopy_ext)
 
-            return new_uri
+            return CaperURI(new_uri).get_local_file()
         else:
             input_file = os.path.join(directory, fname)
             with open(input_file, 'w') as fp:
