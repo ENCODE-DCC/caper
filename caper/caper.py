@@ -218,7 +218,7 @@ class Caper(object):
             cmd_womtool = ['java', '-Xmx512M', '-jar',
                            self.__download_womtool_jar(),
                            'validate', CaperURI(self._wdl).get_local_file(),
-                           '-i', CaperURI(input_file).get_local_file()]
+                           '-i', input_file]
             try:
                 print("[Caper] Validating WDL/input JSON with womtool...")
                 check_call(cmd_womtool)
@@ -386,7 +386,7 @@ class Caper(object):
             cmd_womtool = ['java', '-Xmx512M', '-jar',
                            self.__download_womtool_jar(),
                            'validate', CaperURI(self._wdl).get_local_file(),
-                           '-i', CaperURI(input_file).get_local_file()]
+                           '-i', input_file]
             try:
                 print("[Caper] Validating WDL/input JSON with womtool...")
                 check_call(cmd_womtool)
@@ -672,7 +672,7 @@ class Caper(object):
                 new_uri, _ = CaperURI(new_uri).deepcopy(
                     uri_type=uri_type, uri_exts=self._deepcopy_ext)
 
-            return new_uri
+            return CaperURI(new_uri).get_local_file()
         else:
             input_file = os.path.join(directory, fname)
             with open(input_file, 'w') as fp:
