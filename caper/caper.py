@@ -137,16 +137,20 @@ class Caper(object):
         self._ignore_womtool = args.get('ignore_womtool')
         self._womtool = args.get('womtool')
 
-        # file DB
-        self._file_db = args.get('file_db')
-        self._no_file_db = args.get('no_file_db')
+        # DB
+        self._db = args.get('db')
         self._db_timeout = args.get('db_timeout')
-
-        # MySQL DB
+        self._file_db = args.get('file_db')
         self._mysql_db_ip = args.get('mysql_db_ip')
         self._mysql_db_port = args.get('mysql_db_port')
         self._mysql_db_user = args.get('mysql_db_user')
         self._mysql_db_password = args.get('mysql_db_password')
+        self._mysql_db_name = args.get('mysql_db_name')
+        self._postgresql_db_ip = args.get('postgresql_db_ip')
+        self._postgresql_db_port = args.get('postgresql_db_port')
+        self._postgresql_db_user = args.get('postgresql_db_user')
+        self._postgresql_db_password = args.get('postgresql_db_password')
+        self._postgresql_db_name = args.get('postgresql_db_name')
 
         # troubleshoot
         self._show_completed_task = args.get('show_completed_task')
@@ -181,6 +185,7 @@ class Caper(object):
     def run(self):
         """Run a workflow using Cromwell run mode
         """
+
         timestamp = Caper.__get_time_str()
         # otherwise, use WDL basename
         suffix = os.path.join(
@@ -203,6 +208,7 @@ class Caper(object):
         java_heap = '-Xmx{}'.format(self._java_heap_run)
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
         cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
+               '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
                self.__download_cromwell_jar(), 'run',
                CaperURI(self._wdl).get_local_file(),
@@ -295,6 +301,7 @@ class Caper(object):
         java_heap = '-Xmx{}'.format(self._java_heap_server)
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
         cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
+               '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
                self.__download_cromwell_jar(), 'server']
         print('[Caper] cmd: ', cmd)
@@ -752,10 +759,9 @@ class Caper(object):
             else:
                 docker = self._docker
             if docker is None:
-                raise Exception('Docker image URI must be specified either in '
-                      'cmd line/conf file (--docker) or in WDL (#CAPER docker) '
-                      'for cloud backends (gcp, aws)')
-            template['default_runtime_attributes']['docker'] = docker
+                print('[Caper] Warning: No docker image specified with --docker.')
+            else:
+                template['default_runtime_attributes']['docker'] = docker
 
         if self._use_singularity:
             if self._singularity is None:
@@ -956,19 +962,22 @@ class Caper(object):
                 concurrent_job_limit=self._max_concurrent_tasks))
 
         # Database
-        if self._no_file_db is not None and self._no_file_db:
-            file_db = None
-        else:
-            file_db = self._file_db
         merge_dict(
             backend_dict,
             CaperBackendDatabase(
-                file_db=file_db,
+                db_type=self._db,
+                db_timeout=self._db_timeout,
+                file_db=self._file_db,
                 mysql_ip=self._mysql_db_ip,
                 mysql_port=self._mysql_db_port,
                 mysql_user=self._mysql_db_user,
                 mysql_password=self._mysql_db_password,
-                db_timeout=self._db_timeout))
+                mysql_name=self._mysql_db_name,
+                postgresql_ip=self._postgresql_db_ip,
+                postgresql_port=self._postgresql_db_port,
+                postgresql_user=self._postgresql_db_user,
+                postgresql_password=self._postgresql_db_password,
+                postgresql_name=self._postgresql_db_name))
 
         # set header for conf ("include ...")
         assert(Caper.BACKEND_CONF_HEADER.endswith('\n'))

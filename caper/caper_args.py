@@ -17,18 +17,28 @@ from .caper_backend import BACKEND_SLURM, BACKEND_SGE, BACKEND_PBS
 from .caper_backend import BACKEND_ALIAS_LOCAL
 from .caper_backend import BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON
 from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
+from .caper_backend import CaperBackendDatabase
 
 
-__version__ = '0.5.6'
+__version__ = '0.6.0'
 
 DEFAULT_JAVA_HEAP_SERVER = '10G'
 DEFAULT_JAVA_HEAP_RUN = '2G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
-DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/42/cromwell-42.jar'
-DEFAULT_WOMTOOL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/42/womtool-42.jar'
+DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/cromwell-47.jar'
+DEFAULT_WOMTOOL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/womtool-47.jar'
+DEFAULT_DB = CaperBackendDatabase.DB_TYPE_IN_MEMORY
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
+DEFAULT_MYSQL_DB_USER = 'cromwell'
+DEFAULT_MYSQL_DB_NAME = 'cromwell'
+DEFAULT_MYSQL_DB_PASSWORD = 'cromwell'
+DEFAULT_POSTGRESQL_DB_IP = 'localhost'
+DEFAULT_POSTGRESQL_DB_PORT = 5432
+DEFAULT_POSTGRESQL_DB_USER = 'cromwell'
+DEFAULT_POSTGRESQL_DB_NAME = 'cromwell'
+DEFAULT_POSTGRESQL_DB_PASSWORD = 'cromwell'
 DEFAULT_DB_TIMEOUT_MS = 30000
 DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
 DEFAULT_MAX_CONCURRENT_TASKS = 1000
@@ -213,32 +223,59 @@ def parse_caper_arguments():
     group_db = parent_host.add_argument_group(
         title='General DB settings (for both file DB and MySQL DB)')
     group_db.add_argument(
+        '--db', choices=[
+            CaperBackendDatabase.DB_TYPE_IN_MEMORY,
+            CaperBackendDatabase.DB_TYPE_FILE,
+            CaperBackendDatabase.DB_TYPE_MYSQL,
+            CaperBackendDatabase.DB_TYPE_POSTGRESQL
+        ],
+        default=DEFAULT_DB,
+        help='Cromwell metadata database type')
+    group_db.add_argument(
         '--db-timeout', type=int, default=DEFAULT_DB_TIMEOUT_MS,
-        help='Milliseconds to wait for DB (both for file DB and MySQL DB) '
-             'connection.')
+        help='Milliseconds to wait for DB connection.')
 
     group_file_db = parent_host.add_argument_group(
-        title='HyperSQL file DB arguments')
+        title='HyperSQL file DB arguments (unstable, not recommended)')
     group_file_db.add_argument(
         '--file-db', '-d',
         help='Default DB file for Cromwell\'s built-in HyperSQL database.')
-    group_file_db.add_argument(
-        '--no-file-db', '-n', action='store_true',
-        help='Disable file DB for Cromwell\'s built-in HyperSQL database. '
-             'An in-memory DB will still be available for server mode.')
 
     group_mysql = parent_host.add_argument_group(
-        title='MySQL arguments')
+        title='MySQL DB arguments')
     group_mysql.add_argument(
         '--mysql-db-ip', default=DEFAULT_MYSQL_DB_IP,
         help='MySQL Database IP address (e.g. localhost)')
     group_mysql.add_argument(
-        '--mysql-db-port', default=DEFAULT_MYSQL_DB_PORT,
+        '--mysql-db-port', type=int, default=DEFAULT_MYSQL_DB_PORT,
         help='MySQL Database TCP/IP port (e.g. 3306)')
     group_mysql.add_argument(
-        '--mysql-db-user', help='MySQL Database username')
+        '--mysql-db-user', default=DEFAULT_MYSQL_DB_USER,
+        help='MySQL DB username')
     group_mysql.add_argument(
-        '--mysql-db-password', help='MySQL Database password')
+        '--mysql-db-password', default=DEFAULT_MYSQL_DB_PASSWORD,
+        help='MySQL DB password')
+    group_mysql.add_argument(
+        '--mysql-db-name', default=DEFAULT_MYSQL_DB_NAME,
+        help='MySQL DB name for Cromwell')
+
+    group_postgresql = parent_host.add_argument_group(
+        title='PostgreSQL DB arguments')
+    group_postgresql.add_argument(
+        '--postgresql-db-ip', default=DEFAULT_POSTGRESQL_DB_IP,
+        help='PostgreSQL DB IP address (e.g. localhost)')
+    group_postgresql.add_argument(
+        '--postgresql-db-port', type=int, default=DEFAULT_POSTGRESQL_DB_PORT,
+        help='PostgreSQL DB TCP/IP port (e.g. 5432)')
+    group_postgresql.add_argument(
+        '--postgresql-db-user', default=DEFAULT_POSTGRESQL_DB_USER,
+        help='PostgreSQL DB username')
+    group_postgresql.add_argument(
+        '--postgresql-db-password', default=DEFAULT_POSTGRESQL_DB_PASSWORD,
+        help='PostgreSQL DB password')
+    group_postgresql.add_argument(
+        '--postgresql-db-name', default=DEFAULT_POSTGRESQL_DB_NAME,
+        help='PostgreSQL DB name for Cromwell')
 
     group_cromwell = parent_host.add_argument_group(
         title='Cromwell settings')
@@ -559,7 +596,6 @@ def parse_caper_arguments():
         'no_deepcopy',
         'ignore_womtool',
         'no_build_singularity',
-        'no_file_db',
         'use_netrc',
         'show_completed_task']:
         v = args_d.get(k)
@@ -572,6 +608,8 @@ def parse_caper_arguments():
         'max_retries',
         'max_concurrent_tasks',
         'max_concurrent_workflows',
+        'mysql_db_port',
+        'postgresql_db_port',
         'server_heartbeat_timeout',
         'port']:
         v = args_d.get(k)

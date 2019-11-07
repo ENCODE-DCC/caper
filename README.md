@@ -1,3 +1,9 @@
+**IMPORATNT**: Caper defaults back to **NOT** use a file-based metadata DB, which means no call-caching (re-using outputs from previous workflows) by default.
+
+**IMPORATNT**: Even if you still want to use a file-based DB (`--db file` and `--file-db [DB_PATH]`), metadata DB generated from Caper<0.6 (with Cromwell-42) is not compatible with metadata DB generated from Caper>=0.6 (with Cromwell-47). Refer to [this doc](https://github.com/broadinstitute/cromwell/releases/tag/43) for such migration.
+
+See [this](#metadata-database) for details about metadata DB. Define a DB type with `db=` in your conf `~/.caper/default.conf` to use a metadata DB.
+
 # Caper
 
 Caper (Cromwell Assisted Pipeline ExecutoR) is a wrapper Python package for [Cromwell](https://github.com/broadinstitute/cromwell/).
@@ -69,7 +75,6 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 	out-s3-bucket | Output bucket path for AWS. This should start with `s3://`.
 	gcp-prj | Google Cloud Platform Project
 	out-gcs-bucket | Output bucket path for Google Cloud Platform. This should start with `gs://`.
-	file-db | Path for file DB to use Cromwell's call-caching (re-using previous workflow's output).
 
 7) To use Caper on Google Cloud Platform (GCP), [configure for GCP](docs/conf_gcp.md). To use Caper on Amazon Web Service (AWS), [configure for AWS](docs/conf_aws.md).
 
@@ -106,7 +111,6 @@ A Caper leader job will `sbatch` lots of sub-tasks to SLURM so `squeue` will be 
 ```
 $ squeue -u $USER | grep -v cromwell
 ```
-
 
 ## Running pipelines on Stanford SCG
 
@@ -194,32 +198,110 @@ $ cd [OUTPUT_DIR]  # make a separate directory for each workflow
 $ caper run [WDL] -i [INPUT_JSON]
 ```
 
-## File DB and resuming failed workflows
+## Metadata database
 
-Caper defaults to use a file DB, which will grow quickly to reach several GBs, to store metadata for outputs of previous workflows. This metadata DB is used for call-caching (re-using outputs from previous workflows) of Cromwell. You can disable it with `--no-file-db` or `-n` but it's strongly recommended to use one.
+If you are not interested in resuming failed workflows skip this section.
+
+Cromwell metadata DB is used for call-caching (re-using outputs from previous workflows). Caper>=0.6 defaults to use `in-memory` DB, whose metadata will be all lost when the Caper process stops.
+
+In order to use call-caching, choose one of the following metadata database types with `--db` or `db=` in your Caper conf file `~/.caper/default.conf`.
+
+1) `mysql` (**RECOMMENDED**): We provide [shell scripts](#mysql-server) to run a MySQL server without root. You need either Docker or Singularity installed on your system.
+
+2) `postgresql` (experimental): We don't provide a method to run PostgreSQL server and initialize it correctly for Crowmell. See [this](https://cromwell.readthedocs.io/en/stable/Configuring/) for details.
+
+3) `file` (**UNSTABLE**, not recommended): This is Cromwell's built-in [HyperSQL DB file mode](#file-database). Caper<0.6 defaulted to use it but a file DB turns out to be very unstable and get corrupted easily.
+
+	> **IMPORTANT**: File DBs generated from Caper>=0.6 and Caper<0.6 are not compatible with each other. See [release note of Cromwell-43](https://github.com/broadinstitute/cromwell/releases/tag/43) for details and how to migrate if required.
+
+## MySQL database
+
+We provide [shell scripts](bin/run_mysql_server_docker.sh) to run a MySQL server in a container with docker/singularity. Once you have a running MySQL server, define MySQL's port in Caper's conf file `~/.caper/default.conf`.
+
+```
+db=mysql
+mysql-db-port=3306
+```
+
+1) docker
+
+	Run the following command line. `PORT` and `CONTAINER_NAME` are optional. MySQL server will run in background.
+
+	```bash
+	$ run_mysql_server_docker.sh [DB_DIR] [PORT]
+	```
+
+	If you see any conflict in `PORT` or `CONTAINER_NAME`, then try with higher `PORT` or different `CONTAINER_NAME` (`mysql_cromwell` by default).
+
+	Example conflict in `PORT`. Try with `3307` or higher.
+	```
+	[PORT] (3306) already taken.
+	```
+
+	Example conflict in `CONTAINER_NAME`. Try with `mysql_cromwell2`.
+	```bash
+	docker: Error response from daemon: Conflict. The container name "/mysql_cromwell" is already in use by container 0584ec7affed0555a4ecbd2ed86a345c542b3c60993960408e72e6ea803cb97e. You have to remove (or rename) that container to be able to reuse that name..
+	```
+
+	To stop/kill a running MySQL server,
+	```bash
+	$ docker ps  # find your MySQL docker container
+	$ docker stop [CONTAINER_NAME]  # you can also use a container ID found in the above cmd
+	```
+
+	If you see the following authentication error:
+	```bash
+	Caused by: java.sql.SQLException: Access denied for user 'cromwell'@'localhost' (using password: YES)
+	```
+
+	Then try to remove a volume for MySQL's docker container. See [this](https://github.com/docker-library/mariadb/issues/62#issuecomment-366933805) for details.
+	```bash
+	$ docker volume ls  # find [VOLUME_ID] for your container
+	$ docker volume rm [VOLUME_ID]
+	```
+
+2) Singularity
+
+	Run the following command line. `PORT` and `CONTAINER_NAME` are optional. MySQL server will run in background as a Singularity instance.
+
+	```bash
+	$ run_mysql_server_singularity.sh [DB_DIR] [PORT] [CONTAINER_NAME]
+	```
+
+	If you see any conflict in `PORT` or `CONTAINER_NAME`, then try with higher `PORT` or different `CONTAINER_NAME` (`mysql_cromwell` by default).
+
+	Example conflict in `PORT`. Try with `3307` or higher.
+	```
+	[PORT] (3306) already taken.
+	```
+
+	Example conflict in `CONTAINER_NAME`. Try with `mysql_cromwell2`.
+	```
+	ERROR: A daemon process is already running with this name: mysql_cromwell	
+	ABORT: Aborting with RETVAL=255
+	```
+
+	To stop/kill a running MySQL server.
+	```bash
+	$ singularity instance list  # find your MySQL singularity container
+	$ singularity instance stop [CONTAINER_NAME]
+	```
+
+## File database
+
+> **WARINING**: Using this type of metadata database is **NOT RECOMMENDED**. It's unstable and fragile.
+
+Define file DB parameters in `~/.caper/default.conf`.
+
+```
+db=file
+file-db=/YOUR/FILE/DB/PATH/PREFIX
+```
 
 This file DB is genereted on your working directory by default. Its default filename prefix is `caper_file_db.[INPUT_JSON_BASENAME_WO_EXT]`. A DB is consist of multiple files and directories with the same filename prefix.
 
 Unless you explicitly define `file-db` in your configuration file `~/.caper/default.conf` this file DB name will depend on your input JSON filename. Therefore, you can simply resume a failed workflow with the same command line used for starting a new pipeline.
 
-For example, assume that you have run your pipeline with the following command line. Then you will see a bunch of files/directories (`caper_file_db.input1*`) generated for a DB.
-```bash
-$ caper run /atac-seq-pipeline/atac.wdl -i input1.json
-```
-
-Unfortunately your pipeline failed and you corrected your input JSON but didn't change its filename. Then simply re-run with the same command line to restart from where it left off.
-```bash
-$ caper run /atac-seq-pipeline/atac.wdl -i input1.json
-```
-
-However, if you have changed input JSON filename then explicitly define previous failed workflow's file DB prefix with `--file-db` or `-d`.
-```bash
-$ caper run /atac-seq-pipeline/atac.wdl -i input1.json --file-db caper_file_db.input1
-```
-
-You can also define `file-db` in your configuration file `~/.caper/default.conf` and use it for all workflows. But please note that you can only run a single workflow at the same time with `caper run` since this will take a sole control on this DB file.
-
-You can also use an external MySQL database to avoid only-one-DB-connection issue. See details section for it.
 
 # DETAILS
 
