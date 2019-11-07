@@ -10,7 +10,7 @@
 
 * **Docker/Singularity integration**: You can run a WDL workflow in a specifed docker/singularity container.
 
-* **MySQL database integration**: Caper defaults to use Cromwell's built-in HyperSQL DB to store metadata of all workflows. However, we also provide shell scripts to run a MySQL database server in a docker/singularity container. Using Caper with those databases will allow you to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks. This will be useful to resume a failed workflow where it left off.
+* **MySQL database integration**: Caper provide shell scripts to run a MySQL database server in a docker/singularity container. Using Caper with those databases will allow you to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks. This will be useful to resume a failed workflow where it left off.
 
 * **One configuration file for all**: You may not want to repeat writing same command line parameters for every pipeline run. Define parameters in a configuration file at `~/.caper/default.conf`.
 
@@ -47,13 +47,13 @@ debug, troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason 
 	$ caper run [WDL] -i [INPUT_JSON]
 	```
 
-	> **WARNING**: If you try to run multiple workflows at the same time then you will see a `db - Connection is not available` error message since multiple Caper instances will try to lock the same DB file `~/.caper/default_file_db`.
+	> **WARNING**: If you use a file DB (`--file-db`) and try to run multiple workflows at the same time then you will see a `db - Connection is not available` error message since multiple Caper instances will try to lock the same DB file `~/.caper/default_file_db`.
 
 	```bash
 	java.sql.SQLTransientConnectionException: db - Connection is not available, request timed out after 3000ms.
 	```
 
-	> **WORKAROUND**: Define a different DB file per run with `--file-db`. Or start a caper server and submit multiple workflows to it so that the DB file is taken by one caper server only. Or use a server-based [MySQL database](DETAILS.md/#mysql-server) instead or disable connection to DB with `--no-file-db` or `-n` but you will not be able to use [Cromwell's call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous workflows.
+	> **WORKAROUND**: Define a different DB file per run with `--file-db`. Or start a caper server and submit multiple workflows to it so that the DB file is taken by one caper server only. Or use a server-based [MySQL database](DETAILS.md/#mysql-server) instead.
 
 * `server`: To start a server. You can define a server port with `--port`. Use a different port for each server for multiple servers. If you don't use a default port (`8000`). Then define `--port` for all client subcommands like `submit`, `list` and `troubleshoot`. If you run a server on a different IP address or hostname, then define it with `--ip` for all client subcomands like `submit`.
 
@@ -93,7 +93,7 @@ It is useful to have a configuration file per project. For example of two projec
 
 We want to run pipelines locally for project-1, run a server with `caper -c project_1.conf server` and submit a workflow with `caper -c project_1.conf submit [WDL] ...` or run a single workflow `caper -c project_1.conf run [WDL] ...`.
 ```
-[defaults]
+db=file
 file-db=~/.caper/file_db_project_1
 port=8000
 backend=local
@@ -102,7 +102,7 @@ out-dir=/scratch/user/caper_out_project_1
 
 We want to run pipelines on Google Cloud Platform for project-2. Run a server with `caper -c project_2.conf server` and submit a workflow with `caper -c project_2.conf submit [WDL] ...` or run a single workflow `caper -c project_2.conf run [WDL] ...`.
 ```
-[defaults]
+db=file
 file-db=~/.caper/file_db_project_2
 port=8001
 backend=gcp
@@ -138,8 +138,8 @@ We highly recommend to use a default configuration file described in the section
 	--singularity|Singularity image URI for a WDL. You can also use this as a flag to use Singularity image defined in your WDL as a special comment `#CAPER singularity [IMAGE]`.
 	--no-build-singularity|Local singularity image will not be built before running/submitting a workflow
 	--singularity-cachedir|Singularity image URI for a WDL
-	--file-db, -d|DB file for Cromwell's built-in HyperSQL database
-	--no-file-db, -n|Do not use file-db. Call-caching (re-using outputs) will be disabled
+	--db|Metadata DB type (file: not recommended, mysql: recommended, in-memory: no metadata DB)
+	--file-db, -d|File-based metadata DB for Cromwell's built-in HyperSQL database (UNSTABLE)
 	--db-timeout|Milliseconds to wait for DB connection (default: 30000)
 	--java-heap-server|Java heap memory for caper server (default: 7GB)
 	--java-heap-run|Java heap memory for caper run (default: 1GB)
@@ -195,10 +195,21 @@ We highly recommend to use a default configuration file described in the section
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
-	mysql-db-ip|--mysql-db-ip|localhost|MySQL DB IP address
+	mysql-db-ip|--mysql-db-ip|localhost|(Optional) MySQL DB IP address
 	mysql-db-port|--mysql-db-port|3306|MySQL DB port
-	mysql-db-user|--mysql-db-user|cromwell|MySQL DB username
-	mysql-db-password|--mysql-db-password|cromwell|MySQL DB password
+	mysql-db-user|--mysql-db-user|cromwell|(Optional) MySQL DB username
+	mysql-db-password|--mysql-db-password|cromwell|(Optional) MySQL DB password
+	mysql-db-name|--mysql-db-name|cromwell|(Optional) MySQL DB name for Cromwell
+
+* PostgreSQL settings.
+
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
+	:-----|:-----|:-----|:-----
+	postgresql-db-ip|--postgresql-db-ip|localhost|(Optional) PostgreSQL DB IP address
+	postgresql-db-port|--postgresql-db-port|3306|PostgreSQL DB port
+	postgresql-db-user|--postgresql-db-user|cromwell|(Optional) PostgreSQL DB username
+	postgresql-db-password|--postgresql-db-password|cromwell|(Optional) PostgreSQL DB password
+	postgresql-db-name|--postgresql-db-name|cromwell|(Optional) PostgreSQL DB name for Cromwell
 
 * Cromwell server settings. IP address and port for a Cromwell server.
 
@@ -258,13 +269,6 @@ There are six built-in backends for Caper. Each backend must run on its designat
 |sge    |local SGE backend     | local | --out-dir, --tmp-dir, --sge-pe                                    |
 |pds    |local PBS backend     | local | --out-dir, --tmp-dir                                                |
 
-## Database
-
-Caper defaults to use Cromwell's built-in HyperSQL file database located at `~/.caper/default_file_db`. You can change default database file path prefix in a default configuration file (`~/.caper/default.conf`). Setting up a database is important for Caper to re-use outputs from previous failed/succeeded workflows.
-```
-file-db=[YOUR_FILE_DB_PATH_PREFIX]
-```
-
 You can also use your own MySQL database if you [configure MySQL for Caper](DETAILS.md/#mysql-server).
 
 ## Singularity
@@ -300,156 +304,6 @@ $ caper run [WDL] -i [INPUT_JSON] --docker [DOCKER_IMAGE_URI_OR_LEAVE_IT_BLANK]
 Activate your `CONDA_ENV` before running Caper (both for `run` and `server` modes).
 ```bash
 $ conda activate [COND_ENV]
-```
-
-## MySQL server
-
-We provide [shell scripts](mysql/) to run a MySQL server in a container with docker/singularity. Once you have a running MySQL server, define MySQL-related parameters in Caper to attach it to a Cromwell server. One of the advantages of using MySQL server is to use Cromwell's [call-caching](https://cromwell.readthedocs.io/en/develop/Configuring/#call-caching) to re-use outputs from previous successful tasks. You can simply restart failed workflows with the same command line you used to start them.
-
-1) docker
-
-	Run the following command line. `PORT`, `MYSQL_USER`, `MYSQL_PASSWORD` and `CONTAINER_NAME` are optional. MySQL server will run in background.
-
-	```bash
-	$ bash mysql/run_mysql_server_docker.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
-	```
-
-	A general usage is:
-	```bash
-	Usage: ./run_mysql_server_docker.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
-
-	Example: run_mysql_server_docker.sh ~/cromwell_data_dir 3307
-
-	[DB_DIR]: This directory will be mapped to /var/lib/mysql inside a container
-	[PORT] (optional): MySQL database port for docker host (default: 3306)
-	[MYSQL_USER] (optional): MySQL username (default: cromwell)
-	[MYSQL_PASSWORD] (optional): MySQL password (default: cromwell)
-	[CONTAINER_NAME] (optional): MySQL container name (default: mysql_cromwell)
-	```
-
-	If you see any conflict in `PORT` and `CONTAINER_NAME`:
-	```bash
-	docker: Error response from daemon: Conflict. The container name "/mysql_cromwell" is already in use by container 0584ec7affed0555a4ecbd2ed86a345c542b3c60993960408e72e6ea803cb97e. You have to remove (or rename) that container to be able to reuse that name..
-	```
-
-	Then remove a conflicting container and try with different port and container name.
-	```bash
-	$ docker stop [CONTAINER_NAME]  # you can also use a container ID found in the above cmd
-	$ docker rm [CONTAINER_NAME]
-	```
-
-	To stop/kill a running MySQL server,
-	```bash
-	$ docker ps  # find your MySQL docker container
-	$ docker stop [CONTAINER_NAME]  # you can also use a container ID found in the above cmd
-	$ docker rm [CONTAINER_NAME]
-	```
-
-	If you see the following authentication error:
-	```bash
-	Caused by: java.sql.SQLException: Access denied for user 'cromwell'@'localhost' (using password: YES)
-	```
-
-	Then try to remove a volume for MySQL's docker container. See [this](https://github.com/docker-library/mariadb/issues/62#issuecomment-366933805) for details.
-	```bash
-	$ docker volume ls  # find [VOLUME_ID] for your container
-	$ docker volume rm [VOLUME_ID]
-	```
-
-2) Singularity
-
-	Run the following command line. `PORT`, `MYSQL_USER`, `MYSQL_PASSWORD` and `CONTAINER_NAME` are optional. MySQL server will run in background.
-
-	```bash
-	$ bash mysql/run_mysql_server_singularity.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
-	```
-
-	A general usage is:
-	```bash
-	Usage: ./run_mysql_server_singularity.sh [DB_DIR] [PORT] [MYSQL_USER] [MYSQL_PASSWORD] [CONTAINER_NAME]
-
-	Example: run_mysql_server_singularity.sh ~/cromwell_data_dir 3307
-
-	[DB_DIR]: This directory will be mapped to /var/lib/mysql inside a container
-	[PORT] (optional): MySQL database port for singularity host (default: 3306)
-	[MYSQL_USER] (optional): MySQL username (default: cromwell)
-	[MYSQL_PASSWORD] (optional): MySQL password (default: cromwell)
-	[CONTAINER_NAME] (optional): MySQL container name (default: mysql_cromwell)
-	```
-
-	If you see any conflict in `PORT` and `CONTAINER_NAME`, then remove a conflicting container and try with different port and container name.
-	```bash
-	$ singularity instance list
-	$ singularity instance stop [CONTAINER_NAME]
-	```
-
-	To stop/kill a running MySQL server,
-	```bash
-	$ singularity instance list  # find your MySQL singularity container
-	$ singularity instance stop [CONTAINER_NAME]
-	```
-
-## HPC clusters
-
-For users on Stanford HPC clusters (Sherlock and SCG). We recommend to run a MySQL server and run a Cromwell server attached to it. Set up a configuration file like the following.
-
-```bash
-[defaults]
-
-# define your SLURM partition for Sherlock
-slurm-partition=
-
-# define your SLURM account for SCG
-slurm-account=
-
-# for both cluster, define a temporary directory
-# all temporary files will be stored here
-# scratch directory is recommended
-# do not use /tmp
-tmp-dir=
-
-# for both cluster, define a output directory
-# actual pipeline outputs will be stored here
-out-dir=
-
-# MySQL database settings
-# default port is 3306 but if it's already taken
-# use a different port
-mysql-db-port=3307
-```
-
-Run a MySQL database server in a singularity container. If you are running it for the first time, make an empty directory for `DB_DIR`. `PORT` is optional but match it with that in a configuration file.
-```bash
-$ run_mysql_server_singularity.sh [DB_DIR] [PORT]
-```
-
-Run a Cromwell server.
-> **WARNING**: Make sure to keep the SSH session alive where a Cromwell server runs on.
-
-```bash
-$ caper server
-```
-
-Submit a workflow to it instead of `sbatch`ing it. `STR_LABEL` will be useful to find your workflows.
-```bash
-$ caper submit [WDL] -i [INPUT_JSON] -s [STR_LABEL]
-```
-
-Monitor your workflows. Find by `STR_LABEL` or `WF_ID` (UUID). Wildcard search (`*` and `?`) is available.
-```bash
-$ caper list [WF_ID or STR_LABEL]
-```
-
-## Output directory organizer
-
-Cromwell's raw outputs are not organized. PIP install `croo`. Please read through `croo`'s [README](https://github.com/ENCODE-DCC/croo).
-```bash
-$ pip install croo
-```
-
-Use `croo` to organize outputs. For `METADATA_JSON`, find a `metadata.json` for your workflow in Caper's output directory. It is stored on `[CAPER_OUT_DIR]/[WDL_NAME]/[WF_ID]/metadata.json`. You need an [output definition JSON file](https://github.com/ENCODE-DCC/croo#output-definition-json-file) for your WDL. Find [examples](https://github.com/ENCODE-DCC/croo/tree/master/examples) for ENCODE ATAC/ChIP-seq pipelines. 
-```bash
-$ croo [METADATA_JSON] --out-def-json [OUT_DEF_JSON]
 ```
 
 ## Temporary directory
@@ -516,6 +370,8 @@ Example:
 |------------------------------------|----------------------|
 | MySQL database username            | backend.conf       |
 | MySQL database password            | backend.conf       |
+| PostgreSQL database username            | backend.conf       |
+| PostgreSQL database password            | backend.conf       |
 | AWS Batch ARN                      | backend.conf       |
 | Google Cloud Platform project name | backend.conf       |
 | SLURM account name                 | workflow_opts.json |

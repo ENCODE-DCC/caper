@@ -32,10 +32,12 @@ DEFAULT_DB = CaperBackendDatabase.DB_TYPE_IN_MEMORY
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
 DEFAULT_MYSQL_DB_USER = 'cromwell'
+DEFAULT_MYSQL_DB_NAME = 'cromwell'
 DEFAULT_MYSQL_DB_PASSWORD = 'cromwell'
 DEFAULT_POSTGRESQL_DB_IP = 'localhost'
 DEFAULT_POSTGRESQL_DB_PORT = 5432
 DEFAULT_POSTGRESQL_DB_USER = 'cromwell'
+DEFAULT_POSTGRESQL_DB_NAME = 'cromwell'
 DEFAULT_POSTGRESQL_DB_PASSWORD = 'cromwell'
 DEFAULT_DB_TIMEOUT_MS = 30000
 DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
@@ -253,6 +255,9 @@ def parse_caper_arguments():
     group_mysql.add_argument(
         '--mysql-db-password', default=DEFAULT_MYSQL_DB_PASSWORD,
         help='MySQL DB password')
+    group_mysql.add_argument(
+        '--mysql-db-name', default=DEFAULT_MYSQL_DB_NAME,
+        help='MySQL DB name for Cromwell')
 
     group_postgresql = parent_host.add_argument_group(
         title='PostgreSQL DB arguments')
@@ -268,6 +273,9 @@ def parse_caper_arguments():
     group_postgresql.add_argument(
         '--postgresql-db-password', default=DEFAULT_POSTGRESQL_DB_PASSWORD,
         help='PostgreSQL DB password')
+    group_postgresql.add_argument(
+        '--postgresql-db-name', default=DEFAULT_POSTGRESQL_DB_NAME,
+        help='PostgreSQL DB name for Cromwell')
 
     group_cromwell = parent_host.add_argument_group(
         title='Cromwell settings')

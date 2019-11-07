@@ -145,10 +145,12 @@ class Caper(object):
         self._mysql_db_port = args.get('mysql_db_port')
         self._mysql_db_user = args.get('mysql_db_user')
         self._mysql_db_password = args.get('mysql_db_password')
+        self._mysql_db_name = args.get('mysql_db_name')
         self._postgresql_db_ip = args.get('postgresql_db_ip')
         self._postgresql_db_port = args.get('postgresql_db_port')
         self._postgresql_db_user = args.get('postgresql_db_user')
         self._postgresql_db_password = args.get('postgresql_db_password')
+        self._postgresql_db_name = args.get('postgresql_db_name')
 
         # troubleshoot
         self._show_completed_task = args.get('show_completed_task')
@@ -970,10 +972,12 @@ class Caper(object):
                 mysql_port=self._mysql_db_port,
                 mysql_user=self._mysql_db_user,
                 mysql_password=self._mysql_db_password,
+                mysql_name=self._mysql_db_name,
                 postgresql_ip=self._postgresql_db_ip,
                 postgresql_port=self._postgresql_db_port,
                 postgresql_user=self._postgresql_db_user,
-                postgresql_password=self._postgresql_db_password))
+                postgresql_password=self._postgresql_db_password,
+                postgresql_name=self._postgresql_db_name))
 
         # set header for conf ("include ...")
         assert(Caper.BACKEND_CONF_HEADER.endswith('\n'))

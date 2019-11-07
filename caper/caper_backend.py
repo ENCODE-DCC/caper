@@ -112,7 +112,7 @@ class CaperBackendDatabase(dict):
         "profile": "slick.jdbc.MySQLProfile$",
         "db": {
             "driver": "com.mysql.cj.jdbc.Driver",
-            "url": "jdbc:mysql://{ip}:{port}/cromwell_db?"
+            "url": "jdbc:mysql://{ip}:{port}/{name}?"
                 "allowPublicKeyRetrieval=true&useSSL=false&"
                 "rewriteBatchedStatements=true&serverTimezone=UTC",
             "user": "cromwell",
@@ -125,7 +125,7 @@ class CaperBackendDatabase(dict):
         "profile": "slick.jdbc.PostgresProfile$",
         "db": {
             "driver": "org.postgresql.Driver",
-            "url": "jdbc:postgresql://{ip}:{port}/cromwell",
+            "url": "jdbc:postgresql://{ip}:{port}/{name}",
             "port": 5432,
             "user": "cromwell",
             "password": "cromwell",
@@ -137,8 +137,10 @@ class CaperBackendDatabase(dict):
                  file_db=None,
                  mysql_ip=None, mysql_port=None,
                  mysql_user=None, mysql_password=None,
+                 mysql_name=None,
                  postgresql_ip=None, postgresql_port=None,
-                 postgresql_user=None, postgresql_password=None):
+                 postgresql_user=None, postgresql_password=None,
+                 postgresql_name=None):
         super(CaperBackendDatabase, self).__init__(
             CaperBackendDatabase.TEMPLATE)
 
@@ -155,7 +157,7 @@ class CaperBackendDatabase(dict):
             self['database'] = CaperBackendDatabase.TEMPLATE_DB_MYSQL            
             db = self['database']['db']
             db['url'] = db['url'].format(
-                ip=mysql_ip, port=mysql_port)
+                ip=mysql_ip, port=mysql_port, name=mysql_name)
             db['user'] = mysql_user
             db['password'] = mysql_password
 
@@ -163,7 +165,7 @@ class CaperBackendDatabase(dict):
             self['database'] = CaperBackendDatabase.TEMPLATE_DB_POSTGRESQL
             db = self['database']['db']
             db['url'] = db['url'].format(
-                ip=postgresql_ip, port=postgresql_port)
+                ip=postgresql_ip, port=postgresql_port, name=postgresql_name)
             db['port'] = postgresql_port
             db['user'] = postgresql_user
             db['password'] = postgresql_password
