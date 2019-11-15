@@ -30,6 +30,7 @@ def merge_dict(a, b):
                 a[key] = b[key]
         else:
             a[key] = b[key]
+    return a
 
 
 def flatten_dict(d, parent_key=()):
@@ -184,6 +185,86 @@ def split_dict(d, rules=None):
     if d_others:
         d_ = unflatten_dict(d_others)
         result = [d_] + result
+    return result
+
+
+def dict_to_dot_str(d, parent_key='digraph D', indent=''):
+    """Dict will be converted into DOT like the followings:
+        1) Value string will not be double-quotted in DOT.
+            - make sure to escape double-quotes in a string with special characters
+            (e.g. whitespace, # and ;)
+        2) If "value" is None then "key" will be just added to DOT without "="
+
+    dict:
+        { "key1": "val1", "key2": "val2", "key3": { "key3_1": "val3_1", }... }
+
+    dot:
+        digraph D {
+            key1 = val1;
+            key2 = val2;
+            key3 {
+                key3_1 = val3_1;
+                ...
+            }
+            ...
+        }
+
+    Example in a Croo output def JSON file:
+        (note that strings for "label" are double-quote-escaped).
+
+    dict:
+        {
+            "rankdir": "TD",
+            "start": "[shape=Mdiamond]",
+            "end": "[shape=Msquare]",
+            "subgraph cluster_rep1": {
+                "style": "filled",
+                "color": "mistyrose",
+                "label": "\"Replicate 1\""
+            },
+            "subgraph cluster_rep2": {
+                "style": "filled",
+                "color": "azure",
+                "label": "\"Replicate 2\""
+            },
+            "a0 -> b0": null,
+            "c0 -> d0": null
+        }
+
+    Such dict will be converted into a dot:
+
+    dot:
+        digraph D {
+            rankDir = TD;
+            start = [shape=Mdiamond];
+            end = [shape=Msquare];
+            subgraph cluster_rep1 {
+                style = filled;
+                color = mistyrose;
+                label = "Replicate 1"
+            };
+            subgraph cluster_rep2 {
+                style = filled;
+                color = azure;
+                label = "Replicate 2"
+            };
+            a0 -> b0;
+            c0 -> d0;
+        }
+    """
+    result = ''
+    if d is None:
+        return '{}{};\n'.format(indent, parent_key)
+    elif isinstance(d, str):
+        return '{}{} = {};\n'.format(indent, parent_key, d)
+    elif isinstance(d, dict):
+        result += indent + parent_key + ' {\n'
+        for k, v in d.items():
+            result += dict_to_dot_str(v, parent_key=k, indent=indent + '\t')
+        result += indent + '}\n'
+    else:
+        raise ValueError('Unsupported data type: {} '
+            '(only str and dict/JSON are allowed).'.format(type(d)))
     return result
 
 
