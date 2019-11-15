@@ -216,7 +216,7 @@ In order to use call-caching, choose one of the following metadata database type
 
 ## MySQL database
 
-We provide [shell scripts](bin/run_mysql_server_docker.sh) to run a MySQL server in a container with docker/singularity. Once you have a running MySQL server, define MySQL's port in Caper's conf file `~/.caper/default.conf`.
+We provide [shell scripts](bin/run_mysql_server_docker.sh) to run a MySQL server in a container with docker/singularity. Once you have a running MySQL server, add the followings to Caper's conf file `~/.caper/default.conf`. You may need to change the port number if it conflicts.
 
 ```
 db=mysql
@@ -224,6 +224,20 @@ mysql-db-port=3306
 ```
 
 1) docker
+
+	Ask your admin to add you to the `docker` group or if you are root then install Docker, create a group `docker` and add yourself to the group `docker`.
+
+	```bash
+	$ sudo apt-get install docker.io
+	$ sudo groupadd docker
+	$ sudo usermod -aG docker $USER
+	```
+
+	**RE-LOGIN** and check if Docker `hello-world` works.
+
+	```bash
+	$ docker run hello-world
+	```
 
 	Run the following command line. `PORT` and `CONTAINER_NAME` are optional. MySQL server will run in background.
 
@@ -243,9 +257,13 @@ mysql-db-port=3306
 	docker: Error response from daemon: Conflict. The container name "/mysql_cromwell" is already in use by container 0584ec7affed0555a4ecbd2ed86a345c542b3c60993960408e72e6ea803cb97e. You have to remove (or rename) that container to be able to reuse that name..
 	```
 
-	To stop/kill a running MySQL server,
+	Check if MySQL server is running.
 	```bash
 	$ docker ps  # find your MySQL docker container
+	```
+
+	To stop/kill a running MySQL server,
+	```bash
 	$ docker stop [CONTAINER_NAME]  # you can also use a container ID found in the above cmd
 	```
 
