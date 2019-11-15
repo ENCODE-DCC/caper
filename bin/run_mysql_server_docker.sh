@@ -44,12 +44,14 @@ RAND_STR=$(date | md5sum | awk '{print $1}')
 TMP_INIT_DIR=${HOME}/.run_mysql_server_docker/${RAND_STR}
 TMP_INIT_FILE=${TMP_INIT_DIR}/init_cromwell_user.sql
 
+rm -rf ${TMP_INIT_DIR}
 mkdir -p ${TMP_INIT_DIR}
 echo ${INIT_SQL} > ${TMP_INIT_FILE}
 
 echo "SECURITY WARNING: Your MySQL DB username/password can be exposed in \
 ${TMP_INIT_FILE}"
 
+chown ${UID} -R ${DB_DIR}
 docker run -d --rm --user ${UID} \
 --name ${CONTAINER_NAME} \
 -v ${DB_DIR}:/var/lib/mysql \
