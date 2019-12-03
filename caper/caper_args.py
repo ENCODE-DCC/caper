@@ -14,13 +14,14 @@ from collections import OrderedDict
 from .caper_backend import BACKENDS, BACKENDS_WITH_ALIASES
 from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL
 from .caper_backend import BACKEND_SLURM, BACKEND_SGE, BACKEND_PBS
+from .caper_backend import BACKEND_LSF
 from .caper_backend import BACKEND_ALIAS_LOCAL
 from .caper_backend import BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON
 from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
 from .caper_backend import CaperBackendDatabase
 
 
-__version__ = '0.6.1'
+__version__ = '0.6.2b'
 
 DEFAULT_JAVA_HEAP_SERVER = '10G'
 DEFAULT_JAVA_HEAP_RUN = '2G'
@@ -77,6 +78,10 @@ tmp-dir=
 """
 DEFAULT_CONF_CONTENTS_SGE = """backend=sge
 sge-pe=
+
+tmp-dir=
+"""
+DEFAULT_CONF_CONTENTS_LSF = """backend=lsf
 
 tmp-dir=
 """
@@ -137,6 +142,8 @@ def init_caper_conf(args):
         contents = DEFAULT_CONF_CONTENTS_SLURM
     elif backend == BACKEND_SGE:
         contents = DEFAULT_CONF_CONTENTS_SGE
+    elif backend == BACKEND_LSF:
+        contents = DEFAULT_CONF_CONTENTS_LSF
     elif backend == BACKEND_PBS:
         contents = DEFAULT_CONF_CONTENTS_PBS
     elif backend in (BACKEND_GCP, BACKEND_ALIAS_GOOGLE):
@@ -474,6 +481,13 @@ def parse_caper_arguments():
     group_sge.add_argument(
         '--sge-extra-param',
         help='SGE extra parameters. Must be double-quoted')
+
+    group_lsf = parent_submit.add_argument_group('LSF arguments')
+    group_lsf.add_argument(
+        '--lsf-queue', help='LSF queue.')
+    group_lsf.add_argument(
+        '--lsf-extra-param',
+        help='LSF extra parameters. Must be double-quoted')
 
     group_pbs = parent_submit.add_argument_group('PBS arguments')
     group_pbs.add_argument(

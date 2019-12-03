@@ -37,7 +37,7 @@ from .caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
 from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CaperBackendCommon, CaperBackendDatabase, CaperBackendGCP, \
     CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
-    CaperBackendSGE, CaperBackendPBS
+    CaperBackendSGE, CaperBackendLSF, CaperBackendPBS
 
 
 class Caper(object):
@@ -121,6 +121,8 @@ class Caper(object):
         self._sge_pe = args.get('sge_pe')
         self._sge_queue = args.get('sge_queue')
         self._sge_extra_param = args.get('sge_extra_param')
+        self._lsf_queue = args.get('lsf_queue')
+        self._lsf_extra_param = args.get('lsf_extra_param')
         self._pbs_queue = args.get('pbs_queue')
         self._pbs_extra_param = args.get('pbs_extra_param')
 
@@ -739,6 +741,10 @@ class Caper(object):
             sge_queue
             sge_extra_param
 
+            * LSF params (can also be defined in backend conf file)
+            lsf_queue
+            lsf_extra_param
+
             * PBS params (can also be defined in backend conf file)
             pbs_queue
             pbs_extra_param
@@ -815,6 +821,13 @@ class Caper(object):
             template['default_runtime_attributes']['sge_extra_param'] = \
                 self._sge_extra_param
 
+        if self._lsf_queue is not None:
+            template['default_runtime_attributes']['lsf_queue'] = \
+                self._lsf_queue
+        if self._lsf_extra_param is not None:
+            template['default_runtime_attributes']['lsf_extra_param'] = \
+                self._lsf_extra_param
+
         if self._max_retries is not None:
             template['default_runtime_attributes']['maxRetries'] = \
                 self._max_retries
@@ -890,7 +903,8 @@ class Caper(object):
             3) aws: AWS backend (optional)
             4) slurm: SLURM (optional)
             5) sge: SGE (optional)
-            6) pbs: PBS (optional)
+            6) lsf: LSF (optional)
+            7) pbs: PBS (optional)
 
         Also, initializes the following common non-"backend" stanzas:
             a) common: base stanzas
@@ -951,7 +965,14 @@ class Caper(object):
                 queue=self._sge_queue,
                 extra_param=self._sge_extra_param,
                 concurrent_job_limit=self._max_concurrent_tasks))
-
+        # LSF
+        merge_dict(
+            backend_dict,
+            CaperBackendLSF(
+                out_dir=self._out_dir,
+                queue=self._lsf_queue,
+                extra_param=self._lsf_extra_param,
+                concurrent_job_limit=self._max_concurrent_tasks))
         # PBS
         merge_dict(
             backend_dict,

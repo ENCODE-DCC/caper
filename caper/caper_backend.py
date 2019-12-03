@@ -7,9 +7,10 @@ BACKEND_AWS = 'aws'
 BACKEND_LOCAL = 'Local'  # should be CAPITAL L
 BACKEND_SLURM = 'slurm'
 BACKEND_SGE = 'sge'
+BACKEND_LSF = 'lsf'
 BACKEND_PBS = 'pbs'
 BACKENDS = [BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, BACKEND_SLURM,
-    BACKEND_SGE, BACKEND_PBS]
+    BACKEND_SGE, BACKEND_LSF, BACKEND_PBS]
 
 BACKEND_ALIAS_LOCAL = 'local'  # with small L
 BACKEND_ALIAS_GOOGLE = 'google'
@@ -534,6 +535,88 @@ ${true=")m" false="" defined(memory_mb)} \
             config[key]['sge_queue'] = queue
         if extra_param is not None and extra_param != '':
             config[key]['sge_extra_param'] = extra_param
+        if concurrent_job_limit is not None:
+            config['concurrent-job-limit'] = concurrent_job_limit
+
+
+class CaperBackendLSF(dict):
+    """LSF backend
+    """
+    RUNTIME_ATTRIBUTES = """
+        String? docker
+        String? docker_user
+        Int cpu = 1
+        Int? gpu
+        Int? time
+        Int? memory_mb
+        String? lsf_queue
+        String? lsf_extra_param
+        String? singularity
+        String? singularity_bindpath
+        String? singularity_cachedir
+    """
+    SUBMIT = """
+        echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
+        if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then \
+        export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
+        if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then \
+        export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
+        singularity exec --cleanenv --home ${cwd} \
+        ${if defined(gpu) then '--nv' else ''} \
+        ${singularity} /bin/bash ${script}" | bsub \
+        -J ${job_name} \
+        -cwd ${cwd} \
+        -o ${out} \
+        -e ${err} \
+        ${if cpu>1 then "-n " else ""}\
+${if cpu>1 then cpu else ""} \
+        ${true="-M $(expr " false="" defined(memory_mb)}${memory_mb}\
+${true=" / " false="" defined(memory_mb)}\
+${if defined(memory_mb) then cpu else ""}\
+${true=")M" false="" defined(memory_mb)} \
+        ${true="-W " false="" defined(time)}${time}$\
+{true=":00" false="" defined(time)} \
+        ${"-q " + lsf_queue} \
+        ${"-gpu num=" + gpu} \
+        ${lsf_extra_param} \
+        -env all
+    """
+    TEMPLATE = {
+        "backend": {
+            "providers": {
+                BACKEND_LSF: {
+                    "actor-factory": "cromwell.backend.impl.sfs.config."
+                    "ConfigBackendLifecycleActorFactory",
+                    "config": {
+                        "default-runtime-attributes": {
+                            "time": 24
+                        },
+                        "script-epilogue": "sleep 10 && sync",
+                        "concurrent-job-limit": 1000,
+                        "runtime-attributes": RUNTIME_ATTRIBUTES,
+                        "submit": SUBMIT,
+                        "exit-code-timeout-seconds": 180,
+                        "kill": "bkill ${job_id}",
+                        "check-alive": "bjobs -l ${job_id}",
+                        "job-id-regex": "(\\\\d+)"
+                    }
+                }
+            }
+        }
+    }
+
+    def __init__(self, out_dir, queue=None, extra_param=None,
+                 concurrent_job_limit=None):
+        super(CaperBackendLSF, self).__init__(
+            CaperBackendLSF.TEMPLATE)
+        config = self['backend']['providers'][BACKEND_LSF]['config']
+        key = 'default-runtime-attributes'
+        config['root'] = out_dir
+
+        if queue is not None and queue != '':
+            config[key]['lsf_queue'] = queue
+        if extra_param is not None and extra_param != '':
+            config[key]['lsf_extra_param'] = extra_param
         if concurrent_job_limit is not None:
             config['concurrent-job-limit'] = concurrent_job_limit
 
