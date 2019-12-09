@@ -20,7 +20,7 @@ from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
 from .caper_backend import CaperBackendDatabase
 
 
-__version__ = '0.6.1'
+__version__ = '0.6.2'
 
 DEFAULT_JAVA_HEAP_SERVER = '10G'
 DEFAULT_JAVA_HEAP_RUN = '2G'
