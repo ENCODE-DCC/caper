@@ -191,7 +191,7 @@ def parse_caper_arguments():
             config.read_string(conf_contents)
             d = dict(config.items('defaults'))
             # remove keys with empty string
-            d = {k: v for k, v in d.items() if v != ''}
+            d = {k: v.strip('"\'') for k, v in d.items() if v != ''}
             # replace - with _
             defaults.update({k.replace('-', '_'): v for k, v in d.items()})
 
