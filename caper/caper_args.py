@@ -54,16 +54,22 @@ DYN_FLAGS = ['--singularity', '--docker']
 INVALID_EXT_FOR_DYN_FLAG = '.wdl'
 DEFAULT_CONF_CONTENTS_LOCAL = """backend=local
 
+# DO NOT use /tmp here
+# Caper stores all important temp files and cached big data files here
 tmp-dir=
 """
 DEFAULT_CONF_CONTENTS_SHERLOCK = """backend=slurm
 slurm-partition=
 
+# DO NOT use /tmp here
+# Caper stores all important temp files and cached big data files here
 tmp-dir=
 """
 DEFAULT_CONF_CONTENTS_SCG = """backend=slurm
 slurm-account=
 
+# DO NOT use /tmp here
+# Caper stores all important temp files and cached big data files here
 tmp-dir=
 """
 DEFAULT_CONF_CONTENTS_SLURM = """backend=slurm
@@ -73,15 +79,21 @@ DEFAULT_CONF_CONTENTS_SLURM = """backend=slurm
 slurm-partition=
 slurm-account=
 
+# DO NOT use /tmp here
+# Caper stores all important temp files and cached big data files here
 tmp-dir=
 """
 DEFAULT_CONF_CONTENTS_SGE = """backend=sge
 sge-pe=
 
+# DO NOT use /tmp here
+# Caper stores all important temp files and cached big data files here
 tmp-dir=
 """
 DEFAULT_CONF_CONTENTS_PBS = """backend=pbs
 
+# DO NOT use /tmp here
+# Caper stores all important temp files and cached big data files here
 tmp-dir=
 """
 DEFAULT_CONF_CONTENTS_AWS = """backend=aws
@@ -89,12 +101,16 @@ aws-batch-arn=
 aws-region=
 out-s3-bucket=
 
+# DO NOT use /tmp here
+# Caper stores all important temp files and cached big data files here
 tmp-dir=
 """
 DEFAULT_CONF_CONTENTS_GCP = """backend=gcp
 gcp-prj=
 out-gcs-bucket=
 
+# DO NOT use /tmp here
+# Caper stores all important temp files and cached big data files here
 tmp-dir=
 """
 
