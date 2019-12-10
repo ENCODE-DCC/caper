@@ -141,8 +141,8 @@ We highly recommend to use a default configuration file described in the section
 	--db|Metadata DB type (file: not recommended, mysql: recommended, in-memory: no metadata DB)
 	--file-db, -d|File-based metadata DB for Cromwell's built-in HyperSQL database (UNSTABLE)
 	--db-timeout|Milliseconds to wait for DB connection (default: 30000)
-	--java-heap-server|Java heap memory for caper server (default: 7GB)
-	--java-heap-run|Java heap memory for caper run (default: 1GB)
+	--java-heap-server|Java heap memory for caper server (default: 10G)
+	--java-heap-run|Java heap memory for caper run (default: 3G)
 
 * Choose a default backend. Deepcopy is enabled by default. All data files will be automatically transferred to a target local/remote storage corresponding to a chosen backend. Make sure that you correctly configure temporary directories for source/target storages (`--tmp-dir`, `--tmp-gcs-bucket` and `--tmp-s3-bucket`). To disable this feature use `--no-deepcopy`.
 

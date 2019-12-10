@@ -23,7 +23,7 @@ from .caper_backend import CaperBackendDatabase
 __version__ = '0.6.2'
 
 DEFAULT_JAVA_HEAP_SERVER = '10G'
-DEFAULT_JAVA_HEAP_RUN = '2G'
+DEFAULT_JAVA_HEAP_RUN = '3G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
 DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/cromwell-47.jar'
