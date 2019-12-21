@@ -265,7 +265,8 @@ class Caper(object):
                 print(stdout)
 
         # move metadata file to a workflow output directory
-        if metadata_file is not None and workflow_id is not None:
+        if metadata_file is not None and workflow_id is not None and \
+                os.path.exists(metadata_file):
             with open(metadata_file, 'r') as fp:
                 metadata_uri = self.__write_metadata_json(
                     workflow_id,
