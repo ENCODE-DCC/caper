@@ -483,7 +483,7 @@ class Caper(object):
             submission = w['submission']
 
             if self._hide_result_before is not None:
-                if submission <= self._hide_result_before:
+                if 'submission' in w and w['submission'] <= self._hide_result_before:
                     continue
             for f in formats:
                 if f == 'workflow_id':
