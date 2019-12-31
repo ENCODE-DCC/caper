@@ -104,7 +104,7 @@ Submit a Caper leader job (`caper run`) to SLURM. For a partition `-p [SLURM_PAR
 ```bash
 $ # conda activate here if required
 $ cd [OUTPUT_DIR]  # make a separate directory for each workflow.
-$ sbatch -p [SLURM_PARTITON] -J [JOB_NAME] --export=ALL --mem 2G -t 4-0 --wrap "caper run [WDL] -i [INPUT_JSON]"
+$ sbatch -p [SLURM_PARTITON] -J [JOB_NAME] --export=ALL --mem 3G -t 4-0 --wrap "caper run [WDL] -i [INPUT_JSON]"
 ```
 
 A Caper leader job will `sbatch` lots of sub-tasks to SLURM so `squeue` will be mixed up with a leader job and its children jobs. It will be more convenient to filter out children jobs.
@@ -119,7 +119,7 @@ Submit a Caper leader job for `caper run` to SLURM. For a SLURM account `-A [SLU
 ```bash
 $ # conda activate here if required
 $ cd [OUTPUT_DIR]  # make a separate directory for each workflow
-$ sbatch -A [SLURM_ACCOUNT] -J [JOB_NAME] --export=ALL --mem 2G -t 4-0 --wrap "caper run [WDL] -i [INPUT_JSON]"
+$ sbatch -A [SLURM_ACCOUNT] -J [JOB_NAME] --export=ALL --mem 3G -t 4-0 --wrap "caper run [WDL] -i [INPUT_JSON]"
 ```
 
 A Caper leader job will `sbatch` lots of sub-tasks to SLURM so `squeue` will be mixed up with a leader job and its children jobs. It will be more convenient to filter out children jobs.
@@ -134,7 +134,7 @@ Submit a Caper leader job for `caper run` to SLURM. Define or skip a SLURM accou
 ```bash
 $ # conda activate here if required
 $ cd [OUTPUT_DIR]  # make a separate directory for each workflow
-$ sbatch -A [SLURM_ACCOUNT] -p [SLURM_PARTITON] -J [JOB_NAME] --export=ALL --mem 2G -t 4-0 --wrap "caper run [WDL] -i [INPUT_JSON]"
+$ sbatch -A [SLURM_ACCOUNT] -p [SLURM_PARTITON] -J [JOB_NAME] --export=ALL --mem 3G -t 4-0 --wrap "caper run [WDL] -i [INPUT_JSON]"
 ```
 
 A Caper leader job will `sbatch` lots of sub-tasks to SLURM so `squeue` will be mixed up with a leader job and its children jobs. It will be more convenient to filter out children jobs.
@@ -148,7 +148,7 @@ Submit a Caper leader job for `caper run` to SGE. `-N [JOB_NAME]` is to identify
 ```bash
 $ # conda activate here if required
 $ cd [OUTPUT_DIR]  # make a separate directory for each workflow
-$ echo "caper run [WDL] -i [INPUT_JSON]" | qsub -V -N [JOB_NAME] -l h_rt=144:00:00 -l h_vmem=2G
+$ echo "caper run [WDL] -i [INPUT_JSON]" | qsub -V -N [JOB_NAME] -l h_rt=144:00:00 -l h_vmem=3G
 ```
 
 A Caper leader job will `qsub` lots of sub-tasks to SGE so `qstat` will be mixed up with a leader job and its children jobs. It will be more convenient to filter out children jobs.
