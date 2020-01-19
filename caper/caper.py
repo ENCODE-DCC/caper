@@ -229,7 +229,8 @@ class Caper(object):
                 print("[Caper] Validating WDL/input JSON with womtool...")
                 check_call(cmd_womtool)
             except CalledProcessError as e:
-                print("[Caper] Error (womtool): WDL or input JSON is invalid.")
+                print("[Caper] Error (womtool): WDL or input JSON is invalid "
+                      "or input JSON doesn't exist.")
                 rc = e.returncode
                 sys.exit(rc)
 
@@ -480,7 +481,6 @@ class Caper(object):
         for w in workflows:
             row = []
             workflow_id = w['id'] if 'id' in w else None
-            submission = w['submission']
 
             if self._hide_result_before is not None:
                 if 'submission' in w and w['submission'] <= self._hide_result_before:
