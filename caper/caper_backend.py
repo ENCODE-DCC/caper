@@ -373,7 +373,9 @@ class CaperBackendSLURM(dict):
         String? singularity_bindpath
         String? singularity_cachedir
     """
-    SUBMIT = """
+    # try sbatching up to 3 times every 30 second
+    # some busy SLURM clusters spit out error, which results in a failure of the whole workflow
+    SUBMIT = """ITER=0; until [ $ITER -ge 3 ]; do
         sbatch \
         --export=ALL \
         -J ${job_name} \
@@ -397,11 +399,15 @@ class CaperBackendSLURM(dict):
             export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
             singularity exec --cleanenv --home ${cwd} \
             ${if defined(gpu) then '--nv' else ''} \
-            ${singularity} /bin/bash ${script}"
+            ${singularity} /bin/bash ${script}" && break
+    ITER=$[$ITER+1]; sleep 30; done
     """
-    # squeue every 20 second (up to 3 times)
-    # On Stanford Sherlock, squeue didn't work when server is busy
-    CHECK_ALIVE = """for ITER in 1 2 3; do CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id}); if [ -z "$CHK_ALIVE" ]; then if [ "$ITER" == 3 ]; then /bin/bash -c 'exit 1'; else sleep 20; fi; else echo $CHK_ALIVE; break; fi; done"""
+    # squeue every 30 second (up to 3 times)
+    # unlike qstat -j JOB_ID, squeue -j JOB_ID doesn't return 1 when there is no such job
+    # so we need to use squeue -j JOB_ID --noheader and check if output is empty
+    # try polling up to 3 times since squeue fails on some busy SLURM clusters
+    # e.g. on Stanford Sherlock, squeue didn't work when server is busy
+    CHECK_ALIVE = """for ITER in 1 2 3; do CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id}); if [ -z "$CHK_ALIVE" ]; then if [ "$ITER" == 3 ]; then /bin/bash -c 'exit 1'; else sleep 30; fi; else echo $CHK_ALIVE; break; fi; done"""
     TEMPLATE = {
         "backend": {
             "providers": {
