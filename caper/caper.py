@@ -64,7 +64,7 @@ class Caper(object):
     RE_PATTERN_DELIMITER_GCP_ZONES = r',| '
     USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
 
-    SEC_INTERVAL_UPDATE_METADATA = 240.0
+    SEC_INTERVAL_UPDATE_METADATA = 1200.0
     SEC_INTERVAL_UPDATE_SERVER_HEARTBEAT = 60.0
     # added to cromwell labels file
     KEY_CAPER_STR_LABEL = 'caper-str-label'
