@@ -29,7 +29,7 @@ from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 
 from .dict_tool import merge_dict
-from .caper_args import parse_caper_arguments
+from .caper_args import parse_caper_arguments, install_cromwell_jar, install_womtool_jar
 from .caper_check import check_caper_conf
 from .cromwell_rest_api import CromwellRestAPI
 from .caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
@@ -44,8 +44,6 @@ class Caper(object):
     """Cromwell/WDL wrapper
     """
 
-    CROMWELL_JAR_DIR = '~/.caper/cromwell_jar'
-    WOMTOOL_JAR_DIR = '~/.caper/womtool_jar'
     BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
     DEFAULT_BACKEND = BACKEND_LOCAL
     RE_PATTERN_BACKEND_CONF_HEADER = r'^\s*include\s'
@@ -210,7 +208,7 @@ class Caper(object):
         cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
                '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
-               self.__download_cromwell_jar(), 'run',
+               install_cromwell_jar(self._cromwell), 'run',
                CaperURI(self._wdl).get_local_file(),
                '-i', input_file,
                '-o', workflow_opts_file,
@@ -222,7 +220,7 @@ class Caper(object):
         if not self._ignore_womtool:
             # run womtool first to validate WDL and input JSON
             cmd_womtool = ['java', '-Xmx512M', '-jar',
-                           self.__download_womtool_jar(),
+                           install_womtool_jar(self._womtool),
                            'validate', CaperURI(self._wdl).get_local_file(),
                            '-i', input_file]
             try:
@@ -305,7 +303,7 @@ class Caper(object):
         cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
                '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
-               self.__download_cromwell_jar(), 'server']
+               install_cromwell_jar(self._cromwell), 'server']
         print('[Caper] cmd: ', cmd)
 
         # pending/running workflows
@@ -393,7 +391,7 @@ class Caper(object):
         # run womtool first to validate WDL and input JSON
         if not self._ignore_womtool:
             cmd_womtool = ['java', '-Xmx512M', '-jar',
-                           self.__download_womtool_jar(),
+                           install_womtool_jar(self._womtool),
                            'validate', CaperURI(self._wdl).get_local_file(),
                            '-i', input_file]
             try:
@@ -577,30 +575,6 @@ class Caper(object):
                     time.sleep(1)
                 if self._stop_heartbeat_thread:
                     break
-
-    def __download_cromwell_jar(self):
-        """Download cromwell-X.jar
-        """
-        cu = CaperURI(self._cromwell)
-        if cu.uri_type == URI_LOCAL:
-            return cu.get_uri()
-
-        path = os.path.join(
-            os.path.expanduser(Caper.CROMWELL_JAR_DIR),
-            os.path.basename(self._cromwell))
-        return cu.copy(target_uri=path)
-
-    def __download_womtool_jar(self):
-        """Download womtool-X.jar
-        """
-        cu = CaperURI(self._womtool)
-        if cu.uri_type == URI_LOCAL:
-            return cu.get_uri()
-
-        path = os.path.join(
-            os.path.expanduser(Caper.WOMTOOL_JAR_DIR),
-            os.path.basename(self._womtool))
-        return cu.copy(target_uri=path)
 
     def __write_metadata_jsons(self, workflow_ids):
         try:

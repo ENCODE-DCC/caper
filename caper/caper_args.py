@@ -28,6 +28,8 @@ DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
 DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/cromwell-47.jar'
 DEFAULT_WOMTOOL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/womtool-47.jar'
+DEFAULT_CROMWELL_JAR_INSTALL_DIR = '~/.caper/cromwell_jar'
+DEFAULT_WOMTOOL_JAR_INSTALL_DIR = '~/.caper/womtool_jar'
 DEFAULT_DB = CaperBackendDatabase.DB_TYPE_IN_MEMORY
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
@@ -140,7 +142,38 @@ def process_dyn_flags(remaining_args, dyn_flags,
     return remaining_args
 
 
+def install_cromwell_jar(uri):
+    """Download cromwell-X.jar
+    """
+    from .caper_uri import CaperURI, URI_LOCAL
+    cu = CaperURI(uri)
+    if cu.uri_type == URI_LOCAL:
+        return cu.get_uri()
+    print('Downloading Cromwell JAR... {f}'.format(f=uri), file=sys.stderr)
+    path = os.path.join(
+        os.path.expanduser(DEFAULT_CROMWELL_JAR_INSTALL_DIR),
+        os.path.basename(uri))
+    return cu.copy(target_uri=path)
+
+
+def install_womtool_jar(uri):
+    """Download womtool-X.jar
+    """
+    from .caper_uri import CaperURI, URI_LOCAL
+    cu = CaperURI(uri)
+    if cu.uri_type == URI_LOCAL:
+        return cu.get_uri()
+    print('Downloading Womtool JAR... {f}'.format(f=uri), file=sys.stderr)
+    path = os.path.join(
+        os.path.expanduser(DEFAULT_WOMTOOL_JAR_INSTALL_DIR),
+        os.path.basename(uri))
+    return cu.copy(target_uri=path)
+
+
 def init_caper_conf(args):
+    """Initialize conf file for a given platform.
+    Also, download/install Cromwell/Womtool JARs.
+    """
     backend = args.get('platform')
     assert(backend in BACKENDS_WITH_ALIASES)
     if backend in (BACKEND_LOCAL, BACKEND_ALIAS_LOCAL):
@@ -165,6 +198,12 @@ def init_caper_conf(args):
     conf_file = os.path.expanduser(args.get('conf'))
     with open(conf_file, 'w') as fp:
         fp.write(contents + '\n')
+        fp.write('{key}={val}\n'.format(
+            key='cromwell',
+            val=install_cromwell_jar(DEFAULT_CROMWELL_JAR)))
+        fp.write('{key}={val}\n'.format(
+            key='womtool',
+            val=install_womtool_jar(DEFAULT_WOMTOOL_JAR)))
 
 
 def parse_caper_arguments():
