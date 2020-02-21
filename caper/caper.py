@@ -561,7 +561,6 @@ class Caper(object):
                 except:
                     print('[Caper] Warning: failed to read server_heartbeat_file',
                           self._server_hearbeat_file)
-        print(self._no_server_hearbeat, self._server_hearbeat_file, ip, port)
         return ip, port
 
     def __write_heartbeat_file(self):
