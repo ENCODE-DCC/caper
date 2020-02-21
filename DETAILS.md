@@ -41,6 +41,19 @@ list     | WF_ID or STR_LABEL |List submitted workflows on a Cromwell server
 metadata | WF_ID or STR_LABEL |Retrieve metadata JSONs for workflows
 debug, troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason for errors
 
+* `init`: To initialize Caper on a given platform. This command also downloads Cromwell/Womtool JARs so that Caper can work completely offline with local data files.
+
+	**Platform**|**Description**
+	:--------|:-----
+	sherlock | Stanford Sherlock cluster (SLURM)
+	scg | Stanford SCG cluster (SLURM)
+	gcp | Google Cloud Platform
+	aws | Amazon Web Service
+	local | General local computer
+	sge | HPC with Sun GridEngine cluster engine
+	pbs | HPC with PBS cluster engine
+	slurm | HPC with SLURM cluster engine
+
 * `run`: To run a single workflow. A string label `-s` is optional and useful for other subcommands to indentify a workflow.
 
 	```bash
