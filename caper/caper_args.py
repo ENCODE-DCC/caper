@@ -553,6 +553,9 @@ def parse_caper_arguments():
         '--ip', default=DEFAULT_IP,
         help='IP address for Caper server')
     parent_server_client.add_argument(
+        '--no-server-heartbeat', action='store_true',
+        help='Disable server heartbeat file.')
+    parent_server_client.add_argument(
         '--server-heartbeat-file',
         default=DEFAULT_SERVER_HEARTBEAT_FILE,
         help='Heartbeat file for Caper clients to get IP and port of a server')
@@ -645,6 +648,7 @@ def parse_caper_arguments():
     # string to boolean
     for k in [
         'dry_run',
+        'no_server_heartbeat',
         'disable_call_caching',
         'use_gsutil_over_aws_s3',
         'hold',

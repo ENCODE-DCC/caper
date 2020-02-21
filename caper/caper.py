@@ -88,6 +88,7 @@ class Caper(object):
             action=args.get('action'),
             ip=args.get('ip'),
             port=args.get('port'),
+            no_server_hearbeat=args.get('no_server_heartbeat'),
             server_hearbeat_file=args.get('server_heartbeat_file'),
             server_hearbeat_timeout=args.get('server_heartbeat_timeout'))
 
@@ -531,8 +532,10 @@ class Caper(object):
             Caper.__troubleshoot(metadata, self._show_completed_task)
 
     def __init_cromwell_rest_api(self, action, ip, port,
+                                 no_server_hearbeat,
                                  server_hearbeat_file,
                                  server_hearbeat_timeout):
+        self._no_server_hearbeat = no_server_hearbeat
         self._server_hearbeat_file = server_hearbeat_file
         self._ip, self._port = \
             self.__read_heartbeat_file(action, ip, port, server_hearbeat_timeout)
@@ -541,7 +544,7 @@ class Caper(object):
             ip=self._ip, port=self._port, verbose=False)
 
     def __read_heartbeat_file(self, action, ip, port, server_hearbeat_timeout):
-        if self._server_hearbeat_file is not None:
+        if not self._no_server_hearbeat and self._server_hearbeat_file is not None:
             self._server_hearbeat_file = os.path.expanduser(
                 self._server_hearbeat_file)
             if action != 'server':
@@ -556,10 +559,11 @@ class Caper(object):
                 except:
                     print('[Caper] Warning: failed to read server_heartbeat_file',
                           self._server_hearbeat_file)
+        print(self._no_server_hearbeat, self._server_hearbeat_file, ip, port)
         return ip, port
 
     def __write_heartbeat_file(self):
-        if self._server_hearbeat_file is not None:
+        if not self._no_server_hearbeat and self._server_hearbeat_file is not None:
             while True:
                 try:
                     print('[Caper] Writing heartbeat',

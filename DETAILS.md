@@ -217,6 +217,10 @@ We highly recommend to use a default configuration file described in the section
 	:-----|:-----|:-----|:-----
 	ip|--ip|localhost|Cromwell server IP address or hostname
 	port|--port|8000|Cromwell server port
+	no-server-heartbeat|--no-server-heartbeat||Flag to disable server heartbeat file.
+	server-heartbeat-file|--server-heartbeat-file|`~/.caper/default_server_heartbeat`|Heartbeat file for Caper clients to get IP and port of a server.
+	server-heartbeat-timeout|--server-heartbeat-timeout|120000|Timeout for a heartbeat file in Milliseconds.
+
 	cromwell|--cromwell|[cromwell-40.jar](https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar)|Path or URL for Cromwell JAR file
 	max-concurrent-tasks|--max-concurrent-tasks|1000|Maximum number of concurrent tasks
 	max-concurrent-workflows|--max-concurrent-workflows|40|Maximum number of concurrent workflows
