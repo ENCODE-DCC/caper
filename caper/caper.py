@@ -29,7 +29,9 @@ from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 
 from .dict_tool import merge_dict
-from .caper_args import parse_caper_arguments, install_cromwell_jar, install_womtool_jar
+from .caper_args import parse_caper_arguments
+from .caper_init import init_caper_conf, install_cromwell_jar, install_womtool_jar
+
 from .caper_check import check_caper_conf
 from .cromwell_rest_api import CromwellRestAPI
 from .caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
@@ -1231,6 +1233,10 @@ def main():
     # parse arguments
     #   note that args is a dict
     args = parse_caper_arguments()
+    action = args['action']
+    if action == 'init':
+        init_caper_conf(args)
+        sys.exit(0)
     args = check_caper_conf(args)
 
     # init caper uri to transfer files across various storages
@@ -1245,10 +1251,9 @@ def main():
         use_gsutil_over_aws_s3=args.get('use_gsutil_over_aws_s3'),
         verbose=True)
 
-    # init caper: taking all args at init step
+    # initialize caper: taking all args at init step
     c = Caper(args)
 
-    action = args['action']
     if action == 'run':
         c.run()
     elif action == 'server':
