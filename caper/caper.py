@@ -490,14 +490,16 @@ class Caper(object):
                 if f == 'workflow_id':
                     row.append(str(workflow_id))
                 elif f == 'str_label':
-                    lbl = self._cromwell_rest_api.get_label(
-                        workflow_id,
-                        Caper.KEY_CAPER_STR_LABEL)
+                    if 'labels' in w and Caper.KEY_CAPER_STR_LABEL in w['labels']:
+                        lbl = w['labels'][Caper.KEY_CAPER_STR_LABEL]
+                    else:
+                        lbl = None
                     row.append(str(lbl))
                 elif f == 'user':
-                    lbl = self._cromwell_rest_api.get_label(
-                        workflow_id,
-                        Caper.KEY_CAPER_USER)
+                    if 'labels' in w and Caper.KEY_CAPER_USER in w['labels']:
+                        lbl = w['labels'][Caper.KEY_CAPER_USER]
+                    else:
+                        lbl = None
                     row.append(str(lbl))
                 else:
                     row.append(str(w[f] if f in w else None))
