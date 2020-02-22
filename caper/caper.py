@@ -62,8 +62,11 @@ class Caper(object):
     RE_PATTERN_DELIMITER_GCP_ZONES = r',| '
     USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
 
+    MAX_RETRY_UPDATING_METADATA = 3
     SEC_INTERVAL_UPDATE_METADATA = 1200.0
     SEC_INTERVAL_UPDATE_SERVER_HEARTBEAT = 60.0
+    SEC_INTERVAL_RETRY_UPDATING_METADATA = 10.0
+
     # added to cromwell labels file
     KEY_CAPER_STR_LABEL = 'caper-str-label'
     KEY_CAPER_USER = 'caper-user'
@@ -577,30 +580,33 @@ class Caper(object):
                     break
 
     def __write_metadata_jsons(self, workflow_ids):
-        try:
-            for wf_id in workflow_ids:
-                # get metadata for wf_id
-                m = self._cromwell_rest_api.get_metadata([wf_id])
-                assert(len(m) == 1)
-                metadata = m[0]
-                if 'labels' in metadata and \
-                        'caper-backend' in metadata['labels']:
-                    backend = \
-                        metadata['labels']['caper-backend']
-                else:
-                    backend = None
+        for wf_id in workflow_ids.copy():
+            for trial in range(Caper.MAX_RETRY_UPDATING_METADATA + 1):
+                try:
+                    time.sleep(Caper.SEC_INTERVAL_RETRY_UPDATING_METADATA)
+                    # get metadata for wf_id
+                    m = self._cromwell_rest_api.get_metadata([wf_id])
+                    assert(len(m) == 1)
+                    metadata = m[0]
+                    if 'labels' in metadata and \
+                            'caper-backend' in metadata['labels']:
+                        backend = \
+                            metadata['labels']['caper-backend']
+                    else:
+                        backend = None
 
-                if backend is not None:
-                    self.__write_metadata_json(
-                        wf_id, metadata,
-                        backend=backend,
-                        wdl=metadata['workflowName'])
-            return True
-        except Exception as e:
-            print('[Caper] Exception caught while retrieving '
-                  'metadata from Cromwell server. Keeping running... ',
-                  str(e), workflow_ids)
-        return False
+                    if backend is not None:
+                        self.__write_metadata_json(
+                            wf_id, metadata,
+                            backend=backend,
+                            wdl=metadata['workflowName'])
+                except Exception as e:
+                    print('[Caper] Exception caught while retrieving '
+                          'metadata from Cromwell server. '
+                          'trial: {t}, wf_id: {wf_id}'.format(
+                            t=trial, wf_id=wf_id),
+                          str(e))
+                break
 
     def __write_metadata_json(self, workflow_id, metadata_json,
                               backend=None, wdl=None):
