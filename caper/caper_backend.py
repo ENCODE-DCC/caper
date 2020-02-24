@@ -180,6 +180,9 @@ class CaperBackendDatabase(dict):
 class CaperBackendGCP(dict):
     """Google Cloud backend
     """
+    CALL_CACHING_DUP_STRAT_REFERENCE = 'reference'
+    CALL_CACHING_DUP_STRAT_COPY = 'copy'
+
     TEMPLATE = {
         "backend": {
             "providers": {
@@ -202,7 +205,10 @@ class CaperBackendGCP(dict):
                         },
                         "filesystems": {
                             "gcs": {
-                                "auth": "application-default"
+                                "auth": "application-default",
+                                "caching": {
+                                    "duplication-strategy": CALL_CACHING_DUP_STRAT_REFERENCE
+                                }
                             }
                         }
                     }
@@ -220,7 +226,8 @@ class CaperBackendGCP(dict):
         }
     }
 
-    def __init__(self, gcp_prj, out_gcs_bucket, concurrent_job_limit=None):
+    def __init__(self, gcp_prj, out_gcs_bucket, concurrent_job_limit=None,
+                 call_caching_dup_strat=None):
         super(CaperBackendGCP, self).__init__(
             CaperBackendGCP.TEMPLATE)
         config = self['backend']['providers'][BACKEND_GCP]['config']
@@ -230,6 +237,11 @@ class CaperBackendGCP(dict):
 
         if concurrent_job_limit is not None:
             config['concurrent-job-limit'] = concurrent_job_limit
+        if call_caching_dup_strat is not None:
+            assert call_caching_dup_strat in (
+                CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
+                CaperBackendGCP.CALL_CACHING_DUP_STRAT_COPY)
+            config['filesystems']['gcs']['caching']['duplication-strategy'] = call_caching_dup_strat
 
 
 class CaperBackendAWS(dict):
