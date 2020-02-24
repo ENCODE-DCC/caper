@@ -242,7 +242,7 @@ def parse_caper_arguments():
         '--tmp-dir', help='Temporary directory for local backend')
 
     group_gc = parent_host.add_argument_group(
-        title='GC backend arguments')
+        title='GCP backend arguments')
     group_gc.add_argument('--gcp-prj', help='GC project')
     group_gc.add_argument('--gcp-zones', help='GCP zones (e.g. us-west1-b,'
                                               'us-central1-b)')
@@ -255,9 +255,9 @@ def parse_caper_arguments():
         help='Duplication strategy for call-cached outputs for GCP backend: '
              'copy: make a copy, reference: refer to old output in metadata.json.')
     group_gc.add_argument(
-        '--out-gcs-bucket', help='Output GCS bucket for GC backend')
+        '--out-gcs-bucket', help='Output GCS bucket for GCP backend')
     group_gc.add_argument(
-        '--tmp-gcs-bucket', help='Temporary GCS bucket for GC backend')
+        '--tmp-gcs-bucket', help='Temporary GCS bucket for GCP backend')
 
     group_aws = parent_host.add_argument_group(
         title='AWS backend arguments')
