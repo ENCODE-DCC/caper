@@ -204,7 +204,7 @@ $ caper run [WDL] -i [INPUT_JSON]
 
 ## Caper server heartbeat (running multiple servers)
 
-Caper server writes a heartbeat file (specified by `--server-heartbeat-file`) on every 120 seconds (controlled by `--server-heartbeat-timeout`). This file has simply an IP(hostname)/PORT pair of the running `caper server`.
+Caper server writes a heartbeat file (specified by `--server-heartbeat-file`) on every 120 seconds (controlled by `--server-heartbeat-timeout`). This file will contain an IP(hostname)/PORT pair of the running `caper server`.
 
 Example heartbeat file:
 ```bash
@@ -212,18 +212,16 @@ $ cat ~/.caper/default_server_heartbeat
 kadru.stanford.edu:8000
 ```
 
-This heartbeat file is useful when users don't want to find IP(hostname)/PORT of a running `caper server` especially when they `qsub`bed or `sbatch`ed `caper server` on their clusters. For such cases, IP (hostname of node/instance) of the server is later determined after the cluster engine starts the submitted `caper server` job and it's annoying for users to find the IP (hostname) of the running server with `qstat` or `squeue` and add it to every Caper's client-side subcommands: e.g. `caper list --ip node_1 --port 8001`.
+This heartbeat file is useful when users don't want to find IP(hostname)/PORT of a running `caper server` especially when they `qsub`bed or `sbatch`ed `caper server` on their clusters. For such cases, IP (hostname of node/instance) of the server is later determined after the cluster engine starts the submitted `caper server` job and it's inconvenient for the users to find the IP (hostname) of the running server manually with `qstat` or `squeue` and add it back to Caper's configuration file `~/.caper/default.conf`.
 
-Therefore, Caper defaults to use this heartbeat file (can be disabled by a flag `--no-server-heartbeat`). So If client-side caper functions like `caper list` and `caper metadata` finds this heartbeat file and automatically parse it to get an IP/PORT pair, which overrides `--ip` and `--port`.
+Therefore, Caper defaults to use this heartbeat file (can be disabled by a flag `--no-server-heartbeat`). So if client-side caper functions like `caper list` and `caper metadata` finds this heartbeat file and automatically parse it to get an IP/PORT pair.
 
-However, there can be a conflict if users want to run multiple `caper server`s on the same machine (or multiple machines sharing the same caper configuration directory `~/.caper/` and hence the same heartbeat file).
-
-Users can simply disable this heartbeat feature by adding the following line to their configuration file: e.g. `~/.caper/default.conf`.
+However, there can be a conflict if users want to run multiple `caper server`s on the same machine (or multiple machines sharing the same caper configuration directory `~/.caper/` and hence the same default heartbeat file). For such cases, users can disable this heartbeat feature by adding the following line to their configuration file: e.g. `~/.caper/default.conf`.
 ```bash
 no-server-heartbeat=True
 ```
 
-Then start multiple servers with different port and DB (for example of MySQL). Make sure that each server uses a different DB (file or MySQL server port, whatever...) since there is no point of using multiple Caper servers with the same DB. For example of MySQL, don’t forget to spin up multiple MySQL servers with different ports.
+Then start multiple servers with different port and DB (for example of MySQL). Users should make sure that each server uses a different DB (file or MySQL server port, whatever...) since there is no point of using multiple Caper servers with the same DB. For example of MySQL, users should not forget to spin up multiple MySQL servers with different ports.
 
 ```bash
 $ caper server --port 8000 --mysql-db-port 3306 ... &
