@@ -122,4 +122,10 @@ def check_caper_conf(args_d):
                 '--out-s3-bucket (s3:// output bucket path) '
                 'is required for backend aws.')
 
+    if args_d.get('soft_glob_output') and args_d.get('use_docker'):
+        raise ValueError(
+                '--soft-glob-output and --docker are mutually exclusive. '
+                'Delocalization from docker container will fail '
+                'for soft-linked globbed outputs.')
+
     return args_d

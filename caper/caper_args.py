@@ -233,6 +233,14 @@ def parse_caper_arguments():
     group_cromwell.add_argument(
         '--backend-file',
         help='Custom Cromwell backend configuration file to override all')
+    group_cromwell.add_argument(
+        '--soft-glob-output', action='store_true',
+        help='Use soft-linking when globbing outputs for a filesystem that '
+             'does not allow hard-linking. e.g. beeGFS. '
+             'This flag does not work with backends based on a Docker container. '
+             'i.e. gcp and aws. Also, '
+             'it does not work with local backends (local/slurm/sge/pbs) '
+             'with --docker. However, it works fine with --singularity.'
 
     group_local = parent_host.add_argument_group(
         title='local backend arguments')
@@ -531,6 +539,7 @@ def parse_caper_arguments():
         'dry_run',
         'no_server_heartbeat',
         'disable_call_caching',
+        'soft_glob_output',
         'use_gsutil_over_aws_s3',
         'hold',
         'no_deepcopy',

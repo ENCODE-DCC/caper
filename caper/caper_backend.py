@@ -21,6 +21,7 @@ BACKEND_ALIASES = [BACKEND_ALIAS_LOCAL, BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZ
 
 BACKENDS_WITH_ALIASES = BACKENDS + BACKEND_ALIASES
 
+SOFT_GLOB_OUTPUT_CMD = 'ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null'
 
 def get_backend(backend):
     if backend == BACKEND_ALIAS_GOOGLE:
@@ -358,7 +359,8 @@ class CaperBackendLocal(dict):
         }
     }
 
-    def __init__(self, out_dir, concurrent_job_limit=None):
+    def __init__(self, out_dir, concurrent_job_limit=None,
+                 soft_glob_output=False):
         super(CaperBackendLocal, self).__init__(
             CaperBackendLocal.TEMPLATE)
         config = self['backend']['providers'][BACKEND_LOCAL]['config']
@@ -366,6 +368,8 @@ class CaperBackendLocal(dict):
 
         if concurrent_job_limit is not None:
             config['concurrent-job-limit'] = concurrent_job_limit
+        if soft_glob_output:
+            config['glob-link-command'] = SOFT_GLOB_OUTPUT_CMD
 
 
 class CaperBackendSLURM(dict):
@@ -445,7 +449,7 @@ class CaperBackendSLURM(dict):
     }
 
     def __init__(self, out_dir, partition=None, account=None, extra_param=None,
-                 concurrent_job_limit=None):
+                 concurrent_job_limit=None, soft_glob_output=False):
         super(CaperBackendSLURM, self).__init__(
             CaperBackendSLURM.TEMPLATE)
         config = self['backend']['providers'][BACKEND_SLURM]['config']
@@ -460,6 +464,8 @@ class CaperBackendSLURM(dict):
             config[key]['slurm_extra_param'] = extra_param
         if concurrent_job_limit is not None:
             config['concurrent-job-limit'] = concurrent_job_limit
+        if soft_glob_output:
+            config['glob-link-command'] = SOFT_GLOB_OUTPUT_CMD
 
 
 class CaperBackendSGE(dict):
@@ -539,7 +545,7 @@ ${true=")m" false="" defined(memory_mb)} \
     }
 
     def __init__(self, out_dir, pe=None, queue=None, extra_param=None,
-                 concurrent_job_limit=None):
+                 concurrent_job_limit=None, soft_glob_output=False):
         super(CaperBackendSGE, self).__init__(
             CaperBackendSGE.TEMPLATE)
         config = self['backend']['providers'][BACKEND_SGE]['config']
@@ -554,6 +560,8 @@ ${true=")m" false="" defined(memory_mb)} \
             config[key]['sge_extra_param'] = extra_param
         if concurrent_job_limit is not None:
             config['concurrent-job-limit'] = concurrent_job_limit
+        if soft_glob_output:
+            config['glob-link-command'] = SOFT_GLOB_OUTPUT_CMD
 
 
 class CaperBackendPBS(dict):
@@ -619,7 +627,7 @@ ${true=":0:0" false="" defined(time)} \
     }
 
     def __init__(self, out_dir, queue=None, extra_param=None,
-                 concurrent_job_limit=None):
+                 concurrent_job_limit=None, soft_glob_output=False):
         super(CaperBackendPBS, self).__init__(
             CaperBackendPBS.TEMPLATE)
         config = self['backend']['providers'][BACKEND_PBS]['config']
@@ -632,6 +640,8 @@ ${true=":0:0" false="" defined(time)} \
             config[key]['pbs_extra_param'] = extra_param
         if concurrent_job_limit is not None:
             config['concurrent-job-limit'] = concurrent_job_limit
+        if soft_glob_output:
+            config['glob-link-command'] = SOFT_GLOB_OUTPUT_CMD
 
 
 def main():

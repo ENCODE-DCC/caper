@@ -130,6 +130,7 @@ class Caper(object):
         self._pbs_extra_param = args.get('pbs_extra_param')
 
         self._backend_file = args.get('backend_file')
+        self._soft_glob_output = args.get('soft_glob_output')
         self._wdl = args.get('wdl')
         self._inputs = args.get('inputs')
         self._cromwell = args.get('cromwell')
@@ -903,7 +904,8 @@ class Caper(object):
             backend_dict,
             CaperBackendLocal(
                 out_dir=self._out_dir,
-                concurrent_job_limit=self._max_concurrent_tasks))
+                concurrent_job_limit=self._max_concurrent_tasks,
+                soft_glob_output=self._soft_glob_output))
         # GC
         if self._gcp_prj is not None and self._out_gcs_bucket is not None:
             merge_dict(
@@ -931,7 +933,8 @@ class Caper(object):
                 partition=self._slurm_partition,
                 account=self._slurm_account,
                 extra_param=self._slurm_extra_param,
-                concurrent_job_limit=self._max_concurrent_tasks))
+                concurrent_job_limit=self._max_concurrent_tasks,
+                soft_glob_output=self._soft_glob_output))
         # SGE
         merge_dict(
             backend_dict,
@@ -940,7 +943,8 @@ class Caper(object):
                 pe=self._sge_pe,
                 queue=self._sge_queue,
                 extra_param=self._sge_extra_param,
-                concurrent_job_limit=self._max_concurrent_tasks))
+                concurrent_job_limit=self._max_concurrent_tasks,
+                soft_glob_output=self._soft_glob_output))
 
         # PBS
         merge_dict(
@@ -949,7 +953,8 @@ class Caper(object):
                 out_dir=self._out_dir,
                 queue=self._pbs_queue,
                 extra_param=self._pbs_extra_param,
-                concurrent_job_limit=self._max_concurrent_tasks))
+                concurrent_job_limit=self._max_concurrent_tasks,
+                soft_glob_output=self._soft_glob_output))
 
         # Database
         merge_dict(
