@@ -239,6 +239,7 @@ We highly recommend to use a default configuration file described in the section
 	max-concurrent-workflows|--max-concurrent-workflows|40|Maximum number of concurrent workflows
 	max-retries|--max-retries|1|Maximum number of retries for failing tasks
 	disable-call-caching|--disable-call-caching| |Disable Cromwell's call-caching (re-using outputs)
+	soft-glob-output|--soft-glob-output||Use soft-linking for globbing outputs for a filesystem that does not allow hard-linking: e.g. beeGFS.
 	backend-file|--backend-file| |Custom Cromwell backend conf file. This will override Caper's built-in backends
 
 * Troubleshoot parameters for `caper troubleshoot` subcommand.
