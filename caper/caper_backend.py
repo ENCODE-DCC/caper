@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Caper backend
 """
 from collections import UserDict

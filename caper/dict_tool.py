@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """dictTool: merge/split/flatten/unflatten dict
 
 Author:

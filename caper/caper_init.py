@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Functions for caper init subcommand
 
 Author:
