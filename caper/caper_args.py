@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """CaperArgs: Command line arguments parser for Caper
 
 Author:
