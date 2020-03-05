@@ -12,6 +12,7 @@ import os
 from distutils.util import strtobool
 from collections import OrderedDict
 from .caper_backend import CaperBackendDatabase
+from .caper_backend import CaperBackendGCP
 from .caper_backend import BACKENDS, BACKEND_LOCAL
 from .caper_backend import BACKEND_ALIAS_LOCAL
 from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
@@ -47,6 +48,8 @@ DEFAULT_DEEPCOPY_EXT = 'json,tsv'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 DEFAULT_SERVER_HEARTBEAT_TIMEOUT_MS = 120000
 DEFAULT_CONF_CONTENTS = '\n\n'
+DEFAULT_GCP_CALL_CACHING_DUP_STRAT = CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE
+
 DYN_FLAGS = ['--singularity', '--docker']
 INVALID_EXT_FOR_DYN_FLAG = '.wdl'
 
@@ -239,14 +242,22 @@ def parse_caper_arguments():
         '--tmp-dir', help='Temporary directory for local backend')
 
     group_gc = parent_host.add_argument_group(
-        title='GC backend arguments')
+        title='GCP backend arguments')
     group_gc.add_argument('--gcp-prj', help='GC project')
     group_gc.add_argument('--gcp-zones', help='GCP zones (e.g. us-west1-b,'
                                               'us-central1-b)')
     group_gc.add_argument(
-        '--out-gcs-bucket', help='Output GCS bucket for GC backend')
+        '--gcp-call-caching-dup-strat', default=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
+        choices=[
+            CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
+            CaperBackendGCP.CALL_CACHING_DUP_STRAT_COPY
+        ],
+        help='Duplication strategy for call-cached outputs for GCP backend: '
+             'copy: make a copy, reference: refer to old output in metadata.json.')
     group_gc.add_argument(
-        '--tmp-gcs-bucket', help='Temporary GCS bucket for GC backend')
+        '--out-gcs-bucket', help='Output GCS bucket for GCP backend')
+    group_gc.add_argument(
+        '--tmp-gcs-bucket', help='Temporary GCS bucket for GCP backend')
 
     group_aws = parent_host.add_argument_group(
         title='AWS backend arguments')

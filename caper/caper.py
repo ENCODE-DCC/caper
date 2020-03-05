@@ -115,6 +115,7 @@ class Caper(object):
             self._tmp_dir = os.path.abspath(self._tmp_dir)
         self._gcp_prj = args.get('gcp_prj')
         self._gcp_zones = args.get('gcp_zones')
+        self._gcp_call_caching_dup_strat = args.get('gcp_call_caching_dup_strat')
         self._out_gcs_bucket = args.get('out_gcs_bucket')
         self._out_s3_bucket = args.get('out_s3_bucket')
         self._aws_batch_arn = args.get('aws_batch_arn')
@@ -910,6 +911,7 @@ class Caper(object):
                 CaperBackendGCP(
                     gcp_prj=self._gcp_prj,
                     out_gcs_bucket=self._out_gcs_bucket,
+                    call_caching_dup_strat=self._gcp_call_caching_dup_strat,
                     concurrent_job_limit=self._max_concurrent_tasks))
         # AWS
         if self._aws_batch_arn is not None and self._aws_region is not None \

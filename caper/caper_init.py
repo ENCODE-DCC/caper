@@ -107,6 +107,11 @@ DEFAULT_CONF_CONTENTS_GCP = """backend=gcp
 gcp-prj=
 out-gcs-bucket=
 
+# call-cached outputs will be duplicated by making a copy or reference
+#  reference: refer to old output file in metadata.json file.
+#  copy: make a copy
+gcp-call-caching-dup-strat=
+
 # DO NOT use /tmp here
 # Caper stores all important temp files and cached big data files here
 # If not defined, Caper will make .caper_tmp/ on your local output directory
