@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Caper backend
 """
+from collections import UserDict
+
 
 BACKEND_GCP = 'gcp'
 BACKEND_AWS = 'aws'
@@ -39,7 +41,7 @@ def get_backend(backend):
     return backend
 
 
-class CaperBackendCommon(dict):
+class CaperBackendCommon(UserDict):
     """Common stanzas for all Caper backends
     """
     TEMPLATE = {
@@ -87,7 +89,7 @@ class CaperBackendCommon(dict):
                 max_concurrent_workflows
 
 
-class CaperBackendDatabase(dict):
+class CaperBackendDatabase(UserDict):
     """Common stanzas for database
     """
     DB_TYPE_IN_MEMORY = 'in-memory'
@@ -178,7 +180,7 @@ class CaperBackendDatabase(dict):
             self['database']['db']['connectionTimeout'] = db_timeout
 
 
-class CaperBackendGCP(dict):
+class CaperBackendGCP(UserDict):
     """Google Cloud backend
     """
     CALL_CACHING_DUP_STRAT_REFERENCE = 'reference'
@@ -245,7 +247,7 @@ class CaperBackendGCP(dict):
             config['filesystems']['gcs']['caching']['duplication-strategy'] = call_caching_dup_strat
 
 
-class CaperBackendAWS(dict):
+class CaperBackendAWS(UserDict):
     """AWS backend
     """
     TEMPLATE = {
@@ -305,7 +307,7 @@ class CaperBackendAWS(dict):
             config['concurrent-job-limit'] = concurrent_job_limit
 
 
-class CaperBackendLocal(dict):
+class CaperBackendLocal(UserDict):
     """Local backend
     """
     RUNTIME_ATTRIBUTES = """
@@ -372,7 +374,7 @@ class CaperBackendLocal(dict):
             config['glob-link-command'] = SOFT_GLOB_OUTPUT_CMD
 
 
-class CaperBackendSLURM(dict):
+class CaperBackendSLURM(UserDict):
     """SLURM backend
     """
     RUNTIME_ATTRIBUTES = """
@@ -468,7 +470,7 @@ class CaperBackendSLURM(dict):
             config['glob-link-command'] = SOFT_GLOB_OUTPUT_CMD
 
 
-class CaperBackendSGE(dict):
+class CaperBackendSGE(UserDict):
     """SGE backend
     """
     RUNTIME_ATTRIBUTES = """
@@ -564,7 +566,7 @@ ${true=")m" false="" defined(memory_mb)} \
             config['glob-link-command'] = SOFT_GLOB_OUTPUT_CMD
 
 
-class CaperBackendPBS(dict):
+class CaperBackendPBS(UserDict):
     """PBS backend
     """
     RUNTIME_ATTRIBUTES = """
