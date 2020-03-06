@@ -240,7 +240,7 @@ def parse_caper_arguments():
              'This flag does not work with backends based on a Docker container. '
              'i.e. gcp and aws. Also, '
              'it does not work with local backends (local/slurm/sge/pbs) '
-             'with --docker. However, it works fine with --singularity.'
+             'with --docker. However, it works fine with --singularity.')
 
     group_local = parent_host.add_argument_group(
         title='local backend arguments')
