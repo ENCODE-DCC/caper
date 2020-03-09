@@ -196,14 +196,19 @@ class CaperBackendBase(UserDict):
             "concurrent-job-limit": None
         }
     }
-    def __init__(self, backend_name, d=None):
+
+    def __init__(self, d=None, backend_name=None):
         """
         Args:
+            d: dict to override self
             backend_name: backend name
-            d: dict to override this class on
         """
-        super().__init__(deepcopy(CaperBackendBase.TEMPLATE))
+        if backend_name is None:
+            raise ValueError('backend_name must be provided.')
         self._backend_name = backend_name
+
+        super().__init__(deepcopy(CaperBackendBase.TEMPLATE))
+
         config = self.get_backend_config()
 
         if CaperBackendBase.CONCURRENT_JOB_LIMIT is None:
@@ -212,6 +217,10 @@ class CaperBackendBase(UserDict):
 
         if d is not None:
             merge_dict(self, deepcopy(d))
+
+    @property
+    def backend_name(self):
+        return self._backend_name
 
     def get_backend(self):
         if self._backend_name not in self['backend']['providers']:
@@ -238,7 +247,7 @@ class CaperBackendBaseLocal(CaperBackendBase):
             "root": None
         }
     }
-    def __init__(self, backend_name, d=None):
+    def __init__(self, d=None, backend_name=None):
         super().__init__(backend_name=backend_name)
 
         merge_dict(
@@ -309,8 +318,8 @@ class CaperBackendGCP(CaperBackendBase):
     def __init__(self, gcp_prj, out_gcs_bucket,
                  call_caching_dup_strat=None):
         super().__init__(
-            backend_name=BACKEND_GCP,
-            d=CaperBackendGCP.TEMPLATE)
+            CaperBackendGCP.TEMPLATE,
+            backend_name=BACKEND_GCP)
         config = self.get_backend_config()
 
         config['project'] = gcp_prj
@@ -378,8 +387,8 @@ class CaperBackendAWS(CaperBackendBase):
 
     def __init__(self, aws_batch_arn, aws_region, out_s3_bucket):
         super().__init__(
-            backend_name=BACKEND_AWS,
-            d=CaperBackendAWS.TEMPLATE)
+            CaperBackendAWS.TEMPLATE,
+            backend_name=BACKEND_AWS)
         self[BACKEND_AWS]['region'] = aws_region
         config = self.get_backend_config()
         config['default-runtime-attributes']['queueArn'] = aws_batch_arn
@@ -439,8 +448,8 @@ class CaperBackendLocal(CaperBackendBaseLocal):
 
     def __init__(self):
         super().__init__(
-            backend_name=BACKEND_LOCAL,
-            d=CaperBackendLocal.TEMPLATE)
+            CaperBackendLocal.TEMPLATE,
+            backend_name=BACKEND_LOCAL)
 
 
 class CaperBackendSLURM(CaperBackendBaseLocal):
@@ -517,8 +526,8 @@ class CaperBackendSLURM(CaperBackendBaseLocal):
 
     def __init__(self, partition=None, account=None, extra_param=None):
         super().__init__(
-            backend_name=BACKEND_SLURM,
-            d=CaperBackendSLURM.TEMPLATE)
+            CaperBackendSLURM.TEMPLATE,
+            backend_name=BACKEND_SLURM)
         config = self.get_backend_config()
 
         if partition is not None and partition != '':
@@ -603,8 +612,8 @@ ${true=")m" false="" defined(memory_mb)} \
 
     def __init__(self, pe=None, queue=None, extra_param=None):
         super().__init__(
-            backend_name=BACKEND_SGE,
-            d=CaperBackendSGE.TEMPLATE)
+            CaperBackendSGE.TEMPLATE,
+            backend_name=BACKEND_SGE)
         config = self.get_backend_config()
 
         if pe is not None and pe != '':
@@ -676,8 +685,8 @@ ${true=":0:0" false="" defined(time)} \
 
     def __init__(self, queue=None, extra_param=None):
         super().__init__(
-            backend_name=BACKEND_PBS,
-            d=CaperBackendPBS.TEMPLATE)
+            CaperBackendPBS.TEMPLATE,
+            backend_name=BACKEND_PBS)
         config = self.get_backend_config()
 
         if queue is not None and queue != '':
