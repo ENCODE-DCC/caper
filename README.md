@@ -1,3 +1,5 @@
+**IMPORATNT**: A new flag `--soft-glob-output` is added to use soft-linking for globbing outputs. Use it for `caper server/run` (not for `caper submit`) on a filesystem that does not allow hard-linking: e.g. beeGFS.
+
 **IMPORATNT**: Caper defaults back to **NOT** use a file-based metadata DB, which means no call-caching (re-using outputs from previous workflows) by default.
 
 **IMPORATNT**: Even if you still want to use a file-based DB (`--db file` and `--file-db [DB_PATH]`), metadata DB generated from Caper<0.6 (with Cromwell-42) is not compatible with metadata DB generated from Caper>=0.6 (with Cromwell-47). Refer to [this doc](https://github.com/broadinstitute/cromwell/releases/tag/43) for such migration.

@@ -40,6 +40,7 @@ from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CaperBackendCommon, CaperBackendDatabase, CaperBackendGCP, \
     CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
     CaperBackendSGE, CaperBackendPBS
+from .caper_backend import CaperBackendBase, CaperBackendBaseLocal
 
 
 class Caper(object):
@@ -130,6 +131,7 @@ class Caper(object):
         self._pbs_extra_param = args.get('pbs_extra_param')
 
         self._backend_file = args.get('backend_file')
+        self._soft_glob_output = args.get('soft_glob_output')
         self._wdl = args.get('wdl')
         self._inputs = args.get('inputs')
         self._cromwell = args.get('cromwell')
@@ -898,12 +900,21 @@ class Caper(object):
                 disable_call_caching=self._disable_call_caching,
                 max_concurrent_workflows=self._max_concurrent_workflows))
 
+        # common settings for all backends
+        if self._max_concurrent_tasks is not None:
+            CaperBackendBase.CONCURRENT_JOB_LIMIT = self._max_concurrent_tasks
+
+        # common settings for local-based backends
+        if self._soft_glob_output is not None:
+            CaperBackendBaseLocal.USE_SOFT_GLOB_OUTPUT = self._soft_glob_output
+        if self._out_dir is not None:
+            CaperBackendBaseLocal.OUT_DIR = self._out_dir
+
         # local backend
         merge_dict(
             backend_dict,
-            CaperBackendLocal(
-                out_dir=self._out_dir,
-                concurrent_job_limit=self._max_concurrent_tasks))
+            CaperBackendLocal())
+
         # GC
         if self._gcp_prj is not None and self._out_gcs_bucket is not None:
             merge_dict(
@@ -911,8 +922,8 @@ class Caper(object):
                 CaperBackendGCP(
                     gcp_prj=self._gcp_prj,
                     out_gcs_bucket=self._out_gcs_bucket,
-                    call_caching_dup_strat=self._gcp_call_caching_dup_strat,
-                    concurrent_job_limit=self._max_concurrent_tasks))
+                    call_caching_dup_strat=self._gcp_call_caching_dup_strat))
+
         # AWS
         if self._aws_batch_arn is not None and self._aws_region is not None \
                 and self._out_s3_bucket is not None:
@@ -921,35 +932,30 @@ class Caper(object):
                 CaperBackendAWS(
                     aws_batch_arn=self._aws_batch_arn,
                     aws_region=self._aws_region,
-                    out_s3_bucket=self._out_s3_bucket,
-                    concurrent_job_limit=self._max_concurrent_tasks))
+                    out_s3_bucket=self._out_s3_bucket))
+
         # SLURM
         merge_dict(
             backend_dict,
             CaperBackendSLURM(
-                out_dir=self._out_dir,
                 partition=self._slurm_partition,
                 account=self._slurm_account,
-                extra_param=self._slurm_extra_param,
-                concurrent_job_limit=self._max_concurrent_tasks))
+                extra_param=self._slurm_extra_param))
+
         # SGE
         merge_dict(
             backend_dict,
             CaperBackendSGE(
-                out_dir=self._out_dir,
                 pe=self._sge_pe,
                 queue=self._sge_queue,
-                extra_param=self._sge_extra_param,
-                concurrent_job_limit=self._max_concurrent_tasks))
+                extra_param=self._sge_extra_param))
 
         # PBS
         merge_dict(
             backend_dict,
             CaperBackendPBS(
-                out_dir=self._out_dir,
                 queue=self._pbs_queue,
-                extra_param=self._pbs_extra_param,
-                concurrent_job_limit=self._max_concurrent_tasks))
+                extra_param=self._pbs_extra_param))
 
         # Database
         merge_dict(

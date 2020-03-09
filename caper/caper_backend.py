@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Caper backend
 """
+from collections import UserDict
+from copy import deepcopy
+from .dict_tool import merge_dict
 
 BACKEND_GCP = 'gcp'
 BACKEND_AWS = 'aws'
@@ -34,11 +37,11 @@ def get_backend(backend):
     elif backend == BACKEND_ALIAS_LOCAL:
         backend = BACKEND_LOCAL
     if backend not in BACKENDS:
-        raise Exception('Unsupported backend: {}'.format(backend))
+        raise ValueError('Unsupported backend: {}'.format(backend))
     return backend
 
 
-class CaperBackendCommon(dict):
+class CaperBackendCommon(UserDict):
     """Common stanzas for all Caper backends
     """
     TEMPLATE = {
@@ -75,8 +78,7 @@ class CaperBackendCommon(dict):
 
     def __init__(self, port=None, disable_call_caching=None,
                  max_concurrent_workflows=None):
-        super(CaperBackendCommon, self).__init__(
-            CaperBackendCommon.TEMPLATE)
+        super().__init__(CaperBackendCommon.TEMPLATE)
         if port is not None:
             self['webservice']['port'] = port
         if disable_call_caching is not None:
@@ -86,7 +88,7 @@ class CaperBackendCommon(dict):
                 max_concurrent_workflows
 
 
-class CaperBackendDatabase(dict):
+class CaperBackendDatabase(UserDict):
     """Common stanzas for database
     """
     DB_TYPE_IN_MEMORY = 'in-memory'
@@ -141,8 +143,7 @@ class CaperBackendDatabase(dict):
                  postgresql_ip=None, postgresql_port=None,
                  postgresql_user=None, postgresql_password=None,
                  postgresql_name=None):
-        super(CaperBackendDatabase, self).__init__(
-            CaperBackendDatabase.TEMPLATE)
+        super().__init__(CaperBackendDatabase.TEMPLATE)
 
         if db_type == CaperBackendDatabase.DB_TYPE_IN_MEMORY:
             self['database'] = CaperBackendDatabase.TEMPLATE_DB_IN_MEMORY
@@ -171,13 +172,103 @@ class CaperBackendDatabase(dict):
             db['password'] = postgresql_password
 
         else:
-            raise Exception('Unsupported DB type {}'.format(db_type))
+            raise ValueError('Unsupported DB type {}'.format(db_type))
 
         if db_timeout is not None and 'db' in self['database']:
             self['database']['db']['connectionTimeout'] = db_timeout
 
 
-class CaperBackendGCP(dict):
+class CaperBackendBase(UserDict):
+    """Base skeleton backend for all backends
+    """
+    CONCURRENT_JOB_LIMIT = None
+    TEMPLATE = {
+        "backend": {
+            "providers": {
+            }
+        }
+    }
+    TEMPLATE_BACKEND = {
+        "actor-factory": None,
+        "config": {
+            "default-runtime-attributes": {
+            },
+            "concurrent-job-limit": None
+        }
+    }
+
+    def __init__(self, dict_to_override_self=None, backend_name=None):
+        """
+        Args:
+            dict_to_override_self: dict to override self
+            backend_name: backend name
+        """
+        if backend_name is None:
+            raise ValueError('backend_name must be provided.')
+        self._backend_name = backend_name
+
+        super().__init__(deepcopy(CaperBackendBase.TEMPLATE))
+
+        config = self.get_backend_config()
+
+        if CaperBackendBase.CONCURRENT_JOB_LIMIT is None:
+            raise ValueError('You must define CaperBackendBase.CONCURRENT_JOB_LIMIT.')
+        config['concurrent-job-limit'] = CaperBackendBase.CONCURRENT_JOB_LIMIT
+
+        if dict_to_override_self is not None:
+            merge_dict(self, deepcopy(dict_to_override_self))
+
+    @property
+    def backend_name(self):
+        return self._backend_name
+
+    def get_backend(self):
+        if self._backend_name not in self['backend']['providers']:
+            self['backend']['providers'][self._backend_name] = \
+                    deepcopy(CaperBackendBase.TEMPLATE_BACKEND)
+        return self['backend']['providers'][self._backend_name]
+
+    def get_backend_config(self):
+        return self.get_backend()['config']
+
+
+class CaperBackendBaseLocal(CaperBackendBase):
+    """Base backend for all local backends (including HPCs with cluster engine)
+    """
+    USE_SOFT_GLOB_OUTPUT = None
+    OUT_DIR = None
+
+    SOFT_GLOB_OUTPUT_CMD = 'ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null'
+
+    TEMPLATE_BACKEND = {
+        "actor-factory": "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory",
+        "config": {
+            "script-epilogue": "sleep 10 && sync",
+            "root": None
+        }
+    }
+    def __init__(self, dict_to_override_self=None, backend_name=None):
+        super().__init__(backend_name=backend_name)
+
+        merge_dict(
+            self.get_backend(),
+            deepcopy(CaperBackendBaseLocal.TEMPLATE_BACKEND))
+        config = self.get_backend_config()
+
+        if CaperBackendBaseLocal.USE_SOFT_GLOB_OUTPUT is None:
+            raise ValueError('You must define CaperBackendBase.USE_SOFT_GLOB_OUTPUT.')
+        if CaperBackendBaseLocal.USE_SOFT_GLOB_OUTPUT:
+            config['glob-link-command'] = CaperBackendBaseLocal.SOFT_GLOB_OUTPUT_CMD
+
+        if CaperBackendBaseLocal.OUT_DIR is None:
+            raise ValueError('You must define CaperBackendBase.OUT_DIR.')
+        config['root'] = CaperBackendBaseLocal.OUT_DIR
+
+        if dict_to_override_self is not None:
+            merge_dict(self, deepcopy(dict_to_override_self))
+
+
+class CaperBackendGCP(CaperBackendBase):
     """Google Cloud backend
     """
     CALL_CACHING_DUP_STRAT_REFERENCE = 'reference'
@@ -187,14 +278,12 @@ class CaperBackendGCP(dict):
         "backend": {
             "providers": {
                 BACKEND_GCP: {
-                    "actor-factory": "cromwell.backend.google.pipelines."
-                    "v2alpha1.PipelinesApiLifecycleActorFactory",
+                    "actor-factory": "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
                         },
-                        "project": "YOUR_GCP_PROJECT",
-                        "root": "gs://YOUR_GCS_BUCKET",
-                        "concurrent-job-limit": 1000,
+                        "project": None,
+                        "root": None,
                         "genomics-api-queries-per-100-seconds": 1000,
                         "maximum-polling-interval": 600,
                         "genomics": {
@@ -207,7 +296,7 @@ class CaperBackendGCP(dict):
                             "gcs": {
                                 "auth": "application-default",
                                 "caching": {
-                                    "duplication-strategy": CALL_CACHING_DUP_STRAT_REFERENCE
+                                    "duplication-strategy": None
                                 }
                             }
                         }
@@ -226,41 +315,47 @@ class CaperBackendGCP(dict):
         }
     }
 
-    def __init__(self, gcp_prj, out_gcs_bucket, concurrent_job_limit=None,
+    def __init__(self, gcp_prj, out_gcs_bucket,
                  call_caching_dup_strat=None):
-        super(CaperBackendGCP, self).__init__(
-            CaperBackendGCP.TEMPLATE)
-        config = self['backend']['providers'][BACKEND_GCP]['config']
+        super().__init__(
+            CaperBackendGCP.TEMPLATE,
+            backend_name=BACKEND_GCP)
+        config = self.get_backend_config()
+
         config['project'] = gcp_prj
         config['root'] = out_gcs_bucket
-        assert(out_gcs_bucket.startswith('gs://'))
 
-        if concurrent_job_limit is not None:
-            config['concurrent-job-limit'] = concurrent_job_limit
-        if call_caching_dup_strat is not None:
-            assert call_caching_dup_strat in (
-                CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
-                CaperBackendGCP.CALL_CACHING_DUP_STRAT_COPY)
-            config['filesystems']['gcs']['caching']['duplication-strategy'] = call_caching_dup_strat
+        if not out_gcs_bucket.startswith('gs://'):
+            raise ValueError('Wrong GCS bucket URI for out_gcs_bucket: {v}'.format(
+                v=out_gcs_bucket))
+
+        if call_caching_dup_strat is None:
+            dup_strat = CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE
+        else:
+            dup_strat = call_caching_dup_strat
+        if dup_strat not in (
+            CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
+            CaperBackendGCP.CALL_CACHING_DUP_STRAT_COPY):
+            raise ValueError('Wrong call_caching_dup_strat: {v}'.format(
+                v=call_caching_dup_strat))
+        config['filesystems']['gcs']['caching']['duplication-strategy'] = dup_strat
 
 
-class CaperBackendAWS(dict):
+class CaperBackendAWS(CaperBackendBase):
     """AWS backend
     """
     TEMPLATE = {
         "backend": {
             "providers": {
                 BACKEND_AWS: {
-                    "actor-factory": "cromwell.backend.impl.aws."
-                    "AwsBatchBackendLifecycleActorFactory",
+                    "actor-factory": "cromwell.backend.impl.aws.AwsBatchBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
-                            "queueArn": "YOUR_AWS_BATCH_ARN"
+                            "queueArn": None
                         },
                         "numSubmitAttempts": 6,
                         "numCreateDefinitionAttempts": 6,
-                        "root": "s3://YOUR_S3_BUCKET",
-                        "concurrent-job-limit": 1000,
+                        "root": None,
                         "auth": "default",
                         "filesystems": {
                             "s3": {
@@ -279,7 +374,7 @@ class CaperBackendAWS(dict):
                     "scheme": "default"
                 }
             ],
-            "region": "YOUR_AWS_REGION"
+            "region": None
         },
         "engine": {
             "filesystems": {
@@ -290,21 +385,20 @@ class CaperBackendAWS(dict):
         }
     }
 
-    def __init__(self, aws_batch_arn, aws_region, out_s3_bucket,
-                 concurrent_job_limit=None):
-        super(CaperBackendAWS, self).__init__(
-            CaperBackendAWS.TEMPLATE)
+    def __init__(self, aws_batch_arn, aws_region, out_s3_bucket):
+        super().__init__(
+            CaperBackendAWS.TEMPLATE,
+            backend_name=BACKEND_AWS)
         self[BACKEND_AWS]['region'] = aws_region
-        config = self['backend']['providers'][BACKEND_AWS]['config']
+        config = self.get_backend_config()
         config['default-runtime-attributes']['queueArn'] = aws_batch_arn
         config['root'] = out_s3_bucket
-        assert(out_s3_bucket.startswith('s3://'))
+        if not out_s3_bucket.startswith('s3://'):
+            raise ValueError('Wrong S3 bucket URI for out_s3_bucket: {v}'.format(
+                v=out_s3_bucket))
 
-        if concurrent_job_limit is not None:
-            config['concurrent-job-limit'] = concurrent_job_limit
 
-
-class CaperBackendLocal(dict):
+class CaperBackendLocal(CaperBackendBaseLocal):
     """Local backend
     """
     RUNTIME_ATTRIBUTES = """
@@ -341,14 +435,8 @@ class CaperBackendLocal(dict):
         "backend": {
             "providers": {
                 BACKEND_LOCAL: {
-                    "actor-factory": "cromwell.backend.impl.sfs.config."
-                    "ConfigBackendLifecycleActorFactory",
                     "config": {
-                        "default-runtime-attributes": {
-                        },
                         "run-in-background": True,
-                        "script-epilogue": "sleep 10 && sync",
-                        "concurrent-job-limit": 1000,
                         "runtime-attributes": RUNTIME_ATTRIBUTES,
                         "submit": SUBMIT,
                         "submit-docker" : SUBMIT_DOCKER
@@ -358,17 +446,13 @@ class CaperBackendLocal(dict):
         }
     }
 
-    def __init__(self, out_dir, concurrent_job_limit=None):
-        super(CaperBackendLocal, self).__init__(
-            CaperBackendLocal.TEMPLATE)
-        config = self['backend']['providers'][BACKEND_LOCAL]['config']
-        config['root'] = out_dir
-
-        if concurrent_job_limit is not None:
-            config['concurrent-job-limit'] = concurrent_job_limit
+    def __init__(self):
+        super().__init__(
+            CaperBackendLocal.TEMPLATE,
+            backend_name=BACKEND_LOCAL)
 
 
-class CaperBackendSLURM(dict):
+class CaperBackendSLURM(CaperBackendBaseLocal):
     """SLURM backend
     """
     RUNTIME_ATTRIBUTES = """
@@ -424,14 +508,10 @@ class CaperBackendSLURM(dict):
         "backend": {
             "providers": {
                 BACKEND_SLURM: {
-                    "actor-factory": "cromwell.backend.impl.sfs.config."
-                    "ConfigBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
                             "time": 24
                         },
-                        "script-epilogue": "sleep 10 && sync",
-                        "concurrent-job-limit": 1000,
                         "runtime-attributes": RUNTIME_ATTRIBUTES,
                         "submit": SUBMIT,
                         "kill": "scancel ${job_id}",
@@ -444,25 +524,21 @@ class CaperBackendSLURM(dict):
         }
     }
 
-    def __init__(self, out_dir, partition=None, account=None, extra_param=None,
-                 concurrent_job_limit=None):
-        super(CaperBackendSLURM, self).__init__(
-            CaperBackendSLURM.TEMPLATE)
-        config = self['backend']['providers'][BACKEND_SLURM]['config']
-        key = 'default-runtime-attributes'
-        config['root'] = out_dir
+    def __init__(self, partition=None, account=None, extra_param=None):
+        super().__init__(
+            CaperBackendSLURM.TEMPLATE,
+            backend_name=BACKEND_SLURM)
+        config = self.get_backend_config()
 
         if partition is not None and partition != '':
-            config[key]['slurm_partition'] = partition
+            config['default-runtime-attributes']['slurm_partition'] = partition
         if account is not None and account != '':
-            config[key]['slurm_account'] = account
+            config['default-runtime-attributes']['slurm_account'] = account
         if extra_param is not None and extra_param != '':
-            config[key]['slurm_extra_param'] = extra_param
-        if concurrent_job_limit is not None:
-            config['concurrent-job-limit'] = concurrent_job_limit
+            config['default-runtime-attributes']['slurm_extra_param'] = extra_param
 
 
-class CaperBackendSGE(dict):
+class CaperBackendSGE(CaperBackendBaseLocal):
     """SGE backend
     """
     RUNTIME_ATTRIBUTES = """
@@ -518,14 +594,10 @@ ${true=")m" false="" defined(memory_mb)} \
         "backend": {
             "providers": {
                 BACKEND_SGE: {
-                    "actor-factory": "cromwell.backend.impl.sfs.config."
-                    "ConfigBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
                             "time": 24
                         },
-                        "script-epilogue": "sleep 10 && sync",
-                        "concurrent-job-limit": 1000,
                         "runtime-attributes": RUNTIME_ATTRIBUTES,
                         "submit": SUBMIT,
                         "exit-code-timeout-seconds": 180,
@@ -538,25 +610,21 @@ ${true=")m" false="" defined(memory_mb)} \
         }
     }
 
-    def __init__(self, out_dir, pe=None, queue=None, extra_param=None,
-                 concurrent_job_limit=None):
-        super(CaperBackendSGE, self).__init__(
-            CaperBackendSGE.TEMPLATE)
-        config = self['backend']['providers'][BACKEND_SGE]['config']
-        key = 'default-runtime-attributes'
-        config['root'] = out_dir
+    def __init__(self, pe=None, queue=None, extra_param=None):
+        super().__init__(
+            CaperBackendSGE.TEMPLATE,
+            backend_name=BACKEND_SGE)
+        config = self.get_backend_config()
 
         if pe is not None and pe != '':
-            config[key]['sge_pe'] = pe
+            config['default-runtime-attributes']['sge_pe'] = pe
         if queue is not None and queue != '':
-            config[key]['sge_queue'] = queue
+            config['default-runtime-attributes']['sge_queue'] = queue
         if extra_param is not None and extra_param != '':
-            config[key]['sge_extra_param'] = extra_param
-        if concurrent_job_limit is not None:
-            config['concurrent-job-limit'] = concurrent_job_limit
+            config['default-runtime-attributes']['sge_extra_param'] = extra_param
 
 
-class CaperBackendPBS(dict):
+class CaperBackendPBS(CaperBackendBaseLocal):
     """PBS backend
     """
     RUNTIME_ATTRIBUTES = """
@@ -598,14 +666,11 @@ ${true=":0:0" false="" defined(time)} \
         "backend": {
             "providers": {
                 BACKEND_PBS: {
-                    "actor-factory": "cromwell.backend.impl.sfs.config."
-                    "ConfigBackendLifecycleActorFactory",
                     "config": {
                         "default-runtime-attributes": {
                             "time": 24
                         },
                         "script-epilogue": "sleep 30 && sync",
-                        "concurrent-job-limit": 1000,
                         "runtime-attributes": RUNTIME_ATTRIBUTES,
                         "submit": SUBMIT,
                         "exit-code-timeout-seconds": 180,
@@ -618,20 +683,16 @@ ${true=":0:0" false="" defined(time)} \
         }
     }
 
-    def __init__(self, out_dir, queue=None, extra_param=None,
-                 concurrent_job_limit=None):
-        super(CaperBackendPBS, self).__init__(
-            CaperBackendPBS.TEMPLATE)
-        config = self['backend']['providers'][BACKEND_PBS]['config']
-        key = 'default-runtime-attributes'
-        config['root'] = out_dir
+    def __init__(self, queue=None, extra_param=None):
+        super().__init__(
+            CaperBackendPBS.TEMPLATE,
+            backend_name=BACKEND_PBS)
+        config = self.get_backend_config()
 
         if queue is not None and queue != '':
-            config[key]['pbs_queue'] = queue
+            config['default-runtime-attributes']['pbs_queue'] = queue
         if extra_param is not None and extra_param != '':
-            config[key]['pbs_extra_param'] = extra_param
-        if concurrent_job_limit is not None:
-            config['concurrent-job-limit'] = concurrent_job_limit
+            config['default-runtime-attributes']['pbs_extra_param'] = extra_param
 
 
 def main():
