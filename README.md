@@ -208,9 +208,9 @@ $ caper run [WDL] -i [INPUT_JSON]
 
 If Caper's built-in backends don't work as expected on your clusters (e.g. due to different resource settings), then you can override built-in backends with your own configuration file (e.g. `your.backend.conf`). Caper generates a `backend.conf` for built-in backends on a temporary directory.
 
-Find this `backend.conf` first by dry-running `caper run --dry-run ...`. For example of a `slurm` backend:
+Find this `backend.conf` first by dry-running `caper run [WDL] --dry-run ...`. For example of a `slurm` backend:
 ```
-$ caper run --dry-run --backend slurm
+$ caper run toy.wdl --dry-run --backend slurm
 [Caper] Validating WDL/input JSON with womtool...
 Picked up _JAVA_OPTIONS: -Xms256M -Xmx4024M -XX:ParallelGCThreads=1
 Success!
@@ -279,16 +279,16 @@ ITER=0; until [ $ITER -ge 3 ]; do
 ITER=$[$ITER+1]; sleep 30; done
 ```
 
-Also, there is another logic to use Singularity. If `singularity` is not given, then Cromwell will run `/bin/bash ${script}` otherwise this backend will collect some Singularity specific environment variables and finally run `singularity exec --cleanenv --home ${cwd} ${singularity} /bin/bash ${script}`. ${singularity} is a variable that has singularity image location defined in `runtime-attributes` mentioned above.
+Also, there is another logic to use Singularity. If `singularity` is not given, then Cromwell will run `/bin/bash ${script}` otherwise this backend will collect some Singularity specific environment variables and finally run `singularity exec --cleanenv --home ${cwd} ${singularity} /bin/bash ${script}`. `${singularity}` is a variable that has singularity image location defined in `runtime-attributes` mentioned above.
 ```
-sbatch ... --wrap "${if defined(singularity) then '' else '/bin/bash ${script} #`}
+sbatch ... --wrap "${if defined(singularity) then '' else '/bin/bash ${script} #`} ..."
 ```
 
-There are some built-in variables (`out`, `err`, `cwd`, `script`, `cpu`, `memory_mb` and `time`) in Cromwell, which are important to keep Cromwell running. For example, if you remove `-o ${out}` from the script and Cromwell will fail to find `stdout` on output directory, which will lead to a pipeline failure.
+There are some built-in variables (`out`, `err`, `cwd`, `script`, `cpu`, `memory_mb` and `time`) in Cromwell, which are important to keep Cromwell's task running. For example, if you remove `-o ${out}` from the script and Cromwell will fail to find `stdout` on output directory, which will lead to a pipeline failure.
 
 See more [details](https://cromwell.readthedocs.io/en/stable/Configuring/) about a backend configuration file.
 
-Your custom `backend.conf` file will override on Caper's existing built-in backend, so keep modified parts (`submit` command line in this example) only in your `backend.conf` file.
+Your custom `your.backend.conf` file will override on Caper's existing built-in backend, so keep modified parts (`submit` command line in this example) only in your `your.backend.conf` file.
 ```
 backend {
   default = "slurm"
@@ -302,10 +302,11 @@ backend {
 }
 ```
 
-And then run `caper run` with your `backend.conf`.
+And then run `caper run` with your `your.backend.conf`.
 ```
-$ caper run ... --backend-file backend.conf
+$ caper run ... --backend-file your.backend.conf
 ```
+
 
 ## Caper server heartbeat (running multiple servers)
 
