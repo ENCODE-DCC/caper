@@ -102,11 +102,12 @@ $ sbatch ... --wrap "caper run ..."
 
 ## Running pipelines on Stanford Sherlock
 
-> **WARINING**: DO NOT INSTALL CAPER, CONDA AND PIPELINE'S WDL ON `$SCRATCH` OR `$OAK` STORAGES. You will see `Segmentation Fault` errors. Install these executables (Caper, Conda, WDL, ...) on `$HOME` OR `$PI_HOME`. You can still use `$SCRATCH` or `$OAK` for data and Caper's outputs.
+> **IMPORTANT**: DO NOT INSTALL CAPER, CONDA AND PIPELINE'S WDL ON `$SCRATCH` OR `$OAK` STORAGES. You will see `Segmentation Fault` errors. Install these executables (Caper, Conda, WDL, ...) on `$HOME` OR `$PI_HOME`. You can still use `$OAK` for input data (e.g. FASTQs defined in your input JSON file) but not for outputs, which means that you should not run Caper on `$OAK`. `$SCRATCH` and `$PI_SCRATCH` are okay for both input and output data so run Caper on them. Running Croo to organize outputs into `$OAK` is okay.
 
 Submit a Caper leader job (`caper run`) to SLURM. For a partition `-p [SLURM_PARTITON]`, make sure that you use the same SLURM partition (`slurm-partition` in `~/.caper/default.conf`) as defined in Caper's configuration file. `-J [JOB_NAME]` is to identify Caper's leader job for each workflow. Make a separate directory for each workflow output will be written to each directory.
 
 ```bash
+$ # DO NOT RUN THIS ON OAK STORAGE!
 $ # conda activate here if required
 $ cd [OUTPUT_DIR]  # make a separate directory for each workflow.
 $ sbatch -p [SLURM_PARTITON] -J [JOB_NAME] --export=ALL --mem 3G -t 4-0 --wrap "caper run [WDL] -i [INPUT_JSON]"
@@ -201,6 +202,109 @@ Make a separate directory for each workflow.
 $ # conda activate here if required
 $ cd [OUTPUT_DIR]  # make a separate directory for each workflow
 $ caper run [WDL] -i [INPUT_JSON]
+```
+
+## Running pipelines on a custom backend
+
+If Caper's built-in backends don't work as expected on your clusters (e.g. due to different resource settings), then you can override built-in backends with your own configuration file (e.g. `your.backend.conf`). Caper generates a `backend.conf` for built-in backends on a temporary directory.
+
+Find this `backend.conf` first by dry-running `caper run [WDL] --dry-run ...`. For example of a `slurm` backend:
+```
+$ caper run toy.wdl --dry-run --backend slurm
+[Caper] Validating WDL/input JSON with womtool...
+Picked up _JAVA_OPTIONS: -Xms256M -Xmx4024M -XX:ParallelGCThreads=1
+Success!
+[Caper] cmd:  ['java', '-Xmx3G', '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO', '-DLOG_MODE=standard', '-jar', '-Dconfig.file=/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/backend.conf', '/users/leepc12/.caper/cromwell_jar/cromwell-47.jar', 'run', '/mnt/data2/scratch/leepc12/test_caper_refac/toy.wdl', '-i', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/inputs.json', '-o', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/workflow_opts.json', '-l', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/labels.json', '-m', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/metadata.json']
+```
+
+Look for a file defined with a Java parameter `-Dconfig.file` and find a backend of interest (`slurm` in this example) in the file.
+```
+include required(classpath("application"))
+backend {
+  default = "slurm"
+  providers {
+
+  ...
+
+    slurm {
+      actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
+      config {
+        default-runtime-attributes {
+          time = 24
+        }
+        concurrent-job-limit = 1000
+        script-epilogue = "sleep 10 && sync"
+        root = "/mnt/data/scratch/leepc12/caper_out"
+        runtime-attributes = """
+        String? docker
+        String? docker_user
+        Int cpu = 1
+        Int? gpu
+        Int? time
+        Int? memory_mb
+        String? slurm_partition
+        String? slurm_account
+        String? slurm_extra_param
+        String? singularity
+        String? singularity_bindpath
+        String? singularity_cachedir
+    """
+        submit = """ITER=0; until [ $ITER -ge 3 ]; do
+        sbatch         --export=ALL         -J ${job_name}         -D ${cwd}         -o ${out}         -e ${err}         ${"-t " + time*60}         -n 1         --ntasks-per-node=1         ${true="--cpus-per-task=" false="" defined(cpu)}${cpu}         ${true="--mem=" false="" defined(memory_mb)}${memory_mb}         ${"-p " + slurm_partition}         ${"--account " + slurm_account}         ${true="--gres gpu:" false="" defined(gpu)}${gpu}         ${slurm_extra_param}         --wrap "${if defined(singularity) then '' else             '/bin/bash ${script} #'}             if [ -z \"$SINGULARITY_BINDPATH\" ]; then             export SINGULARITY_BINDPATH=${singularity_bindpath}; fi;             if [ -z \"$SINGULARITY_CACHEDIR\" ]; then             export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;             singularity exec --cleanenv --home ${cwd}             ${if defined(gpu) then '--nv' else ''}             ${singularity} /bin/bash ${script}" && break
+    ITER=$[$ITER+1]; sleep 30; done
+    """
+        kill = "scancel ${job_id}"
+        exit-code-timeout-seconds = 360
+        check-alive = "for ITER in 1 2 3; do CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id}); if [ -z \"$CHK_ALIVE\" ]; then if [ \"$ITER\" == 3 ]; then /bin/bash -c 'exit 1'; else sleep 30; fi; else echo $CHK_ALIVE; break; fi; done"
+        job-id-regex = "Submitted batch job (\\d+).*"
+      }
+    }
+
+  ...
+
+}
+
+...
+
+````
+
+Some part of the script (wrapped in `${}`) is written in WDL. For example, `${true="--mem=" false="" defined(memory_mb)}`, if `memory_mb` is defined it will print `--mem`). For such WDL expressions, you can use any variables defined in `runtime-attributes`.
+
+For example, if your cluster does not allow importing all environment variables (`sbatch --export=ALL` ...)  then you can remove `--export=ALL` from the above script.
+
+There is a retrial logic implemented in this SLURM backend. It retries submitting up to 3 times for some SLURM clusters.
+```
+ITER=0; until [ $ITER -ge 3 ]; do
+...
+ITER=$[$ITER+1]; sleep 30; done
+```
+
+Also, there is another logic to use Singularity. If `singularity` is not given, then Cromwell will run `/bin/bash ${script}` otherwise this backend will collect some Singularity specific environment variables and finally run `singularity exec --cleanenv --home ${cwd} ${singularity} /bin/bash ${script}`. `${singularity}` is a variable that has singularity image location defined in `runtime-attributes` mentioned above.
+```
+sbatch ... --wrap "${if defined(singularity) then '' else '/bin/bash ${script} #`} ..."
+```
+
+There are some built-in variables (`out`, `err`, `cwd`, `script`, `cpu`, `memory_mb` and `time`) in Cromwell, which are important to keep Cromwell's task running. For example, if you remove `-o ${out}` from the script and Cromwell will fail to find `stdout` on output directory, which will lead to a pipeline failure.
+
+See more [details](https://cromwell.readthedocs.io/en/stable/Configuring/) about a backend configuration file.
+
+Your custom `your.backend.conf` file will override on Caper's existing built-in backend, so keep modified parts (`submit` command line in this example) only in your `your.backend.conf` file.
+```
+backend {
+  default = "slurm"
+  providers {
+    slurm {
+        submit = """sbatch         --export=ALL         -J ${job_name}         -D ${cwd}         -o ${out}         -e ${err}         ${"-t " + time*60}         -n 1         --ntasks-per-node=1         ${true="--cpus-per-task=" false="" defined(cpu)}${cpu}         ${true="--mem=" false="" defined(memory_mb)}${memory_mb}         ${"-p " + slurm_partition}         ${"--account " + slurm_account}         ${true="--gres gpu:" false="" defined(gpu)}${gpu}         ${slurm_extra_param}         --wrap "${if defined(singularity) then '' else             '/bin/bash ${script} #'}             if [ -z \"$SINGULARITY_BINDPATH\" ]; then             export SINGULARITY_BINDPATH=${singularity_bindpath}; fi;             if [ -z \"$SINGULARITY_CACHEDIR\" ]; then             export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;             singularity exec --cleanenv --home ${cwd}             ${if defined(gpu) then '--nv' else ''}             ${singularity} /bin/bash ${script}" && break
+    ITER=$[$ITER+1]; sleep 30; done
+    """
+    }
+  }
+}
+```
+
+And then run `caper run` with your `your.backend.conf`.
+```
+$ caper run ... --backend-file your.backend.conf
 ```
 
 

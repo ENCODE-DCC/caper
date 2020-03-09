@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """CaperCheck: Caper arguments/configuration checker
 
 Author:
