@@ -197,10 +197,10 @@ class CaperBackendBase(UserDict):
         }
     }
 
-    def __init__(self, d=None, backend_name=None):
+    def __init__(self, dict_to_override_self=None, backend_name=None):
         """
         Args:
-            d: dict to override self
+            dict_to_override_self: dict to override self
             backend_name: backend name
         """
         if backend_name is None:
@@ -215,8 +215,8 @@ class CaperBackendBase(UserDict):
             raise ValueError('You must define CaperBackendBase.CONCURRENT_JOB_LIMIT.')
         config['concurrent-job-limit'] = CaperBackendBase.CONCURRENT_JOB_LIMIT
 
-        if d is not None:
-            merge_dict(self, deepcopy(d))
+        if dict_to_override_self is not None:
+            merge_dict(self, deepcopy(dict_to_override_self))
 
     @property
     def backend_name(self):
@@ -247,7 +247,7 @@ class CaperBackendBaseLocal(CaperBackendBase):
             "root": None
         }
     }
-    def __init__(self, d=None, backend_name=None):
+    def __init__(self, dict_to_override_self=None, backend_name=None):
         super().__init__(backend_name=backend_name)
 
         merge_dict(
@@ -264,8 +264,8 @@ class CaperBackendBaseLocal(CaperBackendBase):
             raise ValueError('You must define CaperBackendBase.OUT_DIR.')
         config['root'] = CaperBackendBaseLocal.OUT_DIR
 
-        if d is not None:
-            merge_dict(self, deepcopy(d))
+        if dict_to_override_self is not None:
+            merge_dict(self, deepcopy(dict_to_override_self))
 
 
 class CaperBackendGCP(CaperBackendBase):
