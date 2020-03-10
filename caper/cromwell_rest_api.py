@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """CromwellRestAPI
 """
 
@@ -20,6 +19,9 @@ class CromwellRestAPI(object):
     ENDPOINT_ABORT = '/api/workflows/v1/{wf_id}/abort'
     ENDPOINT_RELEASE_HOLD = '/api/workflows/v1/{wf_id}/releaseHold'
     KEY_LABEL = 'cromwell_rest_api_label'
+    PARAMS_WORKFLOWS = {
+        'additionalQueryResultFields': 'labels'
+    }
 
     def __init__(self, ip='localhost', port=8000,
                  user=None, password=None, verbose=False):
@@ -198,7 +200,8 @@ class CromwellRestAPI(object):
             List of matched workflow JSONs
         """
         r = self.__request_get(
-            CromwellRestAPI.ENDPOINT_WORKFLOWS)
+            CromwellRestAPI.ENDPOINT_WORKFLOWS,
+            params=CromwellRestAPI.PARAMS_WORKFLOWS)
         if r is None:
             return None
         workflows = r['results']
@@ -215,8 +218,8 @@ class CromwellRestAPI(object):
                         break
             if w['id'] in matched:
                 continue
-            if labels is not None:
-                labels_ = self.get_labels(w['id'])
+            if labels is not None and 'labels' in w:
+                labels_ = w['labels']
                 for k, v in labels:
                     if k in labels_:
                         v_ = labels_[k]
@@ -246,7 +249,7 @@ class CromwellRestAPI(object):
         else:
             self._auth = None
 
-    def __request_get(self, endpoint):
+    def __request_get(self, endpoint, params=None):
         """GET request
 
         Returns:
@@ -257,7 +260,7 @@ class CromwellRestAPI(object):
                 port=self._port) + endpoint
         try:
             resp = requests.get(
-                url, auth=self._auth,
+                url, auth=self._auth, params=params,
                 headers={'accept': 'application/json'})
         except Exception as e:
             # traceback.print_exc()

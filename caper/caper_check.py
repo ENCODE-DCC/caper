@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """CaperCheck: Caper arguments/configuration checker
 
 Author:
@@ -9,6 +8,7 @@ import os
 from .caper_backend import BACKENDS, BACKEND_SLURM, get_backend
 
 DEFAULT_FILE_DB_PREFIX = 'caper_file_db'
+DEFAULT_CAPER_TMP_DIR_SUFFIX = '.caper_tmp'
 
 
 def check_caper_conf(args_d):
@@ -57,16 +57,16 @@ def check_caper_conf(args_d):
         args_d['out_dir'] = os.getcwd()
 
     if args_d.get('tmp_dir') is None:
-        args_d['tmp_dir'] = os.path.join(args_d['out_dir'], '.caper_tmp')
+        args_d['tmp_dir'] = os.path.join(args_d['out_dir'], DEFAULT_CAPER_TMP_DIR_SUFFIX)
 
     if args_d.get('tmp_s3_bucket') is None:
         if args_d.get('out_s3_bucket'):
             args_d['tmp_s3_bucket'] = os.path.join(args_d['out_s3_bucket'],
-                                                   '.caper_tmp')
+                                                   DEFAULT_CAPER_TMP_DIR_SUFFIX)
     if args_d.get('tmp_gcs_bucket') is None:
         if args_d.get('out_gcs_bucket'):
             args_d['tmp_gcs_bucket'] = os.path.join(args_d['out_gcs_bucket'],
-                                                    '.caper_tmp')
+                                                    DEFAULT_CAPER_TMP_DIR_SUFFIX)
     file_db = args_d.get('file_db')
     if file_db is not None:
         file_db = os.path.abspath(os.path.expanduser(file_db))
@@ -120,5 +120,11 @@ def check_caper_conf(args_d):
             raise Exception(
                 '--out-s3-bucket (s3:// output bucket path) '
                 'is required for backend aws.')
+
+    if args_d.get('soft_glob_output') and args_d.get('use_docker'):
+        raise ValueError(
+                '--soft-glob-output and --docker are mutually exclusive. '
+                'Delocalization from docker container will fail '
+                'for soft-linked globbed outputs.')
 
     return args_d

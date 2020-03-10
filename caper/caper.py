@@ -30,6 +30,8 @@ from datetime import datetime
 
 from .dict_tool import merge_dict
 from .caper_args import parse_caper_arguments
+from .caper_init import init_caper_conf, install_cromwell_jar, install_womtool_jar
+
 from .caper_check import check_caper_conf
 from .cromwell_rest_api import CromwellRestAPI
 from .caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
@@ -38,14 +40,13 @@ from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CaperBackendCommon, CaperBackendDatabase, CaperBackendGCP, \
     CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
     CaperBackendSGE, CaperBackendPBS
+from .caper_backend import CaperBackendBase, CaperBackendBaseLocal
 
 
 class Caper(object):
     """Cromwell/WDL wrapper
     """
 
-    CROMWELL_JAR_DIR = '~/.caper/cromwell_jar'
-    WOMTOOL_JAR_DIR = '~/.caper/womtool_jar'
     BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
     DEFAULT_BACKEND = BACKEND_LOCAL
     RE_PATTERN_BACKEND_CONF_HEADER = r'^\s*include\s'
@@ -64,8 +65,11 @@ class Caper(object):
     RE_PATTERN_DELIMITER_GCP_ZONES = r',| '
     USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
 
+    MAX_RETRY_UPDATING_METADATA = 3
     SEC_INTERVAL_UPDATE_METADATA = 1200.0
     SEC_INTERVAL_UPDATE_SERVER_HEARTBEAT = 60.0
+    SEC_INTERVAL_RETRY_UPDATING_METADATA = 10.0
+
     # added to cromwell labels file
     KEY_CAPER_STR_LABEL = 'caper-str-label'
     KEY_CAPER_USER = 'caper-user'
@@ -87,6 +91,7 @@ class Caper(object):
             action=args.get('action'),
             ip=args.get('ip'),
             port=args.get('port'),
+            no_server_hearbeat=args.get('no_server_heartbeat'),
             server_hearbeat_file=args.get('server_heartbeat_file'),
             server_hearbeat_timeout=args.get('server_heartbeat_timeout'))
 
@@ -111,6 +116,7 @@ class Caper(object):
             self._tmp_dir = os.path.abspath(self._tmp_dir)
         self._gcp_prj = args.get('gcp_prj')
         self._gcp_zones = args.get('gcp_zones')
+        self._gcp_call_caching_dup_strat = args.get('gcp_call_caching_dup_strat')
         self._out_gcs_bucket = args.get('out_gcs_bucket')
         self._out_s3_bucket = args.get('out_s3_bucket')
         self._aws_batch_arn = args.get('aws_batch_arn')
@@ -125,6 +131,7 @@ class Caper(object):
         self._pbs_extra_param = args.get('pbs_extra_param')
 
         self._backend_file = args.get('backend_file')
+        self._soft_glob_output = args.get('soft_glob_output')
         self._wdl = args.get('wdl')
         self._inputs = args.get('inputs')
         self._cromwell = args.get('cromwell')
@@ -210,7 +217,7 @@ class Caper(object):
         cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
                '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
-               self.__download_cromwell_jar(), 'run',
+               install_cromwell_jar(self._cromwell), 'run',
                CaperURI(self._wdl).get_local_file(),
                '-i', input_file,
                '-o', workflow_opts_file,
@@ -222,7 +229,7 @@ class Caper(object):
         if not self._ignore_womtool:
             # run womtool first to validate WDL and input JSON
             cmd_womtool = ['java', '-Xmx512M', '-jar',
-                           self.__download_womtool_jar(),
+                           install_womtool_jar(self._womtool),
                            'validate', CaperURI(self._wdl).get_local_file(),
                            '-i', input_file]
             try:
@@ -305,7 +312,7 @@ class Caper(object):
         cmd = ['java', java_heap, '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO',
                '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
-               self.__download_cromwell_jar(), 'server']
+               install_cromwell_jar(self._cromwell), 'server']
         print('[Caper] cmd: ', cmd)
 
         # pending/running workflows
@@ -393,7 +400,7 @@ class Caper(object):
         # run womtool first to validate WDL and input JSON
         if not self._ignore_womtool:
             cmd_womtool = ['java', '-Xmx512M', '-jar',
-                           self.__download_womtool_jar(),
+                           install_womtool_jar(self._womtool),
                            'validate', CaperURI(self._wdl).get_local_file(),
                            '-i', input_file]
             try:
@@ -489,14 +496,16 @@ class Caper(object):
                 if f == 'workflow_id':
                     row.append(str(workflow_id))
                 elif f == 'str_label':
-                    lbl = self._cromwell_rest_api.get_label(
-                        workflow_id,
-                        Caper.KEY_CAPER_STR_LABEL)
+                    if 'labels' in w and Caper.KEY_CAPER_STR_LABEL in w['labels']:
+                        lbl = w['labels'][Caper.KEY_CAPER_STR_LABEL]
+                    else:
+                        lbl = None
                     row.append(str(lbl))
                 elif f == 'user':
-                    lbl = self._cromwell_rest_api.get_label(
-                        workflow_id,
-                        Caper.KEY_CAPER_USER)
+                    if 'labels' in w and Caper.KEY_CAPER_USER in w['labels']:
+                        lbl = w['labels'][Caper.KEY_CAPER_USER]
+                    else:
+                        lbl = None
                     row.append(str(lbl))
                 else:
                     row.append(str(w[f] if f in w else None))
@@ -528,8 +537,10 @@ class Caper(object):
             Caper.__troubleshoot(metadata, self._show_completed_task)
 
     def __init_cromwell_rest_api(self, action, ip, port,
+                                 no_server_hearbeat,
                                  server_hearbeat_file,
                                  server_hearbeat_timeout):
+        self._no_server_hearbeat = no_server_hearbeat
         self._server_hearbeat_file = server_hearbeat_file
         self._ip, self._port = \
             self.__read_heartbeat_file(action, ip, port, server_hearbeat_timeout)
@@ -538,7 +549,7 @@ class Caper(object):
             ip=self._ip, port=self._port, verbose=False)
 
     def __read_heartbeat_file(self, action, ip, port, server_hearbeat_timeout):
-        if self._server_hearbeat_file is not None:
+        if not self._no_server_hearbeat and self._server_hearbeat_file is not None:
             self._server_hearbeat_file = os.path.expanduser(
                 self._server_hearbeat_file)
             if action != 'server':
@@ -556,7 +567,7 @@ class Caper(object):
         return ip, port
 
     def __write_heartbeat_file(self):
-        if self._server_hearbeat_file is not None:
+        if not self._no_server_hearbeat and self._server_hearbeat_file is not None:
             while True:
                 try:
                     print('[Caper] Writing heartbeat',
@@ -578,55 +589,34 @@ class Caper(object):
                 if self._stop_heartbeat_thread:
                     break
 
-    def __download_cromwell_jar(self):
-        """Download cromwell-X.jar
-        """
-        cu = CaperURI(self._cromwell)
-        if cu.uri_type == URI_LOCAL:
-            return cu.get_uri()
-
-        path = os.path.join(
-            os.path.expanduser(Caper.CROMWELL_JAR_DIR),
-            os.path.basename(self._cromwell))
-        return cu.copy(target_uri=path)
-
-    def __download_womtool_jar(self):
-        """Download womtool-X.jar
-        """
-        cu = CaperURI(self._womtool)
-        if cu.uri_type == URI_LOCAL:
-            return cu.get_uri()
-
-        path = os.path.join(
-            os.path.expanduser(Caper.WOMTOOL_JAR_DIR),
-            os.path.basename(self._womtool))
-        return cu.copy(target_uri=path)
-
     def __write_metadata_jsons(self, workflow_ids):
-        try:
-            for wf_id in workflow_ids:
-                # get metadata for wf_id
-                m = self._cromwell_rest_api.get_metadata([wf_id])
-                assert(len(m) == 1)
-                metadata = m[0]
-                if 'labels' in metadata and \
-                        'caper-backend' in metadata['labels']:
-                    backend = \
-                        metadata['labels']['caper-backend']
-                else:
-                    backend = None
+        for wf_id in workflow_ids.copy():
+            for trial in range(Caper.MAX_RETRY_UPDATING_METADATA + 1):
+                try:
+                    time.sleep(Caper.SEC_INTERVAL_RETRY_UPDATING_METADATA)
+                    # get metadata for wf_id
+                    m = self._cromwell_rest_api.get_metadata([wf_id])
+                    assert(len(m) == 1)
+                    metadata = m[0]
+                    if 'labels' in metadata and \
+                            'caper-backend' in metadata['labels']:
+                        backend = \
+                            metadata['labels']['caper-backend']
+                    else:
+                        backend = None
 
-                if backend is not None:
-                    self.__write_metadata_json(
-                        wf_id, metadata,
-                        backend=backend,
-                        wdl=metadata['workflowName'])
-            return True
-        except Exception as e:
-            print('[Caper] Exception caught while retrieving '
-                  'metadata from Cromwell server. Keeping running... ',
-                  str(e), workflow_ids)
-        return False
+                    if backend is not None:
+                        self.__write_metadata_json(
+                            wf_id, metadata,
+                            backend=backend,
+                            wdl=metadata['workflowName'])
+                except Exception as e:
+                    print('[Caper] Exception caught while retrieving '
+                          'metadata from Cromwell server. '
+                          'trial: {t}, wf_id: {wf_id}'.format(
+                            t=trial, wf_id=wf_id),
+                          str(e))
+                break
 
     def __write_metadata_json(self, workflow_id, metadata_json,
                               backend=None, wdl=None):
@@ -910,12 +900,21 @@ class Caper(object):
                 disable_call_caching=self._disable_call_caching,
                 max_concurrent_workflows=self._max_concurrent_workflows))
 
+        # common settings for all backends
+        if self._max_concurrent_tasks is not None:
+            CaperBackendBase.CONCURRENT_JOB_LIMIT = self._max_concurrent_tasks
+
+        # common settings for local-based backends
+        if self._soft_glob_output is not None:
+            CaperBackendBaseLocal.USE_SOFT_GLOB_OUTPUT = self._soft_glob_output
+        if self._out_dir is not None:
+            CaperBackendBaseLocal.OUT_DIR = self._out_dir
+
         # local backend
         merge_dict(
             backend_dict,
-            CaperBackendLocal(
-                out_dir=self._out_dir,
-                concurrent_job_limit=self._max_concurrent_tasks))
+            CaperBackendLocal())
+
         # GC
         if self._gcp_prj is not None and self._out_gcs_bucket is not None:
             merge_dict(
@@ -923,7 +922,8 @@ class Caper(object):
                 CaperBackendGCP(
                     gcp_prj=self._gcp_prj,
                     out_gcs_bucket=self._out_gcs_bucket,
-                    concurrent_job_limit=self._max_concurrent_tasks))
+                    call_caching_dup_strat=self._gcp_call_caching_dup_strat))
+
         # AWS
         if self._aws_batch_arn is not None and self._aws_region is not None \
                 and self._out_s3_bucket is not None:
@@ -932,35 +932,30 @@ class Caper(object):
                 CaperBackendAWS(
                     aws_batch_arn=self._aws_batch_arn,
                     aws_region=self._aws_region,
-                    out_s3_bucket=self._out_s3_bucket,
-                    concurrent_job_limit=self._max_concurrent_tasks))
+                    out_s3_bucket=self._out_s3_bucket))
+
         # SLURM
         merge_dict(
             backend_dict,
             CaperBackendSLURM(
-                out_dir=self._out_dir,
                 partition=self._slurm_partition,
                 account=self._slurm_account,
-                extra_param=self._slurm_extra_param,
-                concurrent_job_limit=self._max_concurrent_tasks))
+                extra_param=self._slurm_extra_param))
+
         # SGE
         merge_dict(
             backend_dict,
             CaperBackendSGE(
-                out_dir=self._out_dir,
                 pe=self._sge_pe,
                 queue=self._sge_queue,
-                extra_param=self._sge_extra_param,
-                concurrent_job_limit=self._max_concurrent_tasks))
+                extra_param=self._sge_extra_param))
 
         # PBS
         merge_dict(
             backend_dict,
             CaperBackendPBS(
-                out_dir=self._out_dir,
                 queue=self._pbs_queue,
-                extra_param=self._pbs_extra_param,
-                concurrent_job_limit=self._max_concurrent_tasks))
+                extra_param=self._pbs_extra_param))
 
         # Database
         merge_dict(
@@ -1245,6 +1240,10 @@ def main():
     # parse arguments
     #   note that args is a dict
     args = parse_caper_arguments()
+    action = args['action']
+    if action == 'init':
+        init_caper_conf(args)
+        sys.exit(0)
     args = check_caper_conf(args)
 
     # init caper uri to transfer files across various storages
@@ -1259,10 +1258,9 @@ def main():
         use_gsutil_over_aws_s3=args.get('use_gsutil_over_aws_s3'),
         verbose=True)
 
-    # init caper: taking all args at init step
+    # initialize caper: taking all args at init step
     c = Caper(args)
 
-    action = args['action']
     if action == 'run':
         c.run()
     elif action == 'server':

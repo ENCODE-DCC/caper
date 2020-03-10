@@ -203,24 +203,20 @@ class CaperURI(object):
     LOCK_MAX_ITER = 100
 
     def __init__(self, uri_or_path):
-        if CaperURI.TMP_DIR is None:
+        if CaperURI.TMP_DIR is not None and \
+            not CaperURI.TMP_DIR.endswith('/'):
             raise Exception(
-                'Call init_caper_uri() first '
-                'to initialize CaperURI. TMP_DIR must be '
-                'specified.')
-        elif not CaperURI.TMP_DIR.endswith('/'):
-            raise Exception(
-                'CaperURI.TMP_DIR must ends '
+                'CaperURI.TMP_DIR must end '
                 'with a slash (/).')
         if CaperURI.TMP_S3_BUCKET is not None and \
            not CaperURI.TMP_S3_BUCKET.endswith('/'):
             raise Exception(
-                'CaperURI.TMP_S3_BUCKET must ends '
+                'CaperURI.TMP_S3_BUCKET must end '
                 'with a slash (/).')
         if CaperURI.TMP_GCS_BUCKET is not None and \
            not CaperURI.TMP_GCS_BUCKET.endswith('/'):
             raise Exception(
-                'CaperURI.TMP_GCS_BUCKET must ends '
+                'CaperURI.TMP_GCS_BUCKET must end '
                 'with a slash (/).')
 
         self._uri = uri_or_path

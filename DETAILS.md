@@ -41,6 +41,19 @@ list     | WF_ID or STR_LABEL |List submitted workflows on a Cromwell server
 metadata | WF_ID or STR_LABEL |Retrieve metadata JSONs for workflows
 debug, troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason for errors
 
+* `init`: To initialize Caper on a given platform. This command also downloads Cromwell/Womtool JARs so that Caper can work completely offline with local data files.
+
+	**Platform**|**Description**
+	:--------|:-----
+	sherlock | Stanford Sherlock cluster (SLURM)
+	scg | Stanford SCG cluster (SLURM)
+	gcp | Google Cloud Platform
+	aws | Amazon Web Service
+	local | General local computer
+	sge | HPC with Sun GridEngine cluster engine
+	pbs | HPC with PBS cluster engine
+	slurm | HPC with SLURM cluster engine
+
 * `run`: To run a single workflow. A string label `-s` is optional and useful for other subcommands to indentify a workflow.
 
 	```bash
@@ -217,11 +230,16 @@ We highly recommend to use a default configuration file described in the section
 	:-----|:-----|:-----|:-----
 	ip|--ip|localhost|Cromwell server IP address or hostname
 	port|--port|8000|Cromwell server port
+	no-server-heartbeat|--no-server-heartbeat||Flag to disable server heartbeat file.
+	server-heartbeat-file|--server-heartbeat-file|`~/.caper/default_server_heartbeat`|Heartbeat file for Caper clients to get IP and port of a server.
+	server-heartbeat-timeout|--server-heartbeat-timeout|120000|Timeout for a heartbeat file in Milliseconds.
+
 	cromwell|--cromwell|[cromwell-40.jar](https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar)|Path or URL for Cromwell JAR file
 	max-concurrent-tasks|--max-concurrent-tasks|1000|Maximum number of concurrent tasks
 	max-concurrent-workflows|--max-concurrent-workflows|40|Maximum number of concurrent workflows
 	max-retries|--max-retries|1|Maximum number of retries for failing tasks
 	disable-call-caching|--disable-call-caching| |Disable Cromwell's call-caching (re-using outputs)
+	soft-glob-output|--soft-glob-output||Use soft-linking for globbing outputs for a filesystem that does not allow hard-linking: e.g. beeGFS.
 	backend-file|--backend-file| |Custom Cromwell backend conf file. This will override Caper's built-in backends
 
 * Troubleshoot parameters for `caper troubleshoot` subcommand.

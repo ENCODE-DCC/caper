@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """CaperArgs: Command line arguments parser for Caper
 
 Author:
@@ -11,16 +10,14 @@ import sys
 import os
 from distutils.util import strtobool
 from collections import OrderedDict
-from .caper_backend import BACKENDS, BACKENDS_WITH_ALIASES
-from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL
-from .caper_backend import BACKEND_SLURM, BACKEND_SGE, BACKEND_PBS
-from .caper_backend import BACKEND_ALIAS_LOCAL
-from .caper_backend import BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON
-from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
 from .caper_backend import CaperBackendDatabase
+from .caper_backend import CaperBackendGCP
+from .caper_backend import BACKENDS, BACKEND_LOCAL
+from .caper_backend import BACKEND_ALIAS_LOCAL
+from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
 
 
-__version__ = '0.6.5'
+__version__ = '0.7.0'
 
 DEFAULT_JAVA_HEAP_SERVER = '10G'
 DEFAULT_JAVA_HEAP_RUN = '3G'
@@ -50,69 +47,10 @@ DEFAULT_DEEPCOPY_EXT = 'json,tsv'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 DEFAULT_SERVER_HEARTBEAT_TIMEOUT_MS = 120000
 DEFAULT_CONF_CONTENTS = '\n\n'
+DEFAULT_GCP_CALL_CACHING_DUP_STRAT = CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE
+
 DYN_FLAGS = ['--singularity', '--docker']
 INVALID_EXT_FOR_DYN_FLAG = '.wdl'
-DEFAULT_CONF_CONTENTS_LOCAL = """backend=local
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_SHERLOCK = """backend=slurm
-slurm-partition=
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_SCG = """backend=slurm
-slurm-account=
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_SLURM = """backend=slurm
-
-# define one of the followings (or both) according to your
-# cluster's SLURM configuration.
-slurm-partition=
-slurm-account=
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_SGE = """backend=sge
-sge-pe=
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_PBS = """backend=pbs
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_AWS = """backend=aws
-aws-batch-arn=
-aws-region=
-out-s3-bucket=
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_GCP = """backend=gcp
-gcp-prj=
-out-gcs-bucket=
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-tmp-dir=
-"""
 
 
 def process_dyn_flags(remaining_args, dyn_flags,
@@ -138,33 +76,6 @@ def process_dyn_flags(remaining_args, dyn_flags,
                     remaining_args[loc], remaining_args[loc + 1] = \
                         remaining_args[loc + 1], remaining_args[loc]
     return remaining_args
-
-
-def init_caper_conf(args):
-    backend = args.get('platform')
-    assert(backend in BACKENDS_WITH_ALIASES)
-    if backend in (BACKEND_LOCAL, BACKEND_ALIAS_LOCAL):
-        contents = DEFAULT_CONF_CONTENTS_LOCAL
-    elif backend == BACKEND_ALIAS_SHERLOCK:
-        contents = DEFAULT_CONF_CONTENTS_SHERLOCK
-    elif backend == BACKEND_ALIAS_SCG:
-        contents = DEFAULT_CONF_CONTENTS_SCG
-    elif backend == BACKEND_SLURM:
-        contents = DEFAULT_CONF_CONTENTS_SLURM
-    elif backend == BACKEND_SGE:
-        contents = DEFAULT_CONF_CONTENTS_SGE
-    elif backend == BACKEND_PBS:
-        contents = DEFAULT_CONF_CONTENTS_PBS
-    elif backend in (BACKEND_GCP, BACKEND_ALIAS_GOOGLE):
-        contents = DEFAULT_CONF_CONTENTS_GCP
-    elif backend in (BACKEND_AWS, BACKEND_ALIAS_AMAZON):
-        contents = DEFAULT_CONF_CONTENTS_AWS
-    else:
-        raise Exception('Unsupported platform/backend/alias.')
-
-    conf_file = os.path.expanduser(args.get('conf'))
-    with open(conf_file, 'w') as fp:
-        fp.write(contents + '\n')
 
 
 def parse_caper_arguments():
@@ -321,6 +232,14 @@ def parse_caper_arguments():
     group_cromwell.add_argument(
         '--backend-file',
         help='Custom Cromwell backend configuration file to override all')
+    group_cromwell.add_argument(
+        '--soft-glob-output', action='store_true',
+        help='Use soft-linking when globbing outputs for a filesystem that '
+             'does not allow hard-linking. e.g. beeGFS. '
+             'This flag does not work with backends based on a Docker container. '
+             'i.e. gcp and aws. Also, '
+             'it does not work with local backends (local/slurm/sge/pbs) '
+             'with --docker. However, it works fine with --singularity.')
 
     group_local = parent_host.add_argument_group(
         title='local backend arguments')
@@ -330,14 +249,22 @@ def parse_caper_arguments():
         '--tmp-dir', help='Temporary directory for local backend')
 
     group_gc = parent_host.add_argument_group(
-        title='GC backend arguments')
+        title='GCP backend arguments')
     group_gc.add_argument('--gcp-prj', help='GC project')
     group_gc.add_argument('--gcp-zones', help='GCP zones (e.g. us-west1-b,'
                                               'us-central1-b)')
     group_gc.add_argument(
-        '--out-gcs-bucket', help='Output GCS bucket for GC backend')
+        '--gcp-call-caching-dup-strat', default=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
+        choices=[
+            CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
+            CaperBackendGCP.CALL_CACHING_DUP_STRAT_COPY
+        ],
+        help='Duplication strategy for call-cached outputs for GCP backend: '
+             'copy: make a copy, reference: refer to old output in metadata.json.')
     group_gc.add_argument(
-        '--tmp-gcs-bucket', help='Temporary GCS bucket for GC backend')
+        '--out-gcs-bucket', help='Output GCS bucket for GCP backend')
+    group_gc.add_argument(
+        '--tmp-gcs-bucket', help='Temporary GCS bucket for GCP backend')
 
     group_aws = parent_host.add_argument_group(
         title='AWS backend arguments')
@@ -514,6 +441,9 @@ def parse_caper_arguments():
         '--ip', default=DEFAULT_IP,
         help='IP address for Caper server')
     parent_server_client.add_argument(
+        '--no-server-heartbeat', action='store_true',
+        help='Disable server heartbeat file.')
+    parent_server_client.add_argument(
         '--server-heartbeat-file',
         default=DEFAULT_SERVER_HEARTBEAT_FILE,
         help='Heartbeat file for Caper clients to get IP and port of a server')
@@ -606,7 +536,9 @@ def parse_caper_arguments():
     # string to boolean
     for k in [
         'dry_run',
+        'no_server_heartbeat',
         'disable_call_caching',
+        'soft_glob_output',
         'use_gsutil_over_aws_s3',
         'hold',
         'no_deepcopy',
@@ -631,11 +563,5 @@ def parse_caper_arguments():
         v = args_d.get(k)
         if v is not None and isinstance(v, str):
             args_d[k] = int(v)
-
-    # if action is 'init' then initialize Conf and exit
-    action = args_d['action']
-    if action == 'init':
-        init_caper_conf(args_d)
-        sys.exit(0)
 
     return args_d
