@@ -6,13 +6,13 @@ Author:
 
 import os
 import sys
+from autouri import AutoURI, AbsPath
 from .caper_backend import BACKENDS, BACKENDS_WITH_ALIASES
 from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL
 from .caper_backend import BACKEND_SLURM, BACKEND_SGE, BACKEND_PBS
 from .caper_backend import BACKEND_ALIAS_LOCAL
 from .caper_backend import BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON
 from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
-from .caper_uri import CaperURI, URI_LOCAL
 from .caper_args import DEFAULT_CROMWELL_JAR, DEFAULT_WOMTOOL_JAR
 
 
@@ -123,27 +123,27 @@ tmp-dir=
 def install_cromwell_jar(uri):
     """Download cromwell-X.jar
     """
-    cu = CaperURI(uri)
-    if cu.uri_type == URI_LOCAL:
-        return cu.get_uri()
+    u = AutoURI(uri)
+    if isinstance(u, AbsPath):
+        return u.uri
     print('Downloading Cromwell JAR... {f}'.format(f=uri), file=sys.stderr)
     path = os.path.join(
         os.path.expanduser(DEFAULT_CROMWELL_JAR_INSTALL_DIR),
         os.path.basename(uri))
-    return cu.copy(target_uri=path)
+    return u.cp(path)
 
 
 def install_womtool_jar(uri):
     """Download womtool-X.jar
     """
-    cu = CaperURI(uri)
-    if cu.uri_type == URI_LOCAL:
-        return cu.get_uri()
+    u = AutoURI(uri)
+    if isinstance(u, AbsPath):
+        return u.uri
     print('Downloading Womtool JAR... {f}'.format(f=uri), file=sys.stderr)
     path = os.path.join(
         os.path.expanduser(DEFAULT_WOMTOOL_JAR_INSTALL_DIR),
         os.path.basename(uri))
-    return cu.copy(target_uri=path)
+    return u.cp(path)
 
 
 def init_caper_conf(args):

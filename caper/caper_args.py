@@ -274,7 +274,12 @@ def parse_caper_arguments():
         '--out-s3-bucket', help='Output S3 bucket for AWS backend')
     group_aws.add_argument(
         '--tmp-s3-bucket', help='Temporary S3 bucket for AWS backend')
-
+    group_aws.add_argument(
+        '--use-gsutil-for-s3', action='store_true',
+        help='Use gsutil CLI for direct trasnfer between S3 and GCS buckets. '
+             'Otherwise, such file transfer will stream through local machine. '
+             'Make sure that gsutil is installed on your system and it has access to '
+             'credentials for AWS (e.g. ~/.boto or ~/.aws/credentials).')
 
     # run, submit
     parent_submit = argparse.ArgumentParser(add_help=False)
@@ -338,9 +343,6 @@ def parse_caper_arguments():
              'and make copies of files on a local/remote storage '
              'for a target backend. Make sure that you have installed '
              'gsutil for GCS and aws for S3.')
-    parent_submit.add_argument(
-        '--deepcopy-ext', default=DEFAULT_DEEPCOPY_EXT,
-        help='Comma-separated list of file extensions to be deepcopied')
     parent_submit.add_argument(
         '--ignore-womtool', action='store_true',
         help='Ignore warnings from womtool.jar.')
@@ -516,6 +518,7 @@ def parse_caper_arguments():
         'no_deepcopy',
         'ignore_womtool',
         'no_build_singularity',
+        'use_gsutil_for_s3',
         'show_completed_task']:
         v = args_d.get(k)
         if v is not None and isinstance(v, str):

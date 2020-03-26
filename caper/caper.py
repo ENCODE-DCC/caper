@@ -27,15 +27,13 @@ from threading import Thread
 import shutil
 from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
-
+from autouri import AutoURI, AbsPath, GCSURI, S3URI
 from .dict_tool import merge_dict
 from .caper_args import parse_caper_arguments
 from .caper_init import init_caper_conf, install_cromwell_jar, install_womtool_jar
 
 from .caper_check import check_caper_conf
 from .cromwell_rest_api import CromwellRestAPI
-from .caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
-    init_caper_uri, CaperURI
 from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CaperBackendCommon, CaperBackendDatabase, CaperBackendGCP, \
     CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
@@ -174,10 +172,6 @@ class Caper(object):
 
         # deepcopy
         self._no_deepcopy = args.get('no_deepcopy')
-        self._deepcopy_ext = args.get('deepcopy_ext')
-        if self._deepcopy_ext is not None:
-            self._deepcopy_ext = [
-                '.'+ext for ext in self._deepcopy_ext.split(',')]
 
         # containers
         self._no_build_singularity = args.get('no_build_singularity')
@@ -206,6 +200,7 @@ class Caper(object):
             input_file, tmp_dir)
         labels_file = self.__create_labels_json_file(tmp_dir)
         imports_file = self.__create_imports_zip_file_from_wdl(tmp_dir)
+        wdl = AbsPath.localize(self._wdl)
 
         # metadata JSON file is an output from Cromwell
         #   place it on the tmp dir
@@ -218,7 +213,7 @@ class Caper(object):
                '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
                install_cromwell_jar(self._cromwell), 'run',
-               CaperURI(self._wdl).get_local_file(),
+               wdl,
                '-i', input_file,
                '-o', workflow_opts_file,
                '-l', labels_file,
@@ -230,7 +225,7 @@ class Caper(object):
             # run womtool first to validate WDL and input JSON
             cmd_womtool = ['java', '-Xmx512M', '-jar',
                            install_womtool_jar(self._womtool),
-                           'validate', CaperURI(self._wdl).get_local_file(),
+                           'validate', wdl,
                            '-i', input_file]
             try:
                 print("[Caper] Validating WDL/input JSON with womtool...")
@@ -287,7 +282,7 @@ class Caper(object):
         # troubleshoot if metadata is available
         if metadata_uri is not None:
             Caper.__troubleshoot(
-                CaperURI(metadata_uri).get_local_file(),
+                AbsPath.localize(metadata_uri),
                 self._show_completed_task)
 
         print('[Caper] run: ', rc, workflow_id, metadata_uri)
@@ -396,12 +391,13 @@ class Caper(object):
             input_file, tmp_dir)
         labels_file = self.__create_labels_json_file(tmp_dir)
         on_hold = self._hold if self._hold is not None else False
+        wdl = AbsPath.localize(self._wdl)
 
         # run womtool first to validate WDL and input JSON
         if not self._ignore_womtool:
             cmd_womtool = ['java', '-Xmx512M', '-jar',
                            install_womtool_jar(self._womtool),
-                           'validate', CaperURI(self._wdl).get_local_file(),
+                           'validate', wdl,
                            '-i', input_file]
             try:
                 print("[Caper] Validating WDL/input JSON with womtool...")
@@ -414,7 +410,7 @@ class Caper(object):
         if self._dry_run:
             return -1
         r = self._cromwell_rest_api.submit(
-            source=CaperURI(self._wdl).get_local_file(),
+            source=wdl,
             dependencies=imports_file,
             inputs_file=input_file,
             options_file=workflow_opts_file,
@@ -523,9 +519,9 @@ class Caper(object):
         wf_id_or_label = []
         metadatas = []
         for f in self._wf_id_or_label:
-            cu = CaperURI(f)
-            if cu.file_exists():
-                metadatas.append(cu.get_local_file())
+            u = AutoURI(f)
+            if u.exists:
+                metadatas.append(AbsPath.localize(u))
             else:
                 wf_id_or_label.append(f)
 
@@ -645,7 +641,7 @@ class Caper(object):
             metadata_uri = os.path.join(
                 path, Caper.TMP_FILE_BASENAME_METADATA_JSON)
 
-        return CaperURI(metadata_uri).write_str_to_file(
+        return AutoURI(metadata_uri).write(
             json.dumps(metadata_json, indent=4))
 
     def __create_input_json_file(
@@ -654,23 +650,24 @@ class Caper(object):
         Deepcopy to a specified storage if required.
         """
         if self._inputs is not None:
-            # get a local copy first
-            new_uri = CaperURI(self._inputs).get_local_file()
-
-            if not self._no_deepcopy and self._deepcopy_ext:
+            if not self._no_deepcopy:
                 # deepcopy all files in JSON/TSV/CSV
                 #   to the target backend
                 if self._backend == BACKEND_GCP:
-                    uri_type = URI_GCS
+                    uri_cls = GCSURI
                 elif self._backend == BACKEND_AWS:
-                    uri_type = URI_S3
+                    uri_cls = S3URI
                 else:
-                    uri_type = URI_LOCAL
+                    uri_cls = AbsPath
 
-                new_uri, _ = CaperURI(new_uri).deepcopy(
-                    uri_type=uri_type, uri_exts=self._deepcopy_ext)
-
-            return CaperURI(new_uri).get_local_file()
+                new_uri = uri_cls.localize(
+                    self._inputs,
+                    recursive=True,
+                    make_md5_file=True)
+            else:
+                new_uri = self._inputs
+            # localize again on local
+            return AbsPath.localize(new_uri)
         else:
             input_file = os.path.join(directory, fname)
             with open(input_file, 'w') as fp:
@@ -682,7 +679,7 @@ class Caper(object):
         """Create labels JSON file
         """
         if self._labels is not None:
-            s = CaperURI(self._labels).get_file_contents()
+            s = AutoURI(self._labels).read()
             labels_dict = json.loads(s)
         else:
             labels_dict = {}
@@ -812,7 +809,7 @@ class Caper(object):
 
         # if workflow opts file is given by a user, merge it to template
         if self._workflow_opts is not None:
-            f = CaperURI(self._workflow_opts).get_local_file()
+            f = AbsPath.localize(self._workflow_opts)
             with open(f, 'r') as fp:
                 d = json.loads(fp.read())
                 merge_dict(template, d)
@@ -828,7 +825,7 @@ class Caper(object):
     def __create_imports_zip_file_from_wdl(
             self, directory, fname=TMP_FILE_BASENAME_IMPORTS_ZIP):
         if self._imports is not None:
-            return CaperURI(self._imports).get_local_file()
+            return AbsPath.localize(self._imports)
 
         imports = self.__find_val_from_wdl(Caper.RE_PATTERN_WDL_IMPORT)
         if imports is None:
@@ -839,14 +836,12 @@ class Caper(object):
         files_to_zip = []
         for imp in imports:
             # ignore imports as HTTP URL or absolute PATH
-            if CaperURI(imp).uri_type == URI_LOCAL \
-                    or not os.path.isabs(imp):
+            if AbsPath(imp).is_valid or not os.path.isabs(imp):
                 files_to_zip.append(imp)
                 # download imports relative to WDL (which can exists remotely)
                 wdl_dirname = os.path.dirname(self._wdl)
-                c_imp_ = CaperURI(os.path.join(wdl_dirname, imp))
                 # download file to tmp_dir
-                f = c_imp_.get_local_file()
+                f = AbsPath.localize(os.path.join(wdl_dirname, imp))
                 target_f = os.path.join(zip_tmp_dir, imp)
                 target_dirname = os.path.dirname(target_f)
                 os.makedirs(target_dirname, exist_ok=True)
@@ -983,7 +978,7 @@ class Caper(object):
         if self._backend_file is not None:
             lines_wo_header = []
 
-            with open(CaperURI(self._backend_file).get_local_file(),
+            with open(AbsPath.localize(self._backend_file),
                       'r') as fp:
                 for line in fp.readlines():
                     # find header and exclude
@@ -1036,7 +1031,7 @@ class Caper(object):
     def __find_val_from_wdl(self, regex_val):
         result = []
         if self._wdl is not None:
-            with open(CaperURI(self._wdl).get_local_file(), 'r') as fp:
+            with open(AbsPath.localize(self._wdl), 'r') as fp:
                 for line in fp.readlines():
                     r = re.findall(regex_val, line)
                     if len(r) > 0:
@@ -1103,7 +1098,7 @@ class Caper(object):
         if isinstance(metadata_json, dict):
             metadata = metadata_json
         else:
-            f = CaperURI(metadata_json).get_local_file()
+            f = AbsPath.localize(metadata_json)
             with open(f, 'r') as fp:
                 metadata = json.loads(fp.read())
         if isinstance(metadata, list):
@@ -1157,9 +1152,9 @@ class Caper(object):
                             run_start, run_end, stdout, stderr))
 
                     if stderr is not None:
-                        cu = CaperURI(stderr)
-                        if cu.file_exists():
-                            local_stderr_f = cu.get_local_file()
+                        u = AutoURI(stderr)
+                        if u.exists:
+                            local_stderr_f = AbsPath.localize(u)
                             with open(local_stderr_f, 'r') as fp:
                                 stderr_contents = fp.read()
                             print('STDERR_CONTENTS=\n{}'.format(
@@ -1191,10 +1186,10 @@ class Caper(object):
                                            lst_idx=i)
             elif type(d) == str:
                 assert(d_parent is not None or lst is not None)
-                c = CaperURI(d)
+                u = AutoURI(d)
                 # local absolute path only
-                if c.uri_type == URI_LOCAL and c.is_valid_uri():
-                    dirname, basename = os.path.split(c.get_uri())
+                if isinstance(u, AbsPath) and u.is_valid:
+                    dirname, basename = os.path.split(u.uri)
                     result.add(dirname)
 
             return result
@@ -1246,17 +1241,20 @@ def main():
         sys.exit(0)
     args = check_caper_conf(args)
 
-    # init caper uri to transfer files across various storages
+    # init AutoURI classes to transfer files across various storages
     #   e.g. gs:// to s3://, http:// to local, ...
-    init_caper_uri(
-        tmp_dir=args.get('tmp_dir'),
-        tmp_s3_bucket=args.get('tmp_s3_bucket'),
-        tmp_gcs_bucket=args.get('tmp_gcs_bucket'),
-        http_user=args.get('http_user'),
-        http_password=args.get('http_password'),
-        use_netrc=True,
-        use_gsutil_over_aws_s3=False,
-        verbose=True)
+    # loc_prefix means prefix (root directory)
+    # for localizing files of different storages
+    AbsPath.init_abspath(
+        loc_prefix=args.get('tmp_dir')
+    )
+    GCSURI.init_gcsuri(
+        loc_prefix=args.get('tmp_gcs_bucket'),
+        use_gsutil_for_s3=args.get('use_gsutil_for_s3')
+    )
+    S3URI.init_s3uri(
+        loc_prefix=args.get('tmp_s3_bucket')
+    )
 
     # initialize caper: taking all args at init step
     c = Caper(args)
