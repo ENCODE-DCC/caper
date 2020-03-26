@@ -18,6 +18,7 @@ Author:
 from pyhocon import ConfigFactory, HOCONConverter
 import os
 import sys
+import logging
 import pwd
 import json
 import re
@@ -28,6 +29,7 @@ import shutil
 from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 from autouri import AutoURI, AbsPath, GCSURI, S3URI
+from autouri import logger as autouri_logger
 from .dict_tool import merge_dict
 from .caper_args import parse_caper_arguments
 from .caper_init import init_caper_conf, install_cromwell_jar, install_womtool_jar
@@ -39,6 +41,10 @@ from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
     CaperBackendSGE, CaperBackendPBS
 from .caper_backend import CaperBackendBase, CaperBackendBaseLocal
+
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s|%(name)s|%(levelname)s|%(message)s')
+logger = logging.getLogger('caper')
 
 
 class Caper(object):
@@ -228,15 +234,15 @@ class Caper(object):
                            'validate', wdl,
                            '-i', input_file]
             try:
-                print("[Caper] Validating WDL/input JSON with womtool...")
+                logger.info('Validating WDL/input JSON with womtool...')
                 check_call(cmd_womtool)
             except CalledProcessError as e:
-                print("[Caper] Error (womtool): WDL or input JSON is invalid "
-                      "or input JSON doesn't exist.")
+                logger.error('Womtool: WDL or input JSON is invalid '
+                             'or input JSON doesn\'t exist.')
                 rc = e.returncode
                 sys.exit(rc)
 
-        print('[Caper] cmd: ', cmd)
+        logger.info('cmd: {cmd}'.format(cmd=cmd))
         if self._dry_run:
             return -1
         try:
@@ -262,7 +268,7 @@ class Caper(object):
         except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
-            print(Caper.USER_INTERRUPT_WARNING)
+            logger.error(Caper.USER_INTERRUPT_WARNING)
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
                 print(stdout)
@@ -285,7 +291,9 @@ class Caper(object):
                 AbsPath.localize(metadata_uri),
                 self._show_completed_task)
 
-        print('[Caper] run: ', rc, workflow_id, metadata_uri)
+        logger.info(
+            'run: {rc}, {wf_id}, {m}'.format(
+                rc=rc, wf_id=workflow_id, m=metadata_uri))
         return workflow_id
 
     def server(self):
@@ -308,7 +316,7 @@ class Caper(object):
                '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
                install_cromwell_jar(self._cromwell), 'server']
-        print('[Caper] cmd: ', cmd)
+        logger.info('cmd: {cmd}'.format(cmd=cmd))
 
         # pending/running workflows
         started_wf_ids = set()
@@ -365,14 +373,16 @@ class Caper(object):
         except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
-            print(Caper.USER_INTERRUPT_WARNING)
+            logger.error(Caper.USER_INTERRUPT_WARNING)
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
                 print(stdout)
         time.sleep(1)
         self._stop_heartbeat_thread = True
         t_heartbeat.join()
-        print('[Caper] server: ', rc, started_wf_ids, finished_wf_ids)
+        logger.info(
+            'server: {rc}, {s_wf_ids}, {f_wf_ids}'.format(
+                rc=rc, s_wf_ids=started_wf_ids, f_wf_ids=finished_wf_ids))
         return rc
 
     def submit(self):
@@ -400,10 +410,10 @@ class Caper(object):
                            'validate', wdl,
                            '-i', input_file]
             try:
-                print("[Caper] Validating WDL/input JSON with womtool...")
+                logger.info('Validating WDL/input JSON with womtool...')
                 check_call(cmd_womtool)
             except CalledProcessError as e:
-                print("[Caper] Error (womtool): WDL or input JSON is invalid.")
+                logger.error('Womtool: WDL or input JSON is invalid.')
                 rc = e.returncode
                 sys.exit(rc)
 
@@ -416,7 +426,7 @@ class Caper(object):
             options_file=workflow_opts_file,
             labels_file=labels_file,
             on_hold=on_hold)
-        print("[Caper] submit: ", r)
+        logger.info('submit: {r}'.format(r=r))
         return r
 
     def abort(self):
@@ -428,7 +438,7 @@ class Caper(object):
                 self._wf_id_or_label,
                 [(Caper.KEY_CAPER_STR_LABEL, v)
                  for v in self._wf_id_or_label])
-        print("[Caper] abort: ", r)
+        logger.info('abort: {r}'.format(r=r))
         return r
 
     def unhold(self):
@@ -440,7 +450,7 @@ class Caper(object):
                 self._wf_id_or_label,
                 [(Caper.KEY_CAPER_STR_LABEL, v)
                  for v in self._wf_id_or_label])
-        print("[Caper] unhold: ", r)
+        logger.info('unhold: {r}'.format(r=r))
         return r
 
     def metadata(self, no_print=False):
@@ -549,8 +559,6 @@ class Caper(object):
             self._server_hearbeat_file = os.path.expanduser(
                 self._server_hearbeat_file)
             if action != 'server':
-                # print('[Caper] Reading heartbeat file',
-                #       self._server_hearbeat_file)
                 try:
                     if os.path.exists(self._server_hearbeat_file):
                         f_time = os.path.getmtime(self._server_hearbeat_file)
@@ -558,24 +566,24 @@ class Caper(object):
                             with open(self._server_hearbeat_file, 'r') as fp:
                                 ip, port = fp.read().strip('\n').split(':')
                 except:
-                    print('[Caper] Warning: failed to read server_heartbeat_file',
-                          self._server_hearbeat_file)
+                    logger.warning(
+                        'Failed to read server_heartbeat_file: {f}'.format(
+                            f=self._server_hearbeat_file))
         return ip, port
 
     def __write_heartbeat_file(self):
         if not self._no_server_hearbeat and self._server_hearbeat_file is not None:
             while True:
                 try:
-                    print('[Caper] Writing heartbeat',
-                          socket.gethostname(), self._port)
+                    logger.info(
+                        'Writing heartbeat: {ip}, {port}'.format(
+                            ip=socket.gethostname(), port=self._port))
                     with open(self._server_hearbeat_file, 'w') as fp:
                         fp.write('{}:{}'.format(
                             socket.gethostname(),
                             self._port))
                 except Exception as e:
-                    print(e)
-                    print('[Caper] Warning: failed to write a '
-                          'heartbeat_file')
+                    logger.warning('Failed to write a heartbeat_file')
                 cnt = 0
                 while cnt < Caper.SEC_INTERVAL_UPDATE_SERVER_HEARTBEAT:
                     cnt += 1
@@ -607,11 +615,11 @@ class Caper(object):
                             backend=backend,
                             wdl=metadata['workflowName'])
                 except Exception as e:
-                    print('[Caper] Exception caught while retrieving '
-                          'metadata from Cromwell server. '
-                          'trial: {t}, wf_id: {wf_id}'.format(
-                            t=trial, wf_id=wf_id),
-                          str(e))
+                    logger.warning(
+                        '[Caper] Exception caught while retrieving '
+                        'metadata from Cromwell server. '
+                        'trial: {t}, wf_id: {wf_id}, e: {e}'.format(
+                            t=trial, wf_id=wf_id, e=str(e)))
                 break
 
     def __write_metadata_json(self, workflow_id, metadata_json,
@@ -747,7 +755,7 @@ class Caper(object):
             else:
                 docker = self._docker
             if docker is None:
-                print('[Caper] Warning: No docker image specified with --docker.')
+                logger.warning('No docker image specified with --docker.')
             else:
                 template['default_runtime_attributes']['docker'] = docker
 
@@ -1054,8 +1062,9 @@ class Caper(object):
 
         elif self._backend is not None \
                 and self._backend not in (BACKEND_AWS, BACKEND_GCP):
-            print('[Caper] building local singularity image: ',
-                  singularity)
+            logger.info(
+                'Building local singularity image: {img}'.format(
+                    img=singularity))
             cmd = ['singularity', 'exec', singularity,
                    'echo', '[Caper] building done.']
             env = os.environ.copy()
@@ -1064,7 +1073,7 @@ class Caper(object):
                 env['SINGULARITY_CACHEDIR'] = self._singularity_cachedir
             return check_call(cmd, env=env)
 
-        print('[Caper] skip building local singularity image.')
+        logger.info('Skipped building local singularity image.')
         return None
 
     @staticmethod
@@ -1106,16 +1115,16 @@ class Caper(object):
 
         workflow_id = metadata['id']
         workflow_status = metadata['status']
-        print('[Caper] troubleshooting {} ...'.format(workflow_id))
+        logger.info('Troubleshooting {wf_id} ...'.format(wf_id=workflow_id))
         if not show_completed_task and workflow_status == 'Succeeded':
-            print('This workflow ran successfully. '
-                  'There is nothing to troubleshoot')
+            logger.info(
+                'This workflow ran successfully. There is nothing to troubleshoot')
             return
 
         def recurse_calls(calls, failures=None, show_completed_task=False):
             if failures is not None:
                 s = json.dumps(failures, indent=4)
-                print('Found failures:\n{}'.format(s))
+                logger.info('Found failures:\n{s}'.format(s=s))
             for task_name, call_ in calls.items():
                 for call in call_:
                     # if it is a subworkflow, then recursively dive into it
@@ -1145,11 +1154,14 @@ class Caper(object):
                     if not show_completed_task and \
                             task_status in ('Done', 'Succeeded'):
                         continue
-                    print('\n{} {}. SHARD_IDX={}, RC={}, JOB_ID={}, '
-                          'RUN_START={}, RUN_END={}, '
-                          'STDOUT={}, STDERR={}'.format(
-                            task_name, task_status, shard_index, rc, job_id,
-                            run_start, run_end, stdout, stderr))
+                    print(
+                        '\n{tn} {ts}. SHARD_IDX={shard_id}, RC={rc}, JOB_ID={job_id}, '
+                        'RUN_START={start}, RUN_END={end}, '
+                        'STDOUT={stdout}, STDERR={stderr}'.format(
+                            tn=task_name, ts=task_status,
+                            shard_id=shard_index, rc=rc, job_id=job_id,
+                            start=run_start, end=run_end,
+                            stdout=stdout, stderr=stderr))
 
                     if stderr is not None:
                         u = AutoURI(stderr)
@@ -1241,7 +1253,7 @@ def main():
         sys.exit(0)
     args = check_caper_conf(args)
 
-    # init AutoURI classes to transfer files across various storages
+    # init Autouri classes to transfer files across various storages
     #   e.g. gs:// to s3://, http:// to local, ...
     # loc_prefix means prefix (root directory)
     # for localizing files of different storages
@@ -1255,6 +1267,13 @@ def main():
     S3URI.init_s3uri(
         loc_prefix=args.get('tmp_s3_bucket')
     )
+    # init both loggers of Autouri and Caper
+    if args.get('verbose'):
+        autouri_logger.setLevel('INFO')
+        logger.setLevel('INFO')
+    elif args.get('debug'):
+        autouri_logger.setLevel('DEBUG')
+        logger.setLevel('DEBUG')
 
     # initialize caper: taking all args at init step
     c = Caper(args)
