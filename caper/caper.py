@@ -43,7 +43,7 @@ from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
 from .caper_backend import CaperBackendBase, CaperBackendBaseLocal
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s|%(name)s|%(levelname)s|%(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s|%(name)s|%(levelname)s| %(message)s')
 logger = logging.getLogger('caper')
 
 
