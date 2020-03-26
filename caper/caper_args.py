@@ -274,9 +274,6 @@ def parse_caper_arguments():
         '--out-s3-bucket', help='Output S3 bucket for AWS backend')
     group_aws.add_argument(
         '--tmp-s3-bucket', help='Temporary S3 bucket for AWS backend')
-    group_aws.add_argument(
-        '--use-gsutil-over-aws-s3', action='store_true',
-        help='Use gsutil instead of aws s3 CLI even for S3 buckets.')
 
     parent_http_auth = argparse.ArgumentParser(add_help=False)
     group_http = parent_http_auth.add_argument_group(
@@ -293,12 +290,6 @@ def parse_caper_arguments():
              'SECURITY WARNING: '
              'Your password will be exposed in a command line so that '
              'other users on your system can see it with "ps" command.')
-    group_http.add_argument(
-        '--use-netrc', action='store_true',
-        help='RECOMMENDED: Use ~/.netrc for HTTP/HTTPS authentication. '
-             'See details about how to make a ~/.netrc file at '
-             'https://github.com/bagder/everything-curl/blob/master/'
-             'usingcurl-netrc.md')
 
     # run, submit
     parent_submit = argparse.ArgumentParser(add_help=False)
@@ -539,12 +530,10 @@ def parse_caper_arguments():
         'no_server_heartbeat',
         'disable_call_caching',
         'soft_glob_output',
-        'use_gsutil_over_aws_s3',
         'hold',
         'no_deepcopy',
         'ignore_womtool',
         'no_build_singularity',
-        'use_netrc',
         'show_completed_task']:
         v = args_d.get(k)
         if v is not None and isinstance(v, str):
