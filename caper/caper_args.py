@@ -275,21 +275,6 @@ def parse_caper_arguments():
     group_aws.add_argument(
         '--tmp-s3-bucket', help='Temporary S3 bucket for AWS backend')
 
-    parent_http_auth = argparse.ArgumentParser(add_help=False)
-    group_http = parent_http_auth.add_argument_group(
-        title='HTTP/HTTPS authentication arguments')
-    group_http.add_argument(
-        '--http-user',
-        help='Username to download data from private URLs. '
-             'SECURITY WARNING: '
-             'Your username will be exposed in a command line so that '
-             'other users on your system can see it with "ps" command.')
-    group_http.add_argument(
-        '--http-password',
-        help='Password to to download data from private URLs. '
-             'SECURITY WARNING: '
-             'Your password will be exposed in a command line so that '
-             'other users on your system can see it with "ps" command.')
 
     # run, submit
     parent_submit = argparse.ArgumentParser(add_help=False)
@@ -475,16 +460,15 @@ def parse_caper_arguments():
         parents=[parent_init])
     p_run = subparser.add_parser(
         'run', help='Run a single workflow without server',
-        parents=[parent_all, parent_submit, parent_run, parent_host, parent_backend,
-                 parent_http_auth])
+        parents=[parent_all, parent_submit, parent_run, parent_host, parent_backend])
     p_server = subparser.add_parser(
         'server', help='Run a Cromwell server',
         parents=[parent_all, parent_server_client, parent_server, parent_host,
-                 parent_backend, parent_http_auth])
+                 parent_backend])
     p_submit = subparser.add_parser(
         'submit', help='Submit a workflow to a Cromwell server',
         parents=[parent_all, parent_server_client, parent_submit,
-                 parent_backend, parent_http_auth])
+                 parent_backend])
     p_abort = subparser.add_parser(
         'abort', help='Abort running/pending workflows on a Cromwell server',
         parents=[parent_all, parent_server_client, parent_search_wf])
@@ -503,13 +487,11 @@ def parse_caper_arguments():
         'troubleshoot',
         help='Troubleshoot workflow problems from metadata JSON file or '
              'workflow IDs',
-        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf,
-                 parent_http_auth])
+        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf])
     p_debug = subparser.add_parser(
         'debug',
         help='Identical to "troubleshoot"',
-        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf,
-                 parent_http_auth])
+        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf])
 
     for p in [p_init, p_run, p_server, p_submit, p_abort, p_unhold, p_list,
               p_metadata, p_troubleshoot, p_debug]:
