@@ -156,7 +156,7 @@ class Caper(object):
             args.get('womtool'))
 
         self._metadata_output = args.get('metadata_output')
-        if not AutoURI(self._metadata_output).is_valid:
+        if self._metadata_output is not None and not AutoURI(self._metadata_output).is_valid:
             # metadata output doesn't exist at this moment since it's an output
             # so cannot use AbsPath.get_abspath_if_exists() here
             # make it abspath if it's given as local relative path ($CWD/relpath)

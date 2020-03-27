@@ -280,12 +280,6 @@ def parse_caper_arguments():
         '--out-s3-bucket', help='Output S3 bucket for AWS backend')
     group_aws.add_argument(
         '--tmp-s3-bucket', help='Temporary S3 bucket for AWS backend')
-    group_aws.add_argument(
-        '--use-gsutil-for-s3', action='store_true',
-        help='Use gsutil CLI for direct trasnfer between S3 and GCS buckets. '
-             'Otherwise, such file transfer will stream through local machine. '
-             'Make sure that gsutil is installed on your system and it has access to '
-             'credentials for AWS (e.g. ~/.boto or ~/.aws/credentials).')
 
     # run, submit
     parent_submit = argparse.ArgumentParser(add_help=False)
@@ -323,6 +317,13 @@ def parse_caper_arguments():
              'environment variable SINGULARITY_CACHEDIR. '
              'Define it to prevent repeatedly building a singularity image '
              'for every pipeline task')
+    parent_submit.add_argument(
+        '--use-gsutil-for-s3', action='store_true',
+        help='Use gsutil CLI for direct trasnfer between S3 and GCS buckets. '
+             'Otherwise, such file transfer will stream through local machine. '
+             'Make sure that gsutil is installed on your system and it has access to '
+             'credentials for AWS (e.g. ~/.boto or ~/.aws/credentials).')
+
     # server
     parent_server = argparse.ArgumentParser(add_help=False)
     parent_server.add_argument(

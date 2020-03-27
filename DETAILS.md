@@ -173,6 +173,13 @@ We highly recommend to use a default configuration file described in the section
 	:-----|:-----|:-----|:-----
 	deepcopy-ext|--deepcopy-ext|json,<br>tsv|DEPRECATED. Caper defaults to use deepcopy for JSON, TSV and CSV.
 
+* Special parameter for a direct transfer between S3 and GCS buckets
+
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
+	:-----|:-----|:-----|:-----
+	use-gsutil-for-s3|--use-gsutil-for-s3|Use `gsutil` for direct transfer between S3 and GCS buckets. Otherwise Caper streams file transfer through local machine for S3 <-> GCS.
+
+
 * Local backend settings
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
@@ -197,7 +204,6 @@ We highly recommend to use a default configuration file described in the section
 	aws-region|--aws-region|AWS region (e.g. us-west-1)
 	out-s3-bucket|--out-s3-bucket|Output S3 bucket for AWS backend
 	tmp-s3-bucket|--tmp-s3-bucket|Tmp. S3 bucket for AWS backend
-	use-gsutil-for-s3|--use-gsutil-for-s3|Use `gsutil` for direct transfer between S3 and GCS buckets. Otherwise Caper streams file transfer through local machine.
 
 	DEPREACTED OLD PARAMETERS:
 
