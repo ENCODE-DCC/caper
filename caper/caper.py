@@ -544,7 +544,7 @@ class Caper(object):
         metadatas = []
         for f in self._wf_id_or_label:
             u = AutoURI(f)
-            if u.exists:
+            if u.is_valid and u.exists:
                 metadatas.append(AbsPath.localize(u))
             else:
                 wf_id_or_label.append(f)
@@ -1179,7 +1179,7 @@ class Caper(object):
 
                     if stderr is not None:
                         u = AutoURI(stderr)
-                        if u.exists:
+                        if u.is_valid and u.exists:
                             local_stderr_f = AbsPath.localize(u)
                             with open(local_stderr_f, 'r') as fp:
                                 stderr_contents = fp.read()
