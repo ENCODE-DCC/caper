@@ -134,19 +134,33 @@ class Caper(object):
         self._pbs_queue = args.get('pbs_queue')
         self._pbs_extra_param = args.get('pbs_extra_param')
 
-        self._backend_file = args.get('backend_file')
+        self._backend_file = AbsPath.get_abspath_if_exists(
+            args.get('backend_file'))
         self._soft_glob_output = args.get('soft_glob_output')
-        self._wdl = args.get('wdl')
-        self._inputs = args.get('inputs')
-        self._cromwell = args.get('cromwell')
-        self._workflow_opts = args.get('options')
+        self._wdl = AbsPath.get_abspath_if_exists(
+            args.get('wdl'))
+        self._inputs = AbsPath.get_abspath_if_exists(
+            args.get('inputs'))
+        self._cromwell = AbsPath.get_abspath_if_exists(
+            args.get('cromwell'))
+        self._workflow_opts = AbsPath.get_abspath_if_exists(
+            args.get('options'))
         self._str_label = args.get('str_label')
-        self._labels = args.get('labels')
-        self._imports = args.get('imports')
-        self._metadata_output = args.get('metadata_output')
+        self._labels = AbsPath.get_abspath_if_exists(
+            args.get('labels'))
+        self._imports = AbsPath.get_abspath_if_exists(
+            args.get('imports'))
         self._singularity_cachedir = args.get('singularity_cachedir')
         self._ignore_womtool = args.get('ignore_womtool')
-        self._womtool = args.get('womtool')
+        self._womtool = AbsPath.get_abspath_if_exists(
+            args.get('womtool'))
+
+        self._metadata_output = args.get('metadata_output')
+        if not AutoURI(self._metadata_output).is_valid:
+            # metadata output doesn't exist at this moment since it's an output
+            # so cannot use AbsPath.get_abspath_if_exists() here
+            # make it abspath if it's given as local relative path ($CWD/relpath)
+            self._metadata_output = os.path.abspath(self._metadata_output)
 
         # DB
         self._db = args.get('db')
