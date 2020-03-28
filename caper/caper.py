@@ -30,10 +30,12 @@ from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 from autouri import AutoURI, AbsPath, GCSURI, S3URI
 from autouri import logger as autouri_logger
+from tempfile import TemporaryDirectory
 from .dict_tool import merge_dict
 from .caper_args import parse_caper_arguments
 from .caper_init import init_caper_conf, install_cromwell_jar, install_womtool_jar
 
+from .caper_wdl_parser import CaperWDLParser
 from .caper_check import check_caper_conf
 from .cromwell_rest_api import CromwellRestAPI
 from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
@@ -54,9 +56,6 @@ class Caper(object):
     BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
     DEFAULT_BACKEND = BACKEND_LOCAL
     RE_PATTERN_BACKEND_CONF_HEADER = r'^\s*include\s'
-    RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CAPER\s+docker\s(.+)'
-    RE_PATTERN_WDL_COMMENT_SINGULARITY = \
-        r'^\s*\#\s*CAPER\s+singularity\s(.+)'
     RE_PATTERN_STARTED_WORKFLOW_ID = \
         r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
     RE_PATTERN_FINISHED_WORKFLOW_ID = \
@@ -65,7 +64,6 @@ class Caper(object):
         r'Cromwell \d+ service started on'
     RE_PATTERN_WORKFLOW_ID = \
         r'\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b'
-    RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s+as\s+'
     RE_PATTERN_DELIMITER_GCP_ZONES = r',| '
     USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
 
@@ -241,20 +239,7 @@ class Caper(object):
         if imports_file is not None:
             cmd += ['-p', imports_file]
 
-        if not self._ignore_womtool:
-            # run womtool first to validate WDL and input JSON
-            cmd_womtool = ['java', '-Xmx512M', '-jar',
-                           install_womtool_jar(self._womtool),
-                           'validate', wdl,
-                           '-i', input_file]
-            try:
-                logger.info('Validating WDL/input JSON with womtool...')
-                check_call(cmd_womtool)
-            except CalledProcessError as e:
-                logger.error('Womtool: WDL or input JSON is invalid '
-                             'or input JSON doesn\'t exist.')
-                rc = e.returncode
-                sys.exit(rc)
+        self.__validate_with_womtool(wdl, input_file, imports_file)
 
         logger.info('cmd: {cmd}'.format(cmd=cmd))
         if self._dry_run:
@@ -417,19 +402,7 @@ class Caper(object):
         on_hold = self._hold if self._hold is not None else False
         wdl = AbsPath.localize(self._wdl)
 
-        # run womtool first to validate WDL and input JSON
-        if not self._ignore_womtool:
-            cmd_womtool = ['java', '-Xmx512M', '-jar',
-                           install_womtool_jar(self._womtool),
-                           'validate', wdl,
-                           '-i', input_file]
-            try:
-                logger.info('Validating WDL/input JSON with womtool...')
-                check_call(cmd_womtool)
-            except CalledProcessError as e:
-                logger.error('Womtool: WDL or input JSON is invalid.')
-                rc = e.returncode
-                sys.exit(rc)
+        self.__validate_with_womtool(wdl, input_file, imports_file)
 
         if self._dry_run:
             return -1
@@ -555,6 +528,27 @@ class Caper(object):
 
         for metadata in metadatas:
             Caper.__troubleshoot(metadata, self._show_completed_task)
+
+    def __validate_with_womtool(self, wdl, input_file, imports):
+        if not self._ignore_womtool:
+            with TemporaryDirectory() as tmp_d:
+                # copy WDL to temp dir and unpack imports.zip (sub WDLs) if exists
+                wdl_copy = os.path.join(tmp_d, AutoURI(self._wdl).basename)
+                AutoURI(wdl).cp(wdl_copy)
+                if imports:
+                    shutil.unpack_archive(imports, tmp_d)
+                cmd_womtool = ['java', '-Xmx512M', '-jar', '-DLOG_LEVEL=INFO',
+                               install_womtool_jar(self._womtool),
+                               'validate', wdl,
+                               '-i', input_file]
+                try:
+                    logger.info('Validating WDL/input JSON with womtool...')
+                    check_call(cmd_womtool)
+                except CalledProcessError as e:
+                    logger.error('Womtool: WDL or input JSON is invalid '
+                                 'or input JSON doesn\'t exist.')
+                    rc = e.returncode
+                    sys.exit(rc)
 
     def __init_cromwell_rest_api(self, action, ip, port,
                                  no_server_hearbeat,
@@ -765,7 +759,7 @@ class Caper(object):
         if self._use_docker or self._backend in (BACKEND_GCP, BACKEND_AWS):
             if self._docker is None:
                 # find docker from WDL or command line args
-                docker = self.__find_docker_from_wdl()
+                docker = CaperWDLParser(self._wdl).find_docker()
             else:
                 docker = self._docker
             if docker is None:
@@ -776,10 +770,12 @@ class Caper(object):
         if self._use_singularity:
             if self._singularity is None:
                 # find singularity from WDL or command line args
-                singularity = self.__find_singularity_from_wdl()
+                singularity = CaperWDLParser(self._wdl).find_singularity()
             else:
                 singularity = self._singularity
-            assert(singularity is not None)
+            if singularity is None:
+                raise ValueError('Singularity image is not defined either '
+                                 'in WDL nor in --singularity.')
             # build singularity image before running a pipeline
             self.__build_singularity_image(singularity)
 
@@ -849,34 +845,10 @@ class Caper(object):
         if self._imports is not None:
             return AbsPath.localize(self._imports)
 
-        imports = self.__find_val_from_wdl(Caper.RE_PATTERN_WDL_IMPORT)
-        if imports is None:
-            return None
-
-        zip_tmp_dir = os.path.join(directory, 'imports_zip_tmp_dir')
-
-        files_to_zip = []
-        for imp in imports:
-            # ignore imports as HTTP URL or absolute PATH
-            if AbsPath(imp).is_valid or not os.path.isabs(imp):
-                files_to_zip.append(imp)
-                # download imports relative to WDL (which can exists remotely)
-                wdl_dirname = os.path.dirname(self._wdl)
-                # download file to tmp_dir
-                f = AbsPath.localize(os.path.join(wdl_dirname, imp))
-                target_f = os.path.join(zip_tmp_dir, imp)
-                target_dirname = os.path.dirname(target_f)
-                os.makedirs(target_dirname, exist_ok=True)
-                shutil.copyfile(f, target_f)
-
-        if len(files_to_zip) == 0:
-            return None
-
-        imports_file = os.path.join(directory, fname)
-        imports_file_wo_ext, ext = os.path.splitext(imports_file)
-        shutil.make_archive(imports_file_wo_ext, 'zip', zip_tmp_dir)
-        shutil.rmtree(zip_tmp_dir)
-        return imports_file
+        zip_file = os.path.join(directory, fname)
+        if CaperWDLParser(self._wdl).zip_subworkflows(zip_file):
+            return zip_file
+        return None
 
     def __create_backend_conf_file(
             self, directory, fname=TMP_FILE_BASENAME_BACKEND_CONF):
@@ -1039,28 +1011,6 @@ class Caper(object):
             return os.path.basename(wdl)
         else:
             return None
-
-    def __find_docker_from_wdl(self):
-        r = self.__find_val_from_wdl(
-            Caper.RE_PATTERN_WDL_COMMENT_DOCKER)
-        return r[0] if len(r) > 0 else None
-
-    def __find_singularity_from_wdl(self):
-        r = self.__find_val_from_wdl(
-            Caper.RE_PATTERN_WDL_COMMENT_SINGULARITY)
-        return r[0] if len(r) > 0 else None
-
-    def __find_val_from_wdl(self, regex_val):
-        result = []
-        if self._wdl is not None:
-            with open(AbsPath.localize(self._wdl), 'r') as fp:
-                for line in fp.readlines():
-                    r = re.findall(regex_val, line)
-                    if len(r) > 0:
-                        ret = r[0].strip()
-                        if len(ret) > 0:
-                            result.append(ret)
-        return result
 
     def __mkdir_tmp_dir(self, suffix=''):
         """Create a temporary directory (self._tmp_dir/suffix)
