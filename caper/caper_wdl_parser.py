@@ -79,7 +79,7 @@ class CaperWDLParser(object):
         Sub-WDLs imported as relative path simply inherit parent's directory.
         Sub-WDLs imported as URL does not inherit parent's directory but root 
         WDL's directory.
-        Sub-WDLs imported as absolut path are not allowed. This can work with "caper run"
+        Sub-WDLs imported as absolute path are not allowed. This can work with "caper run"
         but not with "caper submit" (or Cromwell submit).
 
         Args:
