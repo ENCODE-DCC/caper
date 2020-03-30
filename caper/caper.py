@@ -217,7 +217,11 @@ class Caper(object):
         workflow_opts_file = self.__create_workflow_opts_json_file(
             input_file, tmp_dir)
         labels_file = self.__create_labels_json_file(tmp_dir)
-        imports_file = self.__create_imports_zip_file_from_wdl(tmp_dir)
+
+        if self._imports is not None:
+            imports_file = AbsPath.localize(self._imports)
+        else:
+            imports_file = None
         wdl = AbsPath.localize(self._wdl)
 
         # metadata JSON file is an output from Cromwell
@@ -395,7 +399,10 @@ class Caper(object):
 
         # all input files
         input_file = self.__create_input_json_file(tmp_dir)
-        imports_file = self.__create_imports_zip_file_from_wdl(tmp_dir)
+        if self._imports is not None:
+            imports_file = AbsPath.localize(self._imports)
+        else:
+            imports_file = self.__create_imports_zip_file_from_wdl(tmp_dir)
         workflow_opts_file = self.__create_workflow_opts_json_file(
             input_file, tmp_dir)
         labels_file = self.__create_labels_json_file(tmp_dir)
@@ -403,6 +410,16 @@ class Caper(object):
         wdl = AbsPath.localize(self._wdl)
 
         self.__validate_with_womtool(wdl, input_file, imports_file)
+
+        logger.debug(
+            'submit params: wdl={w}, imports_f={imp}, input_f={i}, '
+            'opt_f={o}, labels_f={l}, on_hold={on_hold}'.format(
+                w=wdl,
+                imp=imports_file,
+                i=input_file,
+                o=workflow_opts_file,
+                l=labels_file,
+                on_hold=on_hold))
 
         if self._dry_run:
             return -1
@@ -532,14 +549,16 @@ class Caper(object):
     def __validate_with_womtool(self, wdl, input_file, imports):
         if not self._ignore_womtool:
             with TemporaryDirectory() as tmp_d:
-                # copy WDL to temp dir and unpack imports.zip (sub WDLs) if exists
-                wdl_copy = os.path.join(tmp_d, AutoURI(self._wdl).basename)
-                AutoURI(wdl).cp(wdl_copy)
                 if imports:
+                    # copy WDL to temp dir and unpack imports.zip (sub WDLs) if exists
+                    wdl_copy = os.path.join(tmp_d, AutoURI(self._wdl).basename)
+                    AutoURI(wdl).cp(wdl_copy)
                     shutil.unpack_archive(imports, tmp_d)
+                else:
+                    wdl_copy = wdl
                 cmd_womtool = ['java', '-Xmx512M', '-jar', '-DLOG_LEVEL=INFO',
                                install_womtool_jar(self._womtool),
-                               'validate', wdl,
+                               'validate', wdl_copy,
                                '-i', input_file]
                 try:
                     logger.info('Validating WDL/input JSON with womtool...')
@@ -842,9 +861,6 @@ class Caper(object):
 
     def __create_imports_zip_file_from_wdl(
             self, directory, fname=TMP_FILE_BASENAME_IMPORTS_ZIP):
-        if self._imports is not None:
-            return AbsPath.localize(self._imports)
-
         zip_file = os.path.join(directory, fname)
         if CaperWDLParser(self._wdl).zip_subworkflows(zip_file):
             return zip_file
