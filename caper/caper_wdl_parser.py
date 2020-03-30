@@ -125,7 +125,7 @@ class CaperWDLParser(object):
                             main=self._wdl, sub=sub_rel_to_parent, i=imported_as_url))
                 print(sub_abs, main_wdl_dir, root_wdl_dir)
                 if not sub_abs.startswith(root_wdl_dir):
-                    raise FileNotFoundError(
+                    raise ValueError(
                         'Sub WDL exists but it is out of root WDL directory. '
                         'Too many "../" in your sub WDL? '
                         'Or main WDL is imported as an URL but sub WDL '
