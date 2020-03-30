@@ -164,9 +164,21 @@ We highly recommend to use a default configuration file described in the section
 	backend|-b, --backend|local|Caper's built-in backend to run a workflow. Supported backends: `local`, `gcp`, `aws`, `slurm`, `sge` and `pbs`. Make sure to configure for chosen backend
 	hold|--hold| |Put a hold on a workflow when submitted to a Cromwell server
 	no-deepcopy|--no-deepcopy| |Disable deepcopy (copying files defined in an input JSON to corresponding file local/remote storage)
-	deepcopy-ext|--deepcopy-ext|json,<br>tsv|Comma-separated list of file extensions to be deepcopied. Supported exts: .json, .tsv  and .csv.
 	format|--format, -f|id,status,<br>name,<br>str_label,<br>submission|Comma-separated list of items to be shown for `list` subcommand. Supported formats: `id` (workflow UUID), `status`, `name` (WDL basename), `str\_label` (Caper's special string label), `submission`, `start`, `end`
 	hide-result-before|--hide-result-before| | Datetime string to hide old workflows submitted before it. This is based on a simple string sorting. (e.g. 2019-06-13, 2019-06-13T10:07)
+
+	DEPRECATED OLD PARAMETERS:
+
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
+	:-----|:-----|:-----|:-----
+	deepcopy-ext|--deepcopy-ext|json,<br>tsv|DEPRECATED. Caper defaults to use deepcopy for JSON, TSV and CSV.
+
+* Special parameter for a direct transfer between S3 and GCS buckets
+
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
+	:-----|:-----|:-----|:-----
+	use-gsutil-for-s3|--use-gsutil-for-s3|Use `gsutil` for direct transfer between S3 and GCS buckets. Otherwise Caper streams file transfer through local machine for S3 <-> GCS.
+
 
 * Local backend settings
 
@@ -192,17 +204,23 @@ We highly recommend to use a default configuration file described in the section
 	aws-region|--aws-region|AWS region (e.g. us-west-1)
 	out-s3-bucket|--out-s3-bucket|Output S3 bucket for AWS backend
 	tmp-s3-bucket|--tmp-s3-bucket|Tmp. S3 bucket for AWS backend
-	use-gsutil-over-aws-s3|--use-gsutil-over-aws-s3|Use `gsutil` instead of `aws s3` even for S3 buckets
 
-* Private URLs settings. This is useful, particularly for [ENCODE portal](https://www.encodeproject.org/), to use private URLs (`http(s)://`) in your input JSON.
-
-> **SERCURITY WARNING**: We recommend to use `--use-netrc` instead of `--http-user` and `--http-password` since the latter can be exposed in a command line visible by other users on the system with `ps` command. Keep your `~/.netrc` secure.
+	DEPREACTED OLD PARAMETERS:
 
 	**Conf. file**|**Cmd. line**|**Description**
 	:-----|:-----|:-----
-	http-user|--http-user|NOT SECURE. HTTP Auth username to download data from private URLs
-	http-password|--http-password|NOT SECURE. HTTP Auth password to download data from private URLs
-	use-netrc|--use-netrc|RECOMMENDED: Use ~/.netrc
+	use-gsutil-over-aws-s3|--use-gsutil-over-aws-s3|DEPREACTED.
+
+* Private URLs settings
+	Caper defaults to use `~/.netrc` file to get access to private URLs. This is useful, particularly for [ENCODE portal](https://www.encodeproject.org/), for using private URLs (`http(s)://`) directly in your input JSON.
+
+	DEPREACTED OLD PARAMETERS.
+
+	**Conf. file**|**Cmd. line**|**Description**
+	:-----|:-----|:-----
+	http-user|--http-user|DEPRECATED
+	http-password|--http-password|DEPRECATED
+	use-netrc|--use-netrc|DEPRECATED
 
 * MySQL settings. Run a MySQL server with [shell scripts](/mysql) we provide and make Cromwell server connect to it instead of using its in-memory database. This is useful when you need to re-use outputs from previous failed workflows when you resume them.
 

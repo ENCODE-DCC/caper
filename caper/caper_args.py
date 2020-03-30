@@ -139,6 +139,12 @@ def parse_caper_arguments():
         action='store_true',
         help='Caper does not take any action.')
 
+    group_log_level = parent_all.add_mutually_exclusive_group()
+    group_log_level.add_argument('-V', '--verbose', action='store_true',
+                   help='Prints all logs >= INFO level')
+    group_log_level.add_argument('-D', '--debug', action='store_true',
+                   help='Prints all logs >= DEBUG level')
+
     # run, server, submit
     parent_backend = argparse.ArgumentParser(add_help=False)
     parent_backend.add_argument(
@@ -274,31 +280,6 @@ def parse_caper_arguments():
         '--out-s3-bucket', help='Output S3 bucket for AWS backend')
     group_aws.add_argument(
         '--tmp-s3-bucket', help='Temporary S3 bucket for AWS backend')
-    group_aws.add_argument(
-        '--use-gsutil-over-aws-s3', action='store_true',
-        help='Use gsutil instead of aws s3 CLI even for S3 buckets.')
-
-    parent_http_auth = argparse.ArgumentParser(add_help=False)
-    group_http = parent_http_auth.add_argument_group(
-        title='HTTP/HTTPS authentication arguments')
-    group_http.add_argument(
-        '--http-user',
-        help='Username to download data from private URLs. '
-             'SECURITY WARNING: '
-             'Your username will be exposed in a command line so that '
-             'other users on your system can see it with "ps" command.')
-    group_http.add_argument(
-        '--http-password',
-        help='Password to to download data from private URLs. '
-             'SECURITY WARNING: '
-             'Your password will be exposed in a command line so that '
-             'other users on your system can see it with "ps" command.')
-    group_http.add_argument(
-        '--use-netrc', action='store_true',
-        help='RECOMMENDED: Use ~/.netrc for HTTP/HTTPS authentication. '
-             'See details about how to make a ~/.netrc file at '
-             'https://github.com/bagder/everything-curl/blob/master/'
-             'usingcurl-netrc.md')
 
     # run, submit
     parent_submit = argparse.ArgumentParser(add_help=False)
@@ -336,6 +317,13 @@ def parse_caper_arguments():
              'environment variable SINGULARITY_CACHEDIR. '
              'Define it to prevent repeatedly building a singularity image '
              'for every pipeline task')
+    parent_submit.add_argument(
+        '--use-gsutil-for-s3', action='store_true',
+        help='Use gsutil CLI for direct trasnfer between S3 and GCS buckets. '
+             'Otherwise, such file transfer will stream through local machine. '
+             'Make sure that gsutil is installed on your system and it has access to '
+             'credentials for AWS (e.g. ~/.boto or ~/.aws/credentials).')
+
     # server
     parent_server = argparse.ArgumentParser(add_help=False)
     parent_server.add_argument(
@@ -362,9 +350,6 @@ def parse_caper_arguments():
              'and make copies of files on a local/remote storage '
              'for a target backend. Make sure that you have installed '
              'gsutil for GCS and aws for S3.')
-    parent_submit.add_argument(
-        '--deepcopy-ext', default=DEFAULT_DEEPCOPY_EXT,
-        help='Comma-separated list of file extensions to be deepcopied')
     parent_submit.add_argument(
         '--ignore-womtool', action='store_true',
         help='Ignore warnings from womtool.jar.')
@@ -484,16 +469,15 @@ def parse_caper_arguments():
         parents=[parent_init])
     p_run = subparser.add_parser(
         'run', help='Run a single workflow without server',
-        parents=[parent_all, parent_submit, parent_run, parent_host, parent_backend,
-                 parent_http_auth])
+        parents=[parent_all, parent_submit, parent_run, parent_host, parent_backend])
     p_server = subparser.add_parser(
         'server', help='Run a Cromwell server',
         parents=[parent_all, parent_server_client, parent_server, parent_host,
-                 parent_backend, parent_http_auth])
+                 parent_backend])
     p_submit = subparser.add_parser(
         'submit', help='Submit a workflow to a Cromwell server',
         parents=[parent_all, parent_server_client, parent_submit,
-                 parent_backend, parent_http_auth])
+                 parent_backend])
     p_abort = subparser.add_parser(
         'abort', help='Abort running/pending workflows on a Cromwell server',
         parents=[parent_all, parent_server_client, parent_search_wf])
@@ -512,13 +496,11 @@ def parse_caper_arguments():
         'troubleshoot',
         help='Troubleshoot workflow problems from metadata JSON file or '
              'workflow IDs',
-        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf,
-                 parent_http_auth])
+        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf])
     p_debug = subparser.add_parser(
         'debug',
         help='Identical to "troubleshoot"',
-        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf,
-                 parent_http_auth])
+        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf])
 
     for p in [p_init, p_run, p_server, p_submit, p_abort, p_unhold, p_list,
               p_metadata, p_troubleshoot, p_debug]:
@@ -539,12 +521,11 @@ def parse_caper_arguments():
         'no_server_heartbeat',
         'disable_call_caching',
         'soft_glob_output',
-        'use_gsutil_over_aws_s3',
         'hold',
         'no_deepcopy',
         'ignore_womtool',
         'no_build_singularity',
-        'use_netrc',
+        'use_gsutil_for_s3',
         'show_completed_task']:
         v = args_d.get(k)
         if v is not None and isinstance(v, str):
