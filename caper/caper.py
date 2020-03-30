@@ -409,8 +409,6 @@ class Caper(object):
         on_hold = self._hold if self._hold is not None else False
         wdl = AbsPath.localize(self._wdl)
 
-        self.__validate_with_womtool(wdl, input_file, imports_file)
-
         logger.debug(
             'submit params: wdl={w}, imports_f={imp}, input_f={i}, '
             'opt_f={o}, labels_f={l}, on_hold={on_hold}'.format(
@@ -420,6 +418,8 @@ class Caper(object):
                 o=workflow_opts_file,
                 l=labels_file,
                 on_hold=on_hold))
+
+        self.__validate_with_womtool(wdl, input_file, imports_file)
 
         if self._dry_run:
             return -1

@@ -65,8 +65,11 @@ class CaperWDLParser(object):
             return num_sub_wf_packed
 
     def __recurse_subworkflow(
-        self, root_wdl_dir=None, imported_as_url=False,
-        parent_rel_to_root_wdl_dir='', root_zip_dir=None, depth=0):
+        self,
+        root_zip_dir=None,
+        root_wdl_dir=None,
+        imported_as_url=False,
+        depth=0):
         """Recurse imported sub-WDLs in main-WDL.
 
         Unlike Cromwell, Womtool does not take imports.zip while validating WDLs.
@@ -106,7 +109,6 @@ class CaperWDLParser(object):
 
             if isinstance(u_sub, HTTPURL):
                 sub_abs = u_sub.uri
-                sub_rel_to_parent = ''
                 imported_as_url_sub = True
             elif isinstance(u_sub, AbsPath):
                 raise ValueError(
@@ -133,15 +135,16 @@ class CaperWDLParser(object):
                             main=self._wdl, sub=sub_rel_to_parent, i=imported_as_url))
 
                 # make a copy on zip_dir
-                rel_path= os.path.relpath(sub_abs, main_wdl_dir)
+                rel_path = os.path.relpath(sub_abs, root_wdl_dir)
                 cp_dest = os.path.join(root_zip_dir, rel_path)
+
                 u_sub_abs.cp(cp_dest)
                 num_sub_wf_packed += 1
                 imported_as_url_sub = False
 
             num_sub_wf_packed += CaperWDLParser(sub_abs).__recurse_subworkflow(
+                root_zip_dir=root_zip_dir,
                 root_wdl_dir=root_wdl_dir,
                 imported_as_url=imported_as_url_sub,
-                parent_rel_to_root_wdl_dir=os.path.dirname(sub_rel_to_parent),
-                root_zip_dir=root_zip_dir, depth=depth + 1)
+                depth=depth + 1)
         return num_sub_wf_packed
