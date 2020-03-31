@@ -18,6 +18,7 @@ Author:
 from pyhocon import ConfigFactory, HOCONConverter
 import os
 import sys
+import logging
 import pwd
 import json
 import re
@@ -27,20 +28,25 @@ from threading import Thread
 import shutil
 from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
-
+from autouri import AutoURI, AbsPath, GCSURI, S3URI
+from autouri import logger as autouri_logger
+from tempfile import TemporaryDirectory
 from .dict_tool import merge_dict
 from .caper_args import parse_caper_arguments
 from .caper_init import init_caper_conf, install_cromwell_jar, install_womtool_jar
 
+from .caper_wdl_parser import CaperWDLParser
 from .caper_check import check_caper_conf
 from .cromwell_rest_api import CromwellRestAPI
-from .caper_uri import URI_S3, URI_GCS, URI_LOCAL, \
-    init_caper_uri, CaperURI
 from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CaperBackendCommon, CaperBackendDatabase, CaperBackendGCP, \
     CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
     CaperBackendSGE, CaperBackendPBS
 from .caper_backend import CaperBackendBase, CaperBackendBaseLocal
+
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s|%(name)s|%(levelname)s| %(message)s')
+logger = logging.getLogger('caper')
 
 
 class Caper(object):
@@ -50,9 +56,6 @@ class Caper(object):
     BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
     DEFAULT_BACKEND = BACKEND_LOCAL
     RE_PATTERN_BACKEND_CONF_HEADER = r'^\s*include\s'
-    RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CAPER\s+docker\s(.+)'
-    RE_PATTERN_WDL_COMMENT_SINGULARITY = \
-        r'^\s*\#\s*CAPER\s+singularity\s(.+)'
     RE_PATTERN_STARTED_WORKFLOW_ID = \
         r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
     RE_PATTERN_FINISHED_WORKFLOW_ID = \
@@ -61,7 +64,6 @@ class Caper(object):
         r'Cromwell \d+ service started on'
     RE_PATTERN_WORKFLOW_ID = \
         r'\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b'
-    RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s+as\s+'
     RE_PATTERN_DELIMITER_GCP_ZONES = r',| '
     USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
 
@@ -130,19 +132,33 @@ class Caper(object):
         self._pbs_queue = args.get('pbs_queue')
         self._pbs_extra_param = args.get('pbs_extra_param')
 
-        self._backend_file = args.get('backend_file')
+        self._backend_file = AbsPath.get_abspath_if_exists(
+            args.get('backend_file'))
         self._soft_glob_output = args.get('soft_glob_output')
-        self._wdl = args.get('wdl')
-        self._inputs = args.get('inputs')
-        self._cromwell = args.get('cromwell')
-        self._workflow_opts = args.get('options')
+        self._wdl = AbsPath.get_abspath_if_exists(
+            args.get('wdl'))
+        self._inputs = AbsPath.get_abspath_if_exists(
+            args.get('inputs'))
+        self._cromwell = AbsPath.get_abspath_if_exists(
+            args.get('cromwell'))
+        self._workflow_opts = AbsPath.get_abspath_if_exists(
+            args.get('options'))
         self._str_label = args.get('str_label')
-        self._labels = args.get('labels')
-        self._imports = args.get('imports')
-        self._metadata_output = args.get('metadata_output')
+        self._labels = AbsPath.get_abspath_if_exists(
+            args.get('labels'))
+        self._imports = AbsPath.get_abspath_if_exists(
+            args.get('imports'))
         self._singularity_cachedir = args.get('singularity_cachedir')
         self._ignore_womtool = args.get('ignore_womtool')
-        self._womtool = args.get('womtool')
+        self._womtool = AbsPath.get_abspath_if_exists(
+            args.get('womtool'))
+
+        self._metadata_output = args.get('metadata_output')
+        if self._metadata_output is not None and not AutoURI(self._metadata_output).is_valid:
+            # metadata output doesn't exist at this moment since it's an output
+            # so cannot use AbsPath.get_abspath_if_exists() here
+            # make it abspath if it's given as local relative path ($CWD/relpath)
+            self._metadata_output = os.path.abspath(self._metadata_output)
 
         # DB
         self._db = args.get('db')
@@ -174,10 +190,6 @@ class Caper(object):
 
         # deepcopy
         self._no_deepcopy = args.get('no_deepcopy')
-        self._deepcopy_ext = args.get('deepcopy_ext')
-        if self._deepcopy_ext is not None:
-            self._deepcopy_ext = [
-                '.'+ext for ext in self._deepcopy_ext.split(',')]
 
         # containers
         self._no_build_singularity = args.get('no_build_singularity')
@@ -205,7 +217,12 @@ class Caper(object):
         workflow_opts_file = self.__create_workflow_opts_json_file(
             input_file, tmp_dir)
         labels_file = self.__create_labels_json_file(tmp_dir)
-        imports_file = self.__create_imports_zip_file_from_wdl(tmp_dir)
+
+        if self._imports is not None:
+            imports_file = AbsPath.localize(self._imports)
+        else:
+            imports_file = None
+        wdl = AbsPath.localize(self._wdl)
 
         # metadata JSON file is an output from Cromwell
         #   place it on the tmp dir
@@ -218,7 +235,7 @@ class Caper(object):
                '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
                install_cromwell_jar(self._cromwell), 'run',
-               CaperURI(self._wdl).get_local_file(),
+               wdl,
                '-i', input_file,
                '-o', workflow_opts_file,
                '-l', labels_file,
@@ -226,22 +243,9 @@ class Caper(object):
         if imports_file is not None:
             cmd += ['-p', imports_file]
 
-        if not self._ignore_womtool:
-            # run womtool first to validate WDL and input JSON
-            cmd_womtool = ['java', '-Xmx512M', '-jar',
-                           install_womtool_jar(self._womtool),
-                           'validate', CaperURI(self._wdl).get_local_file(),
-                           '-i', input_file]
-            try:
-                print("[Caper] Validating WDL/input JSON with womtool...")
-                check_call(cmd_womtool)
-            except CalledProcessError as e:
-                print("[Caper] Error (womtool): WDL or input JSON is invalid "
-                      "or input JSON doesn't exist.")
-                rc = e.returncode
-                sys.exit(rc)
+        self.__validate_with_womtool(wdl, input_file, imports_file)
 
-        print('[Caper] cmd: ', cmd)
+        logger.info('cmd: {cmd}'.format(cmd=cmd))
         if self._dry_run:
             return -1
         try:
@@ -267,7 +271,7 @@ class Caper(object):
         except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
-            print(Caper.USER_INTERRUPT_WARNING)
+            logger.error(Caper.USER_INTERRUPT_WARNING)
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
                 print(stdout)
@@ -287,10 +291,12 @@ class Caper(object):
         # troubleshoot if metadata is available
         if metadata_uri is not None:
             Caper.__troubleshoot(
-                CaperURI(metadata_uri).get_local_file(),
+                AbsPath.localize(metadata_uri),
                 self._show_completed_task)
 
-        print('[Caper] run: ', rc, workflow_id, metadata_uri)
+        logger.info(
+            'run: {rc}, {wf_id}, {m}'.format(
+                rc=rc, wf_id=workflow_id, m=metadata_uri))
         return workflow_id
 
     def server(self):
@@ -313,7 +319,7 @@ class Caper(object):
                '-DLOG_MODE=standard',
                '-jar', '-Dconfig.file={}'.format(backend_file),
                install_cromwell_jar(self._cromwell), 'server']
-        print('[Caper] cmd: ', cmd)
+        logger.info('cmd: {cmd}'.format(cmd=cmd))
 
         # pending/running workflows
         started_wf_ids = set()
@@ -370,14 +376,16 @@ class Caper(object):
         except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
-            print(Caper.USER_INTERRUPT_WARNING)
+            logger.error(Caper.USER_INTERRUPT_WARNING)
             while p.poll() is None:
                 stdout = p.stdout.readline().strip('\n')
                 print(stdout)
         time.sleep(1)
         self._stop_heartbeat_thread = True
         t_heartbeat.join()
-        print('[Caper] server: ', rc, started_wf_ids, finished_wf_ids)
+        logger.info(
+            'server: {rc}, {s_wf_ids}, {f_wf_ids}'.format(
+                rc=rc, s_wf_ids=started_wf_ids, f_wf_ids=finished_wf_ids))
         return rc
 
     def submit(self):
@@ -391,36 +399,38 @@ class Caper(object):
 
         # all input files
         input_file = self.__create_input_json_file(tmp_dir)
-        imports_file = self.__create_imports_zip_file_from_wdl(tmp_dir)
+        if self._imports is not None:
+            imports_file = AbsPath.localize(self._imports)
+        else:
+            imports_file = self.__create_imports_zip_file_from_wdl(tmp_dir)
         workflow_opts_file = self.__create_workflow_opts_json_file(
             input_file, tmp_dir)
         labels_file = self.__create_labels_json_file(tmp_dir)
         on_hold = self._hold if self._hold is not None else False
+        wdl = AbsPath.localize(self._wdl)
 
-        # run womtool first to validate WDL and input JSON
-        if not self._ignore_womtool:
-            cmd_womtool = ['java', '-Xmx512M', '-jar',
-                           install_womtool_jar(self._womtool),
-                           'validate', CaperURI(self._wdl).get_local_file(),
-                           '-i', input_file]
-            try:
-                print("[Caper] Validating WDL/input JSON with womtool...")
-                check_call(cmd_womtool)
-            except CalledProcessError as e:
-                print("[Caper] Error (womtool): WDL or input JSON is invalid.")
-                rc = e.returncode
-                sys.exit(rc)
+        logger.debug(
+            'submit params: wdl={w}, imports_f={imp}, input_f={i}, '
+            'opt_f={o}, labels_f={l}, on_hold={on_hold}'.format(
+                w=wdl,
+                imp=imports_file,
+                i=input_file,
+                o=workflow_opts_file,
+                l=labels_file,
+                on_hold=on_hold))
+
+        self.__validate_with_womtool(wdl, input_file, imports_file)
 
         if self._dry_run:
             return -1
         r = self._cromwell_rest_api.submit(
-            source=CaperURI(self._wdl).get_local_file(),
+            source=wdl,
             dependencies=imports_file,
             inputs_file=input_file,
             options_file=workflow_opts_file,
             labels_file=labels_file,
             on_hold=on_hold)
-        print("[Caper] submit: ", r)
+        logger.info('submit: {r}'.format(r=r))
         return r
 
     def abort(self):
@@ -432,7 +442,7 @@ class Caper(object):
                 self._wf_id_or_label,
                 [(Caper.KEY_CAPER_STR_LABEL, v)
                  for v in self._wf_id_or_label])
-        print("[Caper] abort: ", r)
+        logger.info('abort: {r}'.format(r=r))
         return r
 
     def unhold(self):
@@ -444,7 +454,7 @@ class Caper(object):
                 self._wf_id_or_label,
                 [(Caper.KEY_CAPER_STR_LABEL, v)
                  for v in self._wf_id_or_label])
-        print("[Caper] unhold: ", r)
+        logger.info('unhold: {r}'.format(r=r))
         return r
 
     def metadata(self, no_print=False):
@@ -523,9 +533,9 @@ class Caper(object):
         wf_id_or_label = []
         metadatas = []
         for f in self._wf_id_or_label:
-            cu = CaperURI(f)
-            if cu.file_exists():
-                metadatas.append(cu.get_local_file())
+            u = AutoURI(f)
+            if u.is_valid and u.exists:
+                metadatas.append(AbsPath.localize(u))
             else:
                 wf_id_or_label.append(f)
 
@@ -535,6 +545,29 @@ class Caper(object):
 
         for metadata in metadatas:
             Caper.__troubleshoot(metadata, self._show_completed_task)
+
+    def __validate_with_womtool(self, wdl, input_file, imports):
+        if not self._ignore_womtool:
+            with TemporaryDirectory() as tmp_d:
+                if imports:
+                    # copy WDL to temp dir and unpack imports.zip (sub WDLs) if exists
+                    wdl_copy = os.path.join(tmp_d, AutoURI(self._wdl).basename)
+                    AutoURI(wdl).cp(wdl_copy)
+                    shutil.unpack_archive(imports, tmp_d)
+                else:
+                    wdl_copy = wdl
+                cmd_womtool = ['java', '-Xmx512M', '-jar', '-DLOG_LEVEL=INFO',
+                               install_womtool_jar(self._womtool),
+                               'validate', wdl_copy,
+                               '-i', input_file]
+                try:
+                    logger.info('Validating WDL/input JSON with womtool...')
+                    check_call(cmd_womtool)
+                except CalledProcessError as e:
+                    logger.error('Womtool: WDL or input JSON is invalid '
+                                 'or input JSON doesn\'t exist.')
+                    rc = e.returncode
+                    sys.exit(rc)
 
     def __init_cromwell_rest_api(self, action, ip, port,
                                  no_server_hearbeat,
@@ -553,8 +586,6 @@ class Caper(object):
             self._server_hearbeat_file = os.path.expanduser(
                 self._server_hearbeat_file)
             if action != 'server':
-                # print('[Caper] Reading heartbeat file',
-                #       self._server_hearbeat_file)
                 try:
                     if os.path.exists(self._server_hearbeat_file):
                         f_time = os.path.getmtime(self._server_hearbeat_file)
@@ -562,24 +593,24 @@ class Caper(object):
                             with open(self._server_hearbeat_file, 'r') as fp:
                                 ip, port = fp.read().strip('\n').split(':')
                 except:
-                    print('[Caper] Warning: failed to read server_heartbeat_file',
-                          self._server_hearbeat_file)
+                    logger.warning(
+                        'Failed to read server_heartbeat_file: {f}'.format(
+                            f=self._server_hearbeat_file))
         return ip, port
 
     def __write_heartbeat_file(self):
         if not self._no_server_hearbeat and self._server_hearbeat_file is not None:
             while True:
                 try:
-                    print('[Caper] Writing heartbeat',
-                          socket.gethostname(), self._port)
+                    logger.info(
+                        'Writing heartbeat: {ip}, {port}'.format(
+                            ip=socket.gethostname(), port=self._port))
                     with open(self._server_hearbeat_file, 'w') as fp:
                         fp.write('{}:{}'.format(
                             socket.gethostname(),
                             self._port))
                 except Exception as e:
-                    print(e)
-                    print('[Caper] Warning: failed to write a '
-                          'heartbeat_file')
+                    logger.warning('Failed to write a heartbeat_file')
                 cnt = 0
                 while cnt < Caper.SEC_INTERVAL_UPDATE_SERVER_HEARTBEAT:
                     cnt += 1
@@ -611,11 +642,11 @@ class Caper(object):
                             backend=backend,
                             wdl=metadata['workflowName'])
                 except Exception as e:
-                    print('[Caper] Exception caught while retrieving '
-                          'metadata from Cromwell server. '
-                          'trial: {t}, wf_id: {wf_id}'.format(
-                            t=trial, wf_id=wf_id),
-                          str(e))
+                    logger.warning(
+                        '[Caper] Exception caught while retrieving '
+                        'metadata from Cromwell server. '
+                        'trial: {t}, wf_id: {wf_id}, e: {e}'.format(
+                            t=trial, wf_id=wf_id, e=str(e)))
                 break
 
     def __write_metadata_json(self, workflow_id, metadata_json,
@@ -645,7 +676,7 @@ class Caper(object):
             metadata_uri = os.path.join(
                 path, Caper.TMP_FILE_BASENAME_METADATA_JSON)
 
-        return CaperURI(metadata_uri).write_str_to_file(
+        return AutoURI(metadata_uri).write(
             json.dumps(metadata_json, indent=4))
 
     def __create_input_json_file(
@@ -654,23 +685,24 @@ class Caper(object):
         Deepcopy to a specified storage if required.
         """
         if self._inputs is not None:
-            # get a local copy first
-            new_uri = CaperURI(self._inputs).get_local_file()
-
-            if not self._no_deepcopy and self._deepcopy_ext:
+            if not self._no_deepcopy:
                 # deepcopy all files in JSON/TSV/CSV
                 #   to the target backend
                 if self._backend == BACKEND_GCP:
-                    uri_type = URI_GCS
+                    uri_cls = GCSURI
                 elif self._backend == BACKEND_AWS:
-                    uri_type = URI_S3
+                    uri_cls = S3URI
                 else:
-                    uri_type = URI_LOCAL
+                    uri_cls = AbsPath
 
-                new_uri, _ = CaperURI(new_uri).deepcopy(
-                    uri_type=uri_type, uri_exts=self._deepcopy_ext)
-
-            return CaperURI(new_uri).get_local_file()
+                new_uri = uri_cls.localize(
+                    self._inputs,
+                    recursive=True,
+                    make_md5_file=True)
+            else:
+                new_uri = self._inputs
+            # localize again on local
+            return AbsPath.localize(new_uri)
         else:
             input_file = os.path.join(directory, fname)
             with open(input_file, 'w') as fp:
@@ -682,7 +714,7 @@ class Caper(object):
         """Create labels JSON file
         """
         if self._labels is not None:
-            s = CaperURI(self._labels).get_file_contents()
+            s = AutoURI(self._labels).read()
             labels_dict = json.loads(s)
         else:
             labels_dict = {}
@@ -746,21 +778,23 @@ class Caper(object):
         if self._use_docker or self._backend in (BACKEND_GCP, BACKEND_AWS):
             if self._docker is None:
                 # find docker from WDL or command line args
-                docker = self.__find_docker_from_wdl()
+                docker = CaperWDLParser(self._wdl).find_docker()
             else:
                 docker = self._docker
             if docker is None:
-                print('[Caper] Warning: No docker image specified with --docker.')
+                logger.warning('No docker image specified with --docker.')
             else:
                 template['default_runtime_attributes']['docker'] = docker
 
         if self._use_singularity:
             if self._singularity is None:
                 # find singularity from WDL or command line args
-                singularity = self.__find_singularity_from_wdl()
+                singularity = CaperWDLParser(self._wdl).find_singularity()
             else:
                 singularity = self._singularity
-            assert(singularity is not None)
+            if singularity is None:
+                raise ValueError('Singularity image is not defined either '
+                                 'in WDL nor in --singularity.')
             # build singularity image before running a pipeline
             self.__build_singularity_image(singularity)
 
@@ -812,7 +846,7 @@ class Caper(object):
 
         # if workflow opts file is given by a user, merge it to template
         if self._workflow_opts is not None:
-            f = CaperURI(self._workflow_opts).get_local_file()
+            f = AbsPath.localize(self._workflow_opts)
             with open(f, 'r') as fp:
                 d = json.loads(fp.read())
                 merge_dict(template, d)
@@ -827,39 +861,10 @@ class Caper(object):
 
     def __create_imports_zip_file_from_wdl(
             self, directory, fname=TMP_FILE_BASENAME_IMPORTS_ZIP):
-        if self._imports is not None:
-            return CaperURI(self._imports).get_local_file()
-
-        imports = self.__find_val_from_wdl(Caper.RE_PATTERN_WDL_IMPORT)
-        if imports is None:
-            return None
-
-        zip_tmp_dir = os.path.join(directory, 'imports_zip_tmp_dir')
-
-        files_to_zip = []
-        for imp in imports:
-            # ignore imports as HTTP URL or absolute PATH
-            if CaperURI(imp).uri_type == URI_LOCAL \
-                    or not os.path.isabs(imp):
-                files_to_zip.append(imp)
-                # download imports relative to WDL (which can exists remotely)
-                wdl_dirname = os.path.dirname(self._wdl)
-                c_imp_ = CaperURI(os.path.join(wdl_dirname, imp))
-                # download file to tmp_dir
-                f = c_imp_.get_local_file()
-                target_f = os.path.join(zip_tmp_dir, imp)
-                target_dirname = os.path.dirname(target_f)
-                os.makedirs(target_dirname, exist_ok=True)
-                shutil.copyfile(f, target_f)
-
-        if len(files_to_zip) == 0:
-            return None
-
-        imports_file = os.path.join(directory, fname)
-        imports_file_wo_ext, ext = os.path.splitext(imports_file)
-        shutil.make_archive(imports_file_wo_ext, 'zip', zip_tmp_dir)
-        shutil.rmtree(zip_tmp_dir)
-        return imports_file
+        zip_file = os.path.join(directory, fname)
+        if CaperWDLParser(self._wdl).zip_subworkflows(zip_file):
+            return zip_file
+        return None
 
     def __create_backend_conf_file(
             self, directory, fname=TMP_FILE_BASENAME_BACKEND_CONF):
@@ -983,7 +988,7 @@ class Caper(object):
         if self._backend_file is not None:
             lines_wo_header = []
 
-            with open(CaperURI(self._backend_file).get_local_file(),
+            with open(AbsPath.localize(self._backend_file),
                       'r') as fp:
                 for line in fp.readlines():
                     # find header and exclude
@@ -1023,28 +1028,6 @@ class Caper(object):
         else:
             return None
 
-    def __find_docker_from_wdl(self):
-        r = self.__find_val_from_wdl(
-            Caper.RE_PATTERN_WDL_COMMENT_DOCKER)
-        return r[0] if len(r) > 0 else None
-
-    def __find_singularity_from_wdl(self):
-        r = self.__find_val_from_wdl(
-            Caper.RE_PATTERN_WDL_COMMENT_SINGULARITY)
-        return r[0] if len(r) > 0 else None
-
-    def __find_val_from_wdl(self, regex_val):
-        result = []
-        if self._wdl is not None:
-            with open(CaperURI(self._wdl).get_local_file(), 'r') as fp:
-                for line in fp.readlines():
-                    r = re.findall(regex_val, line)
-                    if len(r) > 0:
-                        ret = r[0].strip()
-                        if len(ret) > 0:
-                            result.append(ret)
-        return result
-
     def __mkdir_tmp_dir(self, suffix=''):
         """Create a temporary directory (self._tmp_dir/suffix)
         """
@@ -1059,8 +1042,9 @@ class Caper(object):
 
         elif self._backend is not None \
                 and self._backend not in (BACKEND_AWS, BACKEND_GCP):
-            print('[Caper] building local singularity image: ',
-                  singularity)
+            logger.info(
+                'Building local singularity image: {img}'.format(
+                    img=singularity))
             cmd = ['singularity', 'exec', singularity,
                    'echo', '[Caper] building done.']
             env = os.environ.copy()
@@ -1069,7 +1053,7 @@ class Caper(object):
                 env['SINGULARITY_CACHEDIR'] = self._singularity_cachedir
             return check_call(cmd, env=env)
 
-        print('[Caper] skip building local singularity image.')
+        logger.info('Skipped building local singularity image.')
         return None
 
     @staticmethod
@@ -1103,7 +1087,7 @@ class Caper(object):
         if isinstance(metadata_json, dict):
             metadata = metadata_json
         else:
-            f = CaperURI(metadata_json).get_local_file()
+            f = AbsPath.localize(metadata_json)
             with open(f, 'r') as fp:
                 metadata = json.loads(fp.read())
         if isinstance(metadata, list):
@@ -1111,16 +1095,16 @@ class Caper(object):
 
         workflow_id = metadata['id']
         workflow_status = metadata['status']
-        print('[Caper] troubleshooting {} ...'.format(workflow_id))
+        logger.info('Troubleshooting {wf_id} ...'.format(wf_id=workflow_id))
         if not show_completed_task and workflow_status == 'Succeeded':
-            print('This workflow ran successfully. '
-                  'There is nothing to troubleshoot')
+            logger.info(
+                'This workflow ran successfully. There is nothing to troubleshoot')
             return
 
         def recurse_calls(calls, failures=None, show_completed_task=False):
             if failures is not None:
                 s = json.dumps(failures, indent=4)
-                print('Found failures:\n{}'.format(s))
+                logger.info('Found failures:\n{s}'.format(s=s))
             for task_name, call_ in calls.items():
                 for call in call_:
                     # if it is a subworkflow, then recursively dive into it
@@ -1150,16 +1134,19 @@ class Caper(object):
                     if not show_completed_task and \
                             task_status in ('Done', 'Succeeded'):
                         continue
-                    print('\n{} {}. SHARD_IDX={}, RC={}, JOB_ID={}, '
-                          'RUN_START={}, RUN_END={}, '
-                          'STDOUT={}, STDERR={}'.format(
-                            task_name, task_status, shard_index, rc, job_id,
-                            run_start, run_end, stdout, stderr))
+                    print(
+                        '\n{tn} {ts}. SHARD_IDX={shard_id}, RC={rc}, JOB_ID={job_id}, '
+                        'RUN_START={start}, RUN_END={end}, '
+                        'STDOUT={stdout}, STDERR={stderr}'.format(
+                            tn=task_name, ts=task_status,
+                            shard_id=shard_index, rc=rc, job_id=job_id,
+                            start=run_start, end=run_end,
+                            stdout=stdout, stderr=stderr))
 
                     if stderr is not None:
-                        cu = CaperURI(stderr)
-                        if cu.file_exists():
-                            local_stderr_f = cu.get_local_file()
+                        u = AutoURI(stderr)
+                        if u.is_valid and u.exists:
+                            local_stderr_f = AbsPath.localize(u)
                             with open(local_stderr_f, 'r') as fp:
                                 stderr_contents = fp.read()
                             print('STDERR_CONTENTS=\n{}'.format(
@@ -1191,10 +1178,10 @@ class Caper(object):
                                            lst_idx=i)
             elif type(d) == str:
                 assert(d_parent is not None or lst is not None)
-                c = CaperURI(d)
+                u = AutoURI(d)
                 # local absolute path only
-                if c.uri_type == URI_LOCAL and c.is_valid_uri():
-                    dirname, basename = os.path.split(c.get_uri())
+                if isinstance(u, AbsPath) and u.is_valid:
+                    dirname, basename = os.path.split(u.uri)
                     result.add(dirname)
 
             return result
@@ -1246,17 +1233,27 @@ def main():
         sys.exit(0)
     args = check_caper_conf(args)
 
-    # init caper uri to transfer files across various storages
+    # init Autouri classes to transfer files across various storages
     #   e.g. gs:// to s3://, http:// to local, ...
-    init_caper_uri(
-        tmp_dir=args.get('tmp_dir'),
-        tmp_s3_bucket=args.get('tmp_s3_bucket'),
-        tmp_gcs_bucket=args.get('tmp_gcs_bucket'),
-        http_user=args.get('http_user'),
-        http_password=args.get('http_password'),
-        use_netrc=args.get('use_netrc'),
-        use_gsutil_over_aws_s3=args.get('use_gsutil_over_aws_s3'),
-        verbose=True)
+    # loc_prefix means prefix (root directory)
+    # for localizing files of different storages
+    AbsPath.init_abspath(
+        loc_prefix=args.get('tmp_dir')
+    )
+    GCSURI.init_gcsuri(
+        loc_prefix=args.get('tmp_gcs_bucket'),
+        use_gsutil_for_s3=args.get('use_gsutil_for_s3')
+    )
+    S3URI.init_s3uri(
+        loc_prefix=args.get('tmp_s3_bucket')
+    )
+    # init both loggers of Autouri and Caper
+    if args.get('verbose'):
+        autouri_logger.setLevel('INFO')
+        logger.setLevel('INFO')
+    elif args.get('debug'):
+        autouri_logger.setLevel('DEBUG')
+        logger.setLevel('DEBUG')
 
     # initialize caper: taking all args at init step
     c = Caper(args)

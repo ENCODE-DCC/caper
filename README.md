@@ -1,3 +1,13 @@
+> **CRITICAL**: Caper has been updated to use [Autouri](https://github.com/ENCODE-DCC/autouri) instead of its own localization module. If you are upgrading from old Caper < 0.8. Upgrade Caper with the following commands. If it doesn't work remove Caper `pip uninstall caper` and clean-install it `pip install caper`.
+```bash
+$ pip install caper --upgrade
+```
+
+> **IMPORTANT**: If you use `--use-gsutil-for-s3` then you need to update your `gsutil`. This flag allows a direct transfer between `gs://` and `s3://`. This requires `gsutil` >= 4.47. See this [issue](https://github.com/GoogleCloudPlatform/gsutil/issues/935) for details.
+```bash
+$ pip install gsutil --upgrade
+```
+
 **IMPORATNT**: A new flag `--soft-glob-output` is added to use soft-linking for globbing outputs. Use it for `caper server/run` (not for `caper submit`) on a filesystem that does not allow hard-linking: e.g. beeGFS.
 
 **IMPORATNT**: Caper defaults back to **NOT** use a file-based metadata DB, which means no call-caching (re-using outputs from previous workflows) by default.
