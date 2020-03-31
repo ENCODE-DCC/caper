@@ -12,7 +12,7 @@ class CaperWDLParser(object):
         #CAPER docker ubuntu:latest
     Find subworkflows and zip it.
     """
-    RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s+as\s+'    
+    RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s*'
     RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CAPER\s+docker\s(.+)'
     RE_PATTERN_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CAPER\s+singularity\s(.+)'
     RECURSION_DEPTH_LIMIT = 20
