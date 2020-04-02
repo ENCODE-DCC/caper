@@ -55,9 +55,16 @@ def check_caper_conf(args_d):
     # init some important path variables
     if args_d.get('out_dir') is None:
         args_d['out_dir'] = os.getcwd()
+    else:
+        args_d['out_dir'] = os.path.abspath(
+            os.path.expanduser(args_d['out_dir']))
 
     if args_d.get('tmp_dir') is None:
-        args_d['tmp_dir'] = os.path.join(args_d['out_dir'], DEFAULT_CAPER_TMP_DIR_SUFFIX)
+        args_d['tmp_dir'] = os.path.abspath(
+            os.path.join(args_d['out_dir'], DEFAULT_CAPER_TMP_DIR_SUFFIX))
+    else:
+        args_d['tmp_dir'] = os.path.abspath(
+            os.path.expanduser(args_d['tmp_dir']))
 
     if args_d.get('tmp_s3_bucket') is None:
         if args_d.get('out_s3_bucket'):
