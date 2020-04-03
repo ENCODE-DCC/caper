@@ -6,7 +6,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='caper',
-    version='0.8.1',
+    version='0.8.1.1',
     python_requires='>=3.6',
     scripts=['bin/caper', 'bin/run_mysql_server_docker.sh',
              'bin/run_mysql_server_singularity.sh'],
@@ -22,5 +22,5 @@ setuptools.setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: POSIX :: Linux',
     ],
-    install_requires=['pyhocon', 'requests', 'pyopenssl', 'autouri>=0.1.2']
+    install_requires=['pyhocon', 'requests', 'pyopenssl', 'autouri>=0.1.2.1']
 )
