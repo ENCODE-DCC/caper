@@ -22,5 +22,5 @@ setuptools.setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: POSIX :: Linux',
     ],
-    install_requires=['pyhocon', 'requests', 'pyopenssl', 'autouri>=0.1.2']
+    install_requires=['pyhocon', 'requests', 'pyopenssl', 'autouri>=0.1.2.1']
 )
