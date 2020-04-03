@@ -1,5 +1,4 @@
 import setuptools
-import pkg_resources
 
 
 with open('README.md', 'r') as fh:
@@ -7,7 +6,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='caper',
-    version=pkg_resources.get_distribution('caper').version,
+    version='0.8.1',
     python_requires='>=3.6',
     scripts=['bin/caper', 'bin/run_mysql_server_docker.sh',
              'bin/run_mysql_server_singularity.sh'],
