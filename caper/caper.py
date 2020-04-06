@@ -28,8 +28,9 @@ from threading import Thread
 import shutil
 from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
-from autouri import AutoURI, AbsPath, GCSURI, S3URI
+from autouri import AutoURI, AbsPath, GCSURI, S3URI, URIBase
 from autouri import logger as autouri_logger
+from autouri.loc_aux import recurse_json
 from tempfile import TemporaryDirectory
 from .dict_tool import merge_dict
 from .caper_args import parse_caper_arguments
@@ -1158,40 +1159,43 @@ class Caper(object):
 
     @staticmethod
     def __find_singularity_bindpath(input_json_file):
-        """Read input JSON file and find paths to be bound for singularity
-        by finding common roots for all files in input JSON file
+        """Find paths to be bound for singularity
+        by finding common roots for all files in input JSON file.
+        This function will recursively visit all values in input JSON and
+        also JSON, TSV, CSV files in the input JSON itself.
+
+        This function visit all files in input JSON.
+        Files with some extensions (defined by Autouri's URIBase.LOC_RECURSE_EXT_AND_FNC)
+        are recursively visited.
+
+        Args:
+            input_json_file:
+                localized input JSON file so that all files in it are already
+                recursively localized
         """
         with open(input_json_file, 'r') as fp:
-            input_json = json.loads(fp.read())
+            input_json_contents = fp.read()
 
-        # find dirname of all files
-        def recurse_dict(d, d_parent=None, d_parent_key=None,
-                         lst=None, lst_idx=None):
-            result = set()
-            if isinstance(d, dict):
-                for k, v in d.items():
-                    result |= recurse_dict(v, d_parent=d,
-                                           d_parent_key=k)
-            elif isinstance(d, list):
-                for i, v in enumerate(d):
-                    result |= recurse_dict(v, lst=d,
-                                           lst_idx=i)
-            elif type(d) == str:
-                assert(d_parent is not None or lst is not None)
-                u = AutoURI(d)
-                # local absolute path only
-                if isinstance(u, AbsPath) and u.is_valid:
-                    dirname, basename = os.path.split(u.uri)
-                    result.add(dirname)
+        all_dirnames = []
+        def find_dirname(s):
+            u = AbsPath(s)
+            if u.is_valid:
+                for ext, recurse_fnc_for_ext in URIBase.LOC_RECURSE_EXT_AND_FNC.items():
+                    if u.ext == ext:
+                        _, _ = recurse_fnc_for_ext(u.read(), find_dirname)
+                # file can be a soft-link
+                # singularity will want to have access to both soft-link and real one
+                # so add dirnames of both soft-link and realpath
+                all_dirnames.append(u.dirname)
+                all_dirnames.append(os.path.dirname(os.path.realpath(u.uri)))
+            return None, False
+        _, _ = recurse_json(input_json_contents, find_dirname)
 
-            return result
-
-        all_dirnames = recurse_dict(input_json)
         # add all (but not too high level<4) parent directories
-        # to all_dirnames. start from self
+        # to all_dirnames. start from original
         # e.g. /a/b/c/d/e/f/g/h with COMMON_ROOT_SEARCH_LEVEL = 5
         # add all the followings:
-        # /a/b/c/d/e/f/g/h (self)
+        # /a/b/c/d/e/f/g/h (org)
         # /a/b/c/d/e/f/g
         # /a/b/c/d/e/f
         # /a/b/c/d/e
