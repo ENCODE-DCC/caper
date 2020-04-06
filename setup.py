@@ -6,7 +6,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='caper',
-    version='0.8.1.1',
+    version='0.8.2',
     python_requires='>=3.6',
     scripts=['bin/caper', 'bin/run_mysql_server_docker.sh',
              'bin/run_mysql_server_singularity.sh'],
