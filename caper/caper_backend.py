@@ -516,7 +516,7 @@ class CaperBackendSLURM(CaperBackendBaseLocal):
                         "kill": "scancel ${job_id}",
                         "exit-code-timeout-seconds": 360,
                         "check-alive": CHECK_ALIVE,
-                        "job-id-regex": "Submitted batch job (\\\\d+).*"
+                        "job-id-regex": "Submitted batch job (\\d+).*"
                     }
                 }
             }
@@ -602,7 +602,7 @@ ${true=")m" false="" defined(memory_mb)} \
                         "exit-code-timeout-seconds": 180,
                         "kill": "qdel ${job_id}",
                         "check-alive": "qstat -j ${job_id}",
-                        "job-id-regex": "(\\\\d+)"
+                        "job-id-regex": "(\\d+)"
                     }
                 }
             }
@@ -675,7 +675,7 @@ ${true=":0:0" false="" defined(time)} \
                         "exit-code-timeout-seconds": 180,
                         "kill": "qdel ${job_id}",
                         "check-alive": "qstat ${job_id}",
-                        "job-id-regex": "(\\\\d+)"
+                        "job-id-regex": "(\\d+)"
                     }
                 }
             }
