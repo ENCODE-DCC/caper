@@ -30,7 +30,7 @@ from subprocess import Popen, check_call, PIPE, CalledProcessError
 from datetime import datetime
 from autouri import AutoURI, AbsPath, GCSURI, S3URI, URIBase
 from autouri import logger as autouri_logger
-from autouri.loc_aux import recurse_json, recurse_tsv, recurse_csv
+from autouri.loc_aux import recurse_json
 from tempfile import TemporaryDirectory
 from .dict_tool import merge_dict
 from .caper_args import parse_caper_arguments
