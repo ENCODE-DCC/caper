@@ -22,5 +22,6 @@ setuptools.setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: POSIX :: Linux',
     ],
-    install_requires=['pyhocon>=0.3.53', 'requests', 'pyopenssl', 'autouri>=0.1.2.1']
+    install_requires=['pyhocon>=0.3.53', 'requests', 'pyopenssl', 'autouri>=0.1.2.1',
+                      'miniwdl']
 )
