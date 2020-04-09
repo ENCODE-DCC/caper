@@ -1,7 +1,7 @@
 import argparse
-from configparser import ConfigParser
-import sys
 import os
+import sys
+from configparser import ConfigParser
 from distutils.util import strtobool
 from .caper_backend import CaperBackendDatabase
 from .caper_backend import CaperBackendGCP

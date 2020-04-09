@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
+import logging
 from autouri import AbsPath, GCSURI, S3URI, URIBase
 from .caper import Caper
 from .caper_args import parse_caper_arguments
 from .caper_check import check_caper_conf
 from .caper_init import init_caper_conf
-from .logger import logger
 
 
 def main():
@@ -12,6 +12,20 @@ def main():
     """
     # parse arguments: note that args is a dict
     args = parse_caper_arguments()
+
+    # init logging
+    if args.get('verbose'):
+        log_level = 'INFO'
+    elif args.get('debug'):
+        log_level = 'DEBUG'
+    else:
+        log_level = 'WARNING'
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s|%(name)s|%(levelname)s| %(message)s')
+    # suppress filelock logging
+    logging.getLogger('filelock').setLevel('CRITICAL')
+
     action = args['action']
     if action == 'init':
         init_caper_conf(args)
@@ -32,13 +46,6 @@ def main():
     S3URI.init_s3uri(
         loc_prefix=args.get('tmp_s3_bucket')
     )
-    # init both loggers of Autouri and Caper
-    if args.get('verbose'):
-        # autouri_logger.setLevel('INFO')
-        logger.setLevel('INFO')
-    elif args.get('debug'):
-        # autouri_logger.setLevel('DEBUG')
-        logger.setLevel('DEBUG')
 
     c = Caper(args)
     if action == 'run':

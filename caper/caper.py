@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import pwd
 import re
@@ -22,7 +23,9 @@ from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CaperBackendAWS, CaperBackendLocal, CaperBackendSLURM, \
     CaperBackendSGE, CaperBackendPBS
 from .caper_backend import CaperBackendBase, CaperBackendBaseLocal
-from .logger import logger
+
+
+logger = logging.getLogger(__name__)
 
 
 class Caper(object):

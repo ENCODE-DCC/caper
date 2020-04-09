@@ -1,7 +1,7 @@
-import requests
-import io
 import fnmatch
+import io
 import json
+import requests
 import sys
 
 
