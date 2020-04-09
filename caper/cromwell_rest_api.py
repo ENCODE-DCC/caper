@@ -1,12 +1,8 @@
-"""CromwellRestAPI
-"""
-
 import requests
 import io
 import fnmatch
 import json
 import sys
-# import traceback
 
 
 class CromwellRestAPI(object):
@@ -335,11 +331,3 @@ class CromwellRestAPI(object):
     def __get_bytes_io_from_file(fname):
         with open(fname, 'rb') as fp:
             return io.BytesIO(fp.read())
-
-
-def main():
-    pass
-
-
-if __name__ == '__main__':
-    main()

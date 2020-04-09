@@ -1,23 +1,15 @@
-"""CaperArgs: Command line arguments parser for Caper
-
-Author:
-    Jin Lee (leepc12@gmail.com) at ENCODE-DCC
-"""
-
 import argparse
 from configparser import ConfigParser
 import sys
 import os
 from distutils.util import strtobool
-from collections import OrderedDict
 from .caper_backend import CaperBackendDatabase
 from .caper_backend import CaperBackendGCP
 from .caper_backend import BACKENDS, BACKEND_LOCAL
 from .caper_backend import BACKEND_ALIAS_LOCAL
 from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
+from .version import version
 
-
-__version__ = '0.8.2'
 
 DEFAULT_JAVA_HEAP_SERVER = '10G'
 DEFAULT_JAVA_HEAP_RUN = '3G'
@@ -80,6 +72,9 @@ def process_dyn_flags(remaining_args, dyn_flags,
 
 def parse_caper_arguments():
     """Argument parser for Caper
+
+    Returns:
+        dict of arguments
     """
     # write default conf file if not exists
     default_caper_conf = os.path.expanduser(DEFAULT_CAPER_CONF)
@@ -99,7 +94,7 @@ def parse_caper_arguments():
                              help='Show version')
     known_args, remaining_argv = conf_parser.parse_known_args()
     if known_args.version is not None and known_args.version:
-        print(__version__)
+        print(version)
         conf_parser.exit()
     process_dyn_flags(remaining_argv, DYN_FLAGS, INVALID_EXT_FOR_DYN_FLAG)
 

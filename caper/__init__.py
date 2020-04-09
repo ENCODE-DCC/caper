@@ -1,3 +1,6 @@
-import caper.caper_args
+from .caper_init import init_caper_conf
+from .caper import Caper
+from .version import version
 
-__version__ = caper.caper_args.__version__
+
+__version__ = version
