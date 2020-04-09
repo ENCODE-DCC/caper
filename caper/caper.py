@@ -107,6 +107,7 @@ class Caper(object):
         self._hold = args.get('hold')
         self._format = args.get('format')
         self._hide_result_before = args.get('hide_result_before')
+        self._hide_subworkflow = args.get('hide_subworkflow')
         self._disable_call_caching = args.get('disable_call_caching')
         self._max_concurrent_workflows = args.get('max_concurrent_workflows')
         self._max_concurrent_tasks = args.get('max_concurrent_tasks')
@@ -499,7 +500,10 @@ class Caper(object):
         for w in workflows:
             row = []
             workflow_id = w['id'] if 'id' in w else None
+            parent_workflow_id = w['parentWorkflowId'] if 'parentWorkflowId' in w else None
 
+            if self._hide_subworkflow and parent_workflow_id:
+                continue
             if self._hide_result_before is not None:
                 if 'submission' in w and w['submission'] <= self._hide_result_before:
                     continue
