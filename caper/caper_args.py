@@ -456,6 +456,10 @@ def parse_caper_arguments():
              'Use the same (or shorter) date/time format shown in '
              '"caper list". '
              'e.g. 2019-06-13, 2019-06-13T10:07')
+    parent_list.add_argument(
+        '--hide-subworkflow', action='store_true',
+        help='Hide subworkflows from "caper list".')
+
     # troubleshoot
     parent_troubleshoot = argparse.ArgumentParser(add_help=False)
     parent_troubleshoot.add_argument(
@@ -526,6 +530,7 @@ def parse_caper_arguments():
         'ignore_womtool',
         'no_build_singularity',
         'use_gsutil_for_s3',
+        'hide_subworkflow',
         'show_completed_task']:
         v = args_d.get(k)
         if v is not None and isinstance(v, str):
