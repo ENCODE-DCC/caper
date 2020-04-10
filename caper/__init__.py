@@ -1,3 +1,4 @@
-import caper.caper_args
+from .caper import Caper
 
-__version__ = caper.caper_args.__version__
+
+__version__ = '0.8.2'

@@ -1,12 +1,12 @@
-"""CromwellRestAPI
-"""
-
-import requests
-import io
 import fnmatch
+import io
 import json
+import logging
+import requests
 import sys
-# import traceback
+
+
+logger = logging.getLogger(__name__)
 
 
 class CromwellRestAPI(object):
@@ -24,8 +24,7 @@ class CromwellRestAPI(object):
     }
 
     def __init__(self, ip='localhost', port=8000,
-                 user=None, password=None, verbose=False):
-        self._verbose = verbose
+                 user=None, password=None):
         self._ip = ip
         self._port = port
 
@@ -61,8 +60,7 @@ class CromwellRestAPI(object):
             manifest['workflowOnHold'] = True
 
         r = self.__request_post(CromwellRestAPI.ENDPOINT_SUBMIT, manifest)
-        if self._verbose:
-            print("CromwellRestAPI.submit: ", r)
+        logger.debug('submit: {r}'.format(r=r))
         return r
 
     def abort(self, workflow_ids=None, labels=None):
@@ -81,8 +79,7 @@ class CromwellRestAPI(object):
                 CromwellRestAPI.ENDPOINT_ABORT.format(
                     wf_id=w['id']))
             result.append(r)
-        if self._verbose:
-            print("CromwellRestAPI.abort: ", result)
+        logger.debug('abort: {r}'.format(r=result))
         return result
 
     def release_hold(self, workflow_ids=None, labels=None):
@@ -101,8 +98,7 @@ class CromwellRestAPI(object):
                 CromwellRestAPI.ENDPOINT_RELEASE_HOLD.format(
                     wf_id=w['id']))
             result.append(r)
-        if self._verbose:
-            print("CromwellRestAPI.release_hold: ", result)
+        logger.debug('release_hold: {r}'.format(r=result))
         return result
 
     def get_default_backend(self):
@@ -137,8 +133,6 @@ class CromwellRestAPI(object):
             m = self.__request_get(
                 CromwellRestAPI.ENDPOINT_METADATA.format(wf_id=w['id']))
             result.append(m)
-        if self._verbose:
-            print(json.dumps(result, indent=4))
         return result
 
     def get_labels(self, workflow_id):
@@ -179,8 +173,7 @@ class CromwellRestAPI(object):
         r = self.__request_patch(
             CromwellRestAPI.ENDPOINT_LABELS.format(
                 wf_id=workflow_id), labels)
-        if self._verbose:
-            print("CromwellRestAPI.update_labels: ", r)
+        logger.debug('update_labels: {r}'.format(r=r))
         return r
 
     def find(self, workflow_ids=None, labels=None):
@@ -237,8 +230,7 @@ class CromwellRestAPI(object):
                 continue
             if w['id'] in matched:
                 result.append(w)
-        if self._verbose:
-            print('CromwellRestAPI.find: ', result)
+        logger.debug('find: {r}'.format(r=result))
         return result
 
     def __init_auth(self):
@@ -263,17 +255,16 @@ class CromwellRestAPI(object):
                 url, auth=self._auth, params=params,
                 headers={'accept': 'application/json'})
         except Exception as e:
-            # traceback.print_exc()
-            print(e)
-            print('Help: cannot connect to server. '\
+            logger.exception('Help: cannot connect to server. '\
                   'Check if server is dead or still spinning up.')
             sys.exit(1)
 
         if resp.ok:
             return resp.json()
         else:
-            print("HTTP GET error: ", resp.status_code, resp.content,
-                  url)
+            logger.error(
+                'GET: code={c}, contents={cont}, url={url}'.format(
+                    c=resp.status_code, cont=resp.content, url=url))
             return None
 
     def __request_post(self, endpoint, manifest=None):
@@ -290,15 +281,15 @@ class CromwellRestAPI(object):
                 url, files=manifest, auth=self._auth,
                 headers={'accept': 'application/json'})
         except Exception as e:
-            # traceback.print_exc()
-            print(e)
+            logger.error(e)
             sys.exit(1)
 
         if resp.ok:
             return resp.json()
         else:
-            print("HTTP POST error: ", resp.status_code, resp.content,
-                  url, manifest)
+            logger.error(
+                'POST: code={c}, contents={cont}, url={url}, manifest={m}'.format(
+                    c=resp.status_code, cont=resp.content, url=url, m=manifest))
             return None
 
     def __request_patch(self, endpoint, data):
@@ -316,15 +307,15 @@ class CromwellRestAPI(object):
                 headers={'accept': 'application/json',
                          'content-type': 'application/json'})
         except Exception as e:
-            # traceback.print_exc()
-            print(e)
+            logger.error(e)
             sys.exit(1)
 
         if resp.ok:
             return resp.json()
         else:
-            print("HTTP PATCH error: ", resp.status_code, resp.content,
-                  url, json)
+            logger.error(
+                'PATCH: code={c}, contents={cont}, url={url}, json={j}'.format(
+                    c=resp.status_code, cont=resp.content, url=url, j=json))
             return None
 
     @staticmethod
@@ -335,11 +326,3 @@ class CromwellRestAPI(object):
     def __get_bytes_io_from_file(fname):
         with open(fname, 'rb') as fp:
             return io.BytesIO(fp.read())
-
-
-def main():
-    pass
-
-
-if __name__ == '__main__':
-    main()
