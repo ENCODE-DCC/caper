@@ -133,9 +133,7 @@ def parse_caper_arguments():
     parent_all.add_argument('--dry-run',
         action='store_true',
         help='Caper does not take any action.')
-
-    group_log_level = parent_all.add_mutually_exclusive_group()
-    group_log_level.add_argument('-D', '--debug', action='store_true',
+    parent_all.add_argument('-D', '--debug', action='store_true',
                    help='Prints all logs >= DEBUG level')
 
     # run, server, submit
@@ -524,6 +522,7 @@ def parse_caper_arguments():
         'no_build_singularity',
         'use_gsutil_for_s3',
         'hide_subworkflow',
+        'debug',
         'show_completed_task']:
         v = args_d.get(k)
         if v is not None and isinstance(v, str):
