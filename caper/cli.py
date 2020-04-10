@@ -7,13 +7,7 @@ from .caper_check import check_caper_conf
 from .caper_init import init_caper_conf
 
 
-def main():
-    """CLI for Caper
-    """
-    # parse arguments: note that args is a dict
-    args = parse_caper_arguments()
-
-    # init logging
+def init_logging(args):
     if args.get('verbose'):
         log_level = 'INFO'
     elif args.get('debug'):
@@ -26,11 +20,20 @@ def main():
     # suppress filelock logging
     logging.getLogger('filelock').setLevel('CRITICAL')
 
+
+def main():
+    """CLI for Caper
+    """
+    # parse arguments: note that args is a dict
+    args = parse_caper_arguments()
+
     action = args['action']
     if action == 'init':
         init_caper_conf(args)
         sys.exit(0)
     args = check_caper_conf(args)
+
+    init_logging(args)
 
     # init Autouri classes to transfer files across various storages
     #   e.g. gs:// to s3://, http:// to local, ...
