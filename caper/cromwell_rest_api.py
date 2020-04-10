@@ -60,7 +60,7 @@ class CromwellRestAPI(object):
             manifest['workflowOnHold'] = True
 
         r = self.__request_post(CromwellRestAPI.ENDPOINT_SUBMIT, manifest)
-        logger.info('submit: {r}'.format(r=r))
+        logger.debug('submit: {r}'.format(r=r))
         return r
 
     def abort(self, workflow_ids=None, labels=None):
@@ -79,7 +79,7 @@ class CromwellRestAPI(object):
                 CromwellRestAPI.ENDPOINT_ABORT.format(
                     wf_id=w['id']))
             result.append(r)
-        logger.info('abort: {r}'.format(r=result))
+        logger.debug('abort: {r}'.format(r=result))
         return result
 
     def release_hold(self, workflow_ids=None, labels=None):
@@ -98,7 +98,7 @@ class CromwellRestAPI(object):
                 CromwellRestAPI.ENDPOINT_RELEASE_HOLD.format(
                     wf_id=w['id']))
             result.append(r)
-        logger.info('release_hold: {r}'.format(r=result))
+        logger.debug('release_hold: {r}'.format(r=result))
         return result
 
     def get_default_backend(self):
@@ -133,7 +133,6 @@ class CromwellRestAPI(object):
             m = self.__request_get(
                 CromwellRestAPI.ENDPOINT_METADATA.format(wf_id=w['id']))
             result.append(m)
-        logger.info(json.dumps(result, indent=4))
         return result
 
     def get_labels(self, workflow_id):
@@ -174,7 +173,7 @@ class CromwellRestAPI(object):
         r = self.__request_patch(
             CromwellRestAPI.ENDPOINT_LABELS.format(
                 wf_id=workflow_id), labels)
-        logger.info('update_labels: {r}'.format(r=r))
+        logger.debug('update_labels: {r}'.format(r=r))
         return r
 
     def find(self, workflow_ids=None, labels=None):
@@ -231,7 +230,7 @@ class CromwellRestAPI(object):
                 continue
             if w['id'] in matched:
                 result.append(w)
-        logger.info('find: {r}'.format(r=result))
+        logger.debug('find: {r}'.format(r=result))
         return result
 
     def __init_auth(self):
@@ -265,7 +264,7 @@ class CromwellRestAPI(object):
             return resp.json()
         else:
             logger.error(
-                'HTTP GET error: code={c}, contents={cont}, url={url}'.format(
+                'GET: code={c}, contents={cont}, url={url}'.format(
                     c=resp.status_code, cont=resp.content, url=url))
             return None
 
@@ -290,7 +289,7 @@ class CromwellRestAPI(object):
             return resp.json()
         else:
             logger.error(
-                'HTTP POST error: code={c}, contents={cont}, url={url}, manifest={m}'.format(
+                'POST: code={c}, contents={cont}, url={url}, manifest={m}'.format(
                     c=resp.status_code, cont=resp.content, url=url, m=manifest))
             return None
 
@@ -316,7 +315,7 @@ class CromwellRestAPI(object):
             return resp.json()
         else:
             logger.error(
-                'HTTP PATCH error: code={c}, contents={cont}, url={url}, json={j}'.format(
+                'PATCH: code={c}, contents={cont}, url={url}, json={j}'.format(
                     c=resp.status_code, cont=resp.content, url=url, j=json))
             return None
 
