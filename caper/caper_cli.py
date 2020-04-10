@@ -19,7 +19,7 @@ def main():
     elif args.get('debug'):
         log_level = 'DEBUG'
     else:
-        log_level = 'WARNING'
+        log_level = 'INFO'
     logging.basicConfig(
         level=log_level,
         format='%(asctime)s|%(name)s|%(levelname)s| %(message)s')

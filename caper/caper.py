@@ -561,7 +561,7 @@ class Caper(object):
             self.__read_heartbeat_file(action, ip, port, server_hearbeat_timeout)
 
         self._cromwell_rest_api = CromwellRestAPI(
-            ip=self._ip, port=self._port, verbose=False)
+            ip=self._ip, port=self._port)
 
     def __read_heartbeat_file(self, action, ip, port, server_hearbeat_timeout):
         if not self._no_server_hearbeat and self._server_hearbeat_file is not None:
