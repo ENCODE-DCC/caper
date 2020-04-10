@@ -8,15 +8,14 @@ from .caper_backend import CaperBackendGCP
 from .caper_backend import BACKENDS, BACKEND_LOCAL
 from .caper_backend import BACKEND_ALIAS_LOCAL
 from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
-from .version import version
+from .caper_init import DEFAULT_CROMWELL_JAR, DEFAULT_WOMTOOL_JAR
+from . import __version__ as version
 
 
 DEFAULT_JAVA_HEAP_SERVER = '10G'
 DEFAULT_JAVA_HEAP_RUN = '3G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
-DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/cromwell-47.jar'
-DEFAULT_WOMTOOL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/womtool-47.jar'
 DEFAULT_DB = CaperBackendDatabase.DB_TYPE_IN_MEMORY
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
