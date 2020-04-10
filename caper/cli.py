@@ -68,7 +68,8 @@ def main():
     else:
         raise ValueError(
         	'Unsupported or unspecified action. act={a}'.format(a=action))
-    return 0
+
+    sys.exit(0)
 
 
 if __name__ == '__main__':
