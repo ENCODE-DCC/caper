@@ -6,7 +6,7 @@ except:
     script_path = os.path.dirname(os.path.realpath(__file__))
     sys.path.append(os.path.join(script_path, '../'))
     import caper
-from caper.caper_cli import main
+from caper.cli import main
 
 
 if __name__ == '__main__':
