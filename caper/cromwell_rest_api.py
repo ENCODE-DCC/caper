@@ -255,8 +255,7 @@ class CromwellRestAPI(object):
                 url, auth=self._auth, params=params,
                 headers={'accept': 'application/json'})
         except Exception as e:
-            logger.error(e)
-            logger.error('Help: cannot connect to server. '\
+            logger.exception('Help: cannot connect to server. '\
                   'Check if server is dead or still spinning up.')
             sys.exit(1)
 
