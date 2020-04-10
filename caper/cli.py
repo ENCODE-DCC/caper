@@ -8,9 +8,7 @@ from .caper_init import init_caper_conf
 
 
 def init_logging(args):
-    if args.get('verbose'):
-        log_level = 'INFO'
-    elif args.get('debug'):
+    if args.get('debug'):
         log_level = 'DEBUG'
     else:
         log_level = 'INFO'

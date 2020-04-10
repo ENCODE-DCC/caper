@@ -135,8 +135,6 @@ def parse_caper_arguments():
         help='Caper does not take any action.')
 
     group_log_level = parent_all.add_mutually_exclusive_group()
-    group_log_level.add_argument('-V', '--verbose', action='store_true',
-                   help='Prints all logs >= INFO level')
     group_log_level.add_argument('-D', '--debug', action='store_true',
                    help='Prints all logs >= DEBUG level')
 
