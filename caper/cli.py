@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import logging
+import sys
 from autouri import AbsPath, GCSURI, S3URI, URIBase
 from .caper import Caper
 from .caper_args import parse_caper_arguments
