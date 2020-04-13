@@ -111,8 +111,7 @@ class CaperBackendDatabase(UserDict):
                 "hsqldb.large_data=true;"
                 "hsqldb.applog=1;"
                 "hsqldb.lob_compressed=true;"
-                "hsqldb.script_format=3;"
-                ,
+                "hsqldb.script_format=3",
             "connectionTimeout": 5000,
             "numThreads": 1
         }
