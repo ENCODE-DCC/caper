@@ -103,9 +103,18 @@ class CaperBackendDatabase(UserDict):
 
     TEMPLATE_DB_FILE = {
         "db": {
-            "url": "jdbc:hsqldb:file:{file};shutdown=false;"
-                "hsqldb.tx=mvcc;hsqldb.lob_compressed=true",
-            "connectionTimeout": 5000
+            "url": "jdbc:hsqldb:file:{file};"
+                "shutdown=false;"
+                "hsqldb.tx=mvcc;"
+                "hsqldb.default_table_type=cached;"
+                "hsqldb.result_max_memory_rows=10000;"
+                "hsqldb.large_data=true;"
+                "hsqldb.applog=1;"
+                "hsqldb.lob_compressed=true;"
+                "hsqldb.script_format=3;"
+                ,
+            "connectionTimeout": 5000,
+            "numThreads": 1
         }
     }
 
@@ -118,7 +127,8 @@ class CaperBackendDatabase(UserDict):
                 "rewriteBatchedStatements=true&serverTimezone=UTC",
             "user": "cromwell",
             "password": "cromwell",
-            "connectionTimeout": 5000
+            "connectionTimeout": 5000,
+            "numThreads": 1
         }
     }
 
@@ -130,7 +140,8 @@ class CaperBackendDatabase(UserDict):
             "port": 5432,
             "user": "cromwell",
             "password": "cromwell",
-            "connectionTimeout": 5000
+            "connectionTimeout": 5000,
+            "numThreads": 1
         }
     }
 
