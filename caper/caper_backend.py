@@ -246,14 +246,27 @@ class CaperBackendBaseLocal(CaperBackendBase):
     """
     USE_SOFT_GLOB_OUTPUT = None
     OUT_DIR = None
+    CALL_CACHING_HASH_STRAT = None
 
+    CALL_CACHING_HASH_STRAT_FILE = 'file'
+    CALL_CACHING_HASH_STRAT_PATH = 'path'
+    CALL_CACHING_HASH_STRAT_PATH_MTIME = 'path+modtime'
+    DUP_STRAT_FOR_PATH = ['soft-link']
     SOFT_GLOB_OUTPUT_CMD = 'ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null'
 
     TEMPLATE_BACKEND = {
         "actor-factory": "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory",
         "config": {
             "script-epilogue": "sleep 10 && sync",
-            "root": None
+            "root": None,
+            "filesystems": {
+                "local": {
+                    "caching": {
+                        "hashing-strategy": None,
+                        "check-sibling-md5": True
+                    }
+                }
+            }
         }
     }
     def __init__(self, dict_to_override_self=None, backend_name=None):
@@ -263,6 +276,21 @@ class CaperBackendBaseLocal(CaperBackendBase):
             self.get_backend(),
             deepcopy(CaperBackendBaseLocal.TEMPLATE_BACKEND))
         config = self.get_backend_config()
+
+        if CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT is None:
+            raise ValueError('You must define CaperBackendBase.CALL_CACHING_HASH_STRAT.')
+        if CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT not in (
+            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_FILE,
+            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH,
+            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH_MTIME):
+            raise ValueError('Wrong CaperBackendBase.CALL_CACHING_HASH_STRAT: {strat}'.format(
+                strat=CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT))
+        caching = config['filesystems']['local']['caching']
+        if CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT in (
+            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH,
+            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH_MTIME):
+            caching['duplication-strategy'] = CaperBackendBaseLocal.DUP_STRAT_FOR_PATH
+        caching['hashing-strategy'] = CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT
 
         if CaperBackendBaseLocal.USE_SOFT_GLOB_OUTPUT is None:
             raise ValueError('You must define CaperBackendBase.USE_SOFT_GLOB_OUTPUT.')
