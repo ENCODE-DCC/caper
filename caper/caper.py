@@ -114,6 +114,7 @@ class Caper(object):
         self._backend_file = AbsPath.get_abspath_if_exists(
             args.get('backend_file'))
         self._soft_glob_output = args.get('soft_glob_output')
+        self._local_hash_strat = args.get('local_hash_strat')
         self._wdl = AbsPath.get_abspath_if_exists(
             args.get('wdl'))
         self._inputs = AbsPath.get_abspath_if_exists(
@@ -894,6 +895,8 @@ class Caper(object):
         # common settings for local-based backends
         if self._soft_glob_output is not None:
             CaperBackendBaseLocal.USE_SOFT_GLOB_OUTPUT = self._soft_glob_output
+        if self._local_hash_strat is not None:
+            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT = self._local_hash_strat
         if self._out_dir is not None:
             CaperBackendBaseLocal.OUT_DIR = self._out_dir
 
