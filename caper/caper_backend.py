@@ -107,7 +107,11 @@ class CaperBackendDatabase(UserDict):
                 "shutdown=false;"
                 "hsqldb.tx=mvcc;"
                 "hsqldb.lob_compressed=true;"
-                ,
+                "hsqldb.default_table_type=cached;"
+                "hsqldb.result_max_memory_rows=10000;"
+                "hsqldb.large_data=true;"
+                "hsqldb.applog=1;"
+                "hsqldb.script_format=3",
             "connectionTimeout": 5000,
             "numThreads": 1
         }
