@@ -1,30 +1,21 @@
-"""CaperArgs: Command line arguments parser for Caper
-
-Author:
-    Jin Lee (leepc12@gmail.com) at ENCODE-DCC
-"""
-
 import argparse
-from configparser import ConfigParser
-import sys
 import os
+import sys
+from configparser import ConfigParser
 from distutils.util import strtobool
-from collections import OrderedDict
 from .caper_backend import CaperBackendDatabase
 from .caper_backend import CaperBackendGCP
 from .caper_backend import BACKENDS, BACKEND_LOCAL
 from .caper_backend import BACKEND_ALIAS_LOCAL
 from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
+from .caper_init import DEFAULT_CROMWELL_JAR, DEFAULT_WOMTOOL_JAR
+from . import __version__ as version
 
-
-__version__ = '0.8.2'
 
 DEFAULT_JAVA_HEAP_SERVER = '10G'
 DEFAULT_JAVA_HEAP_RUN = '3G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
-DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/cromwell-47.jar'
-DEFAULT_WOMTOOL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/womtool-47.jar'
 DEFAULT_DB = CaperBackendDatabase.DB_TYPE_IN_MEMORY
 DEFAULT_MYSQL_DB_IP = 'localhost'
 DEFAULT_MYSQL_DB_PORT = 3306
@@ -80,6 +71,9 @@ def process_dyn_flags(remaining_args, dyn_flags,
 
 def parse_caper_arguments():
     """Argument parser for Caper
+
+    Returns:
+        dict of arguments
     """
     # write default conf file if not exists
     default_caper_conf = os.path.expanduser(DEFAULT_CAPER_CONF)
@@ -99,7 +93,7 @@ def parse_caper_arguments():
                              help='Show version')
     known_args, remaining_argv = conf_parser.parse_known_args()
     if known_args.version is not None and known_args.version:
-        print(__version__)
+        print(version)
         conf_parser.exit()
     process_dyn_flags(remaining_argv, DYN_FLAGS, INVALID_EXT_FOR_DYN_FLAG)
 
@@ -138,11 +132,7 @@ def parse_caper_arguments():
     parent_all.add_argument('--dry-run',
         action='store_true',
         help='Caper does not take any action.')
-
-    group_log_level = parent_all.add_mutually_exclusive_group()
-    group_log_level.add_argument('-V', '--verbose', action='store_true',
-                   help='Prints all logs >= INFO level')
-    group_log_level.add_argument('-D', '--debug', action='store_true',
+    parent_all.add_argument('-D', '--debug', action='store_true',
                    help='Prints all logs >= DEBUG level')
 
     # run, server, submit
@@ -456,6 +446,10 @@ def parse_caper_arguments():
              'Use the same (or shorter) date/time format shown in '
              '"caper list". '
              'e.g. 2019-06-13, 2019-06-13T10:07')
+    parent_list.add_argument(
+        '--hide-subworkflow', action='store_true',
+        help='Hide subworkflows from "caper list".')
+
     # troubleshoot
     parent_troubleshoot = argparse.ArgumentParser(add_help=False)
     parent_troubleshoot.add_argument(
@@ -526,6 +520,8 @@ def parse_caper_arguments():
         'ignore_womtool',
         'no_build_singularity',
         'use_gsutil_for_s3',
+        'hide_subworkflow',
+        'debug',
         'show_completed_task']:
         v = args_d.get(k)
         if v is not None and isinstance(v, str):

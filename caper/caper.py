@@ -1,43 +1,22 @@
-#!/usr/bin/env python3
-"""Caper: Cromwell/WDL wrapper python script
-for multiple backends (local, gc, aws)
-
-(Optional)
-Add the following comments to your WDL script to specify container images
-that Caper will use for your WDL. You still need to add
-"--use-docker" or "--use-singularity" to command line arguments.
-
-Example:
-#CAPER docker quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
-#CAPER singularity docker://quay.io/encode-dcc/atac-seq-pipeline:v1.1.7.2
-
-Author:
-    Jin Lee (leepc12@gmail.com) at ENCODE-DCC
-"""
-
-from pyhocon import ConfigFactory, HOCONConverter
-import os
-import sys
-import logging
-import pwd
 import json
+import logging
+import os
+import pwd
 import re
-import time
-import socket
-from threading import Thread
 import shutil
-from subprocess import Popen, check_call, PIPE, CalledProcessError
-from datetime import datetime
+import socket
+import sys
+import time
 from autouri import AutoURI, AbsPath, GCSURI, S3URI, URIBase
-from autouri import logger as autouri_logger
 from autouri.loc_aux import recurse_json
+from datetime import datetime
+from pyhocon import ConfigFactory, HOCONConverter
+from subprocess import Popen, check_call, PIPE, CalledProcessError
 from tempfile import TemporaryDirectory
+from threading import Thread
 from .dict_tool import merge_dict
-from .caper_args import parse_caper_arguments
-from .caper_init import init_caper_conf, install_cromwell_jar, install_womtool_jar
-
+from .caper_init import install_cromwell_jar, install_womtool_jar
 from .caper_wdl_parser import CaperWDLParser
-from .caper_check import check_caper_conf
 from .cromwell_rest_api import CromwellRestAPI
 from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
     CaperBackendCommon, CaperBackendDatabase, CaperBackendGCP, \
@@ -46,14 +25,12 @@ from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, \
 from .caper_backend import CaperBackendBase, CaperBackendBaseLocal
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s|%(name)s|%(levelname)s| %(message)s')
-logger = logging.getLogger('caper')
+logger = logging.getLogger(__name__)
 
 
 class Caper(object):
     """Cromwell/WDL wrapper
     """
-
     BACKEND_CONF_HEADER = 'include required(classpath("application"))\n'
     DEFAULT_BACKEND = BACKEND_LOCAL
     RE_PATTERN_BACKEND_CONF_HEADER = r'^\s*include\s'
@@ -107,6 +84,7 @@ class Caper(object):
         self._hold = args.get('hold')
         self._format = args.get('format')
         self._hide_result_before = args.get('hide_result_before')
+        self._hide_subworkflow = args.get('hide_subworkflow')
         self._disable_call_caching = args.get('disable_call_caching')
         self._max_concurrent_workflows = args.get('max_concurrent_workflows')
         self._max_concurrent_tasks = args.get('max_concurrent_tasks')
@@ -499,7 +477,10 @@ class Caper(object):
         for w in workflows:
             row = []
             workflow_id = w['id'] if 'id' in w else None
+            parent_workflow_id = w['parentWorkflowId'] if 'parentWorkflowId' in w else None
 
+            if self._hide_subworkflow and parent_workflow_id:
+                continue
             if self._hide_result_before is not None:
                 if 'submission' in w and w['submission'] <= self._hide_result_before:
                     continue
@@ -580,7 +561,7 @@ class Caper(object):
             self.__read_heartbeat_file(action, ip, port, server_hearbeat_timeout)
 
         self._cromwell_rest_api = CromwellRestAPI(
-            ip=self._ip, port=self._port, verbose=False)
+            ip=self._ip, port=self._port)
 
     def __read_heartbeat_file(self, action, ip, port, server_hearbeat_timeout):
         if not self._no_server_hearbeat and self._server_hearbeat_file is not None:
@@ -1226,63 +1207,3 @@ class Caper(object):
 
         return ','.join(bindpaths)
 
-
-def main():
-    # parse arguments
-    #   note that args is a dict
-    args = parse_caper_arguments()
-    action = args['action']
-    if action == 'init':
-        init_caper_conf(args)
-        sys.exit(0)
-    args = check_caper_conf(args)
-
-    # init Autouri classes to transfer files across various storages
-    #   e.g. gs:// to s3://, http:// to local, ...
-    # loc_prefix means prefix (root directory)
-    # for localizing files of different storages
-    AbsPath.init_abspath(
-        loc_prefix=args.get('tmp_dir')
-    )
-    GCSURI.init_gcsuri(
-        loc_prefix=args.get('tmp_gcs_bucket'),
-        use_gsutil_for_s3=args.get('use_gsutil_for_s3')
-    )
-    S3URI.init_s3uri(
-        loc_prefix=args.get('tmp_s3_bucket')
-    )
-    # init both loggers of Autouri and Caper
-    if args.get('verbose'):
-        autouri_logger.setLevel('INFO')
-        logger.setLevel('INFO')
-    elif args.get('debug'):
-        autouri_logger.setLevel('DEBUG')
-        logger.setLevel('DEBUG')
-
-    # initialize caper: taking all args at init step
-    c = Caper(args)
-
-    if action == 'run':
-        c.run()
-    elif action == 'server':
-        c.server()
-    elif action == 'submit':
-        c.submit()
-    elif action == 'abort':
-        c.abort()
-    elif action == 'list':
-        c.list()
-    elif action == 'metadata':
-        c.metadata()
-    elif action == 'unhold':
-        c.unhold()
-    elif action in ['troubleshoot', 'debug']:
-        c.troubleshoot()
-
-    else:
-        raise Exception('Unsupported or unspecified action.')
-    return 0
-
-
-if __name__ == '__main__':
-    main()

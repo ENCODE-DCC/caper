@@ -13,9 +13,10 @@ from .caper_backend import BACKEND_SLURM, BACKEND_SGE, BACKEND_PBS
 from .caper_backend import BACKEND_ALIAS_LOCAL
 from .caper_backend import BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON
 from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
-from .caper_args import DEFAULT_CROMWELL_JAR, DEFAULT_WOMTOOL_JAR
 
 
+DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/cromwell-47.jar'
+DEFAULT_WOMTOOL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/womtool-47.jar'
 DEFAULT_CROMWELL_JAR_INSTALL_DIR = '~/.caper/cromwell_jar'
 DEFAULT_WOMTOOL_JAR_INSTALL_DIR = '~/.caper/womtool_jar'
 DEFAULT_CONF_CONTENTS_LOCAL = """backend=local

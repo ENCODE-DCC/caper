@@ -3,48 +3,61 @@ import re
 import shutil
 from autouri import AutoURI, AbsPath, HTTPURL
 from tempfile import TemporaryDirectory
+from WDL import parse_document
 
 
 class CaperWDLParser(object):
     """WDL parser for Caper.
-    Find special comments for Caper in WDL.
-    For example,
-        #CAPER docker ubuntu:latest
-    Find subworkflows and zip it.
+
+    1) Find parameters in meta section of WDL's workflow
+        instead looking for special parameter comments in WDL.
+        For backward compatibility, Caper will still try to find
+        those parameters as WDL comments.
+
+    2) Find subworkflows and zip it.
+        miniwdl (0.3.7) has a bug for URL imports
+        Keep using regex to find imports until it's fixed.
     """
     RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s*'
     RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CAPER\s+docker\s(.+)'
     RE_PATTERN_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CAPER\s+singularity\s(.+)'
     RECURSION_DEPTH_LIMIT = 20
+    WDL_WORKFLOW_META_DOCKER = 'caper_docker'
+    WDL_WORKFLOW_META_SINGULARITY = 'caper_singularity'
 
     def __init__(self, wdl):
         self._wdl = AbsPath.get_abspath_if_exists(wdl)
 
-    def find_val(self, regex_val):
-        u = AutoURI(self._wdl)
-        if not u.exists:
-            raise ValueError('WDL does not exist: wdl={wdl}'.format(wdl=self._wdl))
-        result = []
-        for line in u.read().split('\n'):
-            r = re.findall(regex_val, line)
-            if len(r) > 0:
-                ret = r[0].strip()
-                if len(ret) > 0:
-                    result.append(ret)
-        return result
-
     def find_imports(self):
-        r = self.find_val(
+        try:
+            wdl = parse_document(AutoURI(self._wdl).read())
+            return [i.uri for i in wdl.imports]
+        except:
+            pass
+        # backward compatibililty: keep using old regex method
+        r = self.__find_val(
             CaperWDLParser.RE_PATTERN_WDL_IMPORT)
         return r
 
     def find_docker(self):
-        r = self.find_val(
+        r = self.__find_workflow_meta(
+            CaperWDLParser.WDL_WORKFLOW_META_DOCKER)
+        if r is not None:
+            return r
+
+        # backward compatibililty: keep using old regex method
+        r = self.__find_val(
             CaperWDLParser.RE_PATTERN_WDL_COMMENT_DOCKER)
         return r[0] if len(r) > 0 else None
 
     def find_singularity(self):
-        r = self.find_val(
+        r = self.__find_workflow_meta(
+            CaperWDLParser.WDL_WORKFLOW_META_SINGULARITY)
+        if r is not None:
+            return r
+
+        # backward compatibililty: keep using old regex method
+        r = self.__find_val(
             CaperWDLParser.RE_PATTERN_WDL_COMMENT_SINGULARITY)
         return r[0] if len(r) > 0 else None
 
@@ -63,6 +76,33 @@ class CaperWDLParser(object):
             if num_sub_wf_packed:
                 shutil.make_archive(AutoURI(zip_file).uri_wo_ext, 'zip', tmp_d)
             return num_sub_wf_packed
+
+    def __find_val(self, regex_val):
+        u = AutoURI(self._wdl)
+        if not u.exists:
+            raise ValueError('WDL does not exist: wdl={wdl}'.format(wdl=self._wdl))
+        result = []
+        for line in u.read().split('\n'):
+            r = re.findall(regex_val, line)
+            if len(r) > 0:
+                ret = r[0].strip()
+                if len(ret) > 0:
+                    result.append(ret)
+        return result
+
+    def __find_workflow_meta(self, key):
+        """Find value for a key in workflow's meta section
+
+        Returns:
+            None if key not found or any error occurs.
+        """
+        try:
+            wdl = parse_document(AutoURI(self._wdl).read())
+            if key in wdl.workflow.meta:
+                return wdl.workflow.meta[key]
+        except:
+            pass
+        return None
 
     def __recurse_subworkflow(
         self,
