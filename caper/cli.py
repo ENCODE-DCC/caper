@@ -4,7 +4,6 @@ import sys
 from autouri import AbsPath, GCSURI, S3URI, URIBase
 from .caper import Caper
 from .caper_args import parse_caper_arguments
-from .caper_check import check_caper_conf
 from .caper_init import init_caper_conf
 
 
@@ -30,23 +29,11 @@ def main():
     if action == 'init':
         init_caper_conf(args)
         sys.exit(0)
-    args = check_caper_conf(args)
 
     init_logging(args)
 
-    # init Autouri classes to transfer files across various storages
-    #   e.g. gs:// to s3://, http:// to local, ...
-    # loc_prefix means prefix (root directory)
-    # for localizing files of different storages
-    AbsPath.init_abspath(
-        loc_prefix=args.get('tmp_dir')
-    )
     GCSURI.init_gcsuri(
-        loc_prefix=args.get('tmp_gcs_bucket'),
         use_gsutil_for_s3=args.get('use_gsutil_for_s3')
-    )
-    S3URI.init_s3uri(
-        loc_prefix=args.get('tmp_s3_bucket')
     )
 
     c = Caper(args)
