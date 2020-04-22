@@ -24,16 +24,14 @@ CONF_CONTENTS_LOCAL_HASH_STRAT = """
 # Hashing strategy for call-caching (3 choices)
 # This parameter is for local (local/slurm/sge/pbs) backend only.
 # This is important for re-using outputs from previous/failed workflows.
-# "file" method has been default for Caper <= 0.8.2, which is slow.
 # Cache will miss if different strategy is used.
-# So we will keep "file" as default to be compatible with
-# old metadata DB generated with Caper <= 0.8.2.
-# But "path" is recommended for new users.
-# So we will make "path" default here.
+# "file" method has been default for all old versions of Caper.
+# So we will keep "file" as default to be compatible with old metadata DB.
+# But "path+modtime" is recommended for new users.
 #   file: md5sum hash (slow).
 #   path: path.
 #   path+modtime: path + mtime.
-local-hash-strat=path
+local-hash-strat=file
 """
 
 CONF_CONTENTS_TMP_DIR = """
