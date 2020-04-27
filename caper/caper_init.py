@@ -19,25 +19,37 @@ DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/down
 DEFAULT_WOMTOOL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/womtool-47.jar'
 DEFAULT_CROMWELL_JAR_INSTALL_DIR = '~/.caper/cromwell_jar'
 DEFAULT_WOMTOOL_JAR_INSTALL_DIR = '~/.caper/womtool_jar'
-DEFAULT_CONF_CONTENTS_LOCAL = """backend=local
 
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
+CONF_CONTENTS_LOCAL_HASH_STRAT = """
+# Hashing strategy for call-caching (3 choices)
+# This parameter is for local (local/slurm/sge/pbs) backend only.
+# This is important for re-using outputs from previous/failed workflows.
+# Cache will miss if different strategy is used.
+# "file" method has been default for all old versions of Caper.
+# So we will keep "file" as default to be compatible with old metadata DB.
+# But "path+modtime" is recommended for new users.
+#   file: md5sum hash (slow).
+#   path: path.
+#   path+modtime: path + mtime.
+local-hash-strat=file
+"""
+
+CONF_CONTENTS_TMP_DIR = """
+# Temporary cache directory.
+# DO NOT USE /tmp. Use local absolute path here.
+# Caper stores important temporary/cached files here.
+# If not defined, Caper will make .caper_tmp/ on CWD
+# or your local output directory (--out-dir).
 tmp-dir=
 """
-DEFAULT_CONF_CONTENTS_SHERLOCK = """backend=slurm
-slurm-partition=
 
-# DO NOT use /tmp here
-# You can use $OAK or $SCRATCH storages here.
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
+DEFAULT_CONF_CONTENTS_LOCAL = """
+backend=local
+""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
+
+DEFAULT_CONF_CONTENTS_SHERLOCK = """
+backend=slurm
+slurm-partition=
 
 # IMPORTANT warning for Stanford Sherlock cluster
 # ====================================================================
@@ -47,78 +59,49 @@ tmp-dir=
 # Install all executables on $HOME or $PI_HOME instead.
 # It's STILL OKAY to read input data from and write outputs to $SCRATCH or $OAK.
 # ====================================================================
-"""
-DEFAULT_CONF_CONTENTS_SCG = """backend=slurm
+""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
+
+DEFAULT_CONF_CONTENTS_SCG = """
+backend=slurm
 slurm-account=
 
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_SLURM = """backend=slurm
+""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
+
+DEFAULT_CONF_CONTENTS_SLURM = """
+backend=slurm
 
 # define one of the followings (or both) according to your
 # cluster's SLURM configuration.
 slurm-partition=
 slurm-account=
+""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
 
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_SGE = """backend=sge
+DEFAULT_CONF_CONTENTS_SGE = """
+backend=sge
 sge-pe=
+""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
 
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_PBS = """backend=pbs
+DEFAULT_CONF_CONTENTS_PBS = """
+backend=pbs
+""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
 
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_AWS = """backend=aws
+DEFAULT_CONF_CONTENTS_AWS = """
+backend=aws
 aws-batch-arn=
 aws-region=
 out-s3-bucket=
+""" + CONF_CONTENTS_TMP_DIR
 
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
-"""
-DEFAULT_CONF_CONTENTS_GCP = """backend=gcp
+DEFAULT_CONF_CONTENTS_GCP = """
+backend=gcp
 gcp-prj=
 out-gcs-bucket=
 
-# call-cached outputs will be duplicated by making a copy or reference
-#  reference: refer to old output file in metadata.json file.
-#  copy: make a copy
+# Call-cached outputs will be duplicated by making a copy or reference
+#   reference: refer to old output file in metadata.json file.
+#   copy: make a copy.
 gcp-call-caching-dup-strat=
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
-"""
+""" + CONF_CONTENTS_TMP_DIR
 
 
 def install_cromwell_jar(uri):

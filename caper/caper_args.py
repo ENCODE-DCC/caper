@@ -3,6 +3,7 @@ import os
 import sys
 from configparser import ConfigParser
 from distutils.util import strtobool
+from .caper_backend import CaperBackendBaseLocal
 from .caper_backend import CaperBackendDatabase
 from .caper_backend import CaperBackendGCP
 from .caper_backend import BACKENDS, BACKEND_LOCAL
@@ -236,6 +237,18 @@ def parse_caper_arguments():
              'i.e. gcp and aws. Also, '
              'it does not work with local backends (local/slurm/sge/pbs) '
              'with --docker. However, it works fine with --singularity.')
+    group_cromwell.add_argument(
+        '--local-hash-strat',
+        default=CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_FILE,
+        choices=[
+            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_FILE,
+            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH,
+            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH_MTIME,
+        ],
+        help='File hashing strategy for call caching. '
+             'For local backends (local/slurm/sge/pbs) only. '
+             'file: use md5sum hash (slow), path: use path only, '
+             'path+modtime (default): use path + mtime.')
 
     group_local = parent_host.add_argument_group(
         title='local backend arguments')
