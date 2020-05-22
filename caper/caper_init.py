@@ -1,24 +1,11 @@
-"""Functions for caper init subcommand
-
-Author:
-    Jin Lee (leepc12@gmail.com) at ENCODE-DCC
-"""
-
 import os
-import sys
-from autouri import AutoURI, AbsPath
-from .caper_backend import BACKENDS, BACKENDS_WITH_ALIASES
-from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL
+from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, BACKEND_ALIAS_LOCAL
 from .caper_backend import BACKEND_SLURM, BACKEND_SGE, BACKEND_PBS
-from .caper_backend import BACKEND_ALIAS_LOCAL
-from .caper_backend import BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON
-from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
+from .cromwell import Cromwell
 
 
-DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/cromwell-47.jar'
-DEFAULT_WOMTOOL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/womtool-47.jar'
-DEFAULT_CROMWELL_JAR_INSTALL_DIR = '~/.caper/cromwell_jar'
-DEFAULT_WOMTOOL_JAR_INSTALL_DIR = '~/.caper/womtool_jar'
+BACKEND_ALIAS_SHERLOCK = 'sherlock'
+BACKEND_ALIAS_SCG = 'scg'
 
 CONF_CONTENTS_LOCAL_HASH_STRAT = """
 # Hashing strategy for call-caching (3 choices)
@@ -104,38 +91,13 @@ gcp-call-caching-dup-strat=
 """ + CONF_CONTENTS_TMP_DIR
 
 
-def install_cromwell_jar(uri):
-    """Download cromwell-X.jar
+def init_caper_conf(conf_file, backend):
+    """Initialize conf file for a given backend.
+    There are two special backend aliases for two Stanford clusters.
+    These clusters are based on SLURM.
+    Also, download/install Cromwell/Womtool JARs, whose
+    default URL and install dir are defined in class Cromwell.
     """
-    u = AutoURI(uri)
-    if isinstance(u, AbsPath):
-        return u.uri
-    print('Downloading Cromwell JAR... {f}'.format(f=uri), file=sys.stderr)
-    path = os.path.join(
-        os.path.expanduser(DEFAULT_CROMWELL_JAR_INSTALL_DIR),
-        os.path.basename(uri))
-    return u.cp(path)
-
-
-def install_womtool_jar(uri):
-    """Download womtool-X.jar
-    """
-    u = AutoURI(uri)
-    if isinstance(u, AbsPath):
-        return u.uri
-    print('Downloading Womtool JAR... {f}'.format(f=uri), file=sys.stderr)
-    path = os.path.join(
-        os.path.expanduser(DEFAULT_WOMTOOL_JAR_INSTALL_DIR),
-        os.path.basename(uri))
-    return u.cp(path)
-
-
-def init_caper_conf(args):
-    """Initialize conf file for a given platform.
-    Also, download/install Cromwell/Womtool JARs.
-    """
-    backend = args.get('platform')
-    assert(backend in BACKENDS_WITH_ALIASES)
     if backend in (BACKEND_LOCAL, BACKEND_ALIAS_LOCAL):
         contents = DEFAULT_CONF_CONTENTS_LOCAL
     elif backend == BACKEND_ALIAS_SHERLOCK:
@@ -148,19 +110,21 @@ def init_caper_conf(args):
         contents = DEFAULT_CONF_CONTENTS_SGE
     elif backend == BACKEND_PBS:
         contents = DEFAULT_CONF_CONTENTS_PBS
-    elif backend in (BACKEND_GCP, BACKEND_ALIAS_GOOGLE):
+    elif backend in BACKEND_GCP:
         contents = DEFAULT_CONF_CONTENTS_GCP
-    elif backend in (BACKEND_AWS, BACKEND_ALIAS_AMAZON):
+    elif backend in BACKEND_AWS:
         contents = DEFAULT_CONF_CONTENTS_AWS
     else:
-        raise Exception('Unsupported platform/backend/alias.')
+        raise ValueError(
+            'Unsupported backend {p}'.format(p=platform))
 
-    conf_file = os.path.expanduser(args.get('conf'))
+    conf_file = os.path.expanduser(conf_file)
+    cromwell = Cromwell()
     with open(conf_file, 'w') as fp:
         fp.write(contents + '\n')
         fp.write('{key}={val}\n'.format(
             key='cromwell',
-            val=install_cromwell_jar(DEFAULT_CROMWELL_JAR)))
+            val=cromwell.install_cromwell()))
         fp.write('{key}={val}\n'.format(
             key='womtool',
-            val=install_womtool_jar(DEFAULT_WOMTOOL_JAR)))
+            val=cromwell.install_womtool()))

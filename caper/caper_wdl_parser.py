@@ -18,12 +18,13 @@ class CaperWDLParser(object):
         miniwdl (0.3.7) has a bug for URL imports
         Keep using regex to find imports until it's fixed.
     """
-    RE_PATTERN_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s*'
-    RE_PATTERN_WDL_COMMENT_DOCKER = r'^\s*\#\s*CAPER\s+docker\s(.+)'
-    RE_PATTERN_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CAPER\s+singularity\s(.+)'
+    RE_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s*'
+    RE_WDL_COMMENT_DOCKER = r'^\s*\#\s*CAPER\s+docker\s(.+)'
+    RE_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CAPER\s+singularity\s(.+)'
     RECURSION_DEPTH_LIMIT = 20
     WDL_WORKFLOW_META_DOCKER = 'caper_docker'
     WDL_WORKFLOW_META_SINGULARITY = 'caper_singularity'
+    BASENAME_IMPORTS = 'imports.zip'
 
     def __init__(self, wdl):
         self._wdl = AbsPath.get_abspath_if_exists(wdl)
@@ -36,7 +37,7 @@ class CaperWDLParser(object):
             pass
         # backward compatibililty: keep using old regex method
         r = self.__find_val(
-            CaperWDLParser.RE_PATTERN_WDL_IMPORT)
+            CaperWDLParser.RE_WDL_IMPORT)
         return r
 
     def find_docker(self):
@@ -47,7 +48,7 @@ class CaperWDLParser(object):
 
         # backward compatibililty: keep using old regex method
         r = self.__find_val(
-            CaperWDLParser.RE_PATTERN_WDL_COMMENT_DOCKER)
+            CaperWDLParser.RE_WDL_COMMENT_DOCKER)
         return r[0] if len(r) > 0 else None
 
     def find_singularity(self):
@@ -58,7 +59,7 @@ class CaperWDLParser(object):
 
         # backward compatibililty: keep using old regex method
         r = self.__find_val(
-            CaperWDLParser.RE_PATTERN_WDL_COMMENT_SINGULARITY)
+            CaperWDLParser.RE_WDL_COMMENT_SINGULARITY)
         return r[0] if len(r) > 0 else None
 
     def zip_subworkflows(self, zip_file):
@@ -67,15 +68,28 @@ class CaperWDLParser(object):
         However, only subworkflows with relative path will be zipped.
         """
         with TemporaryDirectory() as tmp_d:
-            main_wdl = AbsPath.localize(self._wdl)
-            u = AutoURI(main_wdl)
+            # localize WDL first. If it's already local
+            # then will use its original path without loc.
+            wdl = AutoURI(self._wdl).localize_on(tmp_d)            
             # with a directory structure as they imported
             num_sub_wf_packed = self.__recurse_subworkflow(
-                root_wdl_dir=u.dirname,
-                root_zip_dir=tmp_d)
+                root_zip_dir=tmp_d,
+                root_wdl_dir=AutoURI(wdl).dirname)
             if num_sub_wf_packed:
                 shutil.make_archive(AutoURI(zip_file).uri_wo_ext, 'zip', tmp_d)
-            return num_sub_wf_packed
+                return zip_file
+        return None
+
+    def create_imports_file(self, directory, basename=BASENAME_IMPORTS):
+        """Creates an imports zip file with basename on directory.
+
+        Returns:
+            Zipped imports file or None if no subworkflows found in WDL
+        """
+        zip_file = os.path.join(directory, basename)
+        if self.zip_subworkflows(zip_file):
+            return zip_file
+        return None
 
     def __find_val(self, regex_val):
         u = AutoURI(self._wdl)
@@ -105,11 +119,11 @@ class CaperWDLParser(object):
         return None
 
     def __recurse_subworkflow(
-        self,
-        root_zip_dir=None,
-        root_wdl_dir=None,
-        imported_as_url=False,
-        depth=0):
+            self,
+            root_zip_dir,
+            root_wdl_dir,
+            imported_as_url=False,
+            depth=0):
         """Recurse imported sub-WDLs in main-WDL.
 
         Unlike Cromwell, Womtool does not take imports.zip while validating WDLs.

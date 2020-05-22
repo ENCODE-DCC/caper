@@ -1,740 +1,683 @@
-"""Caper backend
-"""
+import logging
+import re
 from collections import UserDict
 from copy import deepcopy
+from textwrap import dedent
 from .dict_tool import merge_dict
+
+
+logger = logging.getLogger(__name__)
+
 
 BACKEND_GCP = 'gcp'
 BACKEND_AWS = 'aws'
-BACKEND_LOCAL = 'Local'  # should be CAPITAL L
+BACKEND_LOCAL = 'Local'
+BACKEND_ALIAS_LOCAL = 'local'
 BACKEND_SLURM = 'slurm'
 BACKEND_SGE = 'sge'
 BACKEND_PBS = 'pbs'
-BACKENDS = [BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, BACKEND_SLURM,
-    BACKEND_SGE, BACKEND_PBS]
-
-BACKEND_ALIAS_LOCAL = 'local'  # with small L
-BACKEND_ALIAS_GOOGLE = 'google'
-BACKEND_ALIAS_AMAZON = 'amazon'
-BACKEND_ALIAS_SHERLOCK = 'sherlock'
-BACKEND_ALIAS_SCG = 'scg'
-BACKEND_ALIASES = [BACKEND_ALIAS_LOCAL, BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON, BACKEND_ALIAS_SHERLOCK,
-    BACKEND_ALIAS_SCG]
-
-BACKENDS_WITH_ALIASES = BACKENDS + BACKEND_ALIASES
+DEFAULT_BACKEND = BACKEND_LOCAL
 
 
-def get_backend(backend):
-    if backend == BACKEND_ALIAS_GOOGLE:
-        backend = BACKEND_GCP
-    elif backend == BACKEND_ALIAS_AMAZON:
-        backend = BACKEND_AWS
-    elif backend == BACKEND_ALIAS_SHERLOCK:
-        backend = BACKEND_SLURM
-    elif backend == BACKEND_ALIAS_SCG:
-        backend = BACKEND_SLURM
-    elif backend == BACKEND_ALIAS_LOCAL:
-        backend = BACKEND_LOCAL
-    if backend not in BACKENDS:
-        raise ValueError('Unsupported backend: {}'.format(backend))
-    return backend
-
-
-class CaperBackendCommon(UserDict):
-    """Common stanzas for all Caper backends
+class CromwellBackendCommon(UserDict):
+    """Common stanzas for Cromwell backend conf.
     """
     TEMPLATE = {
-        "backend": {
-            "default": BACKEND_LOCAL
+        'backend': {
         },
-        "webservice": {
-            "port": 8000
+        'webservice': {
         },
-        "services": {
-            "LoadController": {
-                "class": "cromwell.services.loadcontroller.impl"
-                ".LoadControllerServiceActor",
-                "config": {
-                    # due to issues on stanford sherlock/scg
-                    "control-frequency": "21474834 seconds"
+        'services': {
+            'LoadController': {
+                'class': 'cromwell.services.loadcontroller.impl'
+                '.LoadControllerServiceActor',
+                'config': {
+                    # added due to issues on stanford sherlock/scg
+                    'control-frequency': '21474834 seconds'
                 }
             }
         },
-        "system": {
-            "job-rate-control": {
-                "jobs": 1,
-                "per": "2 seconds"
+        'system': {
+            'job-rate-control': {
+                'jobs': 1,
+                'per': '2 seconds'
             },
-            "abort-jobs-on-terminate": True,
-            "graceful-server-shutdown": True,
-            "max-concurrent-workflows": 40
+            'abort-jobs-on-terminate': True,
+            'graceful-server-shutdown': True
         },
-        "call-caching": {
-            "enabled": True,
-            "invalidate-bad-cache-results": True
+        'call-caching': {
+            'invalidate-bad-cache-results': True
         }
     }
 
-    def __init__(self, port=None, disable_call_caching=None,
-                 max_concurrent_workflows=None):
-        super().__init__(CaperBackendCommon.TEMPLATE)
-        if port is not None:
-            self['webservice']['port'] = port
-        if disable_call_caching is not None:
-            self['call-caching']['enabled'] = not disable_call_caching
-        if max_concurrent_workflows is not None:
-            self['system']['max-concurrent-workflows'] = \
-                max_concurrent_workflows
+    DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
+    DEFAULT_SERVER_PORT = 8000
+
+    def __init__(
+            self,
+            default_backend,
+            server_port=DEFAULT_SERVER_PORT,
+            disable_call_caching=False,
+            max_concurrent_workflows=DEFAULT_MAX_CONCURRENT_WORKFLOWS):
+        super().__init__(deepcopy(CromwellBackendCommon.TEMPLATE))
+
+        self['backend']['default'] = default_backend
+        self['webservice']['port'] = server_port
+        self['call-caching']['enabled'] = not disable_call_caching
+        self['system']['max-concurrent-workflows'] = max_concurrent_workflows
 
 
-class CaperBackendDatabase(UserDict):
-    """Common stanzas for database
+class CromwellBackendDatabase(UserDict):
+    """Common stanzas for Cromwell's metadata database.
     """
-    DB_TYPE_IN_MEMORY = 'in-memory'
-    DB_TYPE_FILE = 'file'
-    DB_TYPE_MYSQL = 'mysql'
-    DB_TYPE_POSTGRESQL = 'postgresql'
-
     TEMPLATE = {
-    }
-
-    TEMPLATE_DB_IN_MEMORY = {
-    }
-
-    TEMPLATE_DB_FILE = {
-        "db": {
-            "url": "jdbc:hsqldb:file:{file};"
-                "shutdown=false;"
-                "hsqldb.tx=mvcc;"
-                "hsqldb.lob_compressed=true;"
-                "hsqldb.default_table_type=cached;"
-                "hsqldb.result_max_memory_rows=10000;"
-                "hsqldb.large_data=true;"
-                "hsqldb.applog=1;"
-                "hsqldb.script_format=3",
-            "connectionTimeout": 5000,
-            "numThreads": 1
+        'database': {
+            'db': {
+                'connectionTimeout': 5000,
+                'numThreads': 1
+            }
         }
     }
 
-    TEMPLATE_DB_MYSQL = {
-        "profile": "slick.jdbc.MySQLProfile$",
-        "db": {
-            "driver": "com.mysql.cj.jdbc.Driver",
-            "url": "jdbc:mysql://{ip}:{port}/{name}?"
-                "allowPublicKeyRetrieval=true&useSSL=false&"
-                "rewriteBatchedStatements=true&serverTimezone=UTC",
-            "user": "cromwell",
-            "password": "cromwell",
-            "connectionTimeout": 5000,
-            "numThreads": 1
-        }
-    }
+    DB_IN_MEMORY = 'in-memory'
+    DB_FILE = 'file'
+    DB_MYSQL = 'mysql'
+    DB_POSTGRESQL = 'postgresql'
 
-    TEMPLATE_DB_POSTGRESQL = {
-        "profile": "slick.jdbc.PostgresProfile$",
-        "db": {
-            "driver": "org.postgresql.Driver",
-            "url": "jdbc:postgresql://{ip}:{port}/{name}",
-            "port": 5432,
-            "user": "cromwell",
-            "password": "cromwell",
-            "connectionTimeout": 5000,
-            "numThreads": 1
-        }
-    }
+    PROFILE_MYSQL = 'slick.jdbc.MySQLProfile$'
+    PROFILE_POSTGRESQL = 'slick.jdbc.PostgresProfile$'
+    JDBC_DRIVER_MYSQL = 'com.mysql.cj.jdbc.Driver'
+    JDBC_DRIVER_POSTGRESQL = 'org.postgresql.Driver'
+    JDBC_URL_FILE = 'jdbc:hsqldb:file:{file};shutdown=false;hsqldb.tx=mvcc;'\
+                       'hsqldb.lob_compressed=true;'\
+                       'hsqldb.default_table_type=cached;'\
+                       'hsqldb.result_max_memory_rows=10000;'\
+                       'hsqldb.large_data=true;'\
+                       'hsqldb.applog=1;'\
+                       'hsqldb.script_format=3'
+    JDBC_URL_MYSQL = 'jdbc:mysql://{ip}:{port}/{name}?'\
+                        'allowPublicKeyRetrieval=true&useSSL=false&'\
+                        'rewriteBatchedStatements=true&serverTimezone=UTC'
+    JDBC_URL_POSTGRESQL = 'jdbc:postgresql://{ip}:{port}/{name}'
 
-    def __init__(self, db_type=None, db_timeout=None,
-                 file_db=None,
-                 mysql_ip=None, mysql_port=None,
-                 mysql_user=None, mysql_password=None,
-                 mysql_name=None,
-                 postgresql_ip=None, postgresql_port=None,
-                 postgresql_user=None, postgresql_password=None,
-                 postgresql_name=None):
-        super().__init__(CaperBackendDatabase.TEMPLATE)
+    DEFAULT_DB = DB_IN_MEMORY
+    DEFAULT_DB_TIMEOUT_MS = 30000
+    DEFAULT_MYSQL_DB_IP = 'localhost'
+    DEFAULT_MYSQL_DB_PORT = 3306
+    DEFAULT_MYSQL_DB_USER = 'cromwell'
+    DEFAULT_MYSQL_DB_PASSWORD = 'cromwell'
+    DEFAULT_MYSQL_DB_NAME = 'cromwell'
+    DEFAULT_POSTGRESQL_DB_IP = 'localhost'
+    DEFAULT_POSTGRESQL_DB_PORT = 5432
+    DEFAULT_POSTGRESQL_DB_USER = 'cromwell'
+    DEFAULT_POSTGRESQL_DB_PASSWORD = 'cromwell'
+    DEFAULT_POSTGRESQL_DB_NAME = 'cromwell'
 
-        if db_type == CaperBackendDatabase.DB_TYPE_IN_MEMORY:
-            self['database'] = CaperBackendDatabase.TEMPLATE_DB_IN_MEMORY
+    def __init__(
+            self,
+            db=DEFAULT_DB,
+            db_timeout=DEFAULT_DB_TIMEOUT_MS,
+            mysql_db_ip=DEFAULT_MYSQL_DB_IP,
+            mysql_db_port=DEFAULT_MYSQL_DB_PORT,
+            mysql_db_user=DEFAULT_MYSQL_DB_USER,
+            mysql_db_password=DEFAULT_MYSQL_DB_PASSWORD,
+            mysql_db_name=DEFAULT_MYSQL_DB_NAME,
+            postgresql_db_ip=DEFAULT_POSTGRESQL_DB_IP,
+            postgresql_db_port=DEFAULT_POSTGRESQL_DB_PORT,
+            postgresql_db_user=DEFAULT_POSTGRESQL_DB_USER,
+            postgresql_db_password=DEFAULT_POSTGRESQL_DB_PASSWORD,
+            postgresql_db_name=DEFAULT_POSTGRESQL_DB_NAME,
+            file_db=None):
+        super().__init__(deepcopy(CromwellBackendDatabase.TEMPLATE))    
 
-        elif db_type == CaperBackendDatabase.DB_TYPE_FILE:
-            self['database'] = CaperBackendDatabase.TEMPLATE_DB_FILE
-            db = self['database']['db']
-            db['url'] = db['url'].format(
-                file=file_db)
+        database = self['database']
+        db_obj = database['db']
 
-        elif db_type == CaperBackendDatabase.DB_TYPE_MYSQL:
-            self['database'] = CaperBackendDatabase.TEMPLATE_DB_MYSQL            
-            db = self['database']['db']
-            db['url'] = db['url'].format(
-                ip=mysql_ip, port=mysql_port, name=mysql_name)
-            db['user'] = mysql_user
-            db['password'] = mysql_password
+        db_obj['connectionTimeout'] = db_timeout
 
-        elif db_type == CaperBackendDatabase.DB_TYPE_POSTGRESQL:
-            self['database'] = CaperBackendDatabase.TEMPLATE_DB_POSTGRESQL
-            db = self['database']['db']
-            db['url'] = db['url'].format(
-                ip=postgresql_ip, port=postgresql_port, name=postgresql_name)
-            db['port'] = postgresql_port
-            db['user'] = postgresql_user
-            db['password'] = postgresql_password
+        if db == CromwellBackendDatabase.DB_FILE:            
+            if not file_db:
+                raise ValueError(
+                    'file_db must be defined for db {db}'.format(db=db))
+
+        if db == CromwellBackendDatabase.DB_IN_MEMORY:
+            pass
+
+        elif db == CromwellBackendDatabase.DB_FILE:
+            db_obj['url'] = CromwellBackendDatabase.JDBC_URL_FILE.format(file=file_db)
+
+        elif db == CromwellBackendDatabase.DB_MYSQL:
+            database['profile'] = CromwellBackendDatabase.PROFILE_MYSQL
+            db_obj['driver'] = CromwellBackendDatabase.DRIVER_MYSQL
+            db_obj['url'] = CromwellBackendDatabase.JDBC_URL_MYSQL.format(
+                ip=mysql_db_ip, port=mysql_db_port, name=mysql_db_name)
+            db_obj['user'] = mysql_db_user
+            db_obj['password'] = mysql_db_password
+
+        elif db == CromwellBackendDatabase.DB_POSTGRESQL:
+            database['profile'] = CromwellBackendDatabase.PROFILE_POSTGRESQL
+            db_obj['driver'] = CromwellBackendDatabase.DRIVER_POSTGRESQL
+            db_obj['url'] = CromwellBackendDatabase.JDBC_URL_POSTGRESQL.format(
+                ip=postgresql_db_ip, port=postgresql_db_port, name=postgresql_db_name)
+            db_obj['port'] = postgresql_db_port
+            db_obj['user'] = postgresql_db_user
+            db_obj['password'] = postgresql_db_password
 
         else:
-            raise ValueError('Unsupported DB type {}'.format(db_type))
-
-        if db_timeout is not None and 'db' in self['database']:
-            self['database']['db']['connectionTimeout'] = db_timeout
+            raise ValueError('Unsupported DB type {db}'.format(db=db))
 
 
-class CaperBackendBase(UserDict):
+class CromwellBackendBase(UserDict):
     """Base skeleton backend for all backends
     """
-    CONCURRENT_JOB_LIMIT = None
     TEMPLATE = {
-        "backend": {
-            "providers": {
+        'backend': {
+            'providers': {
             }
         }
     }
     TEMPLATE_BACKEND = {
-        "actor-factory": None,
-        "config": {
-            "default-runtime-attributes": {
-            },
-            "concurrent-job-limit": None
+        'config': {
+            'default-runtime-attributes': {
+            }
         }
     }
 
-    def __init__(self, dict_to_override_self=None, backend_name=None):
+    DEFAULT_CONCURRENT_JOB_LIMIT = 1000
+
+    def __init__(
+            self,
+            backend_name,
+            max_concurrent_tasks=DEFAULT_CONCURRENT_JOB_LIMIT):
         """
         Args:
-            dict_to_override_self: dict to override self
-            backend_name: backend name
+            backend_name:
+                Backend's name.
+            max_concurrent_tasks:
+                Maximum number of tasks (regardless of number of workflows).
         """
+        super().__init__(deepcopy(CromwellBackendBase.TEMPLATE))
+
         if backend_name is None:
             raise ValueError('backend_name must be provided.')
         self._backend_name = backend_name
 
-        super().__init__(deepcopy(CaperBackendBase.TEMPLATE))
+        self.set_backend(CromwellBackendBase.TEMPLATE_BACKEND)
 
         config = self.get_backend_config()
+        config['concurrent-job-limit'] = max_concurrent_tasks
 
-        if CaperBackendBase.CONCURRENT_JOB_LIMIT is None:
-            raise ValueError('You must define CaperBackendBase.CONCURRENT_JOB_LIMIT.')
-        config['concurrent-job-limit'] = CaperBackendBase.CONCURRENT_JOB_LIMIT
+    def set_backend(self, backend):
+        self['backend']['providers'][self._backend_name] = deepcopy(backend)
 
-        if dict_to_override_self is not None:
-            merge_dict(self, deepcopy(dict_to_override_self))
-
-    @property
-    def backend_name(self):
-        return self._backend_name
+    def merge_backend(self, backend):
+        merge_dict(self.get_backend(), backend)
 
     def get_backend(self):
-        if self._backend_name not in self['backend']['providers']:
-            self['backend']['providers'][self._backend_name] = \
-                    deepcopy(CaperBackendBase.TEMPLATE_BACKEND)
         return self['backend']['providers'][self._backend_name]
 
     def get_backend_config(self):
         return self.get_backend()['config']
 
-
-class CaperBackendBaseLocal(CaperBackendBase):
-    """Base backend for all local backends (including HPCs with cluster engine)
-    """
-    USE_SOFT_GLOB_OUTPUT = None
-    OUT_DIR = None
-    CALL_CACHING_HASH_STRAT = None
-
-    CALL_CACHING_HASH_STRAT_FILE = 'file'
-    CALL_CACHING_HASH_STRAT_PATH = 'path'
-    CALL_CACHING_HASH_STRAT_PATH_MTIME = 'path+modtime'
-    DUP_STRAT_FOR_PATH = ['soft-link']
-    SOFT_GLOB_OUTPUT_CMD = 'ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null'
-
-    TEMPLATE_BACKEND = {
-        "actor-factory": "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory",
-        "config": {
-            "script-epilogue": "sleep 10 && sync",
-            "root": None,
-            "filesystems": {
-                "local": {
-                    "caching": {
-                        "hashing-strategy": None,
-                        "check-sibling-md5": True
-                    }
-                }
-            }
-        }
-    }
-    def __init__(self, dict_to_override_self=None, backend_name=None):
-        super().__init__(backend_name=backend_name)
-
-        merge_dict(
-            self.get_backend(),
-            deepcopy(CaperBackendBaseLocal.TEMPLATE_BACKEND))
-        config = self.get_backend_config()
-
-        if CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT is None:
-            raise ValueError('You must define CaperBackendBase.CALL_CACHING_HASH_STRAT.')
-        if CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT not in (
-            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_FILE,
-            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH,
-            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH_MTIME):
-            raise ValueError('Wrong CaperBackendBase.CALL_CACHING_HASH_STRAT: {strat}'.format(
-                strat=CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT))
-        caching = config['filesystems']['local']['caching']
-        if CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT in (
-            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH,
-            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH_MTIME):
-            caching['duplication-strategy'] = CaperBackendBaseLocal.DUP_STRAT_FOR_PATH
-        caching['hashing-strategy'] = CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT
-
-        if CaperBackendBaseLocal.USE_SOFT_GLOB_OUTPUT is None:
-            raise ValueError('You must define CaperBackendBase.USE_SOFT_GLOB_OUTPUT.')
-        if CaperBackendBaseLocal.USE_SOFT_GLOB_OUTPUT:
-            config['glob-link-command'] = CaperBackendBaseLocal.SOFT_GLOB_OUTPUT_CMD
-
-        if CaperBackendBaseLocal.OUT_DIR is None:
-            raise ValueError('You must define CaperBackendBase.OUT_DIR.')
-        config['root'] = CaperBackendBaseLocal.OUT_DIR
-
-        if dict_to_override_self is not None:
-            merge_dict(self, deepcopy(dict_to_override_self))
+    def get_backend_config_dra(self):
+        """Backend's default runtime attributes (DRA).
+        """
+        return self.get_backend_config()['default-runtime-attributes']
 
 
-class CaperBackendGCP(CaperBackendBase):
-    """Google Cloud backend
-    """
-    CALL_CACHING_DUP_STRAT_REFERENCE = 'reference'
-    CALL_CACHING_DUP_STRAT_COPY = 'copy'
-
+class CromwellBackendGCP(CromwellBackendBase):
     TEMPLATE = {
-        "backend": {
-            "providers": {
-                BACKEND_GCP: {
-                    "actor-factory": "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory",
-                    "config": {
-                        "default-runtime-attributes": {
-                        },
-                        "project": None,
-                        "root": None,
-                        "genomics-api-queries-per-100-seconds": 1000,
-                        "maximum-polling-interval": 600,
-                        "genomics": {
-                            "auth": "application-default",
-                            "compute-service-account": "default",
-                            "endpoint-url": "https://genomics.googleapis.com/",
-                            "restrict-metadata-access": False
-                        },
-                        "filesystems": {
-                            "gcs": {
-                                "auth": "application-default",
-                                "caching": {
-                                    "duplication-strategy": None
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "google": {
-            "application-name": "cromwell",
-            "auths": [
+        'google': {
+            'application-name': 'cromwell',
+            'auths': [
                 {
-                    "name": "application-default",
-                    "scheme": "application_default"
+                    'name': 'application-default',
+                    'scheme': 'application_default'
                 }
             ]
         }
     }
+    TEMPLATE_BACKEND = {
+        'actor-factory': 'cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory',
+        'config': {
+            'default-runtime-attributes': {
+            },
+            'genomics-api-queries-per-100-seconds': 1000,
+            'maximum-polling-interval': 600,
+            'genomics': {
+                'auth': 'application-default',
+                'compute-service-account': 'default',
+                'endpoint-url': 'https://genomics.googleapis.com/',
+                'restrict-metadata-access': False
+            },
+            'filesystems': {
+                'gcs': {
+                    'auth': 'application-default',
+                    'caching': {
+                    }
+                }
+            }
+        }
+    }
 
-    def __init__(self, gcp_prj, out_gcs_bucket,
-                 call_caching_dup_strat=None):
+    REGEX_DELIMITER_GCP_ZONES = r',| '
+    CALL_CACHING_DUP_STRAT_REFERENCE = 'reference'
+    CALL_CACHING_DUP_STRAT_COPY = 'copy'
+
+    DEFAULT_GCP_CALL_CACHING_DUP_STRAT = CALL_CACHING_DUP_STRAT_REFERENCE
+
+    def __init__(
+            self,
+            gcp_prj,
+            out_gcs_bucket,        
+            call_caching_dup_strat=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
+            gcp_zones=None,
+            max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT):
         super().__init__(
-            CaperBackendGCP.TEMPLATE,
-            backend_name=BACKEND_GCP)
+            backend_name=BACKEND_GCP,
+            max_concurrent_tasks=max_concurrent_tasks)
+        merge_dict(self.data, CromwellBackendGCP.TEMPLATE)
+        self.merge_backend(CromwellBackendGCP.TEMPLATE_BACKEND)
+
         config = self.get_backend_config()
-
         config['project'] = gcp_prj
-        config['root'] = out_gcs_bucket
-
         if not out_gcs_bucket.startswith('gs://'):
             raise ValueError('Wrong GCS bucket URI for out_gcs_bucket: {v}'.format(
                 v=out_gcs_bucket))
+        config['root'] = out_gcs_bucket
 
-        if call_caching_dup_strat is None:
-            dup_strat = CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE
-        else:
-            dup_strat = call_caching_dup_strat
-        if dup_strat not in (
-            CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
-            CaperBackendGCP.CALL_CACHING_DUP_STRAT_COPY):
+        caching = config['filesystems']['gcs']['caching']        
+        if call_caching_dup_strat not in (
+            CromwellBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
+            CromwellBackendGCP.CALL_CACHING_DUP_STRAT_COPY):
             raise ValueError('Wrong call_caching_dup_strat: {v}'.format(
                 v=call_caching_dup_strat))
-        config['filesystems']['gcs']['caching']['duplication-strategy'] = dup_strat
+        caching['duplication-strategy'] = call_caching_dup_strat
+
+        dra = self.get_backend_config_dra()
+        if gcp_zones:
+            zones = ' '.join(
+                re.split(
+                    CromwellBackendGCP.REGEX_DELIMITER_GCP_ZONES,
+                    gcp_zones))
+            dra['zones'] = zones
 
 
-class CaperBackendAWS(CaperBackendBase):
-    """AWS backend
-    """
+class CromwellBackendAWS(CromwellBackendBase):
     TEMPLATE = {
-        "backend": {
-            "providers": {
-                BACKEND_AWS: {
-                    "actor-factory": "cromwell.backend.impl.aws.AwsBatchBackendLifecycleActorFactory",
-                    "config": {
-                        "default-runtime-attributes": {
-                            "queueArn": None
-                        },
-                        "numSubmitAttempts": 6,
-                        "numCreateDefinitionAttempts": 6,
-                        "root": None,
-                        "auth": "default",
-                        "filesystems": {
-                            "s3": {
-                                "auth": "default"
-                            }
-                        }
-                    }
-                },
-            }
-        },
-        "aws": {
-            "application-name": "cromwell",
-            "auths": [
+        'aws': {
+            'application-name': 'cromwell',
+            'auths': [
                 {
-                    "name": "default",
-                    "scheme": "default"
+                    'name': 'default',
+                    'scheme': 'default'
                 }
-            ],
-            "region": None
+            ]
         },
-        "engine": {
-            "filesystems": {
-                "s3": {
-                    "auth": "default"
+        'engine': {
+            'filesystems': {
+                's3': {
+                    'auth': 'default'
+                }
+            }
+        }
+    }
+    TEMPLATE_BACKEND = {
+        'actor-factory': 'cromwell.backend.impl.aws.AwsBatchBackendLifecycleActorFactory',
+        'config': {
+            'default-runtime-attributes': {
+            },
+            'numSubmitAttempts': 6,
+            'numCreateDefinitionAttempts': 6,
+            'auth': 'default',
+            'filesystems': {
+                's3': {
+                    'auth': 'default'
                 }
             }
         }
     }
 
-    def __init__(self, aws_batch_arn, aws_region, out_s3_bucket):
+    def __init__(
+            self,
+            aws_batch_arn,
+            aws_region,
+            out_s3_bucket,
+            max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT):
         super().__init__(
-            CaperBackendAWS.TEMPLATE,
-            backend_name=BACKEND_AWS)
-        self[BACKEND_AWS]['region'] = aws_region
+            backend_name=BACKEND_AWS,
+            max_concurrent_tasks=max_concurrent_tasks)
+        merge_dict(self.data, CromwellBackendAWS.TEMPLATE)
+        self.merge_backend(CromwellBackendAWS.TEMPLATE_BACKEND)
+
+        aws = self[BACKEND_AWS]        
+        aws['region'] = aws_region
+
         config = self.get_backend_config()
-        config['default-runtime-attributes']['queueArn'] = aws_batch_arn
-        config['root'] = out_s3_bucket
         if not out_s3_bucket.startswith('s3://'):
             raise ValueError('Wrong S3 bucket URI for out_s3_bucket: {v}'.format(
                 v=out_s3_bucket))
+        config['root'] = out_s3_bucket
+
+        dra = self.get_backend_config_dra()
+        dra['queueArn'] = aws_batch_arn
 
 
-class CaperBackendLocal(CaperBackendBaseLocal):
-    """Local backend
+class CromwellBackendLocal(CromwellBackendBase):
+    """Class constants:
+        CMD_SINGULARITY:
+            Includes BASH command line for Singularity.
     """
-    RUNTIME_ATTRIBUTES = """
-        Int? gpu
-        String? docker
-        String? docker_user
-        String? singularity
-        String? singularity_bindpath
-        String? singularity_cachedir
+    CMD_SINGULARITY = """\
+        CMD_SINGULARITY="\\
+        if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
+        if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \\
+        singularity exec --cleanenv --home ${cwd} {if defined(gpu) then '--nv' else ''} ${singularity} /bin/bash ${script}"
     """
-    SUBMIT = """
-        ${if defined(singularity) then "" else "/bin/bash ${script} #"} \
-        if [ -z "$SINGULARITY_BINDPATH" ]; then \
-        export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
-        if [ -z "$SINGULARITY_CACHEDIR" ]; then \
-        export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
-        singularity exec --cleanenv --home ${cwd} \
-        ${if defined(gpu) then '--nv' else ''} \
-        ${singularity} /bin/bash ${script}
-    """
-    SUBMIT_DOCKER = """
-        # make sure there is no preexisting Docker CID file
-        rm -f ${docker_cid}
-        # run as in the original configuration without --rm flag (will remove later)
-        docker run \
-          --cidfile ${docker_cid} \
-          -i \
-          ${"--user " + docker_user} \
-          --entrypoint ${job_shell} \
-          -v ${cwd}:${docker_cwd} \
-          ${docker} ${docker_script}
-    """
-    TEMPLATE = {
-        "backend": {
-            "providers": {
-                BACKEND_LOCAL: {
-                    "config": {
-                        "run-in-background": True,
-                        "runtime-attributes": RUNTIME_ATTRIBUTES,
-                        "submit": SUBMIT,
-                        "submit-docker" : SUBMIT_DOCKER
+
+    TEMPLATE_BACKEND = {
+        'actor-factory': 'cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory',
+        'config': {
+            'script-epilogue': 'sleep 10 && sync',
+            'filesystems': {
+                'local': {
+                    'caching': {
+                        'check-sibling-md5': True
                     }
                 }
-            }
+            },
+            'run-in-background': True,
+            'runtime-attributes': dedent("""\
+                Int? gpu
+                String? docker
+                String? docker_user
+                String? singularity
+                String? singularity_bindpath
+                String? singularity_cachedir
+                """),
+            'submit': CMD_SINGULARITY + dedent("""\
+                    ${if defined(singularity) '$CMD_SINGULARITY' else '/bin/bash ' + script}
+                """),
+            'submit-docker' : dedent("""\
+                rm -f ${docker_cid}
+                docker run \\
+                  --cidfile ${docker_cid} \\
+                  -i \\
+                  ${'--user ' + docker_user} \\
+                  --entrypoint ${job_shell} \\
+                  -v ${cwd}:${docker_cwd} \\
+                  ${docker} ${docker_script}
+                """)
         }
     }
 
-    def __init__(self):
+    LOCAL_HASH_STRAT_FILE = 'file'
+    LOCAL_HASH_STRAT_PATH = 'path'
+    LOCAL_HASH_STRAT_PATH_MTIME = 'path+modtime'
+    DUP_STRAT_FOR_PATH = ['soft-link']
+    SOFT_GLOB_OUTPUT_CMD = 'ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null'
+
+    DEFAULT_LOCAL_HASH_STRAT = LOCAL_HASH_STRAT_FILE
+
+    def __init__(
+            self,
+            out_dir,
+            backend_name=BACKEND_LOCAL,
+            soft_glob_output=False,
+            local_hash_strat=DEFAULT_LOCAL_HASH_STRAT,
+            max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT):
         super().__init__(
-            CaperBackendLocal.TEMPLATE,
-            backend_name=BACKEND_LOCAL)
+            backend_name=backend_name,
+            max_concurrent_tasks=max_concurrent_tasks)
+        self.merge_backend(CromwellBackendLocal.TEMPLATE_BACKEND)
 
-
-class CaperBackendSLURM(CaperBackendBaseLocal):
-    """SLURM backend
-    """
-    RUNTIME_ATTRIBUTES = """
-        String? docker
-        String? docker_user
-        Int cpu = 1
-        Int? gpu
-        Int? time
-        Int? memory_mb
-        String? slurm_partition
-        String? slurm_account
-        String? slurm_extra_param
-        String? singularity
-        String? singularity_bindpath
-        String? singularity_cachedir
-    """
-    # try sbatching up to 3 times every 30 second
-    # some busy SLURM clusters spit out error, which results in a failure of the whole workflow
-    SUBMIT = """ITER=0; until [ $ITER -ge 3 ]; do
-        sbatch \
-        --export=ALL \
-        -J ${job_name} \
-        -D ${cwd} \
-        -o ${out} \
-        -e ${err} \
-        ${"-t " + time*60} \
-        -n 1 \
-        --ntasks-per-node=1 \
-        ${true="--cpus-per-task=" false="" defined(cpu)}${cpu} \
-        ${true="--mem=" false="" defined(memory_mb)}${memory_mb} \
-        ${"-p " + slurm_partition} \
-        ${"--account " + slurm_account} \
-        ${true="--gres gpu:" false="" defined(gpu)}${gpu} \
-        ${slurm_extra_param} \
-        --wrap "${if defined(singularity) then '' else \
-            '/bin/bash ${script} #'} \
-            if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then \
-            export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
-            if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then \
-            export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
-            singularity exec --cleanenv --home ${cwd} \
-            ${if defined(gpu) then '--nv' else ''} \
-            ${singularity} /bin/bash ${script}" && break
-    ITER=$[$ITER+1]; sleep 30; done
-    """
-    # squeue every 30 second (up to 3 times)
-    # unlike qstat -j JOB_ID, squeue -j JOB_ID doesn't return 1 when there is no such job
-    # so we need to use squeue -j JOB_ID --noheader and check if output is empty
-    # try polling up to 3 times since squeue fails on some busy SLURM clusters
-    # e.g. on Stanford Sherlock, squeue didn't work when server is busy
-    CHECK_ALIVE = """for ITER in 1 2 3; do CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id}); if [ -z "$CHK_ALIVE" ]; then if [ "$ITER" == 3 ]; then /bin/bash -c 'exit 1'; else sleep 30; fi; else echo $CHK_ALIVE; break; fi; done"""
-    TEMPLATE = {
-        "backend": {
-            "providers": {
-                BACKEND_SLURM: {
-                    "config": {
-                        "default-runtime-attributes": {
-                            "time": 24
-                        },
-                        "runtime-attributes": RUNTIME_ATTRIBUTES,
-                        "submit": SUBMIT,
-                        "kill": "scancel ${job_id}",
-                        "exit-code-timeout-seconds": 360,
-                        "check-alive": CHECK_ALIVE,
-                        "job-id-regex": "Submitted batch job (\\d+).*"
-                    }
-                }
-            }
-        }
-    }
-
-    def __init__(self, partition=None, account=None, extra_param=None):
-        super().__init__(
-            CaperBackendSLURM.TEMPLATE,
-            backend_name=BACKEND_SLURM)
         config = self.get_backend_config()
+        caching = config['filesystems']['local']['caching']
 
-        if partition is not None and partition != '':
-            config['default-runtime-attributes']['slurm_partition'] = partition
-        if account is not None and account != '':
-            config['default-runtime-attributes']['slurm_account'] = account
-        if extra_param is not None and extra_param != '':
-            config['default-runtime-attributes']['slurm_extra_param'] = extra_param
+        if local_hash_strat not in (
+            CromwellBackendLocal.LOCAL_HASH_STRAT_FILE,
+            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH,
+            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH_MTIME):
+            raise ValueError('Wrong local_hash_strat: {strat}'.format(local_hash_strat))
+        caching['hashing-strategy'] = local_hash_strat
+
+        if local_hash_strat in (
+            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH,
+            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH_MTIME):
+            caching['duplication-strategy'] = CromwellBackendLocal.DUP_STRAT_FOR_PATH
+
+        if soft_glob_output:
+            config['glob-link-command'] = CromwellBackendLocal.SOFT_GLOB_OUTPUT_CMD
+
+        if out_dir is None:
+            raise ValueError('out_dir must be provided.')
+        config['root'] = out_dir
 
 
-class CaperBackendSGE(CaperBackendBaseLocal):
-    """SGE backend
+class CromwellBackendSLURM(CromwellBackendLocal):
+    """SLURM backend.
+    Try sbatching up to 3 times every 30 second.
+    Some busy SLURM clusters spit out error, which results in a failure of the whole workflow
+
+    Squeues every 30 second (up to 3 times)
+    Unlike qstat -j JOB_ID, squeue -j JOB_ID doesn't return 1 when there is no such job
+    So we need to use squeue -j JOB_ID --noheader and check if output is empty
+    Try polling up to 3 times since squeue fails on some busy SLURM clusters
+    e.g. on Stanford Sherlock, squeue didn't work when server is busy
     """
-    RUNTIME_ATTRIBUTES = """
-        String? docker
-        String? docker_user
-        String sge_pe = "shm"
-        Int cpu = 1
-        Int? gpu
-        Int? time
-        Int? memory_mb
-        String? sge_queue
-        String? sge_extra_param
-        String? singularity
-        String? singularity_bindpath
-        String? singularity_cachedir
-    """
-    SUBMIT = """
-        echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
-        if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then \
-        export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
-        if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then \
-        export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
-        singularity exec --cleanenv --home ${cwd} \
-        ${if defined(gpu) then '--nv' else ''} \
-        ${singularity} /bin/bash ${script}" | qsub \
-        -S /bin/sh \
-        -terse \
-        -b n \
-        -N ${job_name} \
-        -wd ${cwd} \
-        -o ${out} \
-        -e ${err} \
-        ${if cpu>1 then "-pe " + sge_pe + " " else ""}\
-${if cpu>1 then cpu else ""} \
-        ${true="-l h_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}\
-${true=" / " false="" defined(memory_mb)}\
-${if defined(memory_mb) then cpu else ""}\
-${true=")m" false="" defined(memory_mb)} \
-        ${true="-l s_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}\
-${true=" / " false="" defined(memory_mb)}\
-${if defined(memory_mb) then cpu else ""}\
-${true=")m" false="" defined(memory_mb)} \
-        ${true="-l h_rt=" false="" defined(time)}${time}$\
-{true=":00:00" false="" defined(time)} \
-        ${true="-l s_rt=" false="" defined(time)}${time}$\
-{true=":00:00" false="" defined(time)} \
-        ${"-q " + sge_queue} \
-        ${"-l gpu=" + gpu} \
-        ${sge_extra_param} \
-        -V
-    """
-    TEMPLATE = {
-        "backend": {
-            "providers": {
-                BACKEND_SGE: {
-                    "config": {
-                        "default-runtime-attributes": {
-                            "time": 24
-                        },
-                        "runtime-attributes": RUNTIME_ATTRIBUTES,
-                        "submit": SUBMIT,
-                        "exit-code-timeout-seconds": 180,
-                        "kill": "qdel ${job_id}",
-                        "check-alive": "qstat -j ${job_id}",
-                        "job-id-regex": "(\\d+)"
-                    }
-                }
-            }
+    TEMPLATE_BACKEND = {
+        'config': {
+            'default-runtime-attributes': {
+                'time': 24
+            },
+            'exit-code-timeout-seconds': 360,            
+            'runtime-attributes': dedent("""\
+                String? docker
+                String? docker_user
+                Int cpu = 1
+                Int? gpu
+                Int? time
+                Int? memory_mb
+                String? slurm_partition
+                String? slurm_account
+                String? slurm_extra_param
+                String? singularity
+                String? singularity_bindpath
+                String? singularity_cachedir
+            """),
+            'submit': CromwellBackendLocal.CMD_SINGULARITY + dedent("""\
+                ITER=0
+                until [ $ITER -ge 3 ]; do
+                    sbatch \\
+                        --export=ALL \\
+                        -J ${job_name} \\
+                        -D ${cwd} \\
+                        -o ${out} \\
+                        -e ${err} \\
+                        ${'-t ' + time*60} \\
+                        -n 1 \\
+                        --ntasks-per-node=1 \\
+                        ${'--cpus-per-task=' + cpu} \\
+                        ${'--mem=' + memory_mb} \\
+                        ${'-p ' + slurm_partition} \\
+                        ${'--account ' + slurm_account} \\
+                        ${'--gres gpu:' + gpu}$ \\
+                        ${slurm_extra_param} \\
+                        --wrap "${if defined(singularity) '$CMD_SINGULARITY' else '/bin/bash + script}" \\
+                        && break
+                    ITER=$[$ITER+1]
+                    sleep 30
+                done
+            """),
+            'check-alive': dedent("""\
+                for ITER in 1 2 3; do
+                    CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id})
+                    if [ -z "$CHK_ALIVE" ]; then if [ "$ITER" == 3 ]; then /bin/bash -c 'exit 1'; else sleep 30; fi; else echo $CHK_ALIVE; break; fi
+                done
+            """),
+            'kill': 'scancel ${job_id}',
+            'job-id-regex': 'Submitted batch job (\\d+).*'
         }
     }
 
-    def __init__(self, pe=None, queue=None, extra_param=None):
+    def __init__(
+            self,
+            out_dir,
+            max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
+            soft_glob_output=False,
+            local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
+            slurm_partition=None,
+            slurm_account=None,
+            slurm_extra_param=None):
         super().__init__(
-            CaperBackendSGE.TEMPLATE,
-            backend_name=BACKEND_SGE)
-        config = self.get_backend_config()
+            out_dir=out_dir,
+            backend_name=BACKEND_SLURM,
+            max_concurrent_tasks=max_concurrent_tasks,
+            soft_glob_output=soft_glob_output,
+            local_hash_strat=local_hash_strat)
+        self.merge_backend(CromwellBackendSLURM.TEMPLATE_BACKEND)
 
-        if pe is not None and pe != '':
-            config['default-runtime-attributes']['sge_pe'] = pe
-        if queue is not None and queue != '':
-            config['default-runtime-attributes']['sge_queue'] = queue
-        if extra_param is not None and extra_param != '':
-            config['default-runtime-attributes']['sge_extra_param'] = extra_param
+        dra = self.get_backend_config_dra()
+        if slurm_partition:
+            dra['slurm_partition'] = slurm_partition
+        if slurm_account:
+            dra['slurm_account'] = slurm_account
+        if slurm_extra_param:
+            dra['slurm_extra_param'] = slurm_extra_param
 
 
-class CaperBackendPBS(CaperBackendBaseLocal):
-    """PBS backend
-    """
-    RUNTIME_ATTRIBUTES = """
-        String? docker
-        String? docker_user
-        Int cpu = 1
-        Int? gpu
-        Int? time
-        Int? memory_mb
-        String? pbs_queue
-        String? pbs_extra_param
-        String? singularity
-        String? singularity_bindpath
-        String? singularity_cachedir
-    """
-    SUBMIT = """
-        echo "${if defined(singularity) then '' else '/bin/bash ${script} #'} \
-        if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then \
-        export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
-        if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then \
-        export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \
-        singularity exec --cleanenv --home ${cwd} \
-        ${if defined(gpu) then '--nv' else ''} \
-        ${singularity} /bin/bash ${script}" | qsub \
-        -N ${job_name} \
-        -o ${out} \
-        -e ${err} \
-        ${true="-lselect=1:ncpus=" false="" defined(cpu)}${cpu}\
-${true=":mem=" false="" defined(memory_mb)}${memory_mb}\
-${true="mb" false="" defined(memory_mb)} \
-        ${true="-lwalltime=" false="" defined(time)}${time}\
-${true=":0:0" false="" defined(time)} \
-        ${true="-lngpus=" false="" gpu>1}${if gpu>1 then gpu else ""} \
-        ${"-q " + pbs_queue} \
-        ${pbs_extra_param} \
-        -V
-    """
-    TEMPLATE = {
-        "backend": {
-            "providers": {
-                BACKEND_PBS: {
-                    "config": {
-                        "default-runtime-attributes": {
-                            "time": 24
-                        },
-                        "script-epilogue": "sleep 30 && sync",
-                        "runtime-attributes": RUNTIME_ATTRIBUTES,
-                        "submit": SUBMIT,
-                        "exit-code-timeout-seconds": 180,
-                        "kill": "qdel ${job_id}",
-                        "check-alive": "qstat ${job_id}",
-                        "job-id-regex": "(\\d+)"
-                    }
-                }
-            }
+class CromwellBackendSGE(CromwellBackendLocal):
+    TEMPLATE_BACKEND = {
+        'config': {
+            'default-runtime-attributes': {
+                'time': 24
+            },
+            'exit-code-timeout-seconds': 180,
+            'runtime-attributes': dedent("""\
+                String? docker
+                String? docker_user
+                String sge_pe = "shm"
+                Int cpu = 1
+                Int? gpu
+                Int? time
+                Int? memory_mb
+                String? sge_queue
+                String? sge_extra_param
+                String? singularity
+                String? singularity_bindpath
+                String? singularity_cachedir
+            """),
+            'submit': CromwellBackendLocal.CMD_SINGULARITY + dedent("""\
+                echo "${if defined(singularity) then '$CMD_SINGULARITY' else '/bin/bash ' + script}" | \\
+                qsub \\
+                    -S /bin/sh \\
+                    -terse \\
+                    -b n \\
+                    -N ${job_name} \\
+                    -wd ${cwd} \\
+                    -o ${out} \\
+                    -e ${err} \\
+                    ${if cpu>1 then '-pe ' + sge_pe + ' ' else ''} \\
+                    ${if cpu>1 then cpu else ''} \\
+                    ${'-l h_vmem=' + memory_mb/cpu + 'm'} \\
+                    ${'-l s_vmem=' + memory_mb/cpu + 'm'} \\
+                    ${'-l h_rt=' + time + ':00:00'} \\
+                    ${'-l s_rt=' + time + ':00:00'} \\
+                    ${'-q ' + sge_queue} \\
+                    ${'-l gpu=' + gpu} \\
+                    ${sge_extra_param} \\
+                    -V
+            """),
+            'check-alive': 'qstat -j ${job_id}',
+            'kill': 'qdel ${job_id}',
+            'job-id-regex': '(\\d+)'
         }
     }
 
-    def __init__(self, queue=None, extra_param=None):
+    def __init__(
+            self,
+            out_dir,
+            max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
+            soft_glob_output=False,
+            local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
+            sge_pe=None,
+            sge_queue=None,
+            sge_extra_param=None):
         super().__init__(
-            CaperBackendPBS.TEMPLATE,
-            backend_name=BACKEND_PBS)
-        config = self.get_backend_config()
+            out_dir=out_dir,
+            backend_name=BACKEND_SGE,
+            max_concurrent_tasks=max_concurrent_tasks,
+            soft_glob_output=soft_glob_output,
+            local_hash_strat=local_hash_strat)
+        self.merge_backend(CromwellBackendSGE.TEMPLATE_BACKEND)
 
-        if queue is not None and queue != '':
-            config['default-runtime-attributes']['pbs_queue'] = queue
-        if extra_param is not None and extra_param != '':
-            config['default-runtime-attributes']['pbs_extra_param'] = extra_param
+        dra = self.get_backend_config_dra()
+        if sge_pe:
+            dra['sge_pe'] = sge_pe
+        if sge_queue:
+            dra['sge_queue'] = sge_queue
+        if sge_extra_param:
+            dra['sge_extra_param'] = sge_extra_param
 
 
-def main():
-    pass
+class CromwellBackendPBS(CromwellBackendLocal):
+    TEMPLATE_BACKEND = {
+        'config': {
+            'default-runtime-attributes': {
+                'time': 24
+            },
+            'script-epilogue': 'sleep 30 && sync',
+            'runtime-attributes': dedent("""\
+                String? docker
+                String? docker_user
+                Int cpu = 1
+                Int? gpu
+                Int? time
+                Int? memory_mb
+                String? pbs_queue
+                String? pbs_extra_param
+                String? singularity
+                String? singularity_bindpath
+                String? singularity_cachedir
+            """),
+            'submit': CromwellBackendLocal.CMD_SINGULARITY + dedent("""\
+                echo "${if defined(singularity) then '$CMD_SINGULARITY' else '/bin/bash ' + script}" | \\
+                qsub \\
+                    -N ${job_name} \\
+                    -o ${out} \\
+                    -e ${err} \\
+                    ${'-lselect=1:ncpus=' + cpu}${':mem=' + memory_mb + 'mb'} \\
+                    ${'-lwalltime=' + time + ':0:0'} \\
+                    ${'-lngpus=' + gpu} \\
+                    ${'-q ' + pbs_queue} \\
+                    ${pbs_extra_param} \\
+                    -V
+            """),
+            'exit-code-timeout-seconds': 180,
+            'kill': 'qdel ${job_id}',
+            'check-alive': 'qstat ${job_id}',
+            'job-id-regex': '(\\d+)'
+        }
+    }
 
+    def __init__(
+            self,
+            out_dir,
+            max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
+            soft_glob_output=False,
+            local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
+            pbs_queue=None,
+            pbs_extra_param=None):
+        super().__init__(
+            out_dir=out_dir,
+            backend_name=BACKEND_PBS,
+            max_concurrent_tasks=max_concurrent_tasks,
+            soft_glob_output=soft_glob_output,
+            local_hash_strat=local_hash_strat)
+        self.merge_backend(CromwellBackendPBS.TEMPLATE_BACKEND)
 
-if __name__ == '__main__':
-    main()
+        dra = self.get_backend_config_dra()
+        if pbs_queue:
+            dra['pbs_queue'] = pbs_queue
+        if pbs_extra_param:
+            dra['pbs_extra_param'] = pbs_extra_param
