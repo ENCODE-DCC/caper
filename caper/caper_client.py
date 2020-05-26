@@ -25,7 +25,7 @@ class CaperClient(CaperBase):
             server_heartbeat_timeout=ServerHeartbeat.DEFAULT_HEARTBEAT_TIMEOUT_MS,
             server_hostname=CromwellRestAPI.DEFAULT_HOSTNAME,
             server_port=CromwellRestAPI.DEFAULT_PORT):
-        """Initializes CaperClient.
+        """Initializes for Caper's client functions.
 
         Args:
             server_hostname:
@@ -47,6 +47,11 @@ class CaperClient(CaperBase):
 
     def abort(self, wf_ids_or_labels):
         """Abort running/pending workflows on a Cromwell server.
+
+        Args:
+            wf_ids_or_labels:
+                List of workflows IDs or string labels (Caper's string label)
+                Wild cards (*, ?) are allowed.
         """
         r = self._get_cromwell_rest_api().abort(
                 wf_ids_or_labels,
@@ -56,6 +61,11 @@ class CaperClient(CaperBase):
 
     def unhold(self, wf_ids_or_labels):
         """Release hold of workflows on a Cromwell server.
+
+        Args:
+            wf_ids_or_labels:
+                List of workflows IDs or string labels (Caper's string label)
+                Wild cards (*, ?) are allowed.
         """
         r = self._get_cromwell_rest_api().release_hold(
                 wf_ids_or_labels,
@@ -68,8 +78,13 @@ class CaperClient(CaperBase):
 
         Args:
             wf_ids_or_labels:
-                List of Workflow IDs or Caper's string labels.
-                Wild cards (*, ?) allowed.
+                List of workflows IDs or string labels (Caper's string label)
+                Wild cards (*, ?) are allowed.
+
+        Returns:
+            List of workflows found. Each workflow object will be in a form of
+            Cromwell's metadata JSON file but with limited amount of information.
+            e.g. workflow ID, status, labels.
         """
         if wf_ids_or_labels:
             workflow_ids = wf_ids_or_labels
@@ -85,11 +100,12 @@ class CaperClient(CaperBase):
 
         Args:
             wf_ids_or_labels:
-                List of Workflow IDs or Caper's string labels.
-                Wild cards (*, ?) allowed.
+                List of workflows IDs or string labels (Caper's string label)
+                Wild cards (*, ?) are allowed.
             embed_subworkflow:
                 Recursively embed subworkflow's metadata JSON object
                 in parent workflow's metadata JSON.
+                This is to mimic behavior of Cromwell's run mode paramteter -m.
         Returns:
             List of metadata JSONs of matched worflows.
         """
@@ -99,6 +115,8 @@ class CaperClient(CaperBase):
             embed_subworkflow=embed_subworkflow)
 
     def _get_hostname_port(self):
+        """Get hostname/port pair if server heartbeat is available and fresh.        
+        """
         if self._server_heartbeat:
             res = self._server_heartbeat.read_from_file()
             if res:
@@ -133,7 +151,8 @@ class CaperClientSubmit(CaperClient):
             sge_extra_param=None,
             pbs_queue=None,
             pbs_extra_param=None):
-        """
+        """Submit subcommand needs much more parameters than other client subcommands.        
+
         Args:
             womtool:
                 Womtool JAR file.

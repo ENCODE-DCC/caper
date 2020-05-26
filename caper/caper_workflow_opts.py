@@ -6,6 +6,7 @@ import re
 from autouri import AutoURI
 from .caper_wdl_parser import CaperWDLParser
 from .cromwell_backend import CromwellBackendGCP, BACKEND_GCP, BACKEND_AWS
+from .singularity import Singularity
 
 
 
@@ -29,17 +30,42 @@ class CaperWorkflowOpts:
             pbs_queue=None,
             pbs_extra_param=None):
         """Template for a workflows options JSON file.
+        All parameters are optional.
 
         Args:
             gcp_zones:
+                For gcp backend only.
+                List of GCP zones to run workflows on.
             slurm_partition:
+                For slurm backend only.
+                SLURM partition to submit tasks to.
+                Caper will submit tasks with "sbatch --partition".
             slurm_account:
+                For slurm backend only.
+                SLURM account to submit tasks to.
+                Caper will submit tasks with "sbatch --account".
             slurm_extra_param:
+                For slurm backend only.
+                Extra parameters for SLURM.
+                This will be appended to "sbatch" command line.
             sge_pe:
+                For sge backend only.
+                Name of parallel environment (PE) of SGE cluster.
+                If it does not exist ask your admin to add one.
             sge_queue:
+                For sge backend only.
+                SGE queue to submit tasks to.
             sge_extra_param:
+                For sge backend only.
+                Extra parameters for SGE.
+                This will be appended to "qsub" command line.
             pbs_queue:
+                For pbs backend only.
+                PBS queue to submit tasks to.
             pbs_extra_param:
+                For pbs backend only.
+                Extra parameters for PBS.
+                This will be appended to "qsub" command line.
         """
         self._template = {
             CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES: dict()
@@ -86,24 +112,56 @@ class CaperWorkflowOpts:
             max_retries=DEFAULT_MAX_RETRIES,
             basename=BASENAME_WORKFLOW_OPTS_JSON):
         """Creates Cromwell's workflow options JSON file.
+        Workflow options JSON file sets default values for attributes
+        defined in runtime {} section of WDL's task.
+        For example, docker attribute can be defined here instead of directory
+        defining in task's runtime { docker: "" }.
+
+        Args:
             directory:
+                Directory to make workflow options JSON file.
             wdl:
+                WDL file.
             inputs:
-                Input JSON file. It is required to find SINGULARITY_BINDPATH,
-                which is a common root for all files in input JSON.
+                Input JSON file to define input files/parameters for WDL.
+                This will be overriden by environment variable SINGULARITY_BINDPATH.
+                For Singularity, it is required to find SINGULARITY_BINDPATH,
+                which is a comma-separated list of common root directories
+                for all files defined in input JSON.
+                Unlike Docker, Singularity binds directories instead of mounting them.
+                Therefore, Caper will try to find an optimal SINGULARITY_BINDPATH
+                by looking at all files paths and find common parent directories for them.
             custom_options:
                 User's custom workflow options JSON file.
+                This will be merged at the end of this function.
+                Therefore, users can override on Caper's auto-generated
+                workflow options JSON file.
             docker:
                 Docker image to run a workflow on.
             singularity:
                 Singularity image to run a workflow on.
             singularity_cachedir:
+                Singularity cache directory to build local images on.
+                This will be overriden by environment variable SINGULARITY_CACHEDIR.
             no_build_singularity:
+                Caper run "singularity exec IMAGE" to build a local Singularity image
+                before submitting/running a workflow.
+                With this flag on, Caper does not pre-build a local Singularity container.
+                Therefore, Singularity container will be built inside each task,
+                which will result in multiple redundant local image building.
+                Also, trying to build on the same Singularity image file can
+                lead to corruption of the image file.
             backend:
-                Backend to run a workflow on.
+                Backend to run a workflow on. If not defined, runner/server's default backend
+                will be used.
             max_retries:
+                Maximum number of retirals for each task. 1 means 1 retrial.
             basename:
+                Basename for a temporary workflow options JSON file.
         """
+        if singularity and docker:
+            raise ValueError('Cannot use both Singularity and Docker.')
+
         template = copy.deepcopy(self._template)
         dra = template[CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES]
 
@@ -138,9 +196,10 @@ class CaperWorkflowOpts:
                 dra['singularity_cachedir'] = singularity_cachedir
 
             s = Singularity(singularity, singularity_cachedir)
-            dra['singularity_bindpath'] = s.find_singularity_bindpath(inputs)
+            if inputs:
+                dra['singularity_bindpath'] = s.find_bindpath(inputs)
             if not no_build_singularity:
-                s.build_singularity_image()
+                s.build_local_image()
 
         if max_retries is not None:
             dra['maxRetries'] = max_retries

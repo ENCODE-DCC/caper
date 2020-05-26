@@ -48,6 +48,7 @@ class ServerHeartbeat:
         """
         self._stop_heartbeat_thread = False
 
+        logger.info('Server heartbeat thread started.')
         self._th_heartbeat = Thread(
             target=ServerHeartbeat.__write_to_file(port, hostname))
         self._th_heartbeat.start()
@@ -58,6 +59,7 @@ class ServerHeartbeat:
         if self._th_heartbeat is not None:
             self._th_heartbeat.join()
             self._th_heartbeat = None
+            logger.info('Server heartbeat thread ended.')
 
     def __write_to_file(self, port, hostname=None):
         if not hostname:

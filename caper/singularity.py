@@ -1,4 +1,5 @@
 import logging
+import os
 from autouri import AutoURI, AbsPath, URIBase
 from autouri.loc_aux import recurse_json
 from subprocess import check_call
@@ -49,7 +50,7 @@ class Singularity(object):
         return check_call(cmd, env=env)
 
     @staticmethod
-    def find_singularity_bindpath(
+    def find_bindpath(
             json_file,
             common_root_search_level=DEFAULT_COMMON_ROOT_SEARCH_LEVEL):
         """Recursively find paths to be bound for singularity.
@@ -79,7 +80,6 @@ class Singularity(object):
                 See above description.
         """
         json_contents = AutoURI(json_file).read()
-
         all_dirnames = []
 
         def find_dirname(s):

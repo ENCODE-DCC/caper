@@ -346,7 +346,7 @@ class CaperRunner(CaperBase):
                 tmp_dir,
                 CaperRunner.BASENAME_CROMWELL_STDOUT)
         logger.info(
-            'run started: stdout={stdout}'.format(
+            'run launched: stdout={stdout}'.format(
                 stdout=file_stdout))
 
         with open(file_stdout, 'w') as fo:
@@ -368,7 +368,7 @@ class CaperRunner(CaperBase):
                     cm.troubleshoot(fileobj=fileobj_troubleshoot)
 
         logger.info(
-            'run ended: cromwell_rc={rc}, cromwell_stdout={stdout}'.format(
+            'run ended: rc={rc}, stdout={stdout}'.format(
                 rc=rc, stdout=file_stdout))
 
         return metadata_file
@@ -430,7 +430,7 @@ class CaperRunner(CaperBase):
                 tmp_dir,
                 CaperRunner.BASENAME_CROMWELL_STDOUT)
         logger.info(
-            'server started: stdout={stdout}'.format(
+            'server launched: stdout={stdout}'.format(
                 stdout=file_stdout))
 
         with open(file_stdout, 'w') as fo:
@@ -439,5 +439,5 @@ class CaperRunner(CaperBase):
                 fileobj_stdout=fo,
                 embed_subworkflow=embed_subworkflow)
         logger.info(
-            'server ended: cromwell_rc={rc}, cromwell_stdout={stdout}'.format(
+            'server ended: rc={rc}, stdout={stdout}'.format(
                 rc=rc, stdout=file_stdout))

@@ -43,6 +43,7 @@ class Cromwell(object):
             debug=False):
         """
         Args:
+            cromwell:
             server_hostname:
                 Server hostname. If defined heartbeat file will be written
                 with this hostname instead of socket.gethostname().
