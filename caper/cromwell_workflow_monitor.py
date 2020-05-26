@@ -22,6 +22,8 @@ class CromwellWorkflowMonitor:
         r'WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) is in a terminal state'
     RE_WORKFLOW_FAILED = \
         r'Workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) failed'
+    RE_WORKFLOW_ABORT_REQUESTED = \
+        r'Abort requested for workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)\.'
     RE_CROMWELL_SERVER_START = \
         r'Cromwell \d+ service started on'
     RE_TASK_START = \
@@ -159,6 +161,7 @@ class CromwellWorkflowMonitor:
                     CromwellWorkflowMonitor.RE_CROMWELL_SERVER_START, line)
                 if len(r1) > 0:
                     self._is_server_started = True
+                    logger.info('Cromwell server started. Ready to take submissions.')
                     break
         return
 
@@ -176,41 +179,57 @@ class CromwellWorkflowMonitor:
                 wf_id = r[0].strip()                
                 self._workflows[wf_id]['status'] = 'Submitted'
                 updated_workflows.add(wf_id)
-                logging.info(
+                logger.info(
                     'Workflow status change: id={id}, status={status}'.format(
                         id=wf_id, status='Submitted'))
 
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_START, line)
             if len(r) > 0:
                 wf_id = r[0].strip()
-                new_status = True
                 self._workflows[wf_id]['status'] = 'Running'
                 updated_workflows.add(wf_id)
-                logging.info(
+                logger.info(
                     'Workflow status change: id={id}, status={status}'.format(
                         id=wf_id, status='Running'))
 
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_FAILED, line)
             if len(r) > 0:
                 wf_id = r[0].strip()
-                new_status = True
                 self._workflows[wf_id]['status'] = 'Failed'
                 updated_workflows.add(wf_id)
-                logging.info(
+                logger.info(
                     'Workflow status change: id={id}, status={status}'.format(
                         id=wf_id, status='Failed'))
+
+
+            r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_ABORT_REQUESTED, line)
+            if len(r) > 0:
+                wf_id = r[0].strip()
+                self._workflows[wf_id]['status'] = 'Aborting'
+                updated_workflows.add(wf_id)
+                logger.info(
+                    'Workflow status change: id={id}, status={status}'.format(
+                        id=wf_id, status='Aborting'))
 
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_FINISH, line)
             if len(r) > 0:
                 wf_id = r[0].strip()
                 w = self._workflows[wf_id]
-                if 'status' in w and w['status'] != 'Failed':
-                    new_status = True
-                    w['status'] = 'Succeeded'
-                    updated_workflows.add(wf_id)
-                    logging.info(
-                        'Workflow status change: id={id}, status={status}'.format(
-                            id=wf_id, status='Succeeded'))
+                if 'status' in w:
+                    if w['status'] == 'Aborting':
+                        w['status'] = 'Aborted'
+                        updated_workflows.add(wf_id)
+                        logger.info(
+                            'Workflow status change: id={id}, status={status}'.format(
+                                id=wf_id, status='Aborted'))
+                    elif w['status'] == 'Failed':
+                        pass
+                    else:
+                        w['status'] = 'Succeeded'
+                        updated_workflows.add(wf_id)
+                        logger.info(
+                            'Workflow status change: id={id}, status={status}'.format(
+                                id=wf_id, status='Succeeded'))
 
         return updated_workflows
 
