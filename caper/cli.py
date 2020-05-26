@@ -5,11 +5,11 @@ import os
 import sys
 from autouri import AutoURI, GCSURI, AbsPath
 from .caper_args import get_main_parser
-from .caper_backend import CromwellBackendDatabase, BACKEND_LOCAL, BACKEND_ALIAS_LOCAL
 from .caper_init import init_caper_conf
 from .caper_labels import CaperLabels
 from .caper_runner import CaperRunner
 from .caper_client import CaperClient, CaperClientSubmit
+from .cromwell_backend import CromwellBackendDatabase, BACKEND_LOCAL, BACKEND_ALIAS_LOCAL
 from .cromwell_metadata import CromwellMetadata
 from . import __version__ as version
 
@@ -22,6 +22,16 @@ DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
 
 
 def get_abspath(path):
+    """Get abspath from a string.
+    This function is mainly used to make command line arguments an abspath
+    since AutoURI module only works with abspath and full URIs
+    (e.g. /home/there, gs://here/there).
+    For example, "caper run toy.wdl --docker ubuntu:latest".
+    AutoURI cannot recognize toy.wdl on CWD as a file path.
+    It should be converted to an abspath first.
+    To do so, use this function for local file path strings only (e.g. toy.wdl).
+    Do not use this function for other non-local-path strings (e.g. --docker).
+    """
     if path:
         if not AutoURI(path).is_valid:
             return os.path.abspath(os.path.expanduser(path))

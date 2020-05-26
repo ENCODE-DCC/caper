@@ -218,16 +218,16 @@ class Cromwell(object):
                     fileobj_stdout.write(stdout)
                     fileobj_stdout.flush()
 
-                wm.update(stdour)
-
+                wm.update(stdout)
                 if p.poll() is not None:
                     break
+            rc = p.poll()
+
         except CalledProcessError as e:
             rc = e.returncode
         except KeyboardInterrupt:
             logger.error(Cromwell.USER_INTERRUPT_WARNING)
         finally:
-            rc = p.poll()
             p.terminate()
 
         if metadata:
@@ -328,6 +328,7 @@ class Cromwell(object):
                     init_server = True
                 if p.poll() is not None:
                     break
+            rc = p.poll()
 
         except CalledProcessError as e:
             rc = e.returncode
@@ -336,7 +337,6 @@ class Cromwell(object):
         finally:
             if self._server_heartbeat:
                 self._server_heartbeat.end_write_thread()
-            rc = p.poll()
             p.terminate()
 
         return rc

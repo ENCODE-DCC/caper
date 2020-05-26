@@ -89,7 +89,7 @@ class CromwellMetadata:
             metadata_file = '/'.join([root, basename])
 
             AutoURI(metadata_file).write(
-                json.dump(self._metadata, indent=4))
+                json.dumps(self._metadata, indent=4))
             logger.info('Wrote metadata file. {f}'.format(f=metadata_file))
         else:
             metadata_file = None
@@ -127,12 +127,12 @@ class CromwellMetadata:
 
         if self.failures:
             fileobj.write(
-                '* Found failures JSON object.\n{s}'.format(
+                '* Found failures JSON object.\n{s}\n'.format(
                     s=json.dumps(self.failures, indent=4)))
 
         def troubleshoot_call(call_name, call, parent_call_names):
-            status = call['status']
-            shard_index = call['shardIndex']
+            status = call['executionStatus'] if 'executionStatus' in call else None
+            shard_index = call['shardIndex'] if 'shardIndex' in call else None
             rc = call['returnCode'] if 'returnCode' in call else None
             job_id = call['jobId'] if 'jobId' in call else None
             stdout = call['stdout'] if 'stdout' in call else None
@@ -148,10 +148,10 @@ class CromwellMetadata:
             if not show_completed_task and status in ('Done', 'Succeeded'):
                 return
             fileobj.write(
-                '\n==== NAME={name}, STATUS={status}, PARENT={p} ====\n'
+                '\n==== NAME={name}, STATUS={status}, PARENT={p}\n'
                 'SHARD_IDX={shard_idx}, RC={rc}, JOB_ID={job_id}\n'
                 'START={start}, END={end}\n'
-                'STDOUT={stdout}, STDERR={stderr}\n'.format(                
+                'STDOUT={stdout}\nSTDERR={stderr}\n'.format(                
                     name=call_name, status=status, p=','.join(parent_call_names),
                     start=run_start, end=run_end,
                     shard_idx=shard_index, rc=rc, job_id=job_id,
@@ -159,11 +159,11 @@ class CromwellMetadata:
             if stderr:
                 u = AutoURI(stderr)
                 if u.exists:
-                    fileobj.write('STDERR_CONTENTS=\n{s}\n'.format(u.read()))
+                    fileobj.write('STDERR_CONTENTS=\n{s}\n'.format(s=u.read()))
             if show_stdout and stdout:
                 u = AutoURI(stdout)
                 if u.exists:
-                    fileobj.write('STDOUT_CONTENTS=\n{s}\n'.format(u.read()))
+                    fileobj.write('STDOUT_CONTENTS=\n{s}\n'.format(s=u.read()))
 
         fileobj.write('* Recursively finding failures in calls (tasks)...\n')
         self.recurse_calls(troubleshoot_call)

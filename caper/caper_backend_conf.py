@@ -2,13 +2,13 @@ import logging
 import os
 from autouri import AutoURI
 from copy import deepcopy
-from .caper_backend import CromwellBackendCommon, CromwellBackendBase
-from .caper_backend import CromwellBackendDatabase
-from .caper_backend import CromwellBackendLocal, CromwellBackendGCP
-from .caper_backend import CromwellBackendAWS, CromwellBackendSLURM
-from .caper_backend import CromwellBackendSGE, CromwellBackendPBS
-from .caper_backend import DEFAULT_BACKEND
-from .caper_backend import BACKEND_SGE, BACKEND_GCP, BACKEND_AWS
+from .cromwell_backend import CromwellBackendCommon, CromwellBackendBase
+from .cromwell_backend import CromwellBackendDatabase
+from .cromwell_backend import CromwellBackendLocal, CromwellBackendGCP
+from .cromwell_backend import CromwellBackendAWS, CromwellBackendSLURM
+from .cromwell_backend import CromwellBackendSGE, CromwellBackendPBS
+from .cromwell_backend import DEFAULT_BACKEND
+from .cromwell_backend import BACKEND_SGE, BACKEND_GCP, BACKEND_AWS
 from .dict_tool import merge_dict
 from .hocon_string import HOCONString
 

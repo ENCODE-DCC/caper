@@ -1,7 +1,7 @@
 import os
-from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, BACKEND_ALIAS_LOCAL
-from .caper_backend import BACKEND_SLURM, BACKEND_SGE, BACKEND_PBS
 from .cromwell import Cromwell
+from .cromwell_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, BACKEND_ALIAS_LOCAL
+from .cromwell_backend import BACKEND_SLURM, BACKEND_SGE, BACKEND_PBS
 
 
 BACKEND_ALIAS_SHERLOCK = 'sherlock'

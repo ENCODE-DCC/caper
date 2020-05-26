@@ -63,9 +63,8 @@ class CaperBase:
         else:
             self._server_heartbeat = None
 
-
     def localize_on_backend(self, f, backend, recursive=False, make_md5_file=False):
-        """Localize a file according to chosen backend.
+        """Localize a file according to the chosen backend.
         If contents of input JSON changes due to recursive localization (deepcopy)
         then a new temporary file suffixed with backend type will be written on loc_prefix.
         For example, /somewhere/test.json -> gs://example-tmp-gcs-bucket/somewhere/test.gcs.json
@@ -95,4 +94,8 @@ class CaperBase:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         tmp_dir = os.path.join(self._tmp_dir, prefix, timestamp)
         os.makedirs(tmp_dir, exist_ok=True)
+        logger.info(
+            'Creating a timestamped temporary directory. {d}'.format(
+                d=tmp_dir))
+
         return tmp_dir

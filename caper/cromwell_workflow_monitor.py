@@ -177,7 +177,7 @@ class CromwellWorkflowMonitor:
                 self._workflows[wf_id]['status'] = 'Submitted'
                 updated_workflows.add(wf_id)
                 logging.info(
-                    'Workflow status changed. wf_id={id}, status={status}'.format(
+                    'Workflow status change: id={id}, status={status}'.format(
                         id=wf_id, status='Submitted'))
 
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_START, line)
@@ -187,7 +187,7 @@ class CromwellWorkflowMonitor:
                 self._workflows[wf_id]['status'] = 'Running'
                 updated_workflows.add(wf_id)
                 logging.info(
-                    'Workflow status changed. wf_id={id}, status={status}'.format(
+                    'Workflow status change: id={id}, status={status}'.format(
                         id=wf_id, status='Running'))
 
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_FAILED, line)
@@ -197,7 +197,7 @@ class CromwellWorkflowMonitor:
                 self._workflows[wf_id]['status'] = 'Failed'
                 updated_workflows.add(wf_id)
                 logging.info(
-                    'Workflow status changed. wf_id={id}, status={status}'.format(
+                    'Workflow status change: id={id}, status={status}'.format(
                         id=wf_id, status='Failed'))
 
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_FINISH, line)
@@ -209,7 +209,7 @@ class CromwellWorkflowMonitor:
                     w['status'] = 'Succeeded'
                     updated_workflows.add(wf_id)
                     logging.info(
-                        'Workflow status changed. wf_id={id}, status={status}'.format(
+                        'Workflow status change: id={id}, status={status}'.format(
                             id=wf_id, status='Succeeded'))
 
         return updated_workflows
@@ -255,18 +255,15 @@ class CromwellWorkflowMonitor:
             try:
                 time.sleep(CromwellWorkflowMonitor.SEC_INTERVAL_RETRY_UPDATE_METADATA)
                 metadata = self._cromwell_rest_api.get_metadata(
-                    workflow_ids=[wf_id],
-                    nest_subworkflow=True)[0]
-                cm = CromwellMetadata(
-                    metadata,
-                    embed_subworkflow=self._embed_subworkflow,
-                    callback=self._callback_status_change)
+                    workflow_ids=[workflow_id],
+                    embed_subworkflow=self._embed_subworkflow)[0]
+                cm = CromwellMetadata(metadata)
                 cm.write_on_workflow_root()
             except:
                 logger.error(
                     'Failed to retrieve metadata from Cromwell server. '
-                    'trial={t}, wf_id={wf_id}, hostname={h}, port={p}'.format(
-                        t=trial, wf_id=workflow_id, h=self._hostname, p=self._port))
+                    'trial={t}, id={wf_id}'.format(
+                        t=trial, wf_id=workflow_id))
                 continue
             break
 

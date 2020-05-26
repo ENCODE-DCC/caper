@@ -7,18 +7,18 @@ from autouri import AutoURI, AbsPath, GCSURI, S3URI, URIBase
 from autouri.loc_aux import recurse_json
 from io import StringIO
 from .dict_tool import merge_dict
-from .caper_backend import BACKEND_GCP, BACKEND_AWS
-from .caper_backend import CromwellBackendCommon, CromwellBackendDatabase
-from .caper_backend import CromwellBackendBase
-from .caper_backend import CromwellBackendGCP, CromwellBackendAWS
-from .caper_backend import CromwellBackendLocal, CromwellBackendSLURM
-from .caper_backend import CromwellBackendSGE, CromwellBackendPBS
 from .caper_backend_conf import CaperBackendConf
 from .caper_base import CaperBase
 from .caper_labels import CaperLabels
 from .caper_wdl_parser import CaperWDLParser
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
+from .cromwell_backend import BACKEND_GCP, BACKEND_AWS
+from .cromwell_backend import CromwellBackendCommon, CromwellBackendDatabase
+from .cromwell_backend import CromwellBackendBase
+from .cromwell_backend import CromwellBackendGCP, CromwellBackendAWS
+from .cromwell_backend import CromwellBackendLocal, CromwellBackendSLURM
+from .cromwell_backend import CromwellBackendSGE, CromwellBackendPBS
 from .cromwell_rest_api import CromwellRestAPI
 from .cromwell_metadata import CromwellMetadata
 from .server_heartbeat import ServerHeartbeat
@@ -279,6 +279,9 @@ class CaperRunner(CaperBase):
             tmp_dir = self.create_timestamped_tmp_dir(
                 prefix=u_wdl.basename_wo_ext)
 
+        logger.info(
+            'Localizing files for running a workflow.'.format(
+                d=tmp_dir))
         wdl = u_wdl.localize_on(tmp_dir)
 
         if inputs:
@@ -357,17 +360,16 @@ class CaperRunner(CaperBase):
                 metadata=metadata_output,
                 fileobj_stdout=fo)
 
-        if metadata_file:
-            if fileobj_troubleshoot:
+        if metadata_file:            
+            if fileobj_troubleshoot:                
                 cm = CromwellMetadata(metadata_file)
-                cm.troubleshoot(
-                    fileobj=fileobj_troubleshoot)
+                if cm.workflow_status != 'Succeeded':
+                    logger.info('Workflow failed. Auto-troubleshooting...')                
+                    cm.troubleshoot(fileobj=fileobj_troubleshoot)
 
         logger.info(
-            'run ended: rc={rc}, stdout={stdout}, metadata_file:{m}'.format(
-                rc=rc,
-                stdout=file_stdout,
-                m=metadata_file))
+            'run ended: cromwell_rc={rc}, cromwell_stdout={stdout}'.format(
+                rc=rc, stdout=file_stdout))
 
         return metadata_file
 
@@ -437,4 +439,5 @@ class CaperRunner(CaperBase):
                 fileobj_stdout=fo,
                 embed_subworkflow=embed_subworkflow)
         logger.info(
-            'server ended: rc={rc}'.format(rc=rc))
+            'server ended: cromwell_rc={rc}, cromwell_stdout={stdout}'.format(
+                rc=rc, stdout=file_stdout))

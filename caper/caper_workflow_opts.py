@@ -4,8 +4,8 @@ import logging
 import os
 import re
 from autouri import AutoURI
-from .caper_backend import CromwellBackendGCP, BACKEND_GCP, BACKEND_AWS
 from .caper_wdl_parser import CaperWDLParser
+from .cromwell_backend import CromwellBackendGCP, BACKEND_GCP, BACKEND_AWS
 
 
 

@@ -365,15 +365,22 @@ class CromwellBackendAWS(CromwellBackendBase):
 
 class CromwellBackendLocal(CromwellBackendBase):
     """Class constants:
-        CMD_SINGULARITY:
+        MAKE_CMD_SUBMIT:
             Includes BASH command line for Singularity.
     """
-    CMD_SINGULARITY = """\
-        CMD_SINGULARITY="\\
+    MAKE_CMD_SUBMIT = dedent("""\
         if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
         if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \\
-        singularity exec --cleanenv --home ${cwd} {if defined(gpu) then '--nv' else ''} ${singularity} /bin/bash ${script}"
-    """
+        CMD_SUBMIT="\\
+        ${if defined(singularity) then
+            'singularity exec --cleanenv ' + 
+            '--home ' + cwd + ' ' +
+            (if defined(gpu) then '--nv ' else '') +
+            singularity + ' /bin/bash ' + script
+          else
+            '/bin/bash ' + script
+        }"
+    """)
 
     TEMPLATE_BACKEND = {
         'actor-factory': 'cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory',
@@ -395,9 +402,7 @@ class CromwellBackendLocal(CromwellBackendBase):
                 String? singularity_bindpath
                 String? singularity_cachedir
                 """),
-            'submit': CMD_SINGULARITY + dedent("""\
-                    ${if defined(singularity) '$CMD_SINGULARITY' else '/bin/bash ' + script}
-                """),
+            'submit': MAKE_CMD_SUBMIT + '\n$CMD_SUBMIT',
             'submit-docker' : dedent("""\
                 rm -f ${docker_cid}
                 docker run \\
@@ -485,7 +490,7 @@ class CromwellBackendSLURM(CromwellBackendLocal):
                 String? singularity_bindpath
                 String? singularity_cachedir
             """),
-            'submit': CromwellBackendLocal.CMD_SINGULARITY + dedent("""\
+            'submit': CromwellBackendLocal.MAKE_CMD_SUBMIT + dedent("""\
                 ITER=0
                 until [ $ITER -ge 3 ]; do
                     sbatch \\
@@ -503,7 +508,7 @@ class CromwellBackendSLURM(CromwellBackendLocal):
                         ${'--account ' + slurm_account} \\
                         ${'--gres gpu:' + gpu}$ \\
                         ${slurm_extra_param} \\
-                        --wrap "${if defined(singularity) '$CMD_SINGULARITY' else '/bin/bash + script}" \\
+                        --wrap "$CMD_SUBMIT" \\
                         && break
                     ITER=$[$ITER+1]
                     sleep 30
@@ -567,8 +572,8 @@ class CromwellBackendSGE(CromwellBackendLocal):
                 String? singularity_bindpath
                 String? singularity_cachedir
             """),
-            'submit': CromwellBackendLocal.CMD_SINGULARITY + dedent("""\
-                echo "${if defined(singularity) then '$CMD_SINGULARITY' else '/bin/bash ' + script}" | \\
+            'submit': CromwellBackendLocal.MAKE_CMD_SUBMIT + dedent("""\
+                echo "$CMD_SUBMIT" | \\
                 qsub \\
                     -S /bin/sh \\
                     -terse \\
@@ -640,8 +645,8 @@ class CromwellBackendPBS(CromwellBackendLocal):
                 String? singularity_bindpath
                 String? singularity_cachedir
             """),
-            'submit': CromwellBackendLocal.CMD_SINGULARITY + dedent("""\
-                echo "${if defined(singularity) then '$CMD_SINGULARITY' else '/bin/bash ' + script}" | \\
+            'submit': CromwellBackendLocal.MAKE_CMD_SUBMIT + dedent("""\
+                echo "$CMD_SUBMIT" | \\
                 qsub \\
                     -N ${job_name} \\
                     -o ${out} \\
