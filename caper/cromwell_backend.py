@@ -368,20 +368,6 @@ class CromwellBackendLocal(CromwellBackendBase):
         MAKE_CMD_SUBMIT:
             Includes BASH command line for Singularity.
     """
-    MAKE_CMD_SUBMIT = dedent("""\
-        if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
-        if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi; \\
-        CMD_SUBMIT="\\
-        ${if defined(singularity) then
-            'singularity exec --cleanenv ' + 
-            '--home ' + cwd + ' ' +
-            (if defined(gpu) then '--nv ' else '') +
-            singularity + ' /bin/bash ' + script
-          else
-            '/bin/bash ' + script
-        }"
-    """)
-
     TEMPLATE_BACKEND = {
         'actor-factory': 'cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory',
         'config': {
@@ -402,7 +388,16 @@ class CromwellBackendLocal(CromwellBackendBase):
                 String? singularity_bindpath
                 String? singularity_cachedir
                 """),
-            'submit': MAKE_CMD_SUBMIT + '\n$CMD_SUBMIT',
+            'submit': dedent("""\
+                if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
+                if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;
+                ${if !defined(singularity) then '/bin/bash ' + script
+                  else
+                    'singularity exec --cleanenv ' +
+                    '--home ' + cwd + ' ' +
+                    (if defined(gpu) then '--nv ' else '') +
+                    singularity + ' /bin/bash ' + script}
+            """),
             'submit-docker' : dedent("""\
                 rm -f ${docker_cid}
                 docker run \\
@@ -490,7 +485,10 @@ class CromwellBackendSLURM(CromwellBackendLocal):
                 String? singularity_bindpath
                 String? singularity_cachedir
             """),
-            'submit': CromwellBackendLocal.MAKE_CMD_SUBMIT + dedent("""\
+            'submit': dedent("""\
+                if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
+                if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;
+
                 ITER=0
                 until [ $ITER -ge 3 ]; do
                     sbatch \\
@@ -508,7 +506,12 @@ class CromwellBackendSLURM(CromwellBackendLocal):
                         ${'--account ' + slurm_account} \\
                         ${'--gres gpu:' + gpu}$ \\
                         ${slurm_extra_param} \\
-                        --wrap "$CMD_SUBMIT" \\
+                        --wrap "${if !defined(singularity) then '/bin/bash ' + script
+                                  else
+                                    'singularity exec --cleanenv ' +
+                                    '--home ' + cwd + ' ' +
+                                    (if defined(gpu) then '--nv ' else '') +
+                                    singularity + ' /bin/bash ' + script}" \\
                         && break
                     ITER=$[$ITER+1]
                     sleep 30
@@ -572,8 +575,16 @@ class CromwellBackendSGE(CromwellBackendLocal):
                 String? singularity_bindpath
                 String? singularity_cachedir
             """),
-            'submit': CromwellBackendLocal.MAKE_CMD_SUBMIT + dedent("""\
-                echo "$CMD_SUBMIT" | \\
+            'submit': dedent("""\
+                if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
+                if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;
+
+                echo "${if !defined(singularity) then '/bin/bash ' + script
+                        else
+                          'singularity exec --cleanenv ' +
+                          '--home ' + cwd + ' ' +
+                          (if defined(gpu) then '--nv ' else '') +
+                          singularity + ' /bin/bash ' + script}" | \\
                 qsub \\
                     -S /bin/sh \\
                     -terse \\
@@ -645,8 +656,16 @@ class CromwellBackendPBS(CromwellBackendLocal):
                 String? singularity_bindpath
                 String? singularity_cachedir
             """),
-            'submit': CromwellBackendLocal.MAKE_CMD_SUBMIT + dedent("""\
-                echo "$CMD_SUBMIT" | \\
+            'submit': dedent("""\
+                if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
+                if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;
+
+                echo "${if !defined(singularity) then '/bin/bash ' + script
+                        else
+                          'singularity exec --cleanenv ' +
+                          '--home ' + cwd + ' ' +
+                          (if defined(gpu) then '--nv ' else '') +
+                          singularity + ' /bin/bash ' + script}" | \\
                 qsub \\
                     -N ${job_name} \\
                     -o ${out} \\
