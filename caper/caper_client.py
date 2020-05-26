@@ -151,13 +151,25 @@ class CaperClientSubmit(CaperClient):
             sge_extra_param=None,
             pbs_queue=None,
             pbs_extra_param=None):
-        """Submit subcommand needs much more parameters than other client subcommands.        
+        """Submit subcommand needs much more parameters than other client subcommands.
+
 
         Args:
             womtool:
                 Womtool JAR file.
-            java_heap_run:
-                Java heap for Womtool valididation.            
+            java_heap_womtool:
+                Java heap (java -Xmx) for Womtool.
+            gcp_zones:
+                For this and all below arguments,
+                see details in CaperWorkflowOpts.__init__.
+            slurm_partition:
+            slurm_account:
+            slurm_extra_param:
+            sge_pe:
+            sge_queue:
+            sge_extra_param:
+            pbs_queue:
+            pbs_extra_param:                
         """
         super().__init__(            
             tmp_dir=tmp_dir,

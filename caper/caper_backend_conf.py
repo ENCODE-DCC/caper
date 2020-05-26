@@ -44,12 +44,12 @@ class CaperBackendConf:
             postgresql_db_name=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_NAME,
             file_db=None,
             gcp_prj=None,
-            gcp_zones=None,
             out_gcs_bucket=None,
             gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
             aws_batch_arn=None,
             aws_region=None,
             out_s3_bucket=None,
+            gcp_zones=None,
             slurm_partition=None,
             slurm_account=None,
             slurm_extra_param=None,
@@ -67,6 +67,75 @@ class CaperBackendConf:
                 Output directory for all local backends.
                 Define this even if you don't want to run on local backends
                 since "Local" is a Cromwell's default backend and it needs this.
+            server_port:
+                Server port. Used if server heartbeat is not available.
+            disable_call_caching:
+                Disable call-caching (re-using outputs from previous workflows/tasks)
+            max_concurrent_workflows:
+                Limit for concurrent number of workflows.
+            max_concurrent_tasks:
+                Limit for concurrent number of tasks for each workflow.
+            soft_glob_output:
+                Local backends only (Local, sge, pbs, slurm).
+                Glob with ln -s instead of hard-linking (ln alone).
+                Useful for file-system like beeGFS, which does not allow hard-linking.
+            local_hash_strat:
+                Local file hashing strategy for call-caching.
+            db:
+                Metadata DB type. Defauling to use in-memory DB if not defined.
+                You may need to define other parameters according to this DB type.
+            db_timeout:
+                DB connection timeout. Cromwell tries to connect to DB within this timeout.
+            mysql_db_ip:
+                MySQL DB hostname.
+            mysql_db_port:
+                MySQL DB port.
+            mysql_db_user:
+                MySQL DB username.
+            mysql_db_password:
+                MySQL DB password.
+            mysql_db_name:
+                MySQL DB name.
+            postgresql_db_ip:
+                PostgreSQL DB hostname.
+            postgresql_db_port:
+                PostgreSQL DB port.
+            postgresql_db_user:
+                PostgreSQL DB user.
+            postgresql_db_password:
+                PostgreSQL DB password.
+            postgresql_db_name:
+                PostgreSQL DB name.
+            file_db:
+                For db == "file". File DB path prefix.
+                File DB does not allow multiple connections, which means that
+                you cannot run multiple caper run/server with the same file DB.
+            gcp_prj:
+                Google project name.
+            out_gcs_bucket:
+                Output bucket path for gcp backend. Must start with gs://.
+            gcp_call_caching_dup_strat:
+                Call-caching duplication strategy.
+            aws_batch_arn:
+                ARN for AWS Batch.
+            aws_region:
+                AWS region. Multple regions are not allowed.
+            out_s3_bucket:
+                Output bucket path for aws backend. Must start with s3://.
+            gcp_zones:
+                For this and all arguments below this,
+                see details in CaperWorkflowOpts.__init__.
+                These parameters can be defined either in a backend conf file or
+                in a workflow options JSON file.
+                One major difference is that the former will also be used as defaults.
+            slurm_partition:
+            slurm_account:
+            slurm_extra_param:
+            sge_pe:
+            sge_queue:
+            sge_extra_param:
+            pbs_queue:
+            pbs_extra_param:                
         """
         self._template = {}
 
@@ -172,6 +241,16 @@ class CaperBackendConf:
             custom_backend_conf=None,
             basename=BASENAME_BACKEND_CONF):
         """Create a HOCON string and create a backend.conf file.
+
+        Args:
+            backend:
+                Backend to run a workflow on.
+                Default backend will be use if not defined.
+            custom_backend_conf:
+                User's custom backend conf file to override on
+                Caper's auto-generated backend conf.
+            basename:
+                Basename.
         """
         template = deepcopy(self._template)
 

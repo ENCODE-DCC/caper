@@ -55,7 +55,6 @@ class CaperRunner(CaperBase):
             local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
             db=CromwellBackendDatabase.DEFAULT_DB,
             db_timeout=CromwellBackendDatabase.DEFAULT_DB_TIMEOUT_MS,
-            file_db=None,
             mysql_db_ip=CromwellBackendDatabase.DEFAULT_MYSQL_DB_IP,
             mysql_db_port=CromwellBackendDatabase.DEFAULT_MYSQL_DB_PORT,
             mysql_db_user=CromwellBackendDatabase.DEFAULT_MYSQL_DB_USER,
@@ -66,13 +65,14 @@ class CaperRunner(CaperBase):
             postgresql_db_user=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_USER,
             postgresql_db_password=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_PASSWORD,
             postgresql_db_name=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_NAME,
+            file_db=None,
             gcp_prj=None,
-            gcp_zones=None,
             gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
             out_gcs_bucket=None,
             aws_batch_arn=None,
             aws_region=None,
             out_s3_bucket=None,
+            gcp_zones=None,
             slurm_partition=None,
             slurm_account=None,
             slurm_extra_param=None,
@@ -81,10 +81,67 @@ class CaperRunner(CaperBase):
             sge_extra_param=None,
             pbs_queue=None,
             pbs_extra_param=None):
-        """
+        """See docstring of base class for other arguments.
+
         Args:
-            tmp_dir:
-                See CaperBase.__init__() for details.
+            default_backend:
+                Default backend.
+            server_port:
+                Server port for server mode only.
+            cromwell:
+                Cromwell JAR URI.
+            womtool:
+                Womtool JAR URI.
+
+            java_heap_server:
+                For this and all below arguments,
+                see details in CaperBackendConf.__init__.
+            java_heap_womtool:
+            disable_call_caching:
+            max_concurrent_workflows:
+            max_concurrent_tasks:
+            soft_glob_output:
+            local_hash_strat:
+            db:
+            db_timeout:
+            mysql_db_ip:
+            mysql_db_port:
+            mysql_db_user:
+            mysql_db_password:
+            mysql_db_name:
+            postgresql_db_ip:
+            postgresql_db_port:
+            postgresql_db_user:
+            postgresql_db_password:
+            postgresql_db_name:
+            file_db:
+            gcp_prj:
+            gcp_call_caching_dup_strat:
+            out_gcs_bucket:
+            aws_batch_arn:
+            aws_region:
+            out_s3_bucket:
+            gcp_zones:
+            slurm_partition:
+            slurm_account:
+            slurm_extra_param:
+            sge_pe:
+            sge_queue:
+            sge_extra_param:
+            pbs_queue:
+            pbs_extra_param:
+
+            gcp_zones:
+                For this and all below arguments,
+                see details in CaperWorkflowOpts.__init__.
+            slurm_partition:
+            slurm_account:
+            slurm_extra_param:
+            sge_pe:
+            sge_queue:
+            sge_extra_param:
+            pbs_queue:
+            pbs_extra_param:
         """
         super().__init__(
             tmp_dir=tmp_dir,
@@ -125,12 +182,12 @@ class CaperRunner(CaperBase):
             postgresql_db_password=postgresql_db_password,
             postgresql_db_name=postgresql_db_name,
             gcp_prj=gcp_prj,
-            gcp_zones=gcp_zones,
             out_gcs_bucket=out_gcs_bucket,
             gcp_call_caching_dup_strat=gcp_call_caching_dup_strat,
             aws_batch_arn=aws_batch_arn,
             aws_region=aws_region,
             out_s3_bucket=out_s3_bucket,
+            gcp_zones=gcp_zones,
             slurm_partition=slurm_partition,
             slurm_account=slurm_account,
             slurm_extra_param=slurm_extra_param,
