@@ -23,7 +23,7 @@ DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
 
 def get_abspath(path):
     """Get abspath from a string.
-    This function is mainly used to make command line arguments an abspath
+    This function is mainly used to make a command line argument an abspath
     since AutoURI module only works with abspath and full URIs
     (e.g. /home/there, gs://here/there).
     For example, "caper run toy.wdl --docker ubuntu:latest".
@@ -36,6 +36,29 @@ def get_abspath(path):
         if not AutoURI(path).is_valid:
             return os.path.abspath(os.path.expanduser(path))
     return path
+
+
+def print_version(args):
+    if args.version:
+        print(version)
+        parser.exit()
+
+
+def init_logging(args):
+    if args.debug:
+        log_level = 'DEBUG'
+    else:
+        log_level = 'INFO'
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s|%(name)s|%(levelname)s| %(message)s')
+    # suppress filelock logging
+    logging.getLogger('filelock').setLevel('CRITICAL')
+
+
+def init_autouri(args):
+    if hasattr(args, 'use_gsutil_for_s3'):
+        GCSURI.init_gcsuri(use_gsutil_for_s3=args.use_gsutil_for_s3)
 
 
 def check_flags(args):
@@ -66,29 +89,6 @@ def check_flags(args):
     if singularity_flag and docker_flag:
         raise ValueError(
             '--docker and --singularity are mutually exclusive.')
-
-
-def print_version(args):
-    if args.version:
-        print(version)
-        parser.exit()
-
-
-def init_logging(args):
-    if args.debug:
-        log_level = 'DEBUG'
-    else:
-        log_level = 'INFO'
-    logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s|%(name)s|%(levelname)s| %(message)s')
-    # suppress filelock logging
-    logging.getLogger('filelock').setLevel('CRITICAL')
-
-
-def init_autouri(args):
-    if hasattr(args, 'use_gsutil_for_s3'):
-        GCSURI.init_gcsuri(use_gsutil_for_s3=args.use_gsutil_for_s3)
 
 
 def check_dirs(args):
@@ -132,7 +132,9 @@ def check_db_path(args):
 
 def check_backend(args):
     """Check if local backend is in lower cases.
-    "Local" should be capitalized. i.e. local -> Local
+    "Local" should be capitalized. i.e. local -> Local.
+    BACKEND_LOCAL is Local.
+    BACKEND_ALIAS_LOCAL is local.
     """
     if hasattr(args, 'backend') and args.backend == BACKEND_ALIAS_LOCAL:
         args.backend = BACKEND_LOCAL
