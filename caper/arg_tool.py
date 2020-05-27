@@ -1,14 +1,16 @@
 import os
-from argparse import ArgumentParser
-from configparser import ConfigParser
-from configparser import MissingSectionHeaderError
+from configparser import ConfigParser, MissingSectionHeaderError
 from distutils.util import strtobool
 
 
 def update_parser_defaults_with_conf(
-        argparser, conf_file,
-        conf_section='defaults', strip_quote_in_conf=True,
-        conf_val_type=None, conf_val_default=None):
+    argparser,
+    conf_file,
+    conf_section='defaults',
+    strip_quote_in_conf=True,
+    conf_val_type=None,
+    conf_val_default=None,
+):
     """Update argparse.ArgumentParser's defaults with key/val
     pairs in conf_file.
 
@@ -19,7 +21,7 @@ def update_parser_defaults_with_conf(
     conf_file.
 
     Boolean flags (argument defined with action='store_true')
-    must have default value with "False". For example, 
+    must have default value with "False". For example,
 
         parser.add_argument(
             '--verbose', action='store_true', default=False,
@@ -44,7 +46,7 @@ def update_parser_defaults_with_conf(
             Strip quotes from values in conf_file.
         conf_val_type:
             {key: value's type} where key is a key in conf_file.
-            If not defined, var's type can be guessed either from 
+            If not defined, var's type can be guessed either from
             argparser's default value or from conf_val_default.
             argparser's default will override all otehrs.
         conf_val_default:
@@ -56,8 +58,7 @@ def update_parser_defaults_with_conf(
     """
     conf_file = os.path.expanduser(conf_file)
     if not os.path.exists(conf_file):
-        raise FileNotFound(
-            'conf_file does not exist. f={f}'.format(f=conf_file))
+        raise FileNotFoundError('conf_file does not exist. f={f}'.format(f=conf_file))
 
     config = ConfigParser()
     with open(conf_file) as fp:

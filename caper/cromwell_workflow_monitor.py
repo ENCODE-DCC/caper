@@ -1,11 +1,10 @@
 import logging
-import os
 import re
-from autouri import AutoURI
+import time
 from collections import defaultdict
-from .hocon_string import HOCONString
-from .cromwell_rest_api import CromwellRestAPI
 
+from .cromwell_metadata import CromwellMetadata
+from .cromwell_rest_api import CromwellRestAPI
 
 logger = logging.getLogger(__name__)
 
@@ -14,33 +13,30 @@ class CromwellWorkflowMonitor:
     """Class constants include several regular expressions to catch
     status changes of workflow/task by Cromwell's STDERR.
     """
-    RE_WORKFLOW_SUBMITTED = \
-        r'workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) submitted'
-    RE_WORKFLOW_START = \
-        r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
-    RE_WORKFLOW_FINISH = \
-        r'WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) is in a terminal state'
-    RE_WORKFLOW_FAILED = \
-        r'Workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) failed'
-    RE_WORKFLOW_ABORT_REQUESTED = \
-        r'Abort requested for workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)\.'
-    RE_CROMWELL_SERVER_START = \
-        r'Cromwell \d+ service started on'
-    RE_TASK_START = \
-        r'\[UUID\((\b[0-9a-f]{8})\)(.+):(\d+):(\d+)\]: job id: (\d+)'
-    RE_TASK_STATUS = \
+
+    RE_WORKFLOW_SUBMITTED = r'workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) submitted'
+    RE_WORKFLOW_START = r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
+    RE_WORKFLOW_FINISH = r'WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) is in a terminal state'
+    RE_WORKFLOW_FAILED = r'Workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) failed'
+    RE_WORKFLOW_ABORT_REQUESTED = r'Abort requested for workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)\.'
+    RE_CROMWELL_SERVER_START = r'Cromwell \d+ service started on'
+    RE_TASK_START = r'\[UUID\((\b[0-9a-f]{8})\)(.+):(\d+):(\d+)\]: job id: (\d+)'
+    RE_TASK_STATUS = (
         r'\[UUID\((\b[0-9a-f]{8})\)(.+):(\d+):(\d+)\]: Status change from (.+) to (.+)'
+    )
     MAX_RETRY_UPDATE_METADATA = 3
     SEC_INTERVAL_RETRY_UPDATE_METADATA = 10.0
     DEFAULT_SERVER_HOSTNAME = 'localhost'
     DEFAULT_SERVER_PORT = 8000
 
-    def __init__(self,
-                 is_server=False,
-                 server_hostname=DEFAULT_SERVER_HOSTNAME,
-                 server_port=DEFAULT_SERVER_PORT,
-                 embed_subworkflow=False,
-                 callback_status_change=None):
+    def __init__(
+        self,
+        is_server=False,
+        server_hostname=DEFAULT_SERVER_HOSTNAME,
+        server_port=DEFAULT_SERVER_PORT,
+        embed_subworkflow=False,
+        callback_status_change=None,
+    ):
         """Parses STDERR from Cromwell to updates workflow/task information.
         Also, write/update metadata.json on each workflow's root directory.
 
@@ -71,10 +67,10 @@ class CromwellWorkflowMonitor:
 
         if self._is_server:
             self._cromwell_rest_api = CromwellRestAPI(
-                hostname=server_hostname,
-                port=server_port)
+                hostname=server_hostname, port=server_port
+            )
         else:
-            self._cromwell_rest_api = None            
+            self._cromwell_rest_api = None
 
         self._embed_subworkflow = embed_subworkflow
         self._callback_status_change = callback_status_change
@@ -92,7 +88,7 @@ class CromwellWorkflowMonitor:
         {
             WORKFLOW_ID: {
                 'status': STATUS
-            } 
+            }
         }
 
         STATUS:
@@ -122,7 +118,7 @@ class CromwellWorkflowMonitor:
 
     def update(self, stderr):
         """Update workflows by parsing Cromwell's stderr.
-    
+
         This method will pass only full lines with a newline character \\n in stderr.
         Therefore, any string without newline character is kept until next update
         in a member variable _stderr_buffer and this will be used in the next update.
@@ -157,8 +153,7 @@ class CromwellWorkflowMonitor:
     def __update_server_start(self, stderr):
         if not self._is_server_started:
             for line in stderr.split('\n'):
-                r1 = re.findall(
-                    CromwellWorkflowMonitor.RE_CROMWELL_SERVER_START, line)
+                r1 = re.findall(CromwellWorkflowMonitor.RE_CROMWELL_SERVER_START, line)
                 if len(r1) > 0:
                     self._is_server_started = True
                     logger.info('Cromwell server started. Ready to take submissions.')
@@ -176,12 +171,14 @@ class CromwellWorkflowMonitor:
         for line in stderr.split('\n'):
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_SUBMITTED, line)
             if len(r) > 0:
-                wf_id = r[0].strip()                
+                wf_id = r[0].strip()
                 self._workflows[wf_id]['status'] = 'Submitted'
                 updated_workflows.add(wf_id)
                 logger.info(
                     'Workflow status change: id={id}, status={status}'.format(
-                        id=wf_id, status='Submitted'))
+                        id=wf_id, status='Submitted'
+                    )
+                )
 
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_START, line)
             if len(r) > 0:
@@ -190,7 +187,9 @@ class CromwellWorkflowMonitor:
                 updated_workflows.add(wf_id)
                 logger.info(
                     'Workflow status change: id={id}, status={status}'.format(
-                        id=wf_id, status='Running'))
+                        id=wf_id, status='Running'
+                    )
+                )
 
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_FAILED, line)
             if len(r) > 0:
@@ -199,8 +198,9 @@ class CromwellWorkflowMonitor:
                 updated_workflows.add(wf_id)
                 logger.info(
                     'Workflow status change: id={id}, status={status}'.format(
-                        id=wf_id, status='Failed'))
-
+                        id=wf_id, status='Failed'
+                    )
+                )
 
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_ABORT_REQUESTED, line)
             if len(r) > 0:
@@ -209,7 +209,9 @@ class CromwellWorkflowMonitor:
                 updated_workflows.add(wf_id)
                 logger.info(
                     'Workflow status change: id={id}, status={status}'.format(
-                        id=wf_id, status='Aborting'))
+                        id=wf_id, status='Aborting'
+                    )
+                )
 
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_FINISH, line)
             if len(r) > 0:
@@ -221,7 +223,9 @@ class CromwellWorkflowMonitor:
                         updated_workflows.add(wf_id)
                         logger.info(
                             'Workflow status change: id={id}, status={status}'.format(
-                                id=wf_id, status='Aborted'))
+                                id=wf_id, status='Aborted'
+                            )
+                        )
                     elif w['status'] == 'Failed':
                         pass
                     else:
@@ -229,7 +233,9 @@ class CromwellWorkflowMonitor:
                         updated_workflows.add(wf_id)
                         logger.info(
                             'Workflow status change: id={id}, status={status}'.format(
-                                id=wf_id, status='Succeeded'))
+                                id=wf_id, status='Succeeded'
+                            )
+                        )
 
         return updated_workflows
 
@@ -275,14 +281,15 @@ class CromwellWorkflowMonitor:
                 time.sleep(CromwellWorkflowMonitor.SEC_INTERVAL_RETRY_UPDATE_METADATA)
                 metadata = self._cromwell_rest_api.get_metadata(
                     workflow_ids=[workflow_id],
-                    embed_subworkflow=self._embed_subworkflow)[0]
+                    embed_subworkflow=self._embed_subworkflow,
+                )[0]
                 cm = CromwellMetadata(metadata)
                 cm.write_on_workflow_root()
-            except:
+            except Exception:
                 logger.error(
                     'Failed to retrieve metadata from Cromwell server. '
-                    'trial={t}, id={wf_id}'.format(
-                        t=trial, wf_id=workflow_id))
+                    'trial={t}, id={wf_id}'.format(t=trial, wf_id=workflow_id)
+                )
                 continue
             break
 
@@ -291,4 +298,3 @@ class CromwellWorkflowMonitor:
             if w.startswith(short_id):
                 return w
         return None
-

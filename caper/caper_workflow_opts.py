@@ -3,12 +3,13 @@ import json
 import logging
 import os
 import re
+
 from autouri import AutoURI
+
 from .caper_wdl_parser import CaperWDLParser
-from .cromwell_backend import CromwellBackendGCP, BACKEND_GCP, BACKEND_AWS
+from .cromwell_backend import BACKEND_AWS, BACKEND_GCP, CromwellBackendGCP
+from .dict_tool import merge_dict
 from .singularity import Singularity
-
-
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +20,17 @@ class CaperWorkflowOpts:
     DEFAULT_MAX_RETRIES = 1
 
     def __init__(
-            self,
-            gcp_zones=None,
-            slurm_partition=None,
-            slurm_account=None,
-            slurm_extra_param=None,
-            sge_pe=None,
-            sge_queue=None,
-            sge_extra_param=None,
-            pbs_queue=None,
-            pbs_extra_param=None):
+        self,
+        gcp_zones=None,
+        slurm_partition=None,
+        slurm_account=None,
+        slurm_extra_param=None,
+        sge_pe=None,
+        sge_queue=None,
+        sge_extra_param=None,
+        pbs_queue=None,
+        pbs_extra_param=None,
+    ):
         """Template for a workflows options JSON file.
         All parameters are optional.
 
@@ -67,16 +69,13 @@ class CaperWorkflowOpts:
                 Extra parameters for PBS.
                 This will be appended to "qsub" command line.
         """
-        self._template = {
-            CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES: dict()
-        }
+        self._template = {CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES: dict()}
         dra = self._template[CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES]
 
         if gcp_zones:
             zones = ' '.join(
-                re.split(
-                    CromwellBackendGCP.REGEX_DELIMITER_GCP_ZONES,
-                    gcp_zones))
+                re.split(CromwellBackendGCP.REGEX_DELIMITER_GCP_ZONES, gcp_zones)
+            )
             dra['zones'] = zones
 
         if slurm_partition:
@@ -99,18 +98,19 @@ class CaperWorkflowOpts:
             dra['pbs_extra_param'] = pbs_extra_param
 
     def create_file(
-            self,
-            directory,
-            wdl,
-            inputs=None,
-            custom_options=None,
-            docker=None,
-            singularity=None,
-            singularity_cachedir=None,
-            no_build_singularity=False,
-            backend=None,
-            max_retries=DEFAULT_MAX_RETRIES,
-            basename=BASENAME_WORKFLOW_OPTS_JSON):
+        self,
+        directory,
+        wdl,
+        inputs=None,
+        custom_options=None,
+        docker=None,
+        singularity=None,
+        singularity_cachedir=None,
+        no_build_singularity=False,
+        backend=None,
+        max_retries=DEFAULT_MAX_RETRIES,
+        basename=BASENAME_WORKFLOW_OPTS_JSON,
+    ):
         """Creates Cromwell's workflow options JSON file.
         Workflow options JSON file sets default values for attributes
         defined in runtime {} section of WDL's task.
@@ -174,22 +174,30 @@ class CaperWorkflowOpts:
             # or "#CAPER docker" from comments
             docker = wdl_parser.find_docker()
             if docker:
-                logger.info('Docker image found in WDL. wdl={wdl}, d={d}'.format(
-                    wdl=wdl, d=docker))
+                logger.info(
+                    'Docker image found in WDL. wdl={wdl}, d={d}'.format(
+                        wdl=wdl, d=docker
+                    )
+                )
             else:
-                raise ValueError('Docker image not found in WDL: wdl={wdl}.'.format(
-                    wdl=wdl))
+                raise ValueError(
+                    'Docker image not found in WDL: wdl={wdl}.'.format(wdl=wdl)
+                )
         if docker:
             dra['docker'] = docker
 
         if singularity == '':
             singularity = wdl_parser.find_singularity()
             if singularity:
-                logger.info('Singularity image found in WDL. wdl={wdl}, s={s}'.format(
-                    wdl=wdl, s=singularity))
+                logger.info(
+                    'Singularity image found in WDL. wdl={wdl}, s={s}'.format(
+                        wdl=wdl, s=singularity
+                    )
+                )
             else:
-                raise ValueError('Singularity image not found in WDL: wdl={wdl}.'.format(
-                    wdl=wdl))
+                raise ValueError(
+                    'Singularity image not found in WDL: wdl={wdl}.'.format(wdl=wdl)
+                )
         if singularity:
             dra['singularity'] = singularity
             if singularity_cachedir:
@@ -206,11 +214,10 @@ class CaperWorkflowOpts:
 
         if custom_options:
             s = AutoURI(custom_options).read()
-            d = json.loads(fp.read())
+            d = json.loads(s)
             merge_dict(template, d)
 
         final_options_file = os.path.join(directory, basename)
-        AutoURI(final_options_file).write(
-            json.dumps(template, indent=4) + '\n')
+        AutoURI(final_options_file).write(json.dumps(template, indent=4) + '\n')
 
         return final_options_file

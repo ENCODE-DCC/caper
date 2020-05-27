@@ -1,8 +1,9 @@
 import logging
+import socket
 import time
-from autouri import AutoURI
 from threading import Thread
 
+from autouri import AutoURI
 
 logger = logging.getLogger(__name__)
 
@@ -12,10 +13,11 @@ class ServerHeartbeat:
     DEFAULT_INTERVAL_UPDATE_HEARTBEAT_SEC = 60.0
 
     def __init__(
-            self,
-            heartbeat_file,
-            heartbeat_timeout=DEFAULT_HEARTBEAT_TIMEOUT_MS,
-            interval_update_heartbeat=DEFAULT_INTERVAL_UPDATE_HEARTBEAT_SEC):
+        self,
+        heartbeat_file,
+        heartbeat_timeout=DEFAULT_HEARTBEAT_TIMEOUT_MS,
+        interval_update_heartbeat=DEFAULT_INTERVAL_UPDATE_HEARTBEAT_SEC,
+    ):
         """Server heartbeat to share store server's hostname/port with clients.
 
         Args:
@@ -38,7 +40,7 @@ class ServerHeartbeat:
     def start_write_thread(self, port, hostname=None):
         """Starts a thread that writes hostname/port of a server
         on a heartbeat file.
-        
+
         Args:
             port:
                 This port will be written to a heartbeat file.
@@ -50,7 +52,8 @@ class ServerHeartbeat:
 
         logger.info('Server heartbeat thread started.')
         self._th_heartbeat = Thread(
-            target=ServerHeartbeat.__write_to_file(port, hostname))
+            target=ServerHeartbeat.__write_to_file(port, hostname)
+        )
         self._th_heartbeat.start()
         return self._th_heartbeat
 
@@ -68,16 +71,18 @@ class ServerHeartbeat:
             try:
                 logger.info(
                     'Writing heartbeat: {hostname}, {port}'.format(
-                        hostname=hostname,
-                        port=port))
+                        hostname=hostname, port=port
+                    )
+                )
                 AutoURI(self._heartbeat_file).write(
-                    '{hostname}:{port}'.format(
-                        hostname=hostname,
-                        port=self.port))
-            except:
+                    '{hostname}:{port}'.format(hostname=hostname, port=self.port)
+                )
+            except Exception:
                 logger.error(
                     'Failed to write to a heartbeat_file. {f}'.format(
-                        f=self._heartbeat_file))
+                        f=self._heartbeat_file
+                    )
+                )
             cnt = 0
             while cnt < self._interval_update_heartbeat:
                 cnt += 1
@@ -100,9 +105,11 @@ class ServerHeartbeat:
             if (time.time() - u.mtime) * 1000.0 < self._heartbeat_timeout:
                 hostname, port = u.read().strip('\n').split(':')
                 return hostname, port
-        except:
+        except Exception:
             logger.warning(
                 'Failed to read from a heartbeat file. {f}'.format(
-                    f=self._heartbeat_file))
+                    f=self._heartbeat_file
+                )
+            )
 
         return None

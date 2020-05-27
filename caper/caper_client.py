@@ -1,30 +1,32 @@
 import logging
 import os
-from autouri import AutoURI
 from datetime import datetime
+
+from autouri import AutoURI
+
 from .caper_base import CaperBase
+from .caper_labels import CaperLabels
 from .caper_wdl_parser import CaperWDLParser
 from .caper_workflow_opts import CaperWorkflowOpts
-from .caper_labels import CaperLabels
 from .cromwell import Cromwell
 from .cromwell_rest_api import CromwellRestAPI
 from .server_heartbeat import ServerHeartbeat
 from .singularity import Singularity
-
 
 logger = logging.getLogger(__name__)
 
 
 class CaperClient(CaperBase):
     def __init__(
-            self,
-            tmp_dir,
-            tmp_gcs_bucket=None,
-            tmp_s3_bucket=None,        
-            server_heartbeat_file=CaperBase.DEFAULT_SERVER_HEARTBEAT_FILE,
-            server_heartbeat_timeout=ServerHeartbeat.DEFAULT_HEARTBEAT_TIMEOUT_MS,
-            server_hostname=CromwellRestAPI.DEFAULT_HOSTNAME,
-            server_port=CromwellRestAPI.DEFAULT_PORT):
+        self,
+        tmp_dir,
+        tmp_gcs_bucket=None,
+        tmp_s3_bucket=None,
+        server_heartbeat_file=CaperBase.DEFAULT_SERVER_HEARTBEAT_FILE,
+        server_heartbeat_timeout=ServerHeartbeat.DEFAULT_HEARTBEAT_TIMEOUT_MS,
+        server_hostname=CromwellRestAPI.DEFAULT_HOSTNAME,
+        server_port=CromwellRestAPI.DEFAULT_PORT,
+    ):
         """Initializes for Caper's client functions.
 
         Args:
@@ -38,7 +40,8 @@ class CaperClient(CaperBase):
             tmp_gcs_bucket=tmp_gcs_bucket,
             tmp_s3_bucket=tmp_s3_bucket,
             server_heartbeat_file=server_heartbeat_file,
-            server_heartbeat_timeout=server_heartbeat_timeout)
+            server_heartbeat_timeout=server_heartbeat_timeout,
+        )
 
         self._server_hostname = server_hostname
         self._server_port = server_port
@@ -54,8 +57,9 @@ class CaperClient(CaperBase):
                 Wild cards (*, ?) are allowed.
         """
         r = self._get_cromwell_rest_api().abort(
-                wf_ids_or_labels,
-                [(CaperLabels.KEY_CAPER_STR_LABEL, v) for v in wf_ids_or_labels])
+            wf_ids_or_labels,
+            [(CaperLabels.KEY_CAPER_STR_LABEL, v) for v in wf_ids_or_labels],
+        )
         logger.info('abort: {r}'.format(r=r))
         return r
 
@@ -68,8 +72,9 @@ class CaperClient(CaperBase):
                 Wild cards (*, ?) are allowed.
         """
         r = self._get_cromwell_rest_api().release_hold(
-                wf_ids_or_labels,
-                [(CaperLabels.KEY_CAPER_STR_LABEL, v) for v in wf_ids_or_labels])
+            wf_ids_or_labels,
+            [(CaperLabels.KEY_CAPER_STR_LABEL, v) for v in wf_ids_or_labels],
+        )
         logger.info('unhold: {r}'.format(r=r))
         return r
 
@@ -112,10 +117,11 @@ class CaperClient(CaperBase):
         return self._get_cromwell_rest_api().get_metadata(
             wf_ids_or_labels,
             [(CaperLabels.KEY_CAPER_STR_LABEL, v) for v in wf_ids_or_labels],
-            embed_subworkflow=embed_subworkflow)
+            embed_subworkflow=embed_subworkflow,
+        )
 
     def _get_hostname_port(self):
-        """Get hostname/port pair if server heartbeat is available and fresh.        
+        """Get hostname/port pair if server heartbeat is available and fresh.
         """
         if self._server_heartbeat:
             res = self._server_heartbeat.read_from_file()
@@ -132,25 +138,26 @@ class CaperClient(CaperBase):
 
 class CaperClientSubmit(CaperClient):
     def __init__(
-            self,
-            tmp_dir,
-            tmp_gcs_bucket=None,
-            tmp_s3_bucket=None,        
-            server_hostname=CromwellRestAPI.DEFAULT_HOSTNAME,
-            server_port=CromwellRestAPI.DEFAULT_PORT,
-            server_heartbeat_file=CaperBase.DEFAULT_SERVER_HEARTBEAT_FILE,
-            server_heartbeat_timeout=ServerHeartbeat.DEFAULT_HEARTBEAT_TIMEOUT_MS,
-            womtool=Cromwell.DEFAULT_WOMTOOL,
-            java_heap_womtool=Cromwell.DEFAULT_JAVA_HEAP_WOMTOOL,            
-            gcp_zones=None,
-            slurm_partition=None,
-            slurm_account=None,
-            slurm_extra_param=None,
-            sge_pe=None,
-            sge_queue=None,
-            sge_extra_param=None,
-            pbs_queue=None,
-            pbs_extra_param=None):
+        self,
+        tmp_dir,
+        tmp_gcs_bucket=None,
+        tmp_s3_bucket=None,
+        server_hostname=CromwellRestAPI.DEFAULT_HOSTNAME,
+        server_port=CromwellRestAPI.DEFAULT_PORT,
+        server_heartbeat_file=CaperBase.DEFAULT_SERVER_HEARTBEAT_FILE,
+        server_heartbeat_timeout=ServerHeartbeat.DEFAULT_HEARTBEAT_TIMEOUT_MS,
+        womtool=Cromwell.DEFAULT_WOMTOOL,
+        java_heap_womtool=Cromwell.DEFAULT_JAVA_HEAP_WOMTOOL,
+        gcp_zones=None,
+        slurm_partition=None,
+        slurm_account=None,
+        slurm_extra_param=None,
+        sge_pe=None,
+        sge_queue=None,
+        sge_extra_param=None,
+        pbs_queue=None,
+        pbs_extra_param=None,
+    ):
         """Submit subcommand needs much more parameters than other client subcommands.
 
 
@@ -169,16 +176,17 @@ class CaperClientSubmit(CaperClient):
             sge_queue:
             sge_extra_param:
             pbs_queue:
-            pbs_extra_param:                
+            pbs_extra_param:
         """
-        super().__init__(            
+        super().__init__(
             tmp_dir=tmp_dir,
             tmp_gcs_bucket=tmp_gcs_bucket,
-            tmp_s3_bucket=tmp_s3_bucket,        
+            tmp_s3_bucket=tmp_s3_bucket,
             server_hostname=server_hostname,
             server_port=server_port,
-            server_heartbeat_file=server_heartbeat_file,            
-            server_heartbeat_timeout=server_heartbeat_timeout)
+            server_heartbeat_file=server_heartbeat_file,
+            server_heartbeat_timeout=server_heartbeat_timeout,
+        )
 
         self._womtool = womtool
         self._java_heap_womtool = java_heap_womtool
@@ -192,29 +200,32 @@ class CaperClientSubmit(CaperClient):
             sge_queue=sge_queue,
             sge_extra_param=sge_extra_param,
             pbs_queue=pbs_queue,
-            pbs_extra_param=pbs_extra_param)
+            pbs_extra_param=pbs_extra_param,
+        )
 
         self._caper_labels = CaperLabels()
 
     def submit(
-            self, wdl,
-            inputs=None,
-            options=None,
-            labels=None,
-            imports=None,
-            str_label=None,
-            user=None,
-            docker=None,
-            singularity=None,
-            singularity_cachedir=Singularity.DEFAULT_SINGULARITY_CACHEDIR,
-            no_build_singularity=False,            
-            backend=None,
-            max_retries=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,            
-            tmp_dir=None,
-            ignore_womtool=False,
-            no_deepcopy=False,
-            hold=False,
-            dry_run=False):
+        self,
+        wdl,
+        inputs=None,
+        options=None,
+        labels=None,
+        imports=None,
+        str_label=None,
+        user=None,
+        docker=None,
+        singularity=None,
+        singularity_cachedir=Singularity.DEFAULT_SINGULARITY_CACHEDIR,
+        no_build_singularity=False,
+        backend=None,
+        max_retries=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
+        tmp_dir=None,
+        ignore_womtool=False,
+        no_deepcopy=False,
+        hold=False,
+        dry_run=False,
+    ):
         """Submit a workflow to Cromwell server.
 
         Args:
@@ -237,11 +248,11 @@ class CaperClientSubmit(CaperClient):
                 Docker image to run a workflow on.
                 This will add "docker" attribute to runtime {} section
                 of all tasks in WDL.
-                This will be overriden by existing "docker" attr defined in 
+                This will be overriden by existing "docker" attr defined in
                 WDL's task's "runtime {} section.
             singularity:
                 Singularity image to run a workflow on.
-                To use this, do not define "docker" attribute in 
+                To use this, do not define "docker" attribute in
                 WDL's task's "runtime {} section.
             singularity_cachedir:
                 Cache directory for local Singularity images.
@@ -251,7 +262,7 @@ class CaperClientSubmit(CaperClient):
                 Do not build local singularity image.
                 However, a local singularity image will be eventually built on
                 env var SINGULARITY_CACHEDIR.
-                Therefore, use this flag if you have already built it.                
+                Therefore, use this flag if you have already built it.
             backend:
                 Choose among Caper's built-in backends.
                 (aws, gcp, Local, slurm, sge, pbs).
@@ -278,8 +289,7 @@ class CaperClientSubmit(CaperClient):
         """
         u_wdl = AutoURI(wdl)
         if not u_wdl.exists:
-            raise FileNotFound(
-                'WDL does not exists. {wdl}'.format(wdl=wdl))
+            raise FileNotFoundError('WDL does not exists. {wdl}'.format(wdl=wdl))
 
         if tmp_dir is None:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
@@ -295,10 +305,8 @@ class CaperClientSubmit(CaperClient):
 
         if inputs:
             maybe_remote_file = self.localize_on_backend(
-                inputs,
-                backend=backend,
-                recursive=not no_deepcopy,
-                make_md5_file=True)
+                inputs, backend=backend, recursive=not no_deepcopy, make_md5_file=True
+            )
             inputs = AutoURI(maybe_remote_file).localize_on(tmp_dir)
 
         options = self._caper_workflow_opts.create_file(
@@ -311,14 +319,16 @@ class CaperClientSubmit(CaperClient):
             singularity_cachedir=singularity_cachedir,
             no_build_singularity=no_build_singularity,
             backend=backend,
-            max_retries=max_retries)
+            max_retries=max_retries,
+        )
 
         labels = self._caper_labels.create_file(
             directory=tmp_dir,
             backend=backend,
             custom_labels=labels,
             str_label=str_label,
-            user=user)
+            user=user,
+        )
 
         wdl_parser = CaperWDLParser(wdl)
         if imports:
@@ -329,21 +339,15 @@ class CaperClientSubmit(CaperClient):
         logger.debug(
             'submit params: wdl={w}, imports={imp}, inputs={i}, '
             'options={o}, labels={l}, hold={hold}'.format(
-                w=wdl,
-                imp=imports,
-                i=inputs,
-                o=options,
-                l=labels,
-                hold=hold))
+                w=wdl, imp=imports, i=inputs, o=options, l=labels, hold=hold
+            )
+        )
 
         if not ignore_womtool:
             cromwell = Cromwell(
-                womtool=self._womtool,
-                java_heap_womtool=self._java_heap_womtool)
-            cromwell.validate(
-                wdl=wdl,
-                inputs=inputs,
-                imports=imports)
+                womtool=self._womtool, java_heap_womtool=self._java_heap_womtool
+            )
+            cromwell.validate(wdl=wdl, inputs=inputs, imports=imports)
 
         if dry_run:
             return None
@@ -354,6 +358,7 @@ class CaperClientSubmit(CaperClient):
             inputs=inputs,
             options=options,
             labels=labels,
-            on_hold=hold)
+            on_hold=hold,
+        )
         logger.info('submit: {r}'.format(r=r))
         return r

@@ -2,8 +2,10 @@ import json
 import logging
 import os
 import pwd
+
 from autouri import AutoURI
 
+from .dict_tool import merge_dict
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,8 @@ class CaperLabels:
         custom_labels=None,
         str_label=None,
         user=None,
-        basename=BASENAME_LABELS):
+        basename=BASENAME_LABELS,
+    ):
         """Create labels JSON file.
 
         Args:
@@ -51,7 +54,9 @@ class CaperLabels:
         if str_label:
             template[CaperLabels.KEY_CAPER_STR_LABEL] = str_label
 
-        template[CaperLabels.KEY_CAPER_USER] = user if user else pwd.getpwuid(os.getuid())[0]
+        template[CaperLabels.KEY_CAPER_USER] = (
+            user if user else pwd.getpwuid(os.getuid())[0]
+        )
 
         labels_file = os.path.join(directory, basename)
         AutoURI(labels_file).write(json.dumps(template, indent=4))

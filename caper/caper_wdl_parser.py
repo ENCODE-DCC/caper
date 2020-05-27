@@ -1,9 +1,13 @@
+import logging
 import os
 import re
 import shutil
-from autouri import AutoURI, AbsPath, HTTPURL
 from tempfile import TemporaryDirectory
+
+from autouri import HTTPURL, AbsPath, AutoURI
 from WDL import parse_document
+
+logger = logging.getLogger(__name__)
 
 
 class CaperWDLParser(object):
@@ -18,6 +22,7 @@ class CaperWDLParser(object):
         miniwdl (0.3.7) has a bug for URL imports
         Keep using regex to find imports until it's fixed.
     """
+
     RE_WDL_IMPORT = r'^\s*import\s+[\"\'](.+)[\"\']\s*'
     RE_WDL_COMMENT_DOCKER = r'^\s*\#\s*CAPER\s+docker\s(.+)'
     RE_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CAPER\s+singularity\s(.+)'
@@ -33,34 +38,29 @@ class CaperWDLParser(object):
         try:
             wdl = parse_document(AutoURI(self._wdl).read())
             return [i.uri for i in wdl.imports]
-        except:
-            pass
+        except Exception:
+            logger.error('Failed to find imports with miniwdl.')
+
         # backward compatibililty: keep using old regex method
-        r = self.__find_val(
-            CaperWDLParser.RE_WDL_IMPORT)
-        return r
+        return self.__find_val(CaperWDLParser.RE_WDL_IMPORT)
 
     def find_docker(self):
-        r = self.__find_workflow_meta(
-            CaperWDLParser.WDL_WORKFLOW_META_DOCKER)
-        if r is not None:
-            return r
+        res = self.__find_workflow_meta(CaperWDLParser.WDL_WORKFLOW_META_DOCKER)
+        if res:
+            return res
 
         # backward compatibililty: keep using old regex method
-        r = self.__find_val(
-            CaperWDLParser.RE_WDL_COMMENT_DOCKER)
-        return r[0] if len(r) > 0 else None
+        res = self.__find_val(CaperWDLParser.RE_WDL_COMMENT_DOCKER)
+        return res[0] if len(res) > 0 else None
 
     def find_singularity(self):
-        r = self.__find_workflow_meta(
-            CaperWDLParser.WDL_WORKFLOW_META_SINGULARITY)
-        if r is not None:
-            return r
+        res = self.__find_workflow_meta(CaperWDLParser.WDL_WORKFLOW_META_SINGULARITY)
+        if res:
+            return res
 
         # backward compatibililty: keep using old regex method
-        r = self.__find_val(
-            CaperWDLParser.RE_WDL_COMMENT_SINGULARITY)
-        return r[0] if len(r) > 0 else None
+        res = self.__find_val(CaperWDLParser.RE_WDL_COMMENT_SINGULARITY)
+        return res[0] if len(res) > 0 else None
 
     def zip_subworkflows(self, zip_file):
         """Zip imported subworkflow WDLs (with relative paths only).
@@ -70,11 +70,11 @@ class CaperWDLParser(object):
         with TemporaryDirectory() as tmp_d:
             # localize WDL first. If it's already local
             # then will use its original path without loc.
-            wdl = AutoURI(self._wdl).localize_on(tmp_d)            
+            wdl = AutoURI(self._wdl).localize_on(tmp_d)
             # with a directory structure as they imported
             num_sub_wf_packed = self.__recurse_subworkflow(
-                root_zip_dir=tmp_d,
-                root_wdl_dir=AutoURI(wdl).dirname)
+                root_zip_dir=tmp_d, root_wdl_dir=AutoURI(wdl).dirname
+            )
             if num_sub_wf_packed:
                 shutil.make_archive(AutoURI(zip_file).uri_wo_ext, 'zip', tmp_d)
                 return zip_file
@@ -114,27 +114,25 @@ class CaperWDLParser(object):
             wdl = parse_document(AutoURI(self._wdl).read())
             if key in wdl.workflow.meta:
                 return wdl.workflow.meta[key]
-        except:
-            pass
+        except Exception:
+            logger.error('Failed to find key in WDL\'s meta section with miniwdl.')
+
         return None
 
     def __recurse_subworkflow(
-            self,
-            root_zip_dir,
-            root_wdl_dir,
-            imported_as_url=False,
-            depth=0):
+        self, root_zip_dir, root_wdl_dir, imported_as_url=False, depth=0
+    ):
         """Recurse imported sub-WDLs in main-WDL.
 
         Unlike Cromwell, Womtool does not take imports.zip while validating WDLs.
-        All sub-WDLs should be in a correct directory structure relative to the 
+        All sub-WDLs should be in a correct directory structure relative to the
         root WDL.
         For Womtool, we should make a temporary directory and unpack imports.zip there and
         need to make a copy of root WDL on it. Then run Womtool to validate them.
         This function is to make such imports.zip.
 
         Sub-WDLs imported as relative path simply inherit parent's directory.
-        Sub-WDLs imported as URL does not inherit parent's directory but root 
+        Sub-WDLs imported as URL does not inherit parent's directory but root
         WDL's directory.
         Sub-WDLs imported as absolute path are not allowed. This can work with "caper run"
         but not with "caper submit" (or Cromwell submit).
@@ -149,7 +147,9 @@ class CaperWDLParser(object):
             raise ValueError(
                 'Reached recursion depth limit while zipping subworkflows recursively. '
                 'Possible clyclic import or self-refencing in WDLs? wdl={wdl}'.format(
-                    wdl=self._wdl))
+                    wdl=self._wdl
+                )
+            )
 
         if imported_as_url:
             main_wdl_dir = root_wdl_dir
@@ -168,17 +168,22 @@ class CaperWDLParser(object):
                 raise ValueError(
                     'For sub WDL zipping, absolute path is not allowed for sub WDL. '
                     'main={main}, sub={sub}'.format(
-                        main=self._wdl, sub=sub_rel_to_parent))
+                        main=self._wdl, sub=sub_rel_to_parent
+                    )
+                )
             else:
                 sub_abs = os.path.realpath(
-                    os.path.join(main_wdl_dir, sub_rel_to_parent))
+                    os.path.join(main_wdl_dir, sub_rel_to_parent)
+                )
                 u_sub_abs = AbsPath(sub_abs)
                 if not u_sub_abs.exists:
                     raise FileNotFoundError(
                         'Sub WDL does not exist. Did you import main WDL '
                         'as a URL but sub WDL references a local file? '
                         'main={main}, sub={sub}, imported_as_url={i}'.format(
-                            main=self._wdl, sub=sub_rel_to_parent, i=imported_as_url))
+                            main=self._wdl, sub=sub_rel_to_parent, i=imported_as_url
+                        )
+                    )
                 if not sub_abs.startswith(root_wdl_dir):
                     raise ValueError(
                         'Sub WDL exists but it is out of root WDL directory. '
@@ -186,7 +191,9 @@ class CaperWDLParser(object):
                         'Or main WDL is imported as an URL but sub WDL '
                         'has "../"? '
                         'main={main}, sub={sub}, imported_as_url={i}'.format(
-                            main=self._wdl, sub=sub_rel_to_parent, i=imported_as_url))
+                            main=self._wdl, sub=sub_rel_to_parent, i=imported_as_url
+                        )
+                    )
 
                 # make a copy on zip_dir
                 rel_path = os.path.relpath(sub_abs, root_wdl_dir)
@@ -200,5 +207,6 @@ class CaperWDLParser(object):
                 root_zip_dir=root_zip_dir,
                 root_wdl_dir=root_wdl_dir,
                 imported_as_url=imported_as_url_sub,
-                depth=depth + 1)
+                depth=depth + 1,
+            )
         return num_sub_wf_packed

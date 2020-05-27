@@ -1,8 +1,10 @@
+import json
 import logging
 import re
-from pyhocon import ConfigFactory, HOCONConverter
-from .dict_tool import merge_dict
 
+from pyhocon import ConfigFactory, HOCONConverter
+
+from .dict_tool import merge_dict
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,7 @@ class HOCONString(object):
     def to_dict(self):
         """Convert contents without include to dict.
         """
-        c = CnfigFactory.parse_string(self._contents_wo_include)
+        c = ConfigFactory.parse_string(self._contents_wo_include)
         j = HOCONConverter.to_json(c)
         return json.loads(j)
 
@@ -67,4 +69,3 @@ class HOCONString(object):
             return self._contents_wo_include
         else:
             return self._include + '\n' + self._contents_wo_include
-

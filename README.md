@@ -105,7 +105,7 @@ $ cd [OUTPUT_DIR]
 
 If you want to use your Conda environment for Caper, then activate your Conda environment right before running/submitting `caper run` or `caper server`.
 ```bash
-$ conda activate [PIPELINE_CONDA_ENV] 
+$ conda activate [PIPELINE_CONDA_ENV]
 $ caper run ...
 $ sbatch ... --wrap "caper run ..."
 ```
@@ -449,7 +449,7 @@ mysql-db-port=3306
 
 	Example conflict in `CONTAINER_NAME`. Try with `mysql_cromwell2`.
 	```
-	ERROR: A daemon process is already running with this name: mysql_cromwell	
+	ERROR: A daemon process is already running with this name: mysql_cromwell
 	ABORT: Aborting with RETVAL=255
 	```
 

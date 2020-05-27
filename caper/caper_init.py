@@ -1,8 +1,9 @@
 import os
-from .cromwell import Cromwell
-from .cromwell_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL, BACKEND_ALIAS_LOCAL
-from .cromwell_backend import BACKEND_SLURM, BACKEND_SGE, BACKEND_PBS
 
+from .cromwell import Cromwell
+from .cromwell_backend import (BACKEND_ALIAS_LOCAL, BACKEND_AWS, BACKEND_GCP,
+                               BACKEND_LOCAL, BACKEND_PBS, BACKEND_SGE,
+                               BACKEND_SLURM)
 
 BACKEND_ALIAS_SHERLOCK = 'sherlock'
 BACKEND_ALIAS_SCG = 'scg'
@@ -30,11 +31,16 @@ CONF_CONTENTS_TMP_DIR = """
 tmp-dir=
 """
 
-DEFAULT_CONF_CONTENTS_LOCAL = """
+DEFAULT_CONF_CONTENTS_LOCAL = (
+    """
 backend=local
-""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
+"""
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
 
-DEFAULT_CONF_CONTENTS_SHERLOCK = """
+DEFAULT_CONF_CONTENTS_SHERLOCK = (
+    """
 backend=slurm
 slurm-partition=
 
@@ -46,40 +52,63 @@ slurm-partition=
 # Install all executables on $HOME or $PI_HOME instead.
 # It's STILL OKAY to read input data from and write outputs to $SCRATCH or $OAK.
 # ====================================================================
-""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
+"""
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
 
-DEFAULT_CONF_CONTENTS_SCG = """
+DEFAULT_CONF_CONTENTS_SCG = (
+    """
 backend=slurm
 slurm-account=
 
-""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
+"""
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
 
-DEFAULT_CONF_CONTENTS_SLURM = """
+DEFAULT_CONF_CONTENTS_SLURM = (
+    """
 backend=slurm
 
 # define one of the followings (or both) according to your
 # cluster's SLURM configuration.
 slurm-partition=
 slurm-account=
-""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
+"""
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
 
-DEFAULT_CONF_CONTENTS_SGE = """
+DEFAULT_CONF_CONTENTS_SGE = (
+    """
 backend=sge
 sge-pe=
-""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
+"""
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
 
-DEFAULT_CONF_CONTENTS_PBS = """
+DEFAULT_CONF_CONTENTS_PBS = (
+    """
 backend=pbs
-""" + CONF_CONTENTS_LOCAL_HASH_STRAT + CONF_CONTENTS_TMP_DIR
+"""
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
 
-DEFAULT_CONF_CONTENTS_AWS = """
+DEFAULT_CONF_CONTENTS_AWS = (
+    """
 backend=aws
 aws-batch-arn=
 aws-region=
 out-s3-bucket=
-""" + CONF_CONTENTS_TMP_DIR
+"""
+    + CONF_CONTENTS_TMP_DIR
+)
 
-DEFAULT_CONF_CONTENTS_GCP = """
+DEFAULT_CONF_CONTENTS_GCP = (
+    """
 backend=gcp
 gcp-prj=
 out-gcs-bucket=
@@ -88,7 +117,9 @@ out-gcs-bucket=
 #   reference: refer to old output file in metadata.json file.
 #   copy: make a copy.
 gcp-call-caching-dup-strat=
-""" + CONF_CONTENTS_TMP_DIR
+"""
+    + CONF_CONTENTS_TMP_DIR
+)
 
 
 def init_caper_conf(conf_file, backend):
@@ -115,16 +146,13 @@ def init_caper_conf(conf_file, backend):
     elif backend in BACKEND_AWS:
         contents = DEFAULT_CONF_CONTENTS_AWS
     else:
-        raise ValueError(
-            'Unsupported backend {p}'.format(p=platform))
+        raise ValueError('Unsupported backend {p}'.format(p=backend))
 
     conf_file = os.path.expanduser(conf_file)
     cromwell = Cromwell()
     with open(conf_file, 'w') as fp:
         fp.write(contents + '\n')
-        fp.write('{key}={val}\n'.format(
-            key='cromwell',
-            val=cromwell.install_cromwell()))
-        fp.write('{key}={val}\n'.format(
-            key='womtool',
-            val=cromwell.install_womtool()))
+        fp.write(
+            '{key}={val}\n'.format(key='cromwell', val=cromwell.install_cromwell())
+        )
+        fp.write('{key}={val}\n'.format(key='womtool', val=cromwell.install_womtool()))

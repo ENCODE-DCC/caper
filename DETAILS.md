@@ -77,10 +77,10 @@ debug, troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason 
 * `submit`: To submit a workflow to a server. Define a string label for submitted workflow with `-s`. It is optional but useful for other subcommands to indentify a workflow.
 
 	```bash
-	$ caper submit [WDL] -i [INPUT_JSON] -s [STR_LABEL] 
+	$ caper submit [WDL] -i [INPUT_JSON] -s [STR_LABEL]
 	```
 
-* `list`: To show a list of all workflows submitted to a cromwell server. Wildcard search with using `*` and `?` is allowed for such label for the following subcommands with `STR_LABEL`. 
+* `list`: To show a list of all workflows submitted to a cromwell server. Wildcard search with using `*` and `?` is allowed for such label for the following subcommands with `STR_LABEL`.
 
 	```bash
 	$ caper list [WF_ID or STR_LABEL]
@@ -320,12 +320,12 @@ Define a cache directory where local Singularity images will be built. You can a
 singularity-cachedir=[SINGULARITY_CACHEDIR]
 ```
 
-Singularity image will be built first before running a workflow to prevent mutiple tasks from competing to write on the same local image file. If you don't define it, every task in a workflow will try to repeatedly build a local Singularity image on their temporary directory. 
+Singularity image will be built first before running a workflow to prevent mutiple tasks from competing to write on the same local image file. If you don't define it, every task in a workflow will try to repeatedly build a local Singularity image on their temporary directory.
 
 
 ## Docker
 
-Caper supports Docker for its non-HPC backends (`local`, `aws` and `gcp`). 
+Caper supports Docker for its non-HPC backends (`local`, `aws` and `gcp`).
 
 > **WARNING**: For `aws` and `gcp` backends Caper will try to find a [Docker image URI defined in your WDL as a comment](DETAILS.md/#wdl-customization) even if `--docker` is not explicitly defined.
 
@@ -344,7 +344,7 @@ $ conda activate [COND_ENV]
 
 ## Temporary directory
 
-There are four types of storages. Each storage except for URL has its own temporary directory/bucket defined by the following parameters. 
+There are four types of storages. Each storage except for URL has its own temporary directory/bucket defined by the following parameters.
 
 | Storage | URI(s)       | Command line parameter    |
 |---------|--------------|---------------------------|
@@ -376,7 +376,7 @@ Inter-storage transfer is done by keeping source's directory structure and appen
 | gcs   | --tmp-gcs-bucket gs://my_gcs_bucket/caper_tmp |
 | s3    | --tmp-s3-bucket s3://my_s3_bucket/caper_tmp   |
 
-A local file `/home/user/a/b/c/hello.gz` can be copied (on demand) to 
+A local file `/home/user/a/b/c/hello.gz` can be copied (on demand) to
 
 | Storage | Command line parameters                                      |
 |---------|--------------------------------------------------------------|

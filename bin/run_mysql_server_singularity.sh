@@ -75,4 +75,3 @@ sleep 10
 singularity exec instance://${CONTAINER_NAME} mysql -e "${INIT_SQL}" || true
 
 echo "All done. You can ignore any error messages occurred when creating a user (ERROR 1007)."
-

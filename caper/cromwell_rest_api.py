@@ -1,10 +1,10 @@
 import fnmatch
 import io
 import logging
-import requests
-import urllib3
-from .cromwell_metadata import CromwellMetadata
 
+import requests
+
+from .cromwell_metadata import CromwellMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -18,18 +18,13 @@ class CromwellRestAPI(object):
     ENDPOINT_SUBMIT = '/api/workflows/v1'
     ENDPOINT_ABORT = '/api/workflows/v1/{wf_id}/abort'
     ENDPOINT_RELEASE_HOLD = '/api/workflows/v1/{wf_id}/releaseHold'
-    PARAMS_WORKFLOWS = {
-        'additionalQueryResultFields': 'labels'
-    }
+    PARAMS_WORKFLOWS = {'additionalQueryResultFields': 'labels'}
     DEFAULT_HOSTNAME = 'localhost'
     DEFAULT_PORT = 8000
 
     def __init__(
-            self,
-            hostname=DEFAULT_HOSTNAME,
-            port=DEFAULT_PORT,
-            user=None,
-            password=None):
+        self, hostname=DEFAULT_HOSTNAME, port=DEFAULT_PORT, user=None, password=None
+    ):
         self._hostname = hostname
         self._port = port
 
@@ -38,30 +33,37 @@ class CromwellRestAPI(object):
         self.__init_auth()
 
     def submit(
-            self, source, dependencies=None, inputs=None,
-            options=None, labels=None, on_hold=False):
+        self,
+        source,
+        dependencies=None,
+        inputs=None,
+        options=None,
+        labels=None,
+        on_hold=False,
+    ):
         """Submit a workflow.
 
         Returns:
             JSON Response from POST request submit a workflow
         """
         manifest = {}
-        manifest['workflowSource'] = \
-            CromwellRestAPI.__get_string_io_from_file(source)
+        manifest['workflowSource'] = CromwellRestAPI.__get_string_io_from_file(source)
         if dependencies is not None:
-            manifest['workflowDependencies'] = \
-                CromwellRestAPI.__get_bytes_io_from_file(dependencies)
+            manifest['workflowDependencies'] = CromwellRestAPI.__get_bytes_io_from_file(
+                dependencies
+            )
         if inputs is not None:
-            manifest['workflowInputs'] = \
-                CromwellRestAPI.__get_string_io_from_file(inputs)
+            manifest['workflowInputs'] = CromwellRestAPI.__get_string_io_from_file(
+                inputs
+            )
         else:
             manifest['workflowInputs'] = io.StringIO('{}')
         if options is not None:
-            manifest['workflowOptions'] = \
-                CromwellRestAPI.__get_string_io_from_file(options)
+            manifest['workflowOptions'] = CromwellRestAPI.__get_string_io_from_file(
+                options
+            )
         if labels is not None:
-            manifest['labels'] = \
-                CromwellRestAPI.__get_string_io_from_file(labels)
+            manifest['labels'] = CromwellRestAPI.__get_string_io_from_file(labels)
         if on_hold:
             manifest['workflowOnHold'] = True
 
@@ -82,8 +84,8 @@ class CromwellRestAPI(object):
         result = []
         for w in workflows:
             r = self.__request_post(
-                CromwellRestAPI.ENDPOINT_ABORT.format(
-                    wf_id=w['id']))
+                CromwellRestAPI.ENDPOINT_ABORT.format(wf_id=w['id'])
+            )
             result.append(r)
         logger.debug('abort: {r}'.format(r=result))
         return result
@@ -101,8 +103,8 @@ class CromwellRestAPI(object):
         result = []
         for w in workflows:
             r = self.__request_post(
-                CromwellRestAPI.ENDPOINT_RELEASE_HOLD.format(
-                    wf_id=w['id']))
+                CromwellRestAPI.ENDPOINT_RELEASE_HOLD.format(wf_id=w['id'])
+            )
             result.append(r)
         logger.debug('release_hold: {r}'.format(r=result))
         return result
@@ -146,20 +148,23 @@ class CromwellRestAPI(object):
         result = []
         for w in workflows:
             m = self.__request_get(
-                CromwellRestAPI.ENDPOINT_METADATA.format(wf_id=w['id']))
+                CromwellRestAPI.ENDPOINT_METADATA.format(wf_id=w['id'])
+            )
             cm = CromwellMetadata(m)
             if embed_subworkflow:
                 cm.recurse_calls(
-                    lambda call_name, call, parent_call_names:
-                        self.__embed_subworkflow(call_name, call, parent_call_names))
+                    lambda call_name, call, parent_call_names: self.__embed_subworkflow(
+                        call_name, call, parent_call_names
+                    )
+                )
             result.append(cm.metadata)
         return result
 
     def __embed_subworkflow(self, call_name, call, parent_call_names):
         if 'subWorkflowId' in call:
             call['subWorkflowMetadata'] = self.get_metadata(
-                workflow_ids=[call['subWorkflowId']],
-                embed_subworkflow=True)[0]
+                workflow_ids=[call['subWorkflowId']], embed_subworkflow=True
+            )[0]
 
     def get_labels(self, workflow_id):
         """Get labels JSON for a specified workflow
@@ -170,8 +175,8 @@ class CromwellRestAPI(object):
         if workflow_id is None:
             return None
         r = self.__request_get(
-            CromwellRestAPI.ENDPOINT_LABELS.format(
-                wf_id=workflow_id))
+            CromwellRestAPI.ENDPOINT_LABELS.format(wf_id=workflow_id)
+        )
         if r is None:
             return None
         return r['labels']
@@ -197,8 +202,8 @@ class CromwellRestAPI(object):
         if workflow_id is None or labels is None:
             return None
         r = self.__request_patch(
-            CromwellRestAPI.ENDPOINT_LABELS.format(
-                wf_id=workflow_id), labels)
+            CromwellRestAPI.ENDPOINT_LABELS.format(wf_id=workflow_id), labels
+        )
         logger.debug('update_labels: {r}'.format(r=r))
         return r
 
@@ -221,8 +226,8 @@ class CromwellRestAPI(object):
             List of matched workflow JSONs
         """
         r = self.__request_get(
-            CromwellRestAPI.ENDPOINT_WORKFLOWS,
-            params=CromwellRestAPI.PARAMS_WORKFLOWS)
+            CromwellRestAPI.ENDPOINT_WORKFLOWS, params=CromwellRestAPI.PARAMS_WORKFLOWS
+        )
         if r is None:
             return None
         workflows = r['results']
@@ -277,18 +282,24 @@ class CromwellRestAPI(object):
         Returns:
             JSON response
         """
-        url = CromwellRestAPI.QUERY_URL.format(
-                hostname=self._hostname,
-                port=self._port) + endpoint
+        url = (
+            CromwellRestAPI.QUERY_URL.format(hostname=self._hostname, port=self._port)
+            + endpoint
+        )
         try:
             resp = requests.get(
-                url, auth=self._auth, params=params,
-                headers={'accept': 'application/json'})
+                url,
+                auth=self._auth,
+                params=params,
+                headers={'accept': 'application/json'},
+            )
             resp.raise_for_status()
         except requests.exceptions.RequestException:
             raise Exception(
                 'Failed to connect to Cromwell server. req=GET, url={url}'.format(
-                    url=url)) from None
+                    url=url
+                )
+            ) from None
         return resp.json()
 
     def __request_post(self, endpoint, manifest=None):
@@ -297,18 +308,24 @@ class CromwellRestAPI(object):
         Returns:
             JSON response
         """
-        url = CromwellRestAPI.QUERY_URL.format(
-                hostname=self._hostname,
-                port=self._port) + endpoint
+        url = (
+            CromwellRestAPI.QUERY_URL.format(hostname=self._hostname, port=self._port)
+            + endpoint
+        )
         try:
             resp = requests.post(
-                url, files=manifest, auth=self._auth,
-                headers={'accept': 'application/json'})
+                url,
+                files=manifest,
+                auth=self._auth,
+                headers={'accept': 'application/json'},
+            )
             resp.raise_for_status()
         except requests.exceptions.RequestException:
             raise Exception(
                 'Failed to connect to Cromwell server. req=POST, url={url}'.format(
-                    url=url)) from None
+                    url=url
+                )
+            ) from None
         return resp.json()
 
     def __request_patch(self, endpoint, data):
@@ -317,19 +334,27 @@ class CromwellRestAPI(object):
         Returns:
             JSON response
         """
-        url = CromwellRestAPI.QUERY_URL.format(
-                hostname=self._hostname,
-                port=self._port) + endpoint
+        url = (
+            CromwellRestAPI.QUERY_URL.format(hostname=self._hostname, port=self._port)
+            + endpoint
+        )
         try:
             resp = requests.patch(
-                url, data=data, auth=self._auth,
-                headers={'accept': 'application/json',
-                         'content-type': 'application/json'})
+                url,
+                data=data,
+                auth=self._auth,
+                headers={
+                    'accept': 'application/json',
+                    'content-type': 'application/json',
+                },
+            )
             resp.raise_for_status()
         except requests.exceptions.RequestException:
             raise Exception(
                 'Failed to connect to Cromwell server. req=PATCH, url={url}'.format(
-                    url=url)) from None
+                    url=url
+                )
+            ) from None
         return resp.json()
 
     @staticmethod

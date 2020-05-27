@@ -6,6 +6,7 @@ Author:
 
 import re
 from collections import defaultdict
+
 try:
     from collections.abc import MutableMapping
 except AttributeError:
@@ -111,7 +112,7 @@ def split_dict(d, rules=None):
                     }
                 }
             ]
-            with "new_row_rule" = "replicate:^rep\d+$", this JSON object
+            with "new_row_rule" = "replicate:^rep\\d+$", this JSON object
             will be splitted into three (original, rep1, rep2) JSON object.
             [
                 # original
@@ -262,41 +263,32 @@ def dict_to_dot_str(d, parent_key='digraph D', indent=''):
             result += dict_to_dot_str(v, parent_key=k, indent=indent + '\t')
         result += indent + '}\n'
     else:
-        raise ValueError('Unsupported data type: {} '
-            '(only str and dict/JSON are allowed).'.format(type(d)))
+        raise ValueError(
+            'Unsupported data type: {} '
+            '(only str and dict/JSON are allowed).'.format(type(d))
+        )
     return result
 
 
 def test():
     import json
     from collections import OrderedDict
-    d =  OrderedDict({
-        "flagstat_qc": {
-            "rep1": {
-                "read1": 100,
-                "read2": 200
+
+    d = OrderedDict(
+        {
+            "flagstat_qc": {
+                "rep1": {"read1": 100, "read2": 200},
+                "rep2": {"read1": 300, "read2": 400},
             },
-            "rep2": {
-                "read1": 300,
-                "read2": 400
-            }
-        },
-        "etc": {
-            "samstat_qc": {
-                "rep1": {
-                    "unmapped": 500,
-                    "mapped": 600
-                },
-                "rep2": {
-                    "unmapped": 700,
-                    "mapped": 800
+            "etc": {
+                "samstat_qc": {
+                    "rep1": {"unmapped": 500, "mapped": 600},
+                    "rep2": {"unmapped": 700, "mapped": 800},
                 }
-            }
-        },
-        "idr_qc": {
-            "qc_test1" : 900
+            },
+            "idr_qc": {"qc_test1": 900},
         }
-    })
+    )
     j = json.dumps(d, indent=4)
     print(j)
     # j_flat = flatten_dict(d)
