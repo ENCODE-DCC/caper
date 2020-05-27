@@ -22,11 +22,11 @@ if [ ! -d "$1" ]; then
   echo "[DB_DIR] ($1) doesn't exists."
   exit 1
 fi
-DB_DIR=$(cd $(dirname $1) && pwd -P)/$(basename $1)
+DB_DIR=$(cd "$(dirname "$1")" && pwd -P)/$(basename "$1")
 
-# check if PORT taken
+# check if PORT is taken
 if [ $# -gt 1 ]; then PORT=$2; else PORT=3306; fi
-if [ ! -z "$(netstat -tulpn 2>/dev/null | grep LISTEN | grep \:${PORT})" ]; then
+if netstat -tulpn 2>/dev/null | grep LISTEN | grep ":${PORT}" | grep -q ^; then
   echo "[PORT] (${PORT}) already taken."
   exit 1
 fi
@@ -42,9 +42,9 @@ TMP_MYSQLD=${HOME}/.run_mysql_server_singularity/${RAND_STR}/mysqld
 TMP_CNF_FILE=${HOME}/.my.cnf
 TMP_ROOT_PW_SQL_FILE=${HOME}/.mysqlrootpw
 
-mkdir -p ${TMP_MYSQLD}
+mkdir -p "${TMP_MYSQLD}"
 
-cat > ${TMP_CNF_FILE} << EOM
+cat > "${TMP_CNF_FILE}" << EOM
 [mysqld]
 innodb_use_native_aio=0
 init-file=${HOME}/.mysqlrootpw
@@ -55,15 +55,15 @@ user=root
 password='my-secret-pw'
 EOM
 
-cat > ${TMP_ROOT_PW_SQL_FILE} << EOM
+cat > "${TMP_ROOT_PW_SQL_FILE}" << EOM
 SET PASSWORD FOR 'root'@'localhost' = PASSWORD('my-secret-pw');
 EOM
 
 singularity instance start \
---bind ${HOME} \
---bind ${DB_DIR}:/var/lib/mysql \
---bind ${TMP_MYSQLD}:/var/run/mysqld \
-shub://ISU-HPC/mysql ${CONTAINER_NAME}
+--bind "${HOME}" \
+--bind "${DB_DIR}":/var/lib/mysql \
+--bind "${TMP_MYSQLD}":/var/run/mysqld \
+shub://ISU-HPC/mysql "${CONTAINER_NAME}"
 
 INIT_SQL="CREATE DATABASE ${MYSQL_DB_NAME}; CREATE USER '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
 GRANT ALL PRIVILEGES ON ${MYSQL_DB_NAME}.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;"

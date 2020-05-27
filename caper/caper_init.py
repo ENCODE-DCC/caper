@@ -1,9 +1,15 @@
 import os
 
 from .cromwell import Cromwell
-from .cromwell_backend import (BACKEND_ALIAS_LOCAL, BACKEND_AWS, BACKEND_GCP,
-                               BACKEND_LOCAL, BACKEND_PBS, BACKEND_SGE,
-                               BACKEND_SLURM)
+from .cromwell_backend import (
+    BACKEND_ALIAS_LOCAL,
+    BACKEND_AWS,
+    BACKEND_GCP,
+    BACKEND_LOCAL,
+    BACKEND_PBS,
+    BACKEND_SGE,
+    BACKEND_SLURM,
+)
 
 BACKEND_ALIAS_SHERLOCK = 'sherlock'
 BACKEND_ALIAS_SCG = 'scg'

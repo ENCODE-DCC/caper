@@ -4,12 +4,20 @@ from copy import deepcopy
 
 from autouri import AutoURI
 
-from .cromwell_backend import (BACKEND_AWS, BACKEND_GCP, BACKEND_SGE,
-                               CromwellBackendAWS, CromwellBackendBase,
-                               CromwellBackendCommon, CromwellBackendDatabase,
-                               CromwellBackendGCP, CromwellBackendLocal,
-                               CromwellBackendPBS, CromwellBackendSGE,
-                               CromwellBackendSLURM)
+from .cromwell_backend import (
+    BACKEND_AWS,
+    BACKEND_GCP,
+    BACKEND_SGE,
+    CromwellBackendAWS,
+    CromwellBackendBase,
+    CromwellBackendCommon,
+    CromwellBackendDatabase,
+    CromwellBackendGCP,
+    CromwellBackendLocal,
+    CromwellBackendPBS,
+    CromwellBackendSGE,
+    CromwellBackendSLURM,
+)
 from .dict_tool import merge_dict
 from .hocon_string import HOCONString
 

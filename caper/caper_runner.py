@@ -9,9 +9,13 @@ from .caper_labels import CaperLabels
 from .caper_wdl_parser import CaperWDLParser
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
-from .cromwell_backend import (CromwellBackendBase, CromwellBackendCommon,
-                               CromwellBackendDatabase, CromwellBackendGCP,
-                               CromwellBackendLocal)
+from .cromwell_backend import (
+    CromwellBackendBase,
+    CromwellBackendCommon,
+    CromwellBackendDatabase,
+    CromwellBackendGCP,
+    CromwellBackendLocal,
+)
 from .cromwell_metadata import CromwellMetadata
 from .cromwell_rest_api import CromwellRestAPI
 from .server_heartbeat import ServerHeartbeat

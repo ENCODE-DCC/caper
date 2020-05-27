@@ -4,9 +4,13 @@ from .arg_tool import update_parser_defaults_with_conf
 from .caper_base import CaperBase
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
-from .cromwell_backend import (CromwellBackendBase, CromwellBackendCommon,
-                               CromwellBackendDatabase, CromwellBackendGCP,
-                               CromwellBackendLocal)
+from .cromwell_backend import (
+    CromwellBackendBase,
+    CromwellBackendCommon,
+    CromwellBackendDatabase,
+    CromwellBackendGCP,
+    CromwellBackendLocal,
+)
 from .cromwell_rest_api import CromwellRestAPI
 from .server_heartbeat import ServerHeartbeat
 from .singularity import Singularity

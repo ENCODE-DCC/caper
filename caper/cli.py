@@ -12,8 +12,11 @@ from .caper_client import CaperClient, CaperClientSubmit
 from .caper_init import init_caper_conf
 from .caper_labels import CaperLabels
 from .caper_runner import CaperRunner
-from .cromwell_backend import (BACKEND_ALIAS_LOCAL, BACKEND_LOCAL,
-                               CromwellBackendDatabase)
+from .cromwell_backend import (
+    BACKEND_ALIAS_LOCAL,
+    BACKEND_LOCAL,
+    CromwellBackendDatabase,
+)
 from .cromwell_metadata import CromwellMetadata
 
 logger = logging.getLogger(__name__)
