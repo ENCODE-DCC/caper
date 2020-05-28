@@ -181,12 +181,17 @@ class CaperWorkflowOpts:
                 )
             else:
                 raise ValueError(
-                    'Docker image not found in WDL: wdl={wdl}.'.format(wdl=wdl)
+                    'Docker image not found in WDL. wdl={wdl}'.format(wdl=wdl)
                 )
         if docker:
             dra['docker'] = docker
 
         if singularity == '':
+            if backend in (BACKEND_GCP, BACKEND_AWS):
+                raise ValueError(
+                    'Singularity cannot be used for cloud backend (e.g. aws, gcp).'
+                )
+
             singularity = wdl_parser.find_singularity()
             if singularity:
                 logger.info(
@@ -196,7 +201,7 @@ class CaperWorkflowOpts:
                 )
             else:
                 raise ValueError(
-                    'Singularity image not found in WDL: wdl={wdl}.'.format(wdl=wdl)
+                    'Singularity image not found in WDL. wdl={wdl}'.format(wdl=wdl)
                 )
         if singularity:
             dra['singularity'] = singularity
