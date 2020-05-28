@@ -21,7 +21,7 @@ class Singularity(object):
         self._singularity_cachedir = singularity_cachedir
 
     def build_local_image(self):
-        """Build local image for Singularity.
+        """Build local image for Singularity on SINGULARITY_CACHEDIR.
 
         Args.
             singularity_cachedir:
@@ -39,7 +39,7 @@ class Singularity(object):
             'exec',
             self._singularity_image,
             'echo',
-            'Building local singularity image done for {img}'.format(
+            'Built local singularity image for {img}'.format(
                 img=self._singularity_image
             ),
         ]
