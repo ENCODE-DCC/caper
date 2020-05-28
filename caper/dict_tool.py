@@ -188,7 +188,7 @@ def split_dict(d, rules=None):
     return result
 
 
-def dict_to_dot_str(d, parent_key='digraph D', indent=''):
+def dict_to_dot_str(d, parent_key='digraph D', indent='', base_indent=''):
     """Dict will be converted into DOT like the followings:
         1) Value string will not be double-quotted in DOT.
             - make sure to escape double-quotes in a string with special characters
@@ -254,50 +254,19 @@ def dict_to_dot_str(d, parent_key='digraph D', indent=''):
     """
     result = ''
     if d is None:
-        return '{}{};\n'.format(indent, parent_key)
+        return '{}{};\n'.format(base_indent, parent_key)
     elif isinstance(d, str):
-        return '{}{} = {};\n'.format(indent, parent_key, d)
+        return '{}{} = {};\n'.format(base_indent, parent_key, d)
     elif isinstance(d, dict):
-        result += indent + parent_key + ' {\n'
+        result += base_indent + parent_key + ' {\n'
         for k, v in d.items():
-            result += dict_to_dot_str(v, parent_key=k, indent=indent + '\t')
-        result += indent + '}\n'
+            result += dict_to_dot_str(
+                v, parent_key=k, indent=indent, base_indent=base_indent + indent
+            )
+        result += base_indent + '}\n'
     else:
         raise ValueError(
             'Unsupported data type: {} '
             '(only str and dict/JSON are allowed).'.format(type(d))
         )
     return result
-
-
-def test():
-    import json
-    from collections import OrderedDict
-
-    d = OrderedDict(
-        {
-            "flagstat_qc": {
-                "rep1": {"read1": 100, "read2": 200},
-                "rep2": {"read1": 300, "read2": 400},
-            },
-            "etc": {
-                "samstat_qc": {
-                    "rep1": {"unmapped": 500, "mapped": 600},
-                    "rep2": {"unmapped": 700, "mapped": 800},
-                }
-            },
-            "idr_qc": {"qc_test1": 900},
-        }
-    )
-    j = json.dumps(d, indent=4)
-    print(j)
-    # j_flat = flatten_dict(d)
-    # print(j_flat)
-    jsons_split = split_dict(d, {'replicate': r'^rep\d+$'})
-    print(json.dumps(jsons_split, indent=4))
-    # print(split_dict(d, {'replicate': r'^rep\d+$'}))
-    return 0
-
-
-if __name__ == '__main__':
-    test()
