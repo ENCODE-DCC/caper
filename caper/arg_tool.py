@@ -7,9 +7,9 @@ def update_parser_defaults_with_conf(
     argparser,
     conf_file,
     conf_section='defaults',
-    strip_quote_in_conf=True,
-    conf_val_type=None,
-    conf_val_default=None,
+    val_type=None,
+    val_default=None,
+    no_strip_quote=False,
 ):
     """Update argparse.ArgumentParser's defaults with key/val
     pairs in conf_file.
@@ -20,18 +20,14 @@ def update_parser_defaults_with_conf(
     This function will update default of a key that exists in
     conf_file.
 
-    Boolean flags (argument defined with action='store_true')
-    must have default value with "False". For example,
+    It is important to convert string value in a conf file to a correct
+    type defined in argparser's argument definition.
 
-        parser.add_argument(
-            '--verbose', action='store_true', default=False,
-            help='Be verbose')
-
-    If conf_val_type is not explicitly defined type can be
-    guessed from argparser's default value.
-
-    If conf_val_default is not explicitly defined then default
-    can be taken from argparser's default value.
+    However, argparse does not allow direct access to each argument's type.
+    Therefore, this function tries to best-guess such type from
+        - default value of argparse's argument.
+        - val_type if it's given.
+        - val_default if it's given.
 
     Args:
         argparser:
@@ -42,16 +38,16 @@ def update_parser_defaults_with_conf(
             conf_file_key_in_argparser in argparser.
         conf_section:
             Section in conf_file.
-        strip_quote_in_conf:
-            Strip quotes from values in conf_file.
-        conf_val_type:
+        val_type:
             {key: value's type} where key is a key in conf_file.
             If not defined, var's type can be guessed either from
-            argparser's default value or from conf_val_default.
+            argparser's default value or from val_default.
             argparser's default will override all otehrs.
-        conf_val_default:
+        val_default:
             {key: value's default} where key is a key in conf_file.
             Type can be guessed from argument's default value.
+        no_strip_quote:
+            Do not strip single/double quotes from values in conf_file.
 
     Returns:
         Updated parser.
@@ -71,24 +67,24 @@ def update_parser_defaults_with_conf(
     d_ = dict(config.items(conf_section))
     defaults = {}
     for k, v in d_.items():
-        if strip_quote_in_conf:
+        if not no_strip_quote:
             v = v.strip('"\'')
         if v:
             defaults[k.replace('-', '_')] = v
 
-    if conf_val_default:
-        for k, v in conf_val_default.items():
+    if val_default:
+        for k, v in val_default.items():
             if k not in defaults:
                 defaults[k] = None
 
+    # used "is not None" for guessed_default to catch boolean false
     for k, v in defaults.items():
-        if conf_val_default and k in conf_val_default:
-            guessed_default = conf_val_default[k]
+        if val_default and k in val_default:
+            guessed_default = val_default[k]
         else:
             guessed_default = argparser.get_default(k)
-
-        if conf_val_type:
-            guessed_type = conf_val_type[k]
+        if val_type and k in val_type:
+            guessed_type = val_type[k]
         elif guessed_default is not None:
             guessed_type = type(guessed_default)
         else:

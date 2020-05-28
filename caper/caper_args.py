@@ -41,15 +41,9 @@ def get_main_parser():
     parent_all.add_argument(
         '-c', '--conf', help='Specify config file', default=DEFAULT_CAPER_CONF
     )
+    parent_all.add_argument('-v', '--version', action='store_true', help='Show version')
     parent_all.add_argument(
-        '-v', '--version', action='store_true', default=False, help='Show version'
-    )
-    parent_all.add_argument(
-        '-D',
-        '--debug',
-        action='store_true',
-        default=False,
-        help='Prints all logs >= DEBUG level',
+        '-D', '--debug', action='store_true', help='Prints all logs >= DEBUG level'
     )
 
     group_loc = parent_all.add_argument_group(
@@ -81,7 +75,6 @@ def get_main_parser():
     parent_backend.add_argument(
         '--dry-run',
         action='store_true',
-        default=False,
         help='Caper localizes remote files and validates WDL '
         'but does not run/submit a pipeline.',
     )
@@ -207,7 +200,6 @@ def get_main_parser():
     group_cromwell.add_argument(
         '--disable-call-caching',
         action='store_true',
-        default=False,
         help='Disable Cromwell\'s call caching, which re-uses outputs from '
         'previous workflows',
     )
@@ -218,7 +210,6 @@ def get_main_parser():
     group_cromwell.add_argument(
         '--soft-glob-output',
         action='store_true',
-        default=False,
         help='Use soft-linking when globbing outputs for a filesystem that '
         'does not allow hard-linking. e.g. beeGFS. '
         'This flag does not work with backends based on a Docker container. '
@@ -309,7 +300,6 @@ def get_main_parser():
     parent_submit.add_argument(
         '--hold',
         action='store_true',
-        default=False,
         help='Put a hold on a workflow when submitted to a Cromwell server.',
     )
     parent_submit.add_argument(
@@ -323,7 +313,6 @@ def get_main_parser():
     parent_submit.add_argument(
         '--use-gsutil-for-s3',
         action='store_true',
-        default=False,
         help='Use gsutil CLI for direct trasnfer between S3 and GCS buckets. '
         'Otherwise, such file transfer will stream through local machine. '
         'Make sure that gsutil is installed on your system and it has access to '
@@ -332,7 +321,6 @@ def get_main_parser():
     parent_submit.add_argument(
         '--no-deepcopy',
         action='store_true',
-        default=False,
         help='(IMPORTANT) --deepcopy has been deprecated. '
         'Deepcopying is now activated by default. '
         'This flag disables deepcopy for '
@@ -346,7 +334,6 @@ def get_main_parser():
     parent_submit.add_argument(
         '--ignore-womtool',
         action='store_true',
-        default=False,
         help='Ignore warnings from womtool.jar.',
     )
     parent_submit.add_argument(
@@ -400,7 +387,6 @@ def get_main_parser():
     group_dep_local.add_argument(
         '--no-build-singularity',
         action='store_true',
-        default=False,
         help='Do not build singularity image before running a workflow. ',
     )
 
@@ -468,7 +454,6 @@ def get_main_parser():
     parent_server_client.add_argument(
         '--no-server-heartbeat',
         action='store_true',
-        default=False,
         help='Disable server heartbeat file.',
     )
     parent_server_client.add_argument(
@@ -517,7 +502,6 @@ def get_main_parser():
     parent_list.add_argument(
         '--hide-subworkflow',
         action='store_true',
-        default=False,
         help='Hide subworkflows from "caper list".',
     )
 
@@ -526,14 +510,10 @@ def get_main_parser():
     parent_troubleshoot.add_argument(
         '--show-completed-task',
         action='store_true',
-        default=False,
         help='Show information about completed tasks.',
     )
     parent_troubleshoot.add_argument(
-        '--show-stdout',
-        action='store_true',
-        default=False,
-        help='Show STDOUT for failed tasks.',
+        '--show-stdout', action='store_true', help='Show STDOUT for failed tasks.'
     )
 
     # all subcommands
