@@ -172,7 +172,7 @@ class CaperWorkflowOpts:
         if docker == '' or backend in (BACKEND_GCP, BACKEND_AWS) and not docker:
             # find "caper-docker" from WDL's workflow.meta
             # or "#CAPER docker" from comments
-            docker = wdl_parser.find_docker()
+            docker = wdl_parser.caper_docker
             if docker:
                 logger.info(
                     'Docker image found in WDL. wdl={wdl}, d={d}'.format(
@@ -192,7 +192,7 @@ class CaperWorkflowOpts:
                     'Singularity cannot be used for cloud backend (e.g. aws, gcp).'
                 )
 
-            singularity = wdl_parser.find_singularity()
+            singularity = wdl_parser.caper_singularity
             if singularity:
                 logger.info(
                     'Singularity image found in WDL. wdl={wdl}, s={s}'.format(

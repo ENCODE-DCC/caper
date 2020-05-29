@@ -6,7 +6,6 @@ from autouri import AbsPath, AutoURI
 from .caper_backend_conf import CaperBackendConf
 from .caper_base import CaperBase
 from .caper_labels import CaperLabels
-from .caper_wdl_parser import CaperWDLParser
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
 from .cromwell_backend import (
@@ -20,6 +19,7 @@ from .cromwell_metadata import CromwellMetadata
 from .cromwell_rest_api import CromwellRestAPI
 from .server_heartbeat import ServerHeartbeat
 from .singularity import Singularity
+from .wdl_parser import WDLParser
 
 logger = logging.getLogger(__name__)
 
@@ -345,7 +345,7 @@ class CaperRunner(CaperBase):
                 inputs, backend=backend, recursive=not no_deepcopy, make_md5_file=True
             )
 
-        wdl_parser = CaperWDLParser(wdl)
+        wdl_parser = WDLParser(wdl)
         if imports:
             imports = AutoURI(imports).localize_on(tmp_dir)
         else:
