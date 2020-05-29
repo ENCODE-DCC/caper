@@ -351,7 +351,7 @@ class Cromwell(object):
                 wm.update(stdout)
                 if not init_server and wm.is_server_started():
                     if self._server_heartbeat:
-                        self._server_heartbeat.start_write_thread(
+                        self._server_heartbeat.run(
                             port=self._server_port, hostname=self._server_hostname
                         )
                     init_server = True
@@ -365,7 +365,7 @@ class Cromwell(object):
             logger.error(Cromwell.USER_INTERRUPT_WARNING)
         finally:
             if self._server_heartbeat:
-                self._server_heartbeat.end_write_thread()
+                self._server_heartbeat.stop()
             p.terminate()
 
         return rc

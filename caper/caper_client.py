@@ -124,7 +124,7 @@ class CaperClient(CaperBase):
         """Get hostname/port pair if server heartbeat is available and fresh.
         """
         if self._server_heartbeat:
-            res = self._server_heartbeat.read_from_file()
+            res = self._server_heartbeat.read()
             if res:
                 return res
         return self._server_hostname, self._server_port

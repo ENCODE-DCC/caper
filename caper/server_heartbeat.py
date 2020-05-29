@@ -8,6 +8,10 @@ from autouri import AutoURI
 logger = logging.getLogger(__name__)
 
 
+class ServerHeartbeatTimeoutError(Exception):
+    pass
+
+
 class ServerHeartbeat:
     DEFAULT_HEARTBEAT_TIMEOUT_MS = 120000
     DEFAULT_INTERVAL_UPDATE_HEARTBEAT_SEC = 60.0
@@ -37,7 +41,7 @@ class ServerHeartbeat:
         self._stop_heartbeat_thread = True
         self._th_heartbeat = None
 
-    def start_write_thread(self, port, hostname=None):
+    def run(self, port, hostname=None):
         """Starts a thread that writes hostname/port of a server
         on a heartbeat file.
 
@@ -51,13 +55,11 @@ class ServerHeartbeat:
         self._stop_heartbeat_thread = False
 
         logger.info('Server heartbeat thread started.')
-        self._th_heartbeat = Thread(
-            target=ServerHeartbeat.__write_to_file(port, hostname)
-        )
+        self._th_heartbeat = Thread(target=self.__write_to_file, args=(port, hostname))
         self._th_heartbeat.start()
         return self._th_heartbeat
 
-    def end_write_thread(self):
+    def stop(self):
         self._stop_heartbeat_thread = True
         if self._th_heartbeat is not None:
             self._th_heartbeat.join()
@@ -75,7 +77,7 @@ class ServerHeartbeat:
                     )
                 )
                 AutoURI(self._heartbeat_file).write(
-                    '{hostname}:{port}'.format(hostname=hostname, port=self.port)
+                    '{hostname}:{port}'.format(hostname=hostname, port=port)
                 )
             except Exception:
                 logger.error(
@@ -92,7 +94,7 @@ class ServerHeartbeat:
             if self._stop_heartbeat_thread:
                 break
 
-    def read_from_file(self):
+    def read(self, raise_timeout=False):
         """Read from heartbeat file.
         If a heartbeat file is not fresh (mtime difference < timeout)
         then None is returned.
@@ -102,11 +104,22 @@ class ServerHeartbeat:
         """
         try:
             u = AutoURI(self._heartbeat_file)
-            if (time.time() - u.mtime) * 1000.0 < self._heartbeat_timeout:
+            if (time.time() - u.mtime) * 1000.0 > self._heartbeat_timeout:
+                raise ServerHeartbeatTimeoutError
+            else:
                 hostname, port = u.read().strip('\n').split(':')
-                return hostname, port
+                return hostname, int(port)
+
+        except ServerHeartbeatTimeoutError:
+            logger.error(
+                'Found a heartbeat file but it has been expired (> timeout) '
+                '. {f}'.format(f=self._heartbeat_file)
+            )
+            if raise_timeout:
+                raise
+
         except Exception:
-            logger.warning(
+            logger.error(
                 'Failed to read from a heartbeat file. {f}'.format(
                     f=self._heartbeat_file
                 )
