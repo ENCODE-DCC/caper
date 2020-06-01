@@ -185,27 +185,31 @@ class CromwellBackendBase(UserDict):
             raise ValueError('backend_name must be provided.')
         self._backend_name = backend_name
 
-        self.set_backend(CromwellBackendBase.TEMPLATE_BACKEND)
+        self.backend = CromwellBackendBase.TEMPLATE_BACKEND
 
-        config = self.get_backend_config()
+        config = self.backend_config
         config['concurrent-job-limit'] = max_concurrent_tasks
 
-    def set_backend(self, backend):
+    @property
+    def backend(self):
+        return self['backend']['providers'][self._backend_name]
+
+    @backend.setter
+    def backend(self, backend):
         self['backend']['providers'][self._backend_name] = deepcopy(backend)
 
     def merge_backend(self, backend):
-        merge_dict(self.get_backend(), backend)
+        merge_dict(self.backend, backend)
 
-    def get_backend(self):
-        return self['backend']['providers'][self._backend_name]
+    @property
+    def backend_config(self):
+        return self.backend['config']
 
-    def get_backend_config(self):
-        return self.get_backend()['config']
-
-    def get_backend_config_dra(self):
+    @property
+    def backend_config_dra(self):
         """Backend's default runtime attributes (DRA).
         """
-        return self.get_backend_config()['default-runtime-attributes']
+        return self.backend_config['default-runtime-attributes']
 
 
 class CromwellBackendGCP(CromwellBackendBase):
@@ -251,7 +255,7 @@ class CromwellBackendGCP(CromwellBackendBase):
         merge_dict(self.data, CromwellBackendGCP.TEMPLATE)
         self.merge_backend(CromwellBackendGCP.TEMPLATE_BACKEND)
 
-        config = self.get_backend_config()
+        config = self.backend_config
         config['project'] = gcp_prj
         if not out_gcs_bucket.startswith('gs://'):
             raise ValueError(
@@ -269,7 +273,7 @@ class CromwellBackendGCP(CromwellBackendBase):
             )
         caching['duplication-strategy'] = call_caching_dup_strat
 
-        dra = self.get_backend_config_dra()
+        dra = self.backend_config_dra
         if gcp_zones:
             zones = ' '.join(
                 re.split(CromwellBackendGCP.REGEX_DELIMITER_GCP_ZONES, gcp_zones)
@@ -312,14 +316,14 @@ class CromwellBackendAWS(CromwellBackendBase):
         aws = self[BACKEND_AWS]
         aws['region'] = aws_region
 
-        config = self.get_backend_config()
+        config = self.backend_config
         if not out_s3_bucket.startswith('s3://'):
             raise ValueError(
                 'Wrong S3 bucket URI for out_s3_bucket: {v}'.format(v=out_s3_bucket)
             )
         config['root'] = out_s3_bucket
 
-        dra = self.get_backend_config_dra()
+        dra = self.backend_config_dra
         dra['queueArn'] = aws_batch_arn
 
 
@@ -393,7 +397,7 @@ class CromwellBackendLocal(CromwellBackendBase):
         )
         self.merge_backend(CromwellBackendLocal.TEMPLATE_BACKEND)
 
-        config = self.get_backend_config()
+        config = self.backend_config
         caching = config['filesystems']['local']['caching']
 
         if local_hash_strat not in (
@@ -518,7 +522,7 @@ class CromwellBackendSLURM(CromwellBackendLocal):
         )
         self.merge_backend(CromwellBackendSLURM.TEMPLATE_BACKEND)
 
-        dra = self.get_backend_config_dra()
+        dra = self.backend_config_dra
         if slurm_partition:
             dra['slurm_partition'] = slurm_partition
         if slurm_account:
@@ -604,7 +608,7 @@ class CromwellBackendSGE(CromwellBackendLocal):
         )
         self.merge_backend(CromwellBackendSGE.TEMPLATE_BACKEND)
 
-        dra = self.get_backend_config_dra()
+        dra = self.backend_config_dra
         if sge_pe:
             dra['sge_pe'] = sge_pe
         if sge_queue:
@@ -681,7 +685,7 @@ class CromwellBackendPBS(CromwellBackendLocal):
         )
         self.merge_backend(CromwellBackendPBS.TEMPLATE_BACKEND)
 
-        dra = self.get_backend_config_dra()
+        dra = self.backend_config_dra
         if pbs_queue:
             dra['pbs_queue'] = pbs_queue
         if pbs_extra_param:
