@@ -10,71 +10,14 @@ There is another trivial WDL 1.0 file with empty workflow.
 
 import os
 import shutil
-from textwrap import dedent
 
 from caper.wdl_parser import WDLParser
 
-MAIN_WDL_CONTENTS = dedent(
-    """\
-    version 1.0
-    import "sub/sub.wdl" as sub
-
-    workflow main {
-        meta {
-            key1: "val1"
-            key2: "val2"
-        }
-        parameter_meta {
-            input_s: {
-                key1: "val1"
-            }
-            input_i: {
-                key1: "val1"
-            }
-        }
-        input {
-            String input_s
-            Int input_i
-        }
-    }
-"""
-)
-
-
-MAIN_WDL_META_DICT = {'key1': 'val1', 'key2': 'val2'}
-
-
-MAIN_WDL_PARAMETER_META_DICT = {
-    'input_s': {'key1': 'val1'},
-    'input_i': {'key1': 'val1'},
-}
-
-TRIVIAL_WDL_CONTENTS = dedent(
-    """\
-    version 1.0
-
-    workflow trivial {
-    }
-"""
-)
-
-SUB_WDL_CONTENTS = dedent(
-    """\
-    version 1.0
-    import "sub/sub_sub.wdl" as sub_sub
-
-    workflow sub {
-    }
-"""
-)
-
-SUB_SUB_WDL_CONTENTS = dedent(
-    """\
-    version 1.0
-
-    workflow sub {
-    }
-"""
+from .example_wdl import (
+    MAIN_WDL,
+    MAIN_WDL_META_DICT,
+    MAIN_WDL_PARAMETER_META_DICT,
+    make_directory_with_wdls,
 )
 
 
@@ -85,13 +28,11 @@ def test_properties(tmp_path):
         - workflow_parameter_meta
         - imports
     """
-    d = tmp_path / 'test_wdl_parser' / 'test_properties'
-    d.mkdir(parents=True)
-    wdl = d / 'main.wdl'
-    wdl.write_text(MAIN_WDL_CONTENTS)
+    wdl = tmp_path / 'main.wdl'
+    wdl.write_text(MAIN_WDL)
 
     wp = WDLParser(str(wdl))
-    assert wp.contents == MAIN_WDL_CONTENTS
+    assert wp.contents == MAIN_WDL
     assert wp.workflow_meta == MAIN_WDL_META_DICT
     assert wp.workflow_parameter_meta == MAIN_WDL_PARAMETER_META_DICT
     assert wp.imports == ['sub/sub.wdl']
@@ -102,32 +43,25 @@ def test_zip_subworkflows(tmp_path):
     create_imports_file's merely a wrapper for zip_subworkflows.
     """
     # make tmp directory to store WDLs
-    d_main = tmp_path / 'test_wdl_parser' / 'test_create_imports_file' / 'wdls'
-    d_main.mkdir(parents=True)
-    main_wdl = d_main / 'main.wdl'
-    main_wdl.write_text(MAIN_WDL_CONTENTS)
-    trivial_wdl = d_main / 'trivial.wdl'
-    trivial_wdl.write_text(TRIVIAL_WDL_CONTENTS)
+    make_directory_with_wdls(str(tmp_path))
 
-    d_sub = d_main / 'sub'
-    d_sub.mkdir(parents=True)
-    sub_wdl = d_sub / 'sub.wdl'
-    sub_wdl.write_text(SUB_WDL_CONTENTS)
+    # we now have all WDL files
+    # main.wdl, sub/sub.wdl, sub/sub/sub_sub.wdl
 
-    d_sub_sub = d_main / 'sub' / 'sub'
-    d_sub_sub.mkdir(parents=True)
-    sub_sub_wdl = d_sub_sub / 'sub_sub.wdl'
-    sub_sub_wdl.write_text(SUB_SUB_WDL_CONTENTS)
+    main_wdl = tmp_path / 'main.wdl'
+    sub_sub_wdl = tmp_path / 'sub' / 'sub' / 'sub_sub.wdl'
 
     main = WDLParser(str(main_wdl))
-    trivial = WDLParser(str(trivial_wdl))
+
+    # simple WDL without any imports
+    simple = WDLParser(str(sub_sub_wdl))
 
     # make working directory
-    d = tmp_path / 'test_wdl_parser' / 'test_create_imports_file' / 'imports'
+    d = tmp_path / 'imports'
     d.mkdir(parents=True)
 
-    trivial_zip_file = trivial.create_imports_file(str(d), 'test_trivial_imports.zip')
-    assert trivial_zip_file is None
+    simple_zip_file = simple.create_imports_file(str(d), 'test_trivial_imports.zip')
+    assert simple_zip_file is None
 
     main_zip_file = main.create_imports_file(str(d), 'test_imports.zip')
     assert os.path.basename(main_zip_file) == 'test_imports.zip'

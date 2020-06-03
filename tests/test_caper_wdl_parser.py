@@ -32,12 +32,10 @@ def test_properties(tmp_path):
         - caper_docker
         - caper_singularity
     """
-    d = tmp_path / 'test_caper_wdl_parser' / 'test_properties'
-    d.mkdir(parents=True)
-    main_wdl = d / 'main.wdl'
+    main_wdl = tmp_path / 'main.wdl'
     main_wdl.write_text(WDL_CONTENTS)
 
-    old_wdl = d / 'old_main.wdl'
+    old_wdl = tmp_path / 'old_main.wdl'
     old_wdl.write_text(OLD_WDL_CONTENTS)
 
     # test reading from workflow.meta

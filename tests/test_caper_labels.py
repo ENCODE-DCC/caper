@@ -5,15 +5,11 @@ from caper.caper_labels import CaperLabels
 
 
 def test_create_file(tmp_path):
-    d = tmp_path / 'test_caper_labels' / 'test_create_file'
-    d.mkdir(parents=True)
-    directory = str(d)
-
     cl = CaperLabels()
 
     backend = 'my_backend'
 
-    custom_labels = d / 'my_custom_labels.json'
+    custom_labels = tmp_path / 'my_custom_labels.json'
     custom_labels_dict = {'hello': 'world', 'good': {'bye': 'bro'}}
     custom_labels.write_text(json.dumps(custom_labels_dict, indent=4))
 
@@ -22,7 +18,7 @@ def test_create_file(tmp_path):
     basename = 'my_basename.json'
 
     f = cl.create_file(
-        directory=directory,
+        directory=str(tmp_path),
         backend=backend,
         custom_labels=str(custom_labels),
         str_label=str_label,
@@ -39,4 +35,4 @@ def test_create_file(tmp_path):
     assert d[CaperLabels.KEY_CAPER_STR_LABEL] == str_label
     assert d[CaperLabels.KEY_CAPER_USER] == user
     assert os.path.basename(f) == basename
-    assert os.path.dirname(f) == directory
+    assert os.path.dirname(f) == str(tmp_path)

@@ -22,15 +22,13 @@ def test_build_local_image(tmp_path):
     multiple docker layer (hash) files (tar.gz).
     This test will check one of the hashes.
     """
-    d = tmp_path / 'test_singularity' / 'test_build_local_image'
-    d.mkdir(parents=True)
-
     singularity = Singularity(
-        singularity_image='docker://' + UBUNTU_18_04_3, singularity_cachedir=str(d)
+        singularity_image='docker://' + UBUNTU_18_04_3,
+        singularity_cachedir=str(tmp_path),
     )
     singularity.build_local_image()
 
-    hash_file = str(d / 'docker' / UBUNTU_18_04_3_LAST_HASH_TAR_GZ)
+    hash_file = str(tmp_path / 'docker' / UBUNTU_18_04_3_LAST_HASH_TAR_GZ)
     assert os.path.exists(hash_file)
 
 
@@ -44,10 +42,7 @@ def test_find_bindpath(tmp_path):
     Input JSON file has one TSV file and this file will be recursively visited by
     Singularilty.find_bindpath().
     """
-    d = tmp_path / 'test_singularity' / 'test_find_bindpath'
-    d.mkdir(parents=True)
-
-    tsv = d / 'test.tsv'
+    tsv = tmp_path / 'test.tsv'
     tsv_contents = dedent(
         """\
         file1\t/1/2/3/4.txt
@@ -57,7 +52,7 @@ def test_find_bindpath(tmp_path):
     )
     tsv.write_text(tsv_contents)
 
-    inputs = d / 'inputs.json'
+    inputs = tmp_path / 'inputs.json'
     inputs_dict = {
         'test.input_tsv': str(tsv),
         'test.input': '/a/b/c/d.txt',

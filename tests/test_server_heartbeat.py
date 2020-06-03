@@ -13,9 +13,7 @@ def test_server_heartbeat(tmp_path):
         - can get hostname of this machine
         - can ignore old file (> heartbeat_timeout of 5 sec)
     """
-    d = tmp_path / 'test_server_heartbeat' / 'test_heartbeat_timeout'
-    d.mkdir(parents=True)
-    hb_file = d / 'hb_file'
+    hb_file = tmp_path / 'hb_file'
 
     hb = ServerHeartbeat(heartbeat_file=str(hb_file), heartbeat_timeout=5000)
 

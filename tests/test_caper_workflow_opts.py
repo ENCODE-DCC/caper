@@ -11,10 +11,6 @@ from caper.cromwell_backend import BACKEND_AWS, BACKEND_GCP
 def test_create_file(tmp_path):
     """Test without docker/singularity.
     """
-    d = tmp_path / 'test_caper_workflow_opts' / 'test_create_file'
-    d.mkdir(parents=True)
-    directory = str(d)
-
     gcp_zones = 'us-west-1,us-west-2'
     slurm_partition = 'my_partition'
     slurm_account = 'my_account'
@@ -37,12 +33,14 @@ def test_create_file(tmp_path):
         pbs_extra_param=pbs_extra_param,
     )
 
-    wdl = None
+    wdl = tmp_path / 'test.wdl'
+    wdl.write_text('')
+
     inputs = None
 
     # check if backend and slurm_partition is replaced with
     # that of this custom options file.
-    custom_options = d / 'my_custom_options.json'
+    custom_options = tmp_path / 'my_custom_options.json'
     custom_options_dict = {
         'backend': 'world',
         CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES: {
@@ -56,8 +54,8 @@ def test_create_file(tmp_path):
     basename = 'my_basename.json'
 
     f = co.create_file(
-        directory=directory,
-        wdl=wdl,
+        directory=str(tmp_path),
+        wdl=str(wdl),
         inputs=inputs,
         custom_options=str(custom_options),
         docker=None,
@@ -86,16 +84,12 @@ def test_create_file(tmp_path):
     assert d['backend'] == 'world'
     assert dra['maxRetries'] == max_retries
     assert os.path.basename(f) == basename
-    assert os.path.dirname(f) == directory
+    assert os.path.dirname(f) == str(tmp_path)
 
 
 def test_create_file_docker(tmp_path):
     """Test with docker and docker defined in WDL.
     """
-    d = tmp_path / 'test_caper_workflow_opts' / 'test_create_file_docker'
-    d.mkdir(parents=True)
-    directory = str(d)
-
     wdl_contents = dedent(
         """\
         version 1.0
@@ -107,14 +101,17 @@ def test_create_file_docker(tmp_path):
     """
     )
 
-    wdl = d / 'docker.wdl'
+    wdl = tmp_path / 'docker.wdl'
     wdl.write_text(wdl_contents)
 
     co = CaperWorkflowOpts()
 
     # cloud backend gcp should try to find docker in WDL
     f_gcp = co.create_file(
-        directory=directory, wdl=str(wdl), backend=BACKEND_GCP, basename='opts_gcp.json'
+        directory=str(tmp_path),
+        wdl=str(wdl),
+        backend=BACKEND_GCP,
+        basename='opts_gcp.json',
     )
     with open(f_gcp) as fp:
         d_gcp = json.loads(fp.read())
@@ -123,7 +120,10 @@ def test_create_file_docker(tmp_path):
 
     # cloud backend aws should try to find docker in WDL
     f_aws = co.create_file(
-        directory=directory, wdl=str(wdl), backend=BACKEND_AWS, basename='opts_aws.json'
+        directory=str(tmp_path),
+        wdl=str(wdl),
+        backend=BACKEND_AWS,
+        basename='opts_aws.json',
     )
     with open(f_aws) as fp:
         d_aws = json.loads(fp.read())
@@ -133,7 +133,7 @@ def test_create_file_docker(tmp_path):
     # local backend should not try to find docker in WDL
     # if docker is not defined
     f_local = co.create_file(
-        directory=directory,
+        directory=str(tmp_path),
         wdl=str(wdl),
         backend='my_backend',
         basename='opts_local.json',
@@ -145,7 +145,7 @@ def test_create_file_docker(tmp_path):
 
     # local backend should use docker if docker is explicitly defined
     f_local2 = co.create_file(
-        directory=directory,
+        directory=str(tmp_path),
         wdl=str(wdl),
         docker='ubuntu:16',
         backend='my_backend',
@@ -160,10 +160,6 @@ def test_create_file_docker(tmp_path):
 def test_create_file_singularity(tmp_path):
     """Test with singularity and singularity defined in WDL.
     """
-    d = tmp_path / 'test_caper_workflow_opts' / 'test_create_file_singularity'
-    d.mkdir(parents=True)
-    directory = str(d)
-
     wdl_contents = dedent(
         """\
         version 1.0
@@ -176,14 +172,17 @@ def test_create_file_singularity(tmp_path):
     """
     )
 
-    wdl = d / 'singularity.wdl'
+    wdl = tmp_path / 'singularity.wdl'
     wdl.write_text(wdl_contents)
 
     co = CaperWorkflowOpts()
 
     # cloud backend gcp should not try to find singularity in WDL
     f_gcp = co.create_file(
-        directory=directory, wdl=str(wdl), backend=BACKEND_GCP, basename='opts_gcp.json'
+        directory=str(tmp_path),
+        wdl=str(wdl),
+        backend=BACKEND_GCP,
+        basename='opts_gcp.json',
     )
     with open(f_gcp) as fp:
         d_gcp = json.loads(fp.read())
@@ -192,7 +191,10 @@ def test_create_file_singularity(tmp_path):
 
     # cloud backend aws should not try to find singularity in WDL
     f_aws = co.create_file(
-        directory=directory, wdl=str(wdl), backend=BACKEND_AWS, basename='opts_aws.json'
+        directory=str(tmp_path),
+        wdl=str(wdl),
+        backend=BACKEND_AWS,
+        basename='opts_aws.json',
     )
     with open(f_aws) as fp:
         d_aws = json.loads(fp.read())
@@ -202,7 +204,7 @@ def test_create_file_singularity(tmp_path):
     # cloud backend aws/gcp should not work with singularity
     with pytest.raises(ValueError):
         co.create_file(
-            directory=directory,
+            directory=str(tmp_path),
             wdl=str(wdl),
             backend=BACKEND_GCP,
             singularity='',
@@ -210,7 +212,7 @@ def test_create_file_singularity(tmp_path):
         )
     with pytest.raises(ValueError):
         co.create_file(
-            directory=directory,
+            directory=str(tmp_path),
             wdl=str(wdl),
             backend=BACKEND_AWS,
             singularity='',
@@ -220,7 +222,7 @@ def test_create_file_singularity(tmp_path):
     # local backend should not try to find singularity in WDL
     # if singularity is not defined
     f_local = co.create_file(
-        directory=directory,
+        directory=str(tmp_path),
         wdl=str(wdl),
         backend='my_backend',
         basename='opts_local.json',
@@ -232,7 +234,7 @@ def test_create_file_singularity(tmp_path):
 
     # input JSON to test singularity bindpath
     # this will be test thoroughly in other testing module (test_singularity)
-    inputs = d / 'inputs.json'
+    inputs = tmp_path / 'inputs.json'
     inputs_dict = {
         'test.input': '/a/b/c/d.txt',
         'test.input2': '/a/b/e.txt',
@@ -243,7 +245,7 @@ def test_create_file_singularity(tmp_path):
     # local backend should use singularity if singularity is explicitly defined
     # also, singularity_bindpath should be input JSON.
     f_local2 = co.create_file(
-        directory=directory,
+        directory=str(tmp_path),
         wdl=str(wdl),
         inputs=str(inputs),
         singularity='ubuntu:16',

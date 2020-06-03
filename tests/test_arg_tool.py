@@ -24,14 +24,11 @@ def test_update_parser_defaults_with_conf(tmp_path):
     """Check if this function correctly updates argparse parser's
     default values.
     """
-    d = tmp_path / 'test_arg_tool' / 'test_update_parser_defaults_with_conf'
-    d.mkdir(parents=True)
-
     val_type = {'param_w_type_wo_default2': float}
     val_default = {'param_w_type_wo_default3': 'hello', 'param_w_int_default3': 50}
 
     p1 = get_test_parser()
-    c1 = d / 'c1.conf'
+    c1 = tmp_path / 'c1.conf'
 
     # can mix up _ and -
     c1.write_text(
