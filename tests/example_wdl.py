@@ -8,11 +8,22 @@ these WDLs have the following structure:
             sub.wdl (imports sub_sub.wdl)
             sub/
                 sub_sub.wdl (imports nothing)
+        inputs.json (inputs JSON file)
 """
+import json
 import os
 from textwrap import dedent
 
 from autouri import AutoURI
+
+WRONG_WDL = dedent(
+    """\
+    version 1.0
+
+    workflwwwwwwwwwowwwww main {
+    }
+"""
+)
 
 MAIN_WDL = dedent(
     """\
@@ -33,10 +44,17 @@ MAIN_WDL = dedent(
             }
         }
         input {
-            String input_s = 'a'
+            String input_s
             Int input_i = 1
         }
+
         call t1
+        call sub.sub
+
+        output {
+            File out1 = t1.out
+            File out_sub = sub.out
+        }
     }
 
     task t1 {
@@ -50,6 +68,7 @@ MAIN_WDL = dedent(
 """
 )
 
+MAIN_INPUTS = {'main.input_s': 'a'}
 
 MAIN_WDL_META_DICT = {'key1': 'val1', 'key2': 'val2'}
 
@@ -66,8 +85,11 @@ SUB_WDL = dedent(
 
     workflow sub {
         call t2
+        call sub_sub.sub_sub
+
         output {
             File out = t2.out
+            File out_sub = sub_sub.out
         }
     }
 
@@ -89,8 +111,11 @@ SUB_WDL_TO_FAIL = dedent(
 
     workflow sub {
         call t2_failing
+        call sub_sub.sub_sub
+
         output {
             File out = t2_failing.out
+            File out_sub = sub_sub.out
         }
     }
 
@@ -108,6 +133,8 @@ SUB_WDL_TO_FAIL = dedent(
 
 SUB_SUB_WDL = dedent(
     """\
+    version 1.0
+
     workflow sub_sub {
         call t3
         output {
@@ -127,7 +154,7 @@ SUB_SUB_WDL = dedent(
 )
 
 
-def make_directory_with_wdls(directory):
+def make_directory_with_wdls(directory, no_sub_wdl=False):
     """
     Run Cromwell with WDLs:
     main + 1 sub + 1 sub's sub.
@@ -135,17 +162,21 @@ def make_directory_with_wdls(directory):
     Returns:
         Created root directory
     """
+    main_inputs = os.path.join(directory, 'inputs.json')
+    AutoURI(main_inputs).write(json.dumps(MAIN_INPUTS, indent=4))
+
     main_wdl = os.path.join(directory, 'main.wdl')
     AutoURI(main_wdl).write(MAIN_WDL)
 
-    sub_wdl = os.path.join(directory, 'sub', 'sub.wdl')
-    AutoURI(sub_wdl).write(SUB_WDL)
+    if not no_sub_wdl:
+        sub_wdl = os.path.join(directory, 'sub', 'sub.wdl')
+        AutoURI(sub_wdl).write(SUB_WDL)
 
-    sub_sub_wdl = os.path.join(directory, 'sub', 'sub', 'sub_sub.wdl')
-    AutoURI(sub_sub_wdl).write(SUB_SUB_WDL)
+        sub_sub_wdl = os.path.join(directory, 'sub', 'sub', 'sub_sub.wdl')
+        AutoURI(sub_sub_wdl).write(SUB_SUB_WDL)
 
 
-def make_directory_with_failing_wdls(directory):
+def make_directory_with_failing_wdls(directory, no_sub_wdl=False):
     """
     Run Cromwell with WDLs:
     main + 1 sub (supposed to fail) + 1 sub's sub.
@@ -153,11 +184,15 @@ def make_directory_with_failing_wdls(directory):
     Returns:
         Created root directory
     """
+    main_inputs = os.path.join(directory, 'inputs.json')
+    AutoURI(main_inputs).write(MAIN_INPUTS)
+
     main_wdl = os.path.join(directory, 'main.wdl')
     AutoURI(main_wdl).write(MAIN_WDL)
 
-    sub_wdl = os.path.join(directory, 'sub', 'sub.wdl')
-    AutoURI(sub_wdl).write(SUB_WDL_TO_FAIL)
+    if not no_sub_wdl:
+        sub_wdl = os.path.join(directory, 'sub', 'sub.wdl')
+        AutoURI(sub_wdl).write(SUB_WDL_TO_FAIL)
 
-    sub_sub_wdl = os.path.join(directory, 'sub', 'sub', 'sub_sub.wdl')
-    AutoURI(sub_sub_wdl).write(SUB_SUB_WDL)
+        sub_sub_wdl = os.path.join(directory, 'sub', 'sub', 'sub_sub.wdl')
+        AutoURI(sub_sub_wdl).write(SUB_SUB_WDL)

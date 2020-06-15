@@ -35,7 +35,8 @@ class CromwellWorkflowMonitor:
         server_hostname=DEFAULT_SERVER_HOSTNAME,
         server_port=DEFAULT_SERVER_PORT,
         embed_subworkflow=False,
-        callback_status_change=None,
+        on_status_change=None,
+        on_server_start=None,
     ):
         """Parses STDERR from Cromwell to updates workflow/task information.
         Also, write/update metadata.json on each workflow's root directory.
@@ -60,8 +61,18 @@ class CromwellWorkflowMonitor:
                 It tries to write/update metadata JSON file on workflow's root.
                 For this metadata JSON file, embed subworkflow's metadata JSON in it.
                 If this is turned off, then metadata JSON will just have subworkflow's ID.
-            callback_status_change:
-                Callback function should take a metadata dict as a parameter.
+            on_status_change:
+                Callback function called on any workflow/task status change.
+                This should take one parameter (workflow's metadata dict).
+                You can parse this dict to get status of workflow and all its task.
+                For example,
+                    metadata['status']: to get status of a workflow,
+                    metadata['id']: to get workflow's ID,
+                    metadata['calls']: to get access to list of each task's dict.
+                    ...
+            on_server_start:
+                Callback function called on server start.
+                This function should not take parameter.
         """
         self._is_server = is_server
 
@@ -73,7 +84,8 @@ class CromwellWorkflowMonitor:
             self._cromwell_rest_api = None
 
         self._embed_subworkflow = embed_subworkflow
-        self._callback_status_change = callback_status_change
+        self._on_status_change = on_status_change
+        self._on_server_start = on_server_start
 
         self._workflows = defaultdict(dict)
         self._tasks = defaultdict(lambda: defaultdict(dict))
@@ -123,7 +135,7 @@ class CromwellWorkflowMonitor:
         Therefore, any string without newline character is kept until next update
         in a member variable _stderr_buffer and this will be used in the next update.
 
-        This is because methods self.__update_*(stderr) can only parse a full line (regex).
+        This is because methods self._update_*(stderr) can only parse a full line (regex).
         For example, one sentence can be split into two consecutive stderrs.
         This examples shows starting of two workflows.
             1st stderr: 'Workflow started WORKFLOW_ID1\\nWorkflow star'
@@ -141,26 +153,28 @@ class CromwellWorkflowMonitor:
         self._stderr_buffer = split[-1]
 
         if self._is_server:
-            self.__update_server_start(stderr)
+            self._update_server_start(stderr)
 
         updated_workflows = set()
-        updated_workflows.union(self.__update_workflows(stderr))
-        updated_workflows.union(self.__update_tasks(stderr))
+        updated_workflows.union(self._update_workflows(stderr))
+        updated_workflows.union(self._update_tasks(stderr))
 
         for w in updated_workflows:
-            self.__update_metadata(w)
+            self._update_metadata(w)
 
-    def __update_server_start(self, stderr):
+    def _update_server_start(self, stderr):
         if not self._is_server_started:
             for line in stderr.split('\n'):
                 r1 = re.findall(CromwellWorkflowMonitor.RE_CROMWELL_SERVER_START, line)
                 if len(r1) > 0:
                     self._is_server_started = True
+                    if self._on_server_start:
+                        self._on_server_start()
                     logger.info('Cromwell server started. Ready to take submissions.')
                     break
         return
 
-    def __update_workflows(self, stderr):
+    def _update_workflows(self, stderr):
         """Workflow statuses:
             - Submitted
             - Running
@@ -239,7 +253,7 @@ class CromwellWorkflowMonitor:
 
         return updated_workflows
 
-    def __update_tasks(self, stderr):
+    def _update_tasks(self, stderr):
         """Task statuses:
             - WaitingForReturnCode
             - Done
@@ -251,7 +265,7 @@ class CromwellWorkflowMonitor:
                 short_id, task_name = r[0], r[1]
                 shard_idx = -1 if r[2] == 'NA' else int(r[1])
                 job_id = r[4]
-                wf_id = self.__find_workflow_id_by_short_id(short_id)
+                wf_id = self._find_workflow_id_by_short_id(short_id)
                 t = self._tasks[wf_id][(task_name, shard_idx)]
                 t['job_id'] = job_id
                 t['status'] = 'WaitingForReturnCode'
@@ -262,14 +276,14 @@ class CromwellWorkflowMonitor:
                 short_id, task_name = r[0], r[1]
                 shard_idx = -1 if r[2] == 'NA' else int(r[1])
                 status = r[5]
-                wf_id = self.__find_workflow_id_by_short_id(short_id)
+                wf_id = self._find_workflow_id_by_short_id(short_id)
                 t = self._tasks[wf_id][(task_name, shard_idx)]
                 t['status'] = status
                 updated_workflows.add(wf_id)
 
         return updated_workflows
 
-    def __update_metadata(self, workflow_id):
+    def _update_metadata(self, workflow_id):
         """Update metadata on Cromwell'e exec root.
         """
         if not self._is_server:
@@ -283,6 +297,8 @@ class CromwellWorkflowMonitor:
                     workflow_ids=[workflow_id],
                     embed_subworkflow=self._embed_subworkflow,
                 )[0]
+                if self._on_status_change:
+                    self._on_status_change(metadata)
                 cm = CromwellMetadata(metadata)
                 cm.write_on_workflow_root()
             except Exception:
@@ -293,7 +309,7 @@ class CromwellWorkflowMonitor:
                 continue
             break
 
-    def __find_workflow_id_by_short_id(self, short_id):
+    def _find_workflow_id_by_short_id(self, short_id):
         for w in self._workflows:
             if w.startswith(short_id):
                 return w

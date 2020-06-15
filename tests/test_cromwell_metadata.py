@@ -1,27 +1,66 @@
+import json
+import os
+from io import StringIO
+
+from autouri import AutoURI
+
 from caper.cromwell import Cromwell
+from caper.cromwell_metadata import CromwellMetadata
+
+from .example_wdl import make_directory_with_failing_wdls, make_directory_with_wdls
 
 
-def get_succeeded_metadata_file(wdl, directory, cromwell, womtool):
-    """Run Cromwell and get metadata JSON file.
-    """
-    if not hasattr(get_succeeded_metadata_file, 'has_output'):
-        get_succeeded_metadata_file.metadata_file = None
+def test_all(tmp_path, cromwell, womtool):
+    make_directory_with_wdls(str(tmp_path / 'successful'))
 
-    if not get_succeeded_metadata_file.metadata:
-        c = Cromwell(cromwell=cromwell, womtool=womtool)
-        get_succeeded_metadata_file.metadata_file = c.run(wdl, tmp_dir=directory)
+    # Run Cromwell to get metadata.json
+    cromwell_stdout = StringIO()
+    c = Cromwell(cromwell=cromwell, womtool=womtool)
+    rc, m_file = c.run(
+        wdl=str(tmp_path / 'successful' / 'main.wdl'), fileobj_stdout=cromwell_stdout
+    )
+    print(rc, m_file)
+    if rc:
+        print(cromwell_stdout.read())
 
-    return get_succeeded_metadata_file.metadata_file
+    cm = CromwellMetadata(m_file)
+    m_dict = json.loads(AutoURI(m_file).read())
 
+    # test all properties
+    assert cm.data == m_dict
+    assert cm.metadata == m_dict
+    assert CromwellMetadata(m_dict).data == m_dict
+    assert cm.workflow_id == m_dict['id']
+    assert cm.workflow_status == m_dict['status']
+    assert cm.failures == m_dict['failures']
+    assert cm.calls == m_dict['calls']
 
-def get_failed_metadata_file(failing_wdl, directory, cromwell, womtool):
-    """Run Cromwell and get metadata JSON file.
-    """
-    if not hasattr(get_failed_metadata_file, 'has_output'):
-        get_failed_metadata_file.metadata_file = None
+    # test recurse_calls(): test with a simple function
 
-    if not get_failed_metadata_file.metadata:
-        c = Cromwell(cromwell=cromwell, womtool=womtool)
-        get_failed_metadata_file.metadata_file = c.run(failing_wdl, tmp_dir=directory)
+    # test write_on_workflow_root()
+    cm.write_on_workflow_root()
+    m_file_on_root = os.path.join(cm.metadata['workflowRoot'], 'metadata.json')
+    assert os.path.exists(m_file_on_root)
+    assert CromwellMetadata(m_file_on_root).metadata == cm.metadata
 
-    return get_failed_metadata_file.metadata_file
+    make_directory_with_failing_wdls(str(tmp_path / 'failed'))
+
+    # Run Cromwell to get failed metadata.json
+    # to test troubleshoot()
+    cromwell_stdout = StringIO()
+    rc, failed_m_file = c.run(
+        wdl=str(tmp_path / 'failed' / 'main.wdl'), fileobj_stdout=cromwell_stdout
+    )
+    if rc:
+        print(cromwell_stdout.read())
+
+    failed_cm = CromwellMetadata(failed_m_file)
+
+    # test troubleshoot()
+    fileobj = StringIO()
+    failed_cm.troubleshoot()
+
+    fileobj.seek(0)
+    s = fileobj.read()
+    assert '* Found failures JSON object' in s
+    assert '==== NAME=' in s

@@ -1,16 +1,21 @@
+import json
 import logging
 import os
 import shutil
 import socket
-from subprocess import PIPE, STDOUT, CalledProcessError, Popen
-from tempfile import TemporaryDirectory
+import tempfile
 
 from autouri import AbsPath, AutoURI
 
 from .cromwell_metadata import CromwellMetadata
 from .cromwell_workflow_monitor import CromwellWorkflowMonitor
+from .nb_subproc_thread import NBSubprocThread
 
 logger = logging.getLogger(__name__)
+
+
+class PortAlreadyInUseError(Exception):
+    pass
 
 
 class Cromwell(object):
@@ -27,7 +32,6 @@ class Cromwell(object):
     DEFAULT_JAVA_HEAP_CROMWELL_RUN = '3G'
     DEFAULT_JAVA_HEAP_WOMTOOL = '1G'
     DEFAULT_SERVER_PORT = 8000
-    USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
     LOCALHOST = 'localhost'
 
     def __init__(
@@ -36,33 +40,20 @@ class Cromwell(object):
         womtool=DEFAULT_WOMTOOL,
         cromwell_install_dir=DEFAULT_CROMWELL_INSTALL_DIR,
         womtool_install_dir=DEFAULT_WOMTOOL_INSTALL_DIR,
-        java_heap_cromwell_server=DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
-        java_heap_cromwell_run=DEFAULT_JAVA_HEAP_CROMWELL_RUN,
-        java_heap_womtool=DEFAULT_JAVA_HEAP_WOMTOOL,
-        server_port=DEFAULT_SERVER_PORT,
-        server_hostname=None,
-        server_heartbeat=None,
-        debug=False,
     ):
         """
         Args:
             cromwell:
-            server_hostname:
-                Server hostname. If defined heartbeat file will be written
-                with this hostname instead of socket.gethostname().
-            server_heartbeat:
-                ServerHeartbeat object.
+                Cromwell JAR path/URI/URL.
+            womtool:
+                Womtool JAR path/URI/URL.
+            cromwell_install_dir:
+                Local directory to install Cromwell JAR.
+            womtool_install_dir:
+                Local directory to install Womtool JAR.
         """
         self._cromwell = cromwell
         self._womtool = womtool
-        self._java_heap_cromwell_server = java_heap_cromwell_server
-        self._java_heap_cromwell_run = java_heap_cromwell_run
-        self._java_heap_womtool = java_heap_womtool
-        self._server_port = server_port
-        self._server_hostname = (
-            server_hostname if server_hostname else socket.gethostname()
-        )
-        self._server_heartbeat = server_heartbeat
 
         u_cromwell_install_dir = AbsPath(cromwell_install_dir)
         if not u_cromwell_install_dir.is_valid:
@@ -80,14 +71,19 @@ class Cromwell(object):
             )
         self._womtool_install_dir = u_womtool_install_dir.uri
 
-        self._debug = debug
-
-    def validate(self, wdl, inputs=None, imports=None):
+    def validate(
+        self,
+        wdl,
+        inputs=None,
+        imports=None,
+        java_heap_womtool=DEFAULT_JAVA_HEAP_WOMTOOL,
+        debug=False,
+    ):
         """Validate WDL/inputs/imports using Womtool.
 
         Returns:
-            rc:
-                Womtool's return code.
+            valid:
+                Validated or not.
         """
         self.install_womtool()
 
@@ -103,7 +99,7 @@ class Cromwell(object):
                     'Inputs JSON defined but does not exist. i={i}'.format(i=inputs)
                 )
 
-        with TemporaryDirectory() as tmp_d:
+        with tempfile.TemporaryDirectory() as tmp_d:
             if imports:
                 u_imports = AutoURI(imports)
                 if not u_imports.exists:
@@ -120,9 +116,9 @@ class Cromwell(object):
 
             cmd = [
                 'java',
-                '-Xmx{heap}'.format(heap=self._java_heap_womtool),
+                '-Xmx{heap}'.format(heap=java_heap_womtool),
                 '-jar',
-                '-DLOG_LEVEL={lvl}'.format(lvl='DEBUG' if self._debug else 'INFO'),
+                '-DLOG_LEVEL={lvl}'.format(lvl='DEBUG' if debug else 'INFO'),
                 self._womtool,
                 'validate',
                 wdl_,
@@ -131,54 +127,83 @@ class Cromwell(object):
                 cmd += ['-i', inputs]
 
             logger.info('Validating WDL/inputs/imports with Womtool...')
-            p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-            stdout, stderr = p.communicate()
-            rc = p.returncode
 
-            if rc:
+            stdout = ''
+
+            def on_stdout(s):
+                nonlocal stdout
+                stdout += s
+
+            th = NBSubprocThread(cmd, cwd=tmp_d, on_stdout=on_stdout)
+            th.start()
+            th.join()
+
+            if th.rc:
                 logger.error(
-                    'RC={rc}\nSTDOUT={o}\nSTDERR={e}'
-                    'Womtool validation failed.'.format(rc=rc, o=stdout, e=stderr)
+                    'RC={rc}\nSTDOUT/STDERR={o}\n'
+                    'Womtool validation failed.'.format(rc=th.rc, o=stdout)
                 )
+                return False
             else:
                 logger.info('Womtool validation passed.')
-
-        return rc
+                return True
 
     def run(
         self,
         wdl,
-        backend_conf=None,
         inputs=None,
         options=None,
         imports=None,
         labels=None,
         metadata=None,
+        backend_conf=None,
+        backend=None,
         fileobj_stdout=None,
+        fileobj_troubleshoot=None,
+        java_heap_cromwell_run=DEFAULT_JAVA_HEAP_CROMWELL_RUN,
+        java_heap_womtool=DEFAULT_JAVA_HEAP_WOMTOOL,
+        work_dir=None,
         dry_run=False,
-        callback_status_change=None,
+        debug=False,
+        on_status_change=None,
     ):
         """Run Cromwell run mode (java -jar cromwell.jar run).
+        This is a non-blocking function.
 
         Args:
-            backend_conf:
-                backend.conf file (-Dconfig.file=)
-            inputs:
-                input JSON file (-i)
+            inputs:.
+                input JSON file (-i).
             options:
-                workflow options JSON file (-o)
+                workflow options JSON file (-o).
             imports:
-                imports.zip file (-p)
+                imports.zip file (-p).
             labels:
-                labels file (-l)
+                labels file (-l).
             metadata:
-                output metadata JSON file (-m)
-            dry_run:
-                Dry run
+                output metadata JSON file (-m).
+            backend_conf:
+                backend.conf file (-Dconfig.file=).
+                Default backend defined in this file will be used.
+                If no default backend is defined then "Local" (Cromwell's default)
+                backend will be used.
             fileobj_stdout:
-                File-like object to print Cromwell's STDOUT to.
+                File-like object to print Cromwell's STDOUT.
                 STDERR is redirected to STDOUT.
-            callback_status_change:
+            fileobj_troubleshoot:
+                File-like object to write auto-troubleshooting result after
+                workflow is done.
+            java_heap_cromwell_run:
+                Java heap (java -Xmx) for Cromwell run mode.
+            java_heap_womtool=DEFAULT_JAVA_HEAP_WOMTOOL,
+                Java heap (java -Xmx) for Womtool validation.
+            work_dir:
+                Working directory to run Cromwell.
+                If not defined, then temp directory (/tmp/...) will be used.
+            dry_run:
+                Dry run.
+            debug:
+                Set debug mode for Cromwell.
+            on_status_change:
                 Not implemnted yet.
                 Callback function called while polling.
                 This function should take 5 args
@@ -193,20 +218,21 @@ class Cromwell(object):
                     metadata:
                         metadata (dict) of a workflow.
         Returns:
-            return code:
-                Cromwell's return code. -1 if dry-run.
-            metadata_file:
-                Metadata file URI. None if Cromwell failed.
+            th:
+                Thread for Cromwell's run mode. None if dry_run.
         """
         self.install_cromwell()
+
+        if work_dir is None:
+            work_dir = tempfile.mkdtemp(prefix='cromwell-run')
 
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
         cmd = [
             'java',
-            '-Xmx{}'.format(self._java_heap_cromwell_run),
+            '-Xmx{}'.format(java_heap_cromwell_run),
             '-XX:ParallelGCThreads=1',
             '-jar',
-            '-DLOG_LEVEL={lvl}'.format(lvl='DEBUG' if self._debug else 'INFO'),
+            '-DLOG_LEVEL={lvl}'.format(lvl='DEBUG' if debug else 'INFO'),
             '-DLOG_MODE=standard',
         ]
 
@@ -221,58 +247,80 @@ class Cromwell(object):
             cmd += ['-l', labels]
         if imports:
             cmd += ['-p', imports]
-        if metadata:
-            cmd += ['-m', metadata]
+        if metadata is None:
+            metadata = os.path.join(
+                work_dir, CromwellMetadata.DEFAULT_METADATA_BASENAME
+            )
+        cmd += ['-m', metadata]
 
         logger.info('run: {cmd}'.format(cmd=' '.join(cmd)))
-        rc = -1
         if dry_run:
-            return rc
-        try:
-            wm = CromwellWorkflowMonitor(
-                callback_status_change=callback_status_change, is_server=False
-            )
+            return None
 
-            p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
-            while True:
-                stdout = p.stdout.readline().decode()
-                if fileobj_stdout:
-                    fileobj_stdout.write(stdout)
-                    fileobj_stdout.flush()
+        wm = CromwellWorkflowMonitor(on_status_change=on_status_change, is_server=False)
 
-                wm.update(stdout)
-                if p.poll() is not None:
-                    break
-            rc = p.poll()
+        def on_stdout(stdout):
+            nonlocal wm
+            nonlocal fileobj_stdout
 
-        except CalledProcessError as e:
-            rc = e.returncode
-        except KeyboardInterrupt:
-            logger.error(Cromwell.USER_INTERRUPT_WARNING)
-        finally:
-            p.terminate()
+            if fileobj_stdout:
+                fileobj_stdout.write(stdout)
+                fileobj_stdout.flush()
+            wm.update(stdout)
 
-        if metadata:
-            metadata_file = CromwellMetadata(metadata).write_on_workflow_root()
-        else:
-            metadata_file = None
+        def on_terminate():
+            nonlocal metadata
+            nonlocal fileobj_troubleshoot
 
-        return rc, metadata_file
+            metadata_dict = json.loads(AutoURI(metadata).read())
+            cm = CromwellMetadata(metadata_dict)
+            cm.write_on_workflow_root()
+
+            if cm.workflow_status != 'Succeeded':
+                logger.info('Workflow failed. Auto-troubleshooting...')
+                cm.troubleshoot(fileobj=fileobj_troubleshoot)
+
+        th = NBSubprocThread(
+            cmd, cwd=work_dir, on_stdout=on_stdout, on_terminate=on_terminate
+        )
+        th.start()
+
+        return th
 
     def server(
         self,
+        server_port=DEFAULT_SERVER_PORT,
+        server_hostname=None,
+        server_heartbeat=None,
         backend_conf=None,
         fileobj_stdout=None,
         embed_subworkflow=False,
+        java_heap_cromwell_server=DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
+        work_dir=None,
         dry_run=False,
-        callback_status_change=None,
+        debug=False,
+        on_server_start=None,
+        on_status_change=None,
     ):
         """Run Cromwell server mode (java -jar cromwell.jar server).
+        This is a non-blocking function.
 
         Args:
+            server_port:
+                Server port.
+            server_hostname:
+                Server hostname. If defined then the heartbeat file will be written
+                with this hostname instead of socket.gethostname().
+            server_heartbeat:
+                ServerHeartbeat object to write hostname/port pair into a heartbeat file.
+                Then it will be later used by CaperClient to find hostname/port of
+                this server.
             backend_conf:
                 backend.conf file for Cromwell's Java parameter
                 "-Dconfig.file=".
+                Default backend defined in this file will be used.
+                If no default backend is defined then "Local" (Cromwell's default)
+                backend will be used.
             fileobj_stdout:
                 File object to write Cromwell's STDOUT on.
                 STDERR is redirected to STDOUT.
@@ -283,9 +331,18 @@ class Cromwell(object):
                 This flag ensures that any subworkflow's metadata JSON will be
                 embedded in main (this) workflow's metadata JSON.
                 This is to mimic behavior of Cromwell run mode's -m parameter.
+            java_heap_cromwell_server:
+                Java heap (java -Xmx) for Cromwell server mode.
+            work_dir:
+                Working directory to run Cromwell.
+                If not defined, then temp directory (/tmp/...) will be used.
             dry_run:
                 Dry run.
-            callback_status_change:
+            debug:
+                Set debug mode for Cromwell.
+            on_server_start:
+                On server start.
+            on_status_change:
                 (Not implemented yet)
                 Callback function called while polling.
                 function should take 5 args
@@ -300,28 +357,32 @@ class Cromwell(object):
                     metadata:
                         metadata (dict) of a workflow.
         Returns:
-            return code:
-                Cromwell's return code. -1 if dry-run.
+            th:
+                Thread for Cromwell's server mode.
         """
         self.install_cromwell()
 
+        if work_dir is None:
+            work_dir = tempfile.mkdtemp(prefix='cromwell-server')
+
         # check if port is open
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex((Cromwell.LOCALHOST, self._server_port))
+        result = sock.connect_ex((Cromwell.LOCALHOST, server_port))
         if not result:
-            raise ValueError(
-                'Server port {} is already taken. '
-                'Try with a different port'.format(self._server_port)
+            raise PortAlreadyInUseError(
+                'Server port {p} is already taken. '
+                'Try with a different port'.format(p=server_port)
             )
 
         # LOG_LEVEL must be >=INFO to catch workflow ID from STDOUT
         cmd = [
             'java',
-            '-Xmx{}'.format(self._java_heap_cromwell_server),
+            '-Xmx{}'.format(java_heap_cromwell_server),
             '-XX:ParallelGCThreads=1',
             '-jar',
-            '-DLOG_LEVEL={lvl}'.format(lvl='DEBUG' if self._debug else 'INFO'),
+            '-DLOG_LEVEL={lvl}'.format(lvl='DEBUG' if debug else 'INFO'),
             '-DLOG_MODE=standard',
+            '-Dwebservice.port={port}'.format(port=server_port),
         ]
         if backend_conf:
             cmd += ['-Dconfig.file={}'.format(backend_conf)]
@@ -329,46 +390,43 @@ class Cromwell(object):
         cmd += [self._cromwell, 'server']
         logger.info('cmd: {cmd}'.format(cmd=cmd))
 
-        rc = -1
         if dry_run:
-            return rc
-        try:
-            wm = CromwellWorkflowMonitor(
-                server_port=self._server_port,
-                is_server=True,
-                embed_subworkflow=embed_subworkflow,
-                callback_status_change=callback_status_change,
-            )
-            init_server = False
+            return -1
 
-            p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
-            while True:
-                stdout = p.stdout.readline().decode()
-                if fileobj_stdout:
-                    fileobj_stdout.write(stdout)
-                    fileobj_stdout.flush()
+        wm = CromwellWorkflowMonitor(
+            server_port=server_port,
+            is_server=True,
+            embed_subworkflow=embed_subworkflow,
+            on_server_start=on_server_start,
+            on_status_change=on_status_change,
+        )
 
-                wm.update(stdout)
-                if not init_server and wm.is_server_started():
-                    if self._server_heartbeat:
-                        self._server_heartbeat.run(
-                            port=self._server_port, hostname=self._server_hostname
-                        )
-                    init_server = True
-                if p.poll() is not None:
-                    break
-            rc = p.poll()
+        def on_stdout(stdout):
+            nonlocal fileobj_stdout
+            nonlocal wm
+            nonlocal server_heartbeat
 
-        except CalledProcessError as e:
-            rc = e.returncode
-        except KeyboardInterrupt:
-            logger.error(Cromwell.USER_INTERRUPT_WARNING)
-        finally:
-            if self._server_heartbeat:
-                self._server_heartbeat.stop()
-            p.terminate()
+            if fileobj_stdout:
+                fileobj_stdout.write(stdout)
+                fileobj_stdout.flush()
 
-        return rc
+            wm.update(stdout)
+            if wm.is_server_started():
+                if server_heartbeat and not server_heartbeat.is_alive():
+                    server_heartbeat.start(port=server_port, hostname=server_hostname)
+
+        def on_terminate():
+            nonlocal server_heartbeat
+
+            if server_heartbeat:
+                server_heartbeat.stop()
+
+        th = NBSubprocThread(
+            cmd, cwd=work_dir, on_stdout=on_stdout, on_terminate=on_terminate
+        )
+        th.start()
+
+        return th
 
     def install_cromwell(self):
         self._cromwell = Cromwell.__install_file(
@@ -384,6 +442,9 @@ class Cromwell(object):
 
     @staticmethod
     def __install_file(f, install_dir, label):
+        """Install f locally on install_dir.
+        If f is already local then skip it.
+        """
         u = AutoURI(f)
         if isinstance(u, AbsPath):
             return u.uri

@@ -1,7 +1,6 @@
 import argparse
 
 from .arg_tool import update_parser_defaults_with_conf
-from .caper_base import CaperBase
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
 from .cromwell_backend import (
@@ -18,6 +17,7 @@ from .singularity import Singularity
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_LIST_FORMAT = 'id,status,name,str_label,user,submission'
 DEFAULT_OUT_DIR = '.'
+DEFAULT_CROMWELL_STDOUT = './cromwell.out'
 
 
 def get_main_parser():
@@ -85,6 +85,7 @@ def get_main_parser():
     parent_runner = parent_runner.add_argument_group(title='Cromwell logging arguments')
     parent_runner.add_argument(
         '--cromwell-stdout',
+        default=DEFAULT_CROMWELL_STDOUT,
         help='Local file to write STDOUT of Cromwell Java process to. '
         'This is for Cromwell (not for Caper\'s logging system). '
         'Note that STDERR is redirected to STDOUT.',
@@ -189,13 +190,6 @@ def get_main_parser():
         default=CromwellBackendCommon.DEFAULT_MAX_CONCURRENT_WORKFLOWS,
         help='Number of concurrent workflows. '
         '"system.max-concurrent-workflows" in backend configuration',
-    )
-    group_cromwell.add_argument(
-        '--max-retries',
-        type=int,
-        default=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
-        help='Number of retries for failing tasks. '
-        'equivalent to "maxRetries" in workflow options JSON file.',
     )
     group_cromwell.add_argument(
         '--disable-call-caching',
@@ -346,7 +340,13 @@ def get_main_parser():
         default=Cromwell.DEFAULT_JAVA_HEAP_WOMTOOL,
         help='Java heap size for Womtool (java -Xmx)',
     )
-
+    parent_submit.add_argument(
+        '--max-retries',
+        type=int,
+        default=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
+        help='Number of retries for failing tasks. '
+        'equivalent to "maxRetries" in workflow options JSON file.',
+    )
     group_dep = parent_submit.add_argument_group(
         title='dependency resolver for all backends',
         description='Cloud-based backends (gc and aws) will only use Docker '
@@ -458,7 +458,7 @@ def get_main_parser():
     )
     parent_server_client.add_argument(
         '--server-heartbeat-file',
-        default=CaperBase.DEFAULT_SERVER_HEARTBEAT_FILE,
+        default=ServerHeartbeat.DEFAULT_SERVER_HEARTBEAT_FILE,
         help='Heartbeat file for Caper clients to get IP and port of a server',
     )
     parent_server_client.add_argument(
@@ -474,7 +474,7 @@ def get_main_parser():
     parent_client.add_argument(
         '--ip',
         default=CromwellRestAPI.DEFAULT_HOSTNAME,
-        help='IP address for Caper server',
+        help='Hostname (IP address) of Caper server.',
     )
 
     # list

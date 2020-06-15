@@ -32,7 +32,6 @@ class CaperBackendConf:
         self,
         default_backend,
         out_dir,
-        server_port=CromwellBackendCommon.DEFAULT_SERVER_PORT,
         disable_call_caching=False,
         max_concurrent_workflows=CromwellBackendCommon.DEFAULT_MAX_CONCURRENT_WORKFLOWS,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
@@ -76,8 +75,6 @@ class CaperBackendConf:
                 Output directory for all local backends.
                 Define this even if you don't want to run on local backends
                 since "Local" is a Cromwell's default backend and it needs this.
-            server_port:
-                Server port. Used if server heartbeat is not available.
             disable_call_caching:
                 Disable call-caching (re-using outputs from previous workflows/tasks)
             max_concurrent_workflows:
@@ -152,7 +149,6 @@ class CaperBackendConf:
             self._template,
             CromwellBackendCommon(
                 default_backend=default_backend,
-                server_port=server_port,
                 disable_call_caching=disable_call_caching,
                 max_concurrent_workflows=max_concurrent_workflows,
             ),

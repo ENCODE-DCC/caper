@@ -20,7 +20,7 @@ DEFAULT_BACKEND = BACKEND_LOCAL
 
 
 class CromwellBackendCommon(UserDict):
-    """Common stanzas for Cromwell backend conf.
+    """Basic stanzas for Cromwell backend conf.
     """
 
     TEMPLATE = {
@@ -45,21 +45,32 @@ class CromwellBackendCommon(UserDict):
     }
 
     DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
-    DEFAULT_SERVER_PORT = 8000
 
     def __init__(
         self,
         default_backend,
-        server_port=DEFAULT_SERVER_PORT,
         disable_call_caching=False,
         max_concurrent_workflows=DEFAULT_MAX_CONCURRENT_WORKFLOWS,
     ):
         super().__init__(deepcopy(CromwellBackendCommon.TEMPLATE))
 
         self['backend']['default'] = default_backend
-        self['webservice']['port'] = server_port
         self['call-caching']['enabled'] = not disable_call_caching
         self['system']['max-concurrent-workflows'] = max_concurrent_workflows
+
+
+class CromwellBackendServer(UserDict):
+    """Stanzas for Cromwell server.
+    """
+
+    TEMPLATE = {'webservice': {}}
+
+    DEFAULT_SERVER_PORT = 8000
+
+    def __init__(self, server_port=DEFAULT_SERVER_PORT):
+        super().__init__(deepcopy(CromwellBackendServer.TEMPLATE))
+
+        self['webservice']['port'] = server_port
 
 
 class CromwellBackendDatabase(UserDict):

@@ -18,12 +18,14 @@ from .cromwell_backend import (
     CromwellBackendDatabase,
 )
 from .cromwell_metadata import CromwellMetadata
+from .server_heartbeat import ServerHeartbeat
 
 logger = logging.getLogger(__name__)
 
 
 DEFAULT_TMP_DIR_NAME = '.caper_tmp'
 DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
+DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 
 
 def get_abspath(path):
@@ -149,23 +151,12 @@ def check_backend(args):
 def runner(args):
     c = CaperRunner(
         tmp_dir=args.tmp_dir,
-        default_backend=args.backend,
         out_dir=args.out_dir,
+        default_backend=args.backend,
         tmp_gcs_bucket=args.tmp_gcs_bucket,
         tmp_s3_bucket=args.tmp_s3_bucket,
-        server_heartbeat_file=None
-        if args.no_server_heartbeat
-        else args.server_heartbeat_file,
-        server_heartbeat_timeout=None
-        if args.no_server_heartbeat
-        else args.server_heartbeat_timeout,
-        server_port=args.port if hasattr(args, 'port') else None,
         cromwell=get_abspath(args.cromwell),
         womtool=get_abspath(args.womtool),
-        java_heap_server=args.java_heap_server
-        if hasattr(args, 'java_heap_server')
-        else None,
-        java_heap_run=args.java_heap_run if hasattr(args, 'java_heap_run') else None,
         disable_call_caching=args.disable_call_caching,
         max_concurrent_workflows=args.max_concurrent_workflows,
         max_concurrent_tasks=args.max_concurrent_tasks,
@@ -191,22 +182,14 @@ def runner(args):
         aws_batch_arn=args.aws_batch_arn,
         aws_region=args.aws_region,
         out_s3_bucket=args.out_s3_bucket,
-        slurm_partition=args.slurm_partition
-        if hasattr(args, 'slurm_partition')
-        else None,
-        slurm_account=args.slurm_account if hasattr(args, 'slurm_account') else None,
-        slurm_extra_param=args.slurm_extra_param
-        if hasattr(args, 'slurm_extra_param')
-        else None,
-        sge_pe=args.sge_pe if hasattr(args, 'sge_pe') else None,
-        sge_queue=args.sge_queue if hasattr(args, 'sge_queue') else None,
-        sge_extra_param=args.sge_extra_param
-        if hasattr(args, 'sge_extra_param')
-        else None,
-        pbs_queue=args.pbs_queue if hasattr(args, 'pbs_queue') else None,
-        pbs_extra_param=args.pbs_extra_param
-        if hasattr(args, 'pbs_extra_param')
-        else None,
+        slurm_partition=getattr(args, 'slurm_partition', None),
+        slurm_account=getattr(args, 'slurm_account', None),
+        slurm_extra_param=getattr(args, 'slurm_extra_param', None),
+        sge_pe=getattr(args, 'sge_pe', None),
+        sge_queue=getattr(args, 'sge_queue', None),
+        sge_extra_param=getattr(args, 'sge_extra_param', None),
+        pbs_queue=getattr(args, 'pbs_queue', None),
+        pbs_extra_param=getattr(args, 'pbs_extra_param', None),
     )
 
     if args.action == 'run':
@@ -220,21 +203,22 @@ def runner(args):
 
 
 def client(args):
+    sh = None
+    if not args.no_server_heartbeat:
+        sh = ServerHeartbeat(
+            heartbeat_file=args.server_heartbeat_file,
+            heartbeat_timeout=args.server_heartbeat_timeout,
+        )
+
     if args.action == 'submit':
         c = CaperClientSubmit(
             tmp_dir=args.tmp_dir,
             tmp_gcs_bucket=args.tmp_gcs_bucket,
             tmp_s3_bucket=args.tmp_s3_bucket,
-            server_heartbeat_file=None
-            if args.no_server_heartbeat
-            else args.server_heartbeat_file,
-            server_heartbeat_timeout=None
-            if args.no_server_heartbeat
-            else args.server_heartbeat_timeout,
             server_hostname=args.ip,
             server_port=args.port,
+            server_heartbeat=sh,
             womtool=get_abspath(args.womtool),
-            java_heap_womtool=args.java_heap_womtool,
             gcp_zones=args.gcp_zones,
             slurm_partition=args.slurm_partition,
             slurm_account=args.slurm_account,
@@ -245,7 +229,6 @@ def client(args):
             pbs_queue=args.pbs_queue,
             pbs_extra_param=args.pbs_extra_param,
         )
-
         subcmd_submit(c, args)
 
     else:
@@ -253,67 +236,78 @@ def client(args):
             tmp_dir=args.tmp_dir,
             tmp_gcs_bucket=args.tmp_gcs_bucket,
             tmp_s3_bucket=args.tmp_s3_bucket,
-            server_heartbeat_file=None
-            if args.no_server_heartbeat
-            else args.server_heartbeat_file,
-            server_heartbeat_timeout=None
-            if args.no_server_heartbeat
-            else args.server_heartbeat_timeout,
             server_hostname=args.ip,
             server_port=args.port,
+            server_heartbeat=sh,
         )
-
         if args.action == 'abort':
             subcmd_abort(c, args)
-
         elif args.action == 'unhold':
             subcmd_unhold(c, args)
-
         elif args.action == 'list':
             subcmd_list(c, args)
-
         elif args.action == 'metadata':
             subcmd_metadata(c, args)
-
         elif args.action in ('troubleshoot', 'debug'):
             subcmd_troubleshoot(c, args)
-
         else:
             raise ValueError('Unsupported client action {act}'.format(act=args.action))
 
 
 def subcmd_server(caper_runner, args):
-    caper_runner.server(
-        default_backend=args.backend,
-        custom_backend_conf=get_abspath(args.backend_file),
-        file_stdout=get_abspath(args.cromwell_stdout),
-        embed_subworkflow=True,
-        dry_run=args.dry_run,
-    )
+    cromwell_stdout = get_abspath(args.cromwell_stdout)
+
+    with open(cromwell_stdout, 'w') as f:
+        sh = None
+        if not args.no_server_heartbeat:
+            sh = ServerHeartbeat(
+                heartbeat_file=args.server_heartbeat_file,
+                heartbeat_timeout=args.server_heartbeat_timeout,
+            )
+
+        th = caper_runner.server(
+            default_backend=args.backend,
+            server_port=args.port,
+            server_heartbeat=sh,
+            custom_backend_conf=get_abspath(args.backend_file),
+            fileobj_stdout=f,
+            embed_subworkflow=True,
+            java_heap_server=args.java_heap_server,
+            dry_run=args.dry_run,
+        )
+        if th:
+            th.join()
 
 
 def subcmd_run(caper_runner, args):
-    caper_runner.run(
-        backend=args.backend,
-        wdl=get_abspath(args.wdl),
-        inputs=get_abspath(args.inputs),
-        options=get_abspath(args.options),
-        labels=get_abspath(args.labels),
-        imports=get_abspath(args.imports),
-        metadata_output=get_abspath(args.metadata_output),
-        str_label=args.str_label,
-        docker=args.docker,
-        singularity=args.singularity,
-        singularity_cachedir=args.singularity_cachedir,
-        no_build_singularity=args.no_build_singularity,
-        custom_backend_conf=get_abspath(args.backend_file),
-        max_retries=args.max_retries,
-        ignore_womtool=args.ignore_womtool,
-        no_deepcopy=args.no_deepcopy,
-        file_stdout=get_abspath(args.cromwell_stdout),
-        fileobj_troubleshoot=sys.stdout,
-        dry_run=args.dry_run,
-    )
+    cromwell_stdout = get_abspath(args.cromwell_stdout)
+
+    with open(cromwell_stdout, 'w') as f:
+        th = caper_runner.run(
+            backend=args.backend,
+            wdl=get_abspath(args.wdl),
+            inputs=get_abspath(args.inputs),
+            options=get_abspath(args.options),
+            labels=get_abspath(args.labels),
+            imports=get_abspath(args.imports),
+            metadata_output=get_abspath(args.metadata_output),
+            str_label=args.str_label,
+            docker=args.docker,
+            singularity=args.singularity,
+            singularity_cachedir=args.singularity_cachedir,
+            no_build_singularity=args.no_build_singularity,
+            custom_backend_conf=get_abspath(args.backend_file),
+            max_retries=args.max_retries,
+            ignore_womtool=args.ignore_womtool,
+            no_deepcopy=args.no_deepcopy,
+            fileobj_stdout=f,
+            fileobj_troubleshoot=sys.stdout,
+            java_heap_run=args.java_heap_run,
+            java_heap_womtool=args.java_heap_womtool,
+            dry_run=args.dry_run,
+        )
+        if th:
+            th.join()
 
 
 def subcmd_submit(caper_client, args):
@@ -324,9 +318,16 @@ def subcmd_submit(caper_client, args):
         options=get_abspath(args.options),
         labels=get_abspath(args.labels),
         imports=get_abspath(args.imports),
+        str_label=args.str_label,
         docker=args.docker,
         singularity=args.singularity,
+        singularity_cachedir=args.singularity_cachedir,
+        no_build_singularity=args.no_build_singularity,
+        max_retries=args.max_retries,
+        ignore_womtool=args.ignore_womtool,
+        no_deepcopy=args.no_deepcopy,
         hold=args.hold,
+        java_heap_womtool=args.java_heap_womtool,
         dry_run=args.dry_run,
     )
 

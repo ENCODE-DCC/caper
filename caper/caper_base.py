@@ -5,34 +5,22 @@ from datetime import datetime
 from autouri import GCSURI, S3URI, AbsPath, AutoURI
 
 from .cromwell_backend import BACKEND_AWS, BACKEND_GCP
-from .server_heartbeat import ServerHeartbeat
 
 logger = logging.getLogger(__name__)
 
 
 class CaperBase:
-    DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
-
-    def __init__(
-        self,
-        tmp_dir,
-        tmp_gcs_bucket=None,
-        tmp_s3_bucket=None,
-        server_heartbeat_file=DEFAULT_SERVER_HEARTBEAT_FILE,
-        server_heartbeat_timeout=ServerHeartbeat.DEFAULT_HEARTBEAT_TIMEOUT_MS,
-    ):
-        """1) Manages cache/temp directories for localization on the following
+    def __init__(self, tmp_dir, tmp_gcs_bucket=None, tmp_s3_bucket=None):
+        """Manages cache/temp directories for localization on the following
         storages:
             - Local*: Local path -> tmp_dir**
             - gcp: GCS bucket path -> tmp_gcs_bucket
             - aws: S3 bucket path -> tmp_s3_bucket
-            * Note that it starts with capital L.
-            ** /tmp is not allowed here. This directory is very important to store
-            intermediate files used by Cromwell/AutoURI (filter transfer/localization).
 
-        2) Also manages a server heartbeat file that includes
-        hostname/port of a running Cromwell server.
-        Server can write this file to pass hostname/port to clients.
+        * Note that it starts with capital L, which is a default backend of Cromwell's
+        default configuration file (application.conf).
+        ** /tmp is not allowed here. This directory is very important to store
+        intermediate files used by Cromwell/AutoURI (filter transfer/localization).
 
         Args:
             tmp_dir:
@@ -41,11 +29,6 @@ class CaperBase:
                 GCS cache directory to store files localized on GCS for gcp backend.
             tmp_s3_bucket:
                 S3 cache directory to store files localized on S3 for aws backend.
-            server_heartbeat_file:
-                Server heartbeat file to write/read hostname/port.
-            server_heartbeat_timeout:
-                Timeout for heartbeat file.
-                Only fresh heartbeat file within this time limit is used.
         """
         if not AbsPath(tmp_dir).is_valid:
             raise ValueError(
@@ -67,18 +50,6 @@ class CaperBase:
         self._tmp_dir = tmp_dir
         self._tmp_gcs_bucket = tmp_gcs_bucket
         self._tmp_s3_bucket = tmp_s3_bucket
-
-        if server_heartbeat_file:
-            self._server_heartbeat = ServerHeartbeat(
-                heartbeat_file=server_heartbeat_file,
-                heartbeat_timeout=server_heartbeat_timeout,
-            )
-        else:
-            self._server_heartbeat = None
-
-    @property
-    def server_heartbeat(self):
-        return self._server_heartbeat
 
     def localize_on_backend(self, f, backend, recursive=False, make_md5_file=False):
         """Localize a file according to the chosen backend.

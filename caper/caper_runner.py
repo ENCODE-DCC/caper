@@ -17,7 +17,6 @@ from .cromwell_backend import (
 )
 from .cromwell_metadata import CromwellMetadata
 from .cromwell_rest_api import CromwellRestAPI
-from .server_heartbeat import ServerHeartbeat
 from .singularity import Singularity
 from .wdl_parser import WDLParser
 
@@ -26,24 +25,17 @@ logger = logging.getLogger(__name__)
 
 class CaperRunner(CaperBase):
     DEFAULT_FILE_DB_PREFIX = 'default_caper_file_db'
-    BASENAME_CROMWELL_STDOUT = 'cromwell.out'
     SERVER_TMP_DIR_PREFIX = '.caper_server'
 
     def __init__(
         self,
         tmp_dir,
-        default_backend,
         out_dir,
+        default_backend,
         tmp_gcs_bucket=None,
         tmp_s3_bucket=None,
-        server_heartbeat_file=CaperBase.DEFAULT_SERVER_HEARTBEAT_FILE,
-        server_heartbeat_timeout=ServerHeartbeat.DEFAULT_HEARTBEAT_TIMEOUT_MS,
-        server_port=CromwellRestAPI.DEFAULT_PORT,
         cromwell=Cromwell.DEFAULT_CROMWELL,
         womtool=Cromwell.DEFAULT_WOMTOOL,
-        java_heap_server=Cromwell.DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
-        java_heap_run=Cromwell.DEFAULT_JAVA_HEAP_CROMWELL_RUN,
-        java_heap_womtool=Cromwell.DEFAULT_JAVA_HEAP_WOMTOOL,
         disable_call_caching=False,
         max_concurrent_workflows=CromwellBackendCommon.DEFAULT_MAX_CONCURRENT_WORKFLOWS,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
@@ -83,17 +75,10 @@ class CaperRunner(CaperBase):
         Args:
             default_backend:
                 Default backend.
-            server_port:
-                Server port for server mode only.
             cromwell:
                 Cromwell JAR URI.
             womtool:
                 Womtool JAR URI.
-
-            java_heap_server:
-                For this and all below arguments,
-                see details in CaperBackendConf.__init__.
-            java_heap_womtool:
             disable_call_caching:
             max_concurrent_workflows:
             max_concurrent_tasks:
@@ -119,49 +104,34 @@ class CaperRunner(CaperBase):
             aws_region:
             out_s3_bucket:
             gcp_zones:
-            slurm_partition:
-            slurm_account:
-            slurm_extra_param:
-            sge_pe:
-            sge_queue:
-            sge_extra_param:
-            pbs_queue:
-            pbs_extra_param:
-
-            gcp_zones:
                 For this and all below arguments,
                 see details in CaperWorkflowOpts.__init__.
             slurm_partition:
+                SLURM partition if required to sbatch jobs.
             slurm_account:
+                SLURM account if required to sbatch jobs.
             slurm_extra_param:
+                SLURM extra parameter to be appended to sbatch command line.
             sge_pe:
+                SGE parallel environment (required to run with multiple cpus).
             sge_queue:
+                SGE queue.
             sge_extra_param:
+                SGE extra parameter to be appended to qsub command line.
             pbs_queue:
+                PBS queue.
             pbs_extra_param:
+                PBS extra parameter to be appended to qsub command line.
         """
         super().__init__(
-            tmp_dir=tmp_dir,
-            tmp_gcs_bucket=tmp_gcs_bucket,
-            tmp_s3_bucket=tmp_s3_bucket,
-            server_heartbeat_file=server_heartbeat_file,
-            server_heartbeat_timeout=server_heartbeat_timeout,
+            tmp_dir=tmp_dir, tmp_gcs_bucket=tmp_gcs_bucket, tmp_s3_bucket=tmp_s3_bucket
         )
 
-        self._cromwell = Cromwell(
-            cromwell=cromwell,
-            womtool=womtool,
-            java_heap_cromwell_server=java_heap_server,
-            java_heap_cromwell_run=java_heap_run,
-            java_heap_womtool=java_heap_womtool,
-            server_port=server_port,
-            server_heartbeat=self._server_heartbeat,
-        )
+        self._cromwell = Cromwell(cromwell=cromwell, womtool=womtool)
 
         self._caper_backend_conf = CaperBackendConf(
             default_backend=default_backend,
             out_dir=out_dir,
-            server_port=server_port,
             disable_call_caching=disable_call_caching,
             max_concurrent_workflows=max_concurrent_workflows,
             max_concurrent_tasks=max_concurrent_tasks,
@@ -230,9 +200,11 @@ class CaperRunner(CaperBase):
         max_retries=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
         ignore_womtool=False,
         no_deepcopy=False,
-        file_stdout=None,
+        fileobj_stdout=None,
         fileobj_troubleshoot=None,
-        tmp_dir=None,
+        work_dir=None,
+        java_heap_run=Cromwell.DEFAULT_JAVA_HEAP_CROMWELL_RUN,
+        java_heap_womtool=Cromwell.DEFAULT_JAVA_HEAP_WOMTOOL,
         dry_run=False,
     ):
         """Run a workflow using Cromwell run mode.
@@ -306,13 +278,12 @@ class CaperRunner(CaperBase):
             no_deepcopy:
                 Disable recursive localization of files defined in input JSON.
                 Input JSON file itself will still be localized.
-            file_stdout:
-                File to write Cromwell's STDOUT to.
-                If None, then will be written to cromwell.o on tmp_dir.
+            fileobj_stdout:
+                File-like object to write Cromwell's STDOUT.
                 Note that STDERR is redirected to STDOUT.
             fileobj_troubleshoot:
-                File-like object to print out auto-troubleshooting after workflow is done.
-            tmp_dir:
+                File-like object to write auto-troubleshooting after workflow is done.
+            work_dir:
                 Local temporary directory to store all temporary files.
                 Temporary files mean intermediate files used for running Cromwell.
                 For example, backend config file, workflow options file.
@@ -320,6 +291,10 @@ class CaperRunner(CaperBase):
                 will NOT be stored here.
                 They will be localized on self._tmp_dir instead.
                 If this is not defined, then cache directory self._tmp_dir will be used.
+            java_heap_run:
+                Java heap (java -Xmx) for Cromwell server mode.
+            java_heap_womtool:
+                Java heap (java -Xmx) for Womtool.
             dry_run:
                 Stop before running Java command line for Cromwell.
 
@@ -334,11 +309,11 @@ class CaperRunner(CaperBase):
         if str_label is None and inputs:
             str_label = AutoURI(inputs).basename_wo_ext
 
-        if tmp_dir is None:
-            tmp_dir = self.create_timestamped_tmp_dir(prefix=u_wdl.basename_wo_ext)
+        if work_dir is None:
+            work_dir = self.create_timestamped_tmp_dir(prefix=u_wdl.basename_wo_ext)
 
-        logger.info('Localizing files on tmp_dir. {d}'.format(d=tmp_dir))
-        wdl = u_wdl.localize_on(tmp_dir)
+        logger.info('Localizing files on work_dir. {d}'.format(d=work_dir))
+        wdl = u_wdl.localize_on(work_dir)
 
         if inputs:
             inputs = self.localize_on_backend(
@@ -347,9 +322,9 @@ class CaperRunner(CaperBase):
 
         wdl_parser = WDLParser(wdl)
         if imports:
-            imports = AutoURI(imports).localize_on(tmp_dir)
+            imports = AutoURI(imports).localize_on(work_dir)
         else:
-            imports = wdl_parser.create_imports_file(tmp_dir)
+            imports = wdl_parser.create_imports_file(work_dir)
 
         if metadata_output:
             if not AbsPath(metadata_output).is_valid:
@@ -360,15 +335,15 @@ class CaperRunner(CaperBase):
                 )
         else:
             metadata_output = os.path.join(
-                tmp_dir, CromwellMetadata.DEFAULT_METADATA_BASENAME
+                work_dir, CromwellMetadata.DEFAULT_METADATA_BASENAME
             )
 
         backend_conf = self._caper_backend_conf.create_file(
-            directory=tmp_dir, backend=backend, custom_backend_conf=custom_backend_conf
+            directory=work_dir, backend=backend, custom_backend_conf=custom_backend_conf
         )
 
         options = self._caper_workflow_opts.create_file(
-            directory=tmp_dir,
+            directory=work_dir,
             wdl=wdl,
             inputs=inputs,
             custom_options=options,
@@ -380,7 +355,7 @@ class CaperRunner(CaperBase):
         )
 
         labels = self._caper_labels.create_file(
-            directory=tmp_dir,
+            directory=work_dir,
             backend=backend,
             custom_labels=labels,
             str_label=str_label,
@@ -388,52 +363,39 @@ class CaperRunner(CaperBase):
         )
 
         if not ignore_womtool:
-            self._cromwell.validate(wdl=wdl, inputs=inputs, imports=imports)
+            if not self._cromwell.validate(wdl=wdl, inputs=inputs, imports=imports):
+                return None
 
         logger.info(
             'run ready: wdl={w}, inputs={i}, backend_conf={b}'.format(
                 w=wdl, i=inputs, b=backend_conf
             )
         )
-        if dry_run:
-            return None
-
-        if file_stdout is None:
-            file_stdout = os.path.join(tmp_dir, CaperRunner.BASENAME_CROMWELL_STDOUT)
-        logger.info('run launched: stdout={stdout}'.format(stdout=file_stdout))
-
-        with open(file_stdout, 'w') as fo:
-            rc, metadata_file = self._cromwell.run(
-                wdl=wdl,
-                backend_conf=backend_conf,
-                inputs=inputs,
-                options=options,
-                imports=imports,
-                labels=labels,
-                metadata=metadata_output,
-                fileobj_stdout=fo,
-            )
-
-        if metadata_file:
-            if fileobj_troubleshoot:
-                cm = CromwellMetadata(metadata_file)
-                if cm.workflow_status != 'Succeeded':
-                    logger.info('Workflow failed. Auto-troubleshooting...')
-                    cm.troubleshoot(fileobj=fileobj_troubleshoot)
-
-        logger.info(
-            'run ended: rc={rc}, stdout={stdout}'.format(rc=rc, stdout=file_stdout)
+        th = self._cromwell.run(
+            wdl=wdl,
+            backend_conf=backend_conf,
+            inputs=inputs,
+            options=options,
+            imports=imports,
+            labels=labels,
+            metadata=metadata_output,
+            fileobj_stdout=fileobj_stdout,
+            fileobj_troubleshoot=fileobj_troubleshoot,
+            dry_run=dry_run,
         )
-
-        return metadata_file
+        return th
 
     def server(
         self,
         default_backend,
+        server_port=CromwellRestAPI.DEFAULT_PORT,
+        server_hostname=None,
+        server_heartbeat=None,
         custom_backend_conf=None,
-        file_stdout=None,
+        fileobj_stdout=None,
         embed_subworkflow=False,
-        tmp_dir=None,
+        java_heap_server=Cromwell.DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
+        work_dir=None,
         dry_run=False,
     ):
         """Run a Cromwell server.
@@ -444,12 +406,20 @@ class CaperRunner(CaperBase):
                 (aws, gcp, Local, slurm, sge, pbs).
                 Or use a backend defined in your custom backend config file
                 (above "backend_conf" file).
+            server_heartbeat:
+                Server heartbeat to write hostname/port of a server.
+            server_port:
+                Server port to run Cromwell server.
+                Make sure to use different port for multiple Cromwell servers on the same
+                machine.
+            server_hostname:
+                Server hostname. If not defined then socket.gethostname() will be used.
+                If server_heartbeat is given, then this hostname will be written to
+                the server heartbeat file defined in server_heartbeat.
             custom_backend_conf:
-                Backend config file (HOCON) to override Caper's
-                auto-generated backend config.
-            file_stdout:
-                File to write Cromwell's STDOUT to.
-                If None, then will be written to cromwell.o on tmp_dir.
+                Backend config file (HOCON) to override Caper's auto-generated backend config.
+            fileobj_stdout:
+                File-like object to write Cromwell's STDOUT.
                 Note that STDERR is redirected to STDOUT.
             embed_subworkflow:
                 Caper stores/updates metadata.JSON file on
@@ -458,39 +428,35 @@ class CaperRunner(CaperBase):
                 This flag ensures that any subworkflow's metadata JSON will be
                 embedded in main (this) workflow's metadata JSON.
                 This is to mimic behavior of Cromwell run mode's -m parameter.
-            tmp_dir:
+            java_heap_server:
+                Java heap (java -Xmx) for Cromwell server mode.
+            work_dir:
                 Local temporary directory to store all temporary files.
                 Temporary files mean intermediate files used for running Cromwell.
-                For example, backend config file.
-                If this is not defined, then cache directory self._tmp_dir will be used.
+                For example, auto-generated backend config file and workflow options file.
+                If this is not defined, then cache directory self._tmp_dir with a timestamp
+                will be used.
             dry_run:
                 Stop before running Java command line for Cromwell.
         """
-        if tmp_dir is None:
-            tmp_dir = self.create_timestamped_tmp_dir(
+        if work_dir is None:
+            work_dir = self.create_timestamped_tmp_dir(
                 prefix=CaperRunner.SERVER_TMP_DIR_PREFIX
             )
 
         backend_conf = self._caper_backend_conf.create_file(
-            directory=tmp_dir,
+            directory=work_dir,
             backend=default_backend,
             custom_backend_conf=custom_backend_conf,
         )
-
         logger.info('server ready: backend_conf={b}'.format(b=backend_conf))
-        if dry_run:
-            return None
 
-        if file_stdout is None:
-            file_stdout = os.path.join(tmp_dir, CaperRunner.BASENAME_CROMWELL_STDOUT)
-        logger.info('server launched: stdout={stdout}'.format(stdout=file_stdout))
-
-        with open(file_stdout, 'w') as fo:
-            rc = self._cromwell.server(
-                backend_conf=backend_conf,
-                fileobj_stdout=fo,
-                embed_subworkflow=embed_subworkflow,
-            )
-        logger.info(
-            'server ended: rc={rc}, stdout={stdout}'.format(rc=rc, stdout=file_stdout)
+        th = self._cromwell.server(
+            backend_conf=backend_conf,
+            server_port=server_port,
+            fileobj_stdout=fileobj_stdout,
+            embed_subworkflow=embed_subworkflow,
+            work_dir=work_dir,
+            dry_run=dry_run,
         )
+        return th

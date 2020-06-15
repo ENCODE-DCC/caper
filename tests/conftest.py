@@ -63,4 +63,4 @@ def cromwell(request):
 
 @pytest.fixture(scope="session")
 def womtool(request):
-    return request.config.getoption("--wooltool")
+    return request.config.getoption("--womtool")

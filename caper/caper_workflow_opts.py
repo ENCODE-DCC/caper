@@ -101,13 +101,13 @@ class CaperWorkflowOpts:
         self,
         directory,
         wdl,
+        backend=None,
         inputs=None,
         custom_options=None,
         docker=None,
         singularity=None,
         singularity_cachedir=None,
         no_build_singularity=False,
-        backend=None,
         max_retries=DEFAULT_MAX_RETRIES,
         basename=BASENAME_WORKFLOW_OPTS_JSON,
     ):
@@ -122,6 +122,9 @@ class CaperWorkflowOpts:
                 Directory to make workflow options JSON file.
             wdl:
                 WDL file.
+            backend:
+                Backend to run a workflow on. If not defined, server's default or
+                runner's Local backend will be used.
             inputs:
                 Input JSON file to define input files/parameters for WDL.
                 This will be overriden by environment variable SINGULARITY_BINDPATH.
@@ -151,9 +154,6 @@ class CaperWorkflowOpts:
                 which will result in multiple redundant local image building.
                 Also, trying to build on the same Singularity image file can
                 lead to corruption of the image file.
-            backend:
-                Backend to run a workflow on. If not defined, runner/server's default backend
-                will be used.
             max_retries:
                 Maximum number of retirals for each task. 1 means 1 retrial.
             basename:
