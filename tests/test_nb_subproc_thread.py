@@ -37,14 +37,14 @@ def test_nb_subproc_thread(tmp_path):
     sh.write_text(SH_CONTENTS)
 
     th = NBSubprocThread(
-        args=['bash', str(sh)], on_poll=on_poll, on_stdout=on_stdout, poll_interval=0.5
+        args=['bash', str(sh)], on_poll=on_poll, on_stdout=on_stdout, poll_interval=0.1
     )
     assert not th.is_alive()
     th.start()
     assert th.is_alive()
     # rc is None while running
     assert th.rc is None
-    th.wait()
+    th.join()
     assert th.rc == 10
 
 
@@ -52,14 +52,12 @@ def test_nb_subproc_thread_stopped(tmp_path):
     sh = tmp_path / 'test.sh'
     sh.write_text(SH_CONTENTS)
 
-    th = NBSubprocThread(
-        args=['bash', str(sh)], on_poll=on_poll, on_stdout=on_stdout, poll_interval=0.5
-    )
+    th = NBSubprocThread(args=['bash', str(sh)], on_stdout=on_stdout)
     th.start()
     time.sleep(3)
     th.stop()
     assert th.is_alive()
-    th.wait()
+    th.join()
     assert not th.is_alive()
     # rc is -1 if terminated
     assert th.rc == -1
@@ -68,11 +66,9 @@ def test_nb_subproc_thread_stopped(tmp_path):
 
 
 def test_nb_subproc_thread_nonzero_rc(tmp_path):
-    th = NBSubprocThread(
-        args=['cat', 'asdfasf'], on_poll=on_poll, on_stdout=on_stdout, poll_interval=0.5
-    )
+    th = NBSubprocThread(args=['cat', 'asdfasf'], on_stdout=on_stdout)
     th.start()
-    th.wait()
+    th.join()
     print(th.rc, th.stdout)
     assert th.rc == 1
     # check if stderr is redirected to stdout and it's captured
