@@ -22,7 +22,7 @@ def test_server_heartbeat(tmp_path):
     assert hb.read() is None
 
     try:
-        hb.run(port=9999)
+        hb.start(port=9999)
 
         time.sleep(1)
         assert hb.read() == (socket.gethostname(), 9999)
