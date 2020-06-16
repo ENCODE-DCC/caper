@@ -1,6 +1,7 @@
 import argparse
+import os
 
-from .arg_tool import update_parser_defaults_with_conf
+from .arg_tool import update_parsers_defaults_with_conf
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
 from .cromwell_backend import (
@@ -20,13 +21,29 @@ DEFAULT_OUT_DIR = '.'
 DEFAULT_CROMWELL_STDOUT = './cromwell.out'
 
 
-def get_main_parser():
-    """Create a main parser and make a subparser for each subcommand.
+def get_parser_and_defaults(conf_file=None):
+    """Creates a main parser and make a subparser for each subcommand.
     There are many parent parsers defined here.
     Each subparser will take a certain combination of these parent parsers
-    to share the same parameters in some subparsers.
-    Finally each subparser's default is updated with parameters
-    defined in config file.
+    to share the same parameter arguments between subcommands.
+    e.g. subcommand run and server share the same --cromwell argument, which
+    is defined in a parent parser "parent_runner".
+
+    Finally each subparser's default is updated with values defined in conf_file.
+
+    Args:
+        conf_file:
+            If defined, this will be used instead of partially parsing command line
+            arguments to find conf_file (-c).
+    Returns:
+        parser:
+            ArgumentParser object with all arguments defined for each sub-
+            command (subparser).
+        defaults:
+            Default keys and values parsed from both ArgumentParser and conf_file.
+            Conf_file's values will override on ArgumentParser's defaults.
+            Correct type for each value is guessed from type of each argument's
+            default in ArgumentParser.
     """
     parser = argparse.ArgumentParser(
         description='Caper (Cromwell-assisted Pipeline ExecutioneR)'
@@ -600,10 +617,13 @@ def get_main_parser():
         ],
     )
 
-    # partially parse args to get conf file
-    args, _ = parent_all.parse_known_args()
+    if conf_file is None:
+        # partially parse args to get conf file from cmd line
+        known_args, _ = parent_all.parse_known_args()
+        conf_file = known_args.conf
+    conf_file = os.path.expanduser(conf_file)
 
-    for p in [
+    subparsers = [
         p_init,
         p_run,
         p_server,
@@ -614,7 +634,8 @@ def get_main_parser():
         p_metadata,
         p_troubleshoot,
         p_debug,
-    ]:
-        update_parser_defaults_with_conf(p, args.conf)
+    ]
+    # update defaults of each subparser in main parser
+    defaults = update_parsers_defaults_with_conf(subparsers, conf_file)
 
-    return parser
+    return parser, defaults
