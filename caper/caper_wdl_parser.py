@@ -31,7 +31,6 @@ class CaperWDLParser(WDLParser):
         ret = self._find_val_of_matched_lines(CaperWDLParser.RE_WDL_COMMENT_DOCKER)
         if ret:
             return ret[0].strip('"\'')
-        return None
 
     @property
     def caper_singularity(self):
@@ -47,4 +46,3 @@ class CaperWDLParser(WDLParser):
         ret = self._find_val_of_matched_lines(CaperWDLParser.RE_WDL_COMMENT_SINGULARITY)
         if ret:
             return ret[0].strip('"\'')
-        return None

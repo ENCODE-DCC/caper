@@ -75,7 +75,6 @@ class WDLParser:
             if num_sub_wf_packed:
                 shutil.make_archive(AutoURI(zip_file).uri_wo_ext, 'zip', tmp_d)
                 return zip_file
-        return None
 
     def create_imports_file(self, directory, basename=BASENAME_IMPORTS):
         """Wrapper for zip_subworkflows.
@@ -84,7 +83,6 @@ class WDLParser:
         zip_file = os.path.join(directory, basename)
         if self.zip_subworkflows(zip_file):
             return zip_file
-        return None
 
     def _find_val_of_matched_lines(self, regex, no_strip=False):
         """Find value of the first line matching regex.

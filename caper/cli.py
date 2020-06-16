@@ -7,7 +7,7 @@ import sys
 from autouri import GCSURI, AutoURI
 
 from . import __version__ as version
-from .caper_args import get_main_parser
+from .caper_args import get_parser_and_defaults
 from .caper_client import CaperClient, CaperClientSubmit
 from .caper_init import init_caper_conf
 from .caper_labels import CaperLabels
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_TMP_DIR_NAME = '.caper_tmp'
 DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
+USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
 
 
 def get_abspath(path):
@@ -264,50 +265,55 @@ def subcmd_server(caper_runner, args):
                 heartbeat_file=args.server_heartbeat_file,
                 heartbeat_timeout=args.server_heartbeat_timeout,
             )
-
-        th = caper_runner.server(
-            default_backend=args.backend,
-            server_port=args.port,
-            server_heartbeat=sh,
-            custom_backend_conf=get_abspath(args.backend_file),
-            fileobj_stdout=f,
-            embed_subworkflow=True,
-            java_heap_server=args.java_heap_server,
-            dry_run=args.dry_run,
-        )
-        if th:
+        try:
+            th = caper_runner.server(
+                default_backend=args.backend,
+                server_port=args.port,
+                server_heartbeat=sh,
+                custom_backend_conf=get_abspath(args.backend_file),
+                fileobj_stdout=f,
+                embed_subworkflow=True,
+                java_heap_server=args.java_heap_server,
+                dry_run=args.dry_run,
+            )
             th.join()
+        except KeyboardInterrupt:
+            logger.error(USER_INTERRUPT_WARNING)
+            th.stop()
 
 
 def subcmd_run(caper_runner, args):
     cromwell_stdout = get_abspath(args.cromwell_stdout)
 
     with open(cromwell_stdout, 'w') as f:
-        th = caper_runner.run(
-            backend=args.backend,
-            wdl=get_abspath(args.wdl),
-            inputs=get_abspath(args.inputs),
-            options=get_abspath(args.options),
-            labels=get_abspath(args.labels),
-            imports=get_abspath(args.imports),
-            metadata_output=get_abspath(args.metadata_output),
-            str_label=args.str_label,
-            docker=args.docker,
-            singularity=args.singularity,
-            singularity_cachedir=args.singularity_cachedir,
-            no_build_singularity=args.no_build_singularity,
-            custom_backend_conf=get_abspath(args.backend_file),
-            max_retries=args.max_retries,
-            ignore_womtool=args.ignore_womtool,
-            no_deepcopy=args.no_deepcopy,
-            fileobj_stdout=f,
-            fileobj_troubleshoot=sys.stdout,
-            java_heap_run=args.java_heap_run,
-            java_heap_womtool=args.java_heap_womtool,
-            dry_run=args.dry_run,
-        )
-        if th:
+        try:
+            th = caper_runner.run(
+                backend=args.backend,
+                wdl=get_abspath(args.wdl),
+                inputs=get_abspath(args.inputs),
+                options=get_abspath(args.options),
+                labels=get_abspath(args.labels),
+                imports=get_abspath(args.imports),
+                metadata_output=get_abspath(args.metadata_output),
+                str_label=args.str_label,
+                docker=args.docker,
+                singularity=args.singularity,
+                singularity_cachedir=args.singularity_cachedir,
+                no_build_singularity=args.no_build_singularity,
+                custom_backend_conf=get_abspath(args.backend_file),
+                max_retries=args.max_retries,
+                ignore_womtool=args.ignore_womtool,
+                no_deepcopy=args.no_deepcopy,
+                fileobj_stdout=f,
+                fileobj_troubleshoot=sys.stdout,
+                java_heap_run=args.java_heap_run,
+                java_heap_womtool=args.java_heap_womtool,
+                dry_run=args.dry_run,
+            )
             th.join()
+        except KeyboardInterrupt:
+            logger.error(USER_INTERRUPT_WARNING)
+            th.stop()
 
 
 def subcmd_submit(caper_client, args):
@@ -421,15 +427,17 @@ def subcmd_troubleshoot(caper_client, args):
 
 
 def main():
-    parser = get_main_parser()
+    parser, _ = get_parser_and_defaults()
+
     if len(sys.argv[1:]) == 0:
         parser.print_help()
         parser.exit()
 
-    args, _ = parser.parse_known_args()
-    check_flags(args)
+    known_args, _ = parser.parse_known_args()
+    check_flags(known_args)
 
     args = parser.parse_args()
+
     print_version(parser, args)
     init_logging(args)
     init_autouri(args)

@@ -39,11 +39,10 @@ def get_parser_and_defaults(conf_file=None):
         parser:
             ArgumentParser object with all arguments defined for each sub-
             command (subparser).
-        defaults:
-            Default keys and values parsed from both ArgumentParser and conf_file.
-            Conf_file's values will override on ArgumentParser's defaults.
-            Correct type for each value is guessed from type of each argument's
-            default in ArgumentParser.
+        conf_dict:
+            Dict of key/value pairs parsed from conf_file.
+            Such value is converted into a correct type guessed from
+            defaults of arguments defined in ArgumentParser object.
     """
     parser = argparse.ArgumentParser(
         description='Caper (Cromwell-assisted Pipeline ExecutioneR)'
@@ -635,7 +634,6 @@ def get_parser_and_defaults(conf_file=None):
         p_troubleshoot,
         p_debug,
     ]
-    # update defaults of each subparser in main parser
-    defaults = update_parsers_defaults_with_conf(subparsers, conf_file)
+    conf_dict = update_parsers_defaults_with_conf(subparsers, conf_file)
 
-    return parser, defaults
+    return parser, conf_dict

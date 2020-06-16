@@ -297,7 +297,6 @@ class CaperRunner(CaperBase):
                 Java heap (java -Xmx) for Womtool.
             dry_run:
                 Stop before running Java command line for Cromwell.
-
         Returns:
             metadata_file:
                 URI of metadata JSON file.
@@ -364,10 +363,10 @@ class CaperRunner(CaperBase):
 
         if not ignore_womtool:
             if not self._cromwell.validate(wdl=wdl, inputs=inputs, imports=imports):
-                return None
+                return
 
         logger.info(
-            'run ready: wdl={w}, inputs={i}, backend_conf={b}'.format(
+            'launching run: wdl={w}, inputs={i}, backend_conf={b}'.format(
                 w=wdl, i=inputs, b=backend_conf
             )
         )
@@ -449,11 +448,13 @@ class CaperRunner(CaperBase):
             backend=default_backend,
             custom_backend_conf=custom_backend_conf,
         )
-        logger.info('server ready: backend_conf={b}'.format(b=backend_conf))
+        logger.info('launching server: backend_conf={b}'.format(b=backend_conf))
 
         th = self._cromwell.server(
             backend_conf=backend_conf,
             server_port=server_port,
+            server_hostname=server_hostname,
+            server_heartbeat=server_heartbeat,
             fileobj_stdout=fileobj_stdout,
             embed_subworkflow=embed_subworkflow,
             work_dir=work_dir,

@@ -38,13 +38,11 @@ class CromwellMetadata:
     def failures(self):
         if 'failures' in self._metadata:
             return self._metadata['failures']
-        return None
 
     @property
     def calls(self):
         if 'calls' in self._metadata:
             return self._metadata['calls']
-        return None
 
     def recurse_calls(self, fnc_call, parent_call_names=tuple()):
         """Recurse on tasks in metadata.
@@ -86,7 +84,7 @@ class CromwellMetadata:
             root = self._metadata['workflowRoot']
             metadata_file = '/'.join([root, basename])
 
-            AutoURI(metadata_file).write(json.dumps(self._metadata, indent=4))
+            AutoURI(metadata_file).write(json.dumps(self._metadata, indent=4) + '\n')
             logger.info('Wrote metadata file. {f}'.format(f=metadata_file))
         else:
             metadata_file = None

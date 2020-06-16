@@ -77,7 +77,6 @@ class Cromwell(object):
         inputs=None,
         imports=None,
         java_heap_womtool=DEFAULT_JAVA_HEAP_WOMTOOL,
-        debug=False,
     ):
         """Validate WDL/inputs/imports using Womtool.
 
@@ -118,7 +117,7 @@ class Cromwell(object):
                 'java',
                 '-Xmx{heap}'.format(heap=java_heap_womtool),
                 '-jar',
-                '-DLOG_LEVEL={lvl}'.format(lvl='DEBUG' if debug else 'INFO'),
+                '-DLOG_LEVEL={lvl}'.format(lvl='INFO'),
                 self._womtool,
                 'validate',
                 wdl_,
@@ -163,9 +162,8 @@ class Cromwell(object):
         java_heap_cromwell_run=DEFAULT_JAVA_HEAP_CROMWELL_RUN,
         java_heap_womtool=DEFAULT_JAVA_HEAP_WOMTOOL,
         work_dir=None,
-        dry_run=False,
-        debug=False,
         on_status_change=None,
+        dry_run=False,
     ):
         """Run Cromwell run mode (java -jar cromwell.jar run).
         This is a non-blocking function.
@@ -199,10 +197,6 @@ class Cromwell(object):
             work_dir:
                 Working directory to run Cromwell.
                 If not defined, then temp directory (/tmp/...) will be used.
-            dry_run:
-                Dry run.
-            debug:
-                Set debug mode for Cromwell.
             on_status_change:
                 Not implemnted yet.
                 Callback function called while polling.
@@ -217,6 +211,8 @@ class Cromwell(object):
                         New status for a task, None if no change.
                     metadata:
                         metadata (dict) of a workflow.
+            dry_run:
+                Dry run.
         Returns:
             th:
                 Thread for Cromwell's run mode. None if dry_run.
@@ -232,7 +228,7 @@ class Cromwell(object):
             '-Xmx{}'.format(java_heap_cromwell_run),
             '-XX:ParallelGCThreads=1',
             '-jar',
-            '-DLOG_LEVEL={lvl}'.format(lvl='DEBUG' if debug else 'INFO'),
+            '-DLOG_LEVEL={lvl}'.format(lvl='INFO'),
             '-DLOG_MODE=standard',
         ]
 
@@ -253,9 +249,9 @@ class Cromwell(object):
             )
         cmd += ['-m', metadata]
 
-        logger.info('run: {cmd}'.format(cmd=' '.join(cmd)))
+        logger.debug('cmd: {cmd}'.format(cmd=' '.join(cmd)))
         if dry_run:
-            return None
+            return
 
         wm = CromwellWorkflowMonitor(on_status_change=on_status_change, is_server=False)
 
@@ -263,7 +259,7 @@ class Cromwell(object):
             nonlocal wm
             nonlocal fileobj_stdout
 
-            if fileobj_stdout:
+            if fileobj_stdout and not getattr(fileobj_stdout, 'closed', False):
                 fileobj_stdout.write(stdout)
                 fileobj_stdout.flush()
             wm.update(stdout)
@@ -277,6 +273,7 @@ class Cromwell(object):
             cm.write_on_workflow_root()
 
             if cm.workflow_status != 'Succeeded':
+                # auto-troubleshoot on terminate if workflow is not successful
                 logger.info('Workflow failed. Auto-troubleshooting...')
                 cm.troubleshoot(fileobj=fileobj_troubleshoot)
 
@@ -297,10 +294,9 @@ class Cromwell(object):
         embed_subworkflow=False,
         java_heap_cromwell_server=DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
         work_dir=None,
-        dry_run=False,
-        debug=False,
         on_server_start=None,
         on_status_change=None,
+        dry_run=False,
     ):
         """Run Cromwell server mode (java -jar cromwell.jar server).
         This is a non-blocking function.
@@ -336,10 +332,6 @@ class Cromwell(object):
             work_dir:
                 Working directory to run Cromwell.
                 If not defined, then temp directory (/tmp/...) will be used.
-            dry_run:
-                Dry run.
-            debug:
-                Set debug mode for Cromwell.
             on_server_start:
                 On server start.
             on_status_change:
@@ -356,9 +348,12 @@ class Cromwell(object):
                         New status for a task, None if no change.
                     metadata:
                         metadata (dict) of a workflow.
+            dry_run:
+                Dry run.
         Returns:
             th:
                 Thread for Cromwell's server mode.
+                Returns None if dry_run.
         """
         self.install_cromwell()
 
@@ -380,7 +375,7 @@ class Cromwell(object):
             '-Xmx{}'.format(java_heap_cromwell_server),
             '-XX:ParallelGCThreads=1',
             '-jar',
-            '-DLOG_LEVEL={lvl}'.format(lvl='DEBUG' if debug else 'INFO'),
+            '-DLOG_LEVEL={lvl}'.format(lvl='INFO'),
             '-DLOG_MODE=standard',
             '-Dwebservice.port={port}'.format(port=server_port),
         ]
@@ -388,10 +383,10 @@ class Cromwell(object):
             cmd += ['-Dconfig.file={}'.format(backend_conf)]
 
         cmd += [self._cromwell, 'server']
-        logger.info('cmd: {cmd}'.format(cmd=cmd))
 
+        logger.debug('cmd: {cmd}'.format(cmd=' '.join(cmd)))
         if dry_run:
-            return -1
+            return
 
         wm = CromwellWorkflowMonitor(
             server_port=server_port,
@@ -406,7 +401,7 @@ class Cromwell(object):
             nonlocal wm
             nonlocal server_heartbeat
 
-            if fileobj_stdout:
+            if fileobj_stdout and not getattr(fileobj_stdout, 'closed', False):
                 fileobj_stdout.write(stdout)
                 fileobj_stdout.flush()
 

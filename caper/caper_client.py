@@ -348,10 +348,10 @@ class CaperClientSubmit(CaperClient):
                 imports=imports,
                 java_heap_womtool=java_heap_womtool,
             ):
-                return None
+                return
 
         if dry_run:
-            return None
+            return
 
         r = self._cromwell_rest_api.submit(
             source=wdl,

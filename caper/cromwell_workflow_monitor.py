@@ -313,4 +313,3 @@ class CromwellWorkflowMonitor:
         for w in self._workflows:
             if w.startswith(short_id):
                 return w
-        return None

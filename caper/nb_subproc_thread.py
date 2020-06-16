@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class NBSubprocThread(Thread):
-    DEFAULT_POLL_INTERVAL = 0.01
-    USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
+    DEFAULT_POLL_INTERVAL_SEC = 0.01
 
     def __init__(
         self,
@@ -19,7 +18,7 @@ class NBSubprocThread(Thread):
         on_poll=None,
         on_stdout=None,
         on_terminate=None,
-        poll_interval=DEFAULT_POLL_INTERVAL,
+        poll_interval=DEFAULT_POLL_INTERVAL_SEC,
     ):
         """Non-blocking STDOUT streaming for subprocess.Popen.
         Note that STDERR is always redirected to STDOUT.
@@ -116,6 +115,8 @@ class NBSubprocThread(Thread):
                         on_stdout(stdout)
                 except Empty:
                     pass
+                except KeyboardInterrupt:
+                    raise
                 if on_poll:
                     on_poll(cnt)
                 if p.poll() is not None:
@@ -131,8 +132,7 @@ class NBSubprocThread(Thread):
 
         except CalledProcessError as e:
             self._rc = e.returncode
-        except KeyboardInterrupt:
-            logger.error(NBSubprocThread.USER_INTERRUPT_WARNING)
+        finally:
             p.terminate()
 
         if on_terminate:

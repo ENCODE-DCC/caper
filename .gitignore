@@ -108,3 +108,5 @@ src/test_dev
 src/caper_tmp
 caper_tmp
 src/test_caper_uri/
+
+cromwell.out

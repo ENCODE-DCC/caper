@@ -81,7 +81,7 @@ class ServerHeartbeat:
             else:
                 hostname, port = u.read().strip('\n').split(':')
                 logger.info(
-                    'Reading from a heartbeat file. hostname={h}, port={p}'.format(
+                    'Reading hostname/port from a heartbeat file. {h}:{p}'.format(
                         h=hostname, p=port
                     )
                 )
@@ -101,8 +101,6 @@ class ServerHeartbeat:
                     f=self._heartbeat_file
                 )
             )
-
-        return None
 
     def _write_to_file(self, port, hostname=None):
         if not hostname:

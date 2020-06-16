@@ -80,7 +80,7 @@ class CromwellRestAPI(object):
         """
         workflows = self.find(workflow_ids, labels)
         if workflows is None:
-            return None
+            return
         result = []
         for w in workflows:
             r = self.__request_post(
@@ -99,7 +99,7 @@ class CromwellRestAPI(object):
         """
         workflows = self.find(workflow_ids, labels)
         if workflows is None:
-            return None
+            return
         result = []
         for w in workflows:
             r = self.__request_post(
@@ -144,7 +144,7 @@ class CromwellRestAPI(object):
         """
         workflows = self.find(workflow_ids, labels)
         if workflows is None:
-            return None
+            return
         result = []
         for w in workflows:
             m = self.__request_get(
@@ -173,12 +173,12 @@ class CromwellRestAPI(object):
             Labels JSON for a workflow
         """
         if workflow_id is None:
-            return None
+            return
         r = self.__request_get(
             CromwellRestAPI.ENDPOINT_LABELS.format(wf_id=workflow_id)
         )
         if r is None:
-            return None
+            return
         return r['labels']
 
     def get_label(self, workflow_id, key):
@@ -189,18 +189,16 @@ class CromwellRestAPI(object):
         """
         labels = self.get_labels(workflow_id)
         if labels is None:
-            return None
+            return
         if key in labels:
             return labels[key]
-        else:
-            return None
 
     def update_labels(self, workflow_id, labels):
         """Update labels for a specified workflow with
         a list of (key, val) tuples
         """
         if workflow_id is None or labels is None:
-            return None
+            return
         r = self.__request_patch(
             CromwellRestAPI.ENDPOINT_LABELS.format(wf_id=workflow_id), labels
         )
@@ -229,10 +227,10 @@ class CromwellRestAPI(object):
             CromwellRestAPI.ENDPOINT_WORKFLOWS, params=CromwellRestAPI.PARAMS_WORKFLOWS
         )
         if r is None:
-            return None
+            return
         workflows = r['results']
         if workflows is None:
-            return None
+            return
         matched = set()
         for w in workflows:
             if 'id' not in w:
