@@ -26,6 +26,15 @@ class NBSubprocThread(Thread):
         This class makes two threads (main and sub).
         Main thread for subprocess.Popen, sub thread for nb-streaming STDOUT.
 
+        Note that return value of callback functions are used for status or return
+        value (property status, ret) of this thread itself.
+
+        Return value of on_poll and on_std_out are used to update property status.
+        Return value of on_terminate is used to update property ret.
+
+        These are useful to check status of the thread and get the final return
+        value of the function that this thread runs.
+
         Args:
             args:
                 List of command line arguments.
@@ -43,11 +52,14 @@ class NBSubprocThread(Thread):
             on_stdout:
                 Callback on every non-empty STDOUT line (ending with backslash n).
                 You can use this to print out STDOUT as well.
+                Return value will replace
                 This callback function should take one argument:
                     - stdout (string):
                         New incoming STDOUT line string including backslash n.
             on_terminate:
                 Callback on terminating a thread.
+                Note that return value of this function will be the final return
+                value (property ret) of this thread after it is done (joined).
             poll_interval (float):
                 Polling interval in seconds.
         """
@@ -59,6 +71,8 @@ class NBSubprocThread(Thread):
         self._stdout = ''
         self._rc = None
         self._stop_it = False
+        self._status = None
+        self._ret = None
 
     @property
     def stdout(self):
@@ -66,9 +80,30 @@ class NBSubprocThread(Thread):
 
     @property
     def rc(self):
+        """Returns:
+            -1 if CalledProcessError occurs
+            -2 if any other general exception (Exception) occurs
+            Otherwise returncode code of shell command line args will be returned.
+        """
         return self._rc
 
+    @property
+    def status(self):
+        """Updated with return value of on_poll() for every polling.
+        Also updated with returnv alue of on_stdout() for every stdout (full line(s)).
+        """
+        return self._status
+
+    @property
+    def ret(self):
+        """Return value updated with return value of on_terminate()
+        None if thread is not done.
+        """
+        return self._ret
+
     def stop(self):
+        """Subprocess will be teminated after next polling.
+        """
         self._stop_it = True
 
     def _popen(
@@ -109,19 +144,17 @@ class NBSubprocThread(Thread):
                 try:
                     b = q.get_nowait()
                     stdout = b.decode()
-
                     self._stdout += stdout
                     if on_stdout:
-                        on_stdout(stdout)
+                        self._status = on_stdout(stdout)
                 except Empty:
                     pass
                 except KeyboardInterrupt:
                     raise
                 if on_poll:
-                    on_poll(cnt)
+                    self._status = on_poll(cnt)
                 if p.poll() is not None:
                     break
-
                 time.sleep(self._poll_interval)
                 cnt += 1
 
@@ -132,8 +165,11 @@ class NBSubprocThread(Thread):
 
         except CalledProcessError as e:
             self._rc = e.returncode
+        except Exception as e:
+            self._rc = -2
+            logging.error(e)
         finally:
             p.terminate()
 
         if on_terminate:
-            on_terminate()
+            self._ret = on_terminate()
