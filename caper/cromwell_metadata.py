@@ -90,7 +90,7 @@ class CromwellMetadata:
             metadata_file = None
             workflow_id = self._metadata['id'] if 'id' in self._metadata else None
             logger.warning(
-                'Failed to write metadata file. No root directory found. '
+                'Failed to write metadata file. workflowRoot not found. '
                 'wf_id={i}'.format(i=workflow_id)
             )
 

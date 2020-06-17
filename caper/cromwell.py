@@ -32,6 +32,7 @@ class Cromwell(object):
     DEFAULT_JAVA_HEAP_CROMWELL_RUN = '3G'
     DEFAULT_JAVA_HEAP_WOMTOOL = '1G'
     DEFAULT_SERVER_PORT = 8000
+    SERVER_STATUS_STARTED = 'server_started'
     LOCALHOST = 'localhost'
 
     def __init__(
@@ -166,7 +167,12 @@ class Cromwell(object):
         dry_run=False,
     ):
         """Run Cromwell run mode (java -jar cromwell.jar run).
-        This is a non-blocking function.
+        This is a non-blocking function which returns a NBSubprocThread object.
+        So this function itself doesn't return anything.
+        However, its NBSubprocThread object has a return value which is validated
+        after the thread is done (joined).
+        Such return value is metadata dict, which is a final output of Cromwell run.
+        You can simply get it by thread.ret after thread is done.
 
         Args:
             inputs:.
@@ -277,6 +283,9 @@ class Cromwell(object):
                 logger.info('Workflow failed. Auto-troubleshooting...')
                 cm.troubleshoot(fileobj=fileobj_troubleshoot)
 
+            # to make it a return value of the thread after it is done (joined)
+            return metadata_dict
+
         th = NBSubprocThread(
             cmd, cwd=work_dir, on_stdout=on_stdout, on_terminate=on_terminate
         )
@@ -299,7 +308,10 @@ class Cromwell(object):
         dry_run=False,
     ):
         """Run Cromwell server mode (java -jar cromwell.jar server).
-        This is a non-blocking function.
+        This is a non-blocking function that returns a Thread object of Cromwell server.
+        Howerver, this Thread object has a property status that indicates whether
+        the server is started and ready to take submissions.
+        Such condition is thread.status == True.
 
         Args:
             server_port:
@@ -397,6 +409,8 @@ class Cromwell(object):
         )
 
         def on_stdout(stdout):
+            """Returns True when server is ready to take submissions
+            """
             nonlocal fileobj_stdout
             nonlocal wm
             nonlocal server_heartbeat
@@ -409,6 +423,7 @@ class Cromwell(object):
             if wm.is_server_started():
                 if server_heartbeat and not server_heartbeat.is_alive():
                     server_heartbeat.start(port=server_port, hostname=server_hostname)
+                return True
 
         def on_terminate():
             nonlocal server_heartbeat

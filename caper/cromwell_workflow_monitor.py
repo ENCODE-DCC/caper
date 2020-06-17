@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class CromwellWorkflowMonitor:
     """Class constants include several regular expressions to catch
-    status changes of workflow/task by Cromwell's STDERR.
+    status changes of workflow/task by Cromwell's STDERR (logging level>=INFO).
     """
 
     RE_WORKFLOW_SUBMITTED = r'workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) submitted'
@@ -25,7 +25,7 @@ class CromwellWorkflowMonitor:
         r'\[UUID\((\b[0-9a-f]{8})\)(.+):(\d+):(\d+)\]: Status change from (.+) to (.+)'
     )
     MAX_RETRY_UPDATE_METADATA = 3
-    SEC_INTERVAL_RETRY_UPDATE_METADATA = 10.0
+    INTERVAL_RETRY_UPDATE_METADATA = 10.0
     DEFAULT_SERVER_HOSTNAME = 'localhost'
     DEFAULT_SERVER_PORT = 8000
 
@@ -90,7 +90,6 @@ class CromwellWorkflowMonitor:
         self._workflows = defaultdict(dict)
         self._tasks = defaultdict(lambda: defaultdict(dict))
         self._is_server_started = False
-        self._stderr_buffer = ''
 
     def is_server_started(self):
         return self._is_server_started
@@ -131,33 +130,17 @@ class CromwellWorkflowMonitor:
     def update(self, stderr):
         """Update workflows by parsing Cromwell's stderr.
 
-        This method will pass only full lines with a newline character \\n in stderr.
-        Therefore, any string without newline character is kept until next update
-        in a member variable _stderr_buffer and this will be used in the next update.
-
-        This is because methods self._update_*(stderr) can only parse a full line (regex).
-        For example, one sentence can be split into two consecutive stderrs.
-        This examples shows starting of two workflows.
-            1st stderr: 'Workflow started WORKFLOW_ID1\\nWorkflow star'
-            2nd stderr: 'ted WORLFLOW_ID2\\n'
-        'Workflow started WORKFLOW_ID1\\n' is processed in the first update() and 'Workflow star'
-        is kept in the buffer. In the next update where 'ted WORLFLOW_ID2\\n' is coming in stderr.
-        'Workflow star' in the buffer is prepended to the second stderr and buffer is cleaned.
-
         Args:
             stderr:
                 stderr from Cromwell.
+                Should be a full line (or lines) ending with blackslash n.
         """
-        split = (self._stderr_buffer + stderr).split('\n')
-        stderr = '\n'.join(split[0:-1])
-        self._stderr_buffer = split[-1]
-
         if self._is_server:
             self._update_server_start(stderr)
 
         updated_workflows = set()
-        updated_workflows.union(self._update_workflows(stderr))
-        updated_workflows.union(self._update_tasks(stderr))
+        updated_workflows |= self._update_workflows(stderr)
+        updated_workflows |= self._update_tasks(stderr)
 
         for w in updated_workflows:
             self._update_metadata(w)
@@ -288,11 +271,9 @@ class CromwellWorkflowMonitor:
         """
         if not self._is_server:
             return
-
-        metadata = None
         for trial in range(CromwellWorkflowMonitor.MAX_RETRY_UPDATE_METADATA + 1):
             try:
-                time.sleep(CromwellWorkflowMonitor.SEC_INTERVAL_RETRY_UPDATE_METADATA)
+                time.sleep(CromwellWorkflowMonitor.INTERVAL_RETRY_UPDATE_METADATA)
                 metadata = self._cromwell_rest_api.get_metadata(
                     workflow_ids=[workflow_id],
                     embed_subworkflow=self._embed_subworkflow,
