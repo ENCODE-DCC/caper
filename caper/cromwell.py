@@ -201,8 +201,8 @@ class Cromwell(object):
             java_heap_womtool=DEFAULT_JAVA_HEAP_WOMTOOL,
                 Java heap (java -Xmx) for Womtool validation.
             work_dir:
-                Working directory to run Cromwell.
-                If not defined, then temp directory (/tmp/...) will be used.
+                Temp directory to store Cromwell's output metadata JSON file.
+                Cromwell will run on CWD. Not on this work_dir.
             on_status_change:
                 Not implemnted yet.
                 Callback function called while polling.
@@ -286,9 +286,7 @@ class Cromwell(object):
             # to make it a return value of the thread after it is done (joined)
             return metadata_dict
 
-        th = NBSubprocThread(
-            cmd, cwd=work_dir, on_stdout=on_stdout, on_terminate=on_terminate
-        )
+        th = NBSubprocThread(cmd, on_stdout=on_stdout, on_terminate=on_terminate)
         th.start()
 
         return th
@@ -302,7 +300,6 @@ class Cromwell(object):
         fileobj_stdout=None,
         embed_subworkflow=False,
         java_heap_cromwell_server=DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
-        work_dir=None,
         on_server_start=None,
         on_status_change=None,
         dry_run=False,
@@ -341,9 +338,6 @@ class Cromwell(object):
                 This is to mimic behavior of Cromwell run mode's -m parameter.
             java_heap_cromwell_server:
                 Java heap (java -Xmx) for Cromwell server mode.
-            work_dir:
-                Working directory to run Cromwell.
-                If not defined, then temp directory (/tmp/...) will be used.
             on_server_start:
                 On server start.
             on_status_change:
@@ -368,9 +362,6 @@ class Cromwell(object):
                 Returns None if dry_run.
         """
         self.install_cromwell()
-
-        if work_dir is None:
-            work_dir = tempfile.mkdtemp(prefix='cromwell-server')
 
         # check if port is open
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -431,9 +422,7 @@ class Cromwell(object):
             if server_heartbeat:
                 server_heartbeat.stop()
 
-        th = NBSubprocThread(
-            cmd, cwd=work_dir, on_stdout=on_stdout, on_terminate=on_terminate
-        )
+        th = NBSubprocThread(cmd, on_stdout=on_stdout, on_terminate=on_terminate)
         th.start()
 
         return th

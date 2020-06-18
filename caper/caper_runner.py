@@ -291,6 +291,7 @@ class CaperRunner(CaperBase):
                 will NOT be stored here.
                 They will be localized on self._tmp_dir instead.
                 If this is not defined, then cache directory self._tmp_dir will be used.
+                However, Cromwell Java process itself will run on CWD instead of this directory.
             java_heap_run:
                 Java heap (java -Xmx) for Cromwell server mode.
             java_heap_womtool:
@@ -435,6 +436,7 @@ class CaperRunner(CaperBase):
                 For example, auto-generated backend config file and workflow options file.
                 If this is not defined, then cache directory self._tmp_dir with a timestamp
                 will be used.
+                However, Cromwell Java process itself will run on CWD instead of this directory.
             dry_run:
                 Stop before running Java command line for Cromwell.
         """
@@ -457,7 +459,6 @@ class CaperRunner(CaperBase):
             server_heartbeat=server_heartbeat,
             fileobj_stdout=fileobj_stdout,
             embed_subworkflow=embed_subworkflow,
-            work_dir=work_dir,
             dry_run=dry_run,
         )
         return th
