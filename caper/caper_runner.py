@@ -313,7 +313,6 @@ class CaperRunner(CaperBase):
             work_dir = self.create_timestamped_tmp_dir(prefix=u_wdl.basename_wo_ext)
 
         logger.info('Localizing files on work_dir. {d}'.format(d=work_dir))
-        wdl = u_wdl.localize_on(work_dir)
 
         if inputs:
             inputs = self.localize_on_backend(
@@ -323,8 +322,12 @@ class CaperRunner(CaperBase):
         wdl_parser = WDLParser(wdl)
         if imports:
             imports = AutoURI(imports).localize_on(work_dir)
-        else:
+        elif not AbsPath(wdl).exists:
+            # auto-zip sub WDLs only if main WDL is remote
             imports = wdl_parser.create_imports_file(work_dir)
+
+        # localize WDL to be passed to Cromwell Java
+        wdl = AutoURI(wdl).localize_on(work_dir)
 
         if metadata_output:
             if not AbsPath(metadata_output).is_valid:
