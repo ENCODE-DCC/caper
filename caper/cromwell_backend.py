@@ -348,7 +348,15 @@ class CromwellBackendLocal(CromwellBackendBase):
         'actor-factory': 'cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory',
         'config': {
             'script-epilogue': 'sleep 10 && sync',
-            'filesystems': {'local': {'caching': {'check-sibling-md5': True}}},
+            'filesystems': {
+                'local': {
+                    'localization': ['soft-link', 'hard-link', 'copy'],
+                    'caching': {
+                        'check-sibling-md5': True,
+                        'duplication-strategy': ['soft-link', 'hard-link', 'copy'],
+                    },
+                }
+            },
             'run-in-background': True,
             'runtime-attributes': dedent(
                 """\
@@ -390,7 +398,6 @@ class CromwellBackendLocal(CromwellBackendBase):
     LOCAL_HASH_STRAT_FILE = 'file'
     LOCAL_HASH_STRAT_PATH = 'path'
     LOCAL_HASH_STRAT_PATH_MTIME = 'path+modtime'
-    DUP_STRAT_FOR_PATH = ['soft-link']
     SOFT_GLOB_OUTPUT_CMD = 'ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null'
 
     DEFAULT_LOCAL_HASH_STRAT = LOCAL_HASH_STRAT_FILE
@@ -409,7 +416,8 @@ class CromwellBackendLocal(CromwellBackendBase):
         self.merge_backend(CromwellBackendLocal.TEMPLATE_BACKEND)
 
         config = self.backend_config
-        caching = config['filesystems']['local']['caching']
+        fs_local = config['filesystems']['local']
+        caching = fs_local['caching']
 
         if local_hash_strat not in (
             CromwellBackendLocal.LOCAL_HASH_STRAT_FILE,
@@ -420,12 +428,6 @@ class CromwellBackendLocal(CromwellBackendBase):
                 'Wrong local_hash_strat: {strat}'.format(strat=local_hash_strat)
             )
         caching['hashing-strategy'] = local_hash_strat
-
-        if local_hash_strat in (
-            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH,
-            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH_MTIME,
-        ):
-            caching['duplication-strategy'] = CromwellBackendLocal.DUP_STRAT_FOR_PATH
 
         if soft_glob_output:
             config['glob-link-command'] = CromwellBackendLocal.SOFT_GLOB_OUTPUT_CMD
