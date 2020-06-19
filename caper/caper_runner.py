@@ -319,12 +319,11 @@ class CaperRunner(CaperBase):
                 inputs, backend=backend, recursive=not no_deepcopy, make_md5_file=True
             )
 
-        wdl_parser = WDLParser(wdl)
         if imports:
             imports = AutoURI(imports).localize_on(work_dir)
         elif not AbsPath(wdl).exists:
             # auto-zip sub WDLs only if main WDL is remote
-            imports = wdl_parser.create_imports_file(work_dir)
+            imports = WDLParser(wdl).create_imports_file(work_dir)
 
         # localize WDL to be passed to Cromwell Java
         wdl = AutoURI(wdl).localize_on(work_dir)
