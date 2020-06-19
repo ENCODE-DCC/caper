@@ -68,6 +68,7 @@ def test_run(tmp_path, cromwell, womtool):
             metadata=str(tmp_path / 'metadata.json'),
             fileobj_stdout=fileobj_stdout,
             work_dir=work_dir,
+            cwd=str(tmp_path),
         )
     finally:
         th.join()
@@ -100,6 +101,7 @@ def test_run(tmp_path, cromwell, womtool):
             inputs=str(tmp_path / 'wo_sub_wdls' / 'inputs.json'),
             imports=imports,
             fileobj_stdout=fileobj_stdout,
+            cwd=str(tmp_path / 'wo_sub_wdls'),
         )
     finally:
         th.join()
@@ -117,8 +119,6 @@ def test_server(tmp_path, cromwell, womtool):
 
     o_dir = tmp_path / 'output'
     o_dir.mkdir()
-    work_dir = tmp_path / 'work_dir'
-    work_dir.mkdir()
 
     backend_conf = tmp_path / 'backend.conf'
     backend_conf.write_text(BACKEND_CONF_CONTENTS.format(root=o_dir))
@@ -147,10 +147,10 @@ def test_server(tmp_path, cromwell, womtool):
             server_port=server_port,
             backend_conf=str(backend_conf),
             embed_subworkflow=True,
-            work_dir=str(work_dir),
             fileobj_stdout=fileobj_stdout,
             on_server_start=on_server_start,
             on_status_change=on_status_change,
+            cwd=str(tmp_path),
         )
         assert th.status is None
 

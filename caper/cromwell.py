@@ -77,6 +77,7 @@ class Cromwell(object):
         wdl,
         inputs=None,
         imports=None,
+        cwd=None,
         java_heap_womtool=DEFAULT_JAVA_HEAP_WOMTOOL,
     ):
         """Validate WDL/inputs/imports using Womtool.
@@ -163,6 +164,7 @@ class Cromwell(object):
         java_heap_cromwell_run=DEFAULT_JAVA_HEAP_CROMWELL_RUN,
         java_heap_womtool=DEFAULT_JAVA_HEAP_WOMTOOL,
         work_dir=None,
+        cwd=None,
         on_status_change=None,
         dry_run=False,
     ):
@@ -202,7 +204,10 @@ class Cromwell(object):
                 Java heap (java -Xmx) for Womtool validation.
             work_dir:
                 Temp directory to store Cromwell's output metadata JSON file.
-                Cromwell will run on CWD. Not on this work_dir.
+                Cromwell will run on "cwd". Not on this work_dir.
+            cwd:
+                Current working directory to run Cromwell on.
+                This will be finally passed to subprocess.Popen(cwd=).
             on_status_change:
                 Not implemnted yet.
                 Callback function called while polling.
@@ -278,7 +283,7 @@ class Cromwell(object):
             cm = CromwellMetadata(metadata_dict)
             cm.write_on_workflow_root()
 
-            if cm.workflow_status != 'Succeeded':
+            if cm.workflow_status != 'Succeeded' and fileobj_troubleshoot:
                 # auto-troubleshoot on terminate if workflow is not successful
                 logger.info('Workflow failed. Auto-troubleshooting...')
                 cm.troubleshoot(fileobj=fileobj_troubleshoot)
@@ -286,7 +291,9 @@ class Cromwell(object):
             # to make it a return value of the thread after it is done (joined)
             return metadata_dict
 
-        th = NBSubprocThread(cmd, on_stdout=on_stdout, on_terminate=on_terminate)
+        th = NBSubprocThread(
+            cmd, cwd=cwd, on_stdout=on_stdout, on_terminate=on_terminate
+        )
         th.start()
 
         return th
@@ -302,6 +309,7 @@ class Cromwell(object):
         java_heap_cromwell_server=DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
         on_server_start=None,
         on_status_change=None,
+        cwd=None,
         dry_run=False,
     ):
         """Run Cromwell server mode (java -jar cromwell.jar server).
@@ -354,6 +362,8 @@ class Cromwell(object):
                         New status for a task, None if no change.
                     metadata:
                         metadata (dict) of a workflow.
+            cwd:
+                This will be finally passed to subprocess.Popen(cwd=).
             dry_run:
                 Dry run.
         Returns:
@@ -422,7 +432,9 @@ class Cromwell(object):
             if server_heartbeat:
                 server_heartbeat.stop()
 
-        th = NBSubprocThread(cmd, on_stdout=on_stdout, on_terminate=on_terminate)
+        th = NBSubprocThread(
+            cmd, cwd=cwd, on_stdout=on_stdout, on_terminate=on_terminate
+        )
         th.start()
 
         return th

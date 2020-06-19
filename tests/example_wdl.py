@@ -185,7 +185,7 @@ def make_directory_with_failing_wdls(directory, no_sub_wdl=False):
         Created root directory
     """
     main_inputs = os.path.join(directory, 'inputs.json')
-    AutoURI(main_inputs).write(MAIN_INPUTS)
+    AutoURI(main_inputs).write(json.dumps(MAIN_INPUTS, indent=4))
 
     main_wdl = os.path.join(directory, 'main.wdl')
     AutoURI(main_wdl).write(MAIN_WDL)
