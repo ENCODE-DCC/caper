@@ -1,7 +1,6 @@
 import logging
 import re
 import time
-from collections import defaultdict
 
 from .cromwell_metadata import CromwellMetadata
 from .cromwell_rest_api import CromwellRestAPI
@@ -35,6 +34,7 @@ class CromwellWorkflowMonitor:
         server_hostname=DEFAULT_SERVER_HOSTNAME,
         server_port=DEFAULT_SERVER_PORT,
         embed_subworkflow=False,
+        auto_update_metadata=False,
         on_status_change=None,
         on_server_start=None,
     ):
@@ -61,6 +61,11 @@ class CromwellWorkflowMonitor:
                 It tries to write/update metadata JSON file on workflow's root.
                 For this metadata JSON file, embed subworkflow's metadata JSON in it.
                 If this is turned off, then metadata JSON will just have subworkflow's ID.
+            auto_update_metadata:
+                This is server-only feature. For any change of workflow's status,
+                automatically updates metadata JSON file on workflow's root directory.
+                metadata JSON is retrieved by communicating with Cromwell server via
+                REST API.
             on_status_change:
                 Callback function called on any workflow/task status change.
                 This should take one parameter (workflow's metadata dict).
@@ -84,48 +89,15 @@ class CromwellWorkflowMonitor:
             self._cromwell_rest_api = None
 
         self._embed_subworkflow = embed_subworkflow
+        self._auto_update_metadata = auto_update_metadata
         self._on_status_change = on_status_change
         self._on_server_start = on_server_start
 
-        self._workflows = defaultdict(dict)
-        self._tasks = defaultdict(lambda: defaultdict(dict))
+        self._wf_statuses = dict()
         self._is_server_started = False
 
     def is_server_started(self):
         return self._is_server_started
-
-    def get_workflows(self):
-        """Returns a dict with workflow_id and status:
-        {
-            WORKFLOW_ID: {
-                'status': STATUS
-            }
-        }
-
-        STATUS:
-            - Submitted
-            - Running
-            - Failed
-            - Succeeded
-        """
-        return self._workflows
-
-    def get_tasks(self):
-        """Returns a dict with workflows_id and tasks with status:
-        {
-            WORKFLOW_ID: {
-                (TASK_NAME, SHARD_IDX): {
-                    'status': STATUS,
-                    'job_id': JOB_ID
-                }
-            }
-        }
-
-        STATUS:
-            - WaitingForReturnCode
-            - Done
-        """
-        return self._tasks
 
     def update(self, stderr):
         """Update workflows by parsing Cromwell's stderr.
@@ -169,7 +141,7 @@ class CromwellWorkflowMonitor:
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_SUBMITTED, line)
             if len(r) > 0:
                 wf_id = r[0].strip()
-                self._workflows[wf_id]['status'] = 'Submitted'
+                self._wf_statuses[wf_id] = 'Submitted'
                 updated_workflows.add(wf_id)
                 logger.info(
                     'Workflow status change: id={id}, status={status}'.format(
@@ -180,7 +152,7 @@ class CromwellWorkflowMonitor:
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_START, line)
             if len(r) > 0:
                 wf_id = r[0].strip()
-                self._workflows[wf_id]['status'] = 'Running'
+                self._wf_statuses[wf_id] = 'Running'
                 updated_workflows.add(wf_id)
                 logger.info(
                     'Workflow status change: id={id}, status={status}'.format(
@@ -191,7 +163,7 @@ class CromwellWorkflowMonitor:
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_FAILED, line)
             if len(r) > 0:
                 wf_id = r[0].strip()
-                self._workflows[wf_id]['status'] = 'Failed'
+                self._wf_statuses[wf_id] = 'Failed'
                 updated_workflows.add(wf_id)
                 logger.info(
                     'Workflow status change: id={id}, status={status}'.format(
@@ -202,7 +174,7 @@ class CromwellWorkflowMonitor:
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_ABORT_REQUESTED, line)
             if len(r) > 0:
                 wf_id = r[0].strip()
-                self._workflows[wf_id]['status'] = 'Aborting'
+                self._wf_statuses[wf_id] = 'Aborting'
                 updated_workflows.add(wf_id)
                 logger.info(
                     'Workflow status change: id={id}, status={status}'.format(
@@ -213,26 +185,26 @@ class CromwellWorkflowMonitor:
             r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_FINISH, line)
             if len(r) > 0:
                 wf_id = r[0].strip()
-                w = self._workflows[wf_id]
-                if 'status' in w:
-                    if w['status'] == 'Aborting':
-                        w['status'] = 'Aborted'
-                        updated_workflows.add(wf_id)
-                        logger.info(
-                            'Workflow status change: id={id}, status={status}'.format(
-                                id=wf_id, status='Aborted'
-                            )
+                status = self._wf_statuses[wf_id]
+                if status == 'Aborting':
+                    status = 'Aborted'
+                    updated_workflows.add(wf_id)
+                    logger.info(
+                        'Workflow status change: id={id}, status={status}'.format(
+                            id=wf_id, status=status
                         )
-                    elif w['status'] == 'Failed':
-                        pass
-                    else:
-                        w['status'] = 'Succeeded'
-                        updated_workflows.add(wf_id)
-                        logger.info(
-                            'Workflow status change: id={id}, status={status}'.format(
-                                id=wf_id, status='Succeeded'
-                            )
+                    )
+                elif status == 'Failed':
+                    pass
+                else:
+                    status = 'Succeeded'
+                    self._wf_statuses[wf_id] = status
+                    updated_workflows.add(wf_id)
+                    logger.info(
+                        'Workflow status change: id={id}, status={status}'.format(
+                            id=wf_id, status=status
                         )
+                    )
 
         return updated_workflows
 
@@ -245,23 +217,14 @@ class CromwellWorkflowMonitor:
         for line in stderr.split('\n'):
             r = re.findall(CromwellWorkflowMonitor.RE_TASK_START, line)
             if len(r) > 0:
-                short_id, task_name = r[0], r[1]
-                shard_idx = -1 if r[2] == 'NA' else int(r[1])
-                job_id = r[4]
+                short_id = r[0]
                 wf_id = self._find_workflow_id_by_short_id(short_id)
-                t = self._tasks[wf_id][(task_name, shard_idx)]
-                t['job_id'] = job_id
-                t['status'] = 'WaitingForReturnCode'
                 updated_workflows.add(wf_id)
 
             r = re.findall(CromwellWorkflowMonitor.RE_TASK_STATUS, line)
             if len(r) > 0:
-                short_id, task_name = r[0], r[1]
-                shard_idx = -1 if r[2] == 'NA' else int(r[1])
-                status = r[5]
+                short_id = r[0]
                 wf_id = self._find_workflow_id_by_short_id(short_id)
-                t = self._tasks[wf_id][(task_name, shard_idx)]
-                t['status'] = status
                 updated_workflows.add(wf_id)
 
         return updated_workflows
@@ -269,7 +232,7 @@ class CromwellWorkflowMonitor:
     def _update_metadata(self, workflow_id):
         """Update metadata on Cromwell'e exec root.
         """
-        if not self._is_server:
+        if not self._is_server or not self._auto_update_metadata:
             return
         for trial in range(CromwellWorkflowMonitor.MAX_RETRY_UPDATE_METADATA + 1):
             try:
@@ -291,6 +254,6 @@ class CromwellWorkflowMonitor:
             break
 
     def _find_workflow_id_by_short_id(self, short_id):
-        for w in self._workflows:
-            if w.startswith(short_id):
-                return w
+        for wf_id in self._wf_statuses:
+            if wf_id.startswith(short_id):
+                return wf_id

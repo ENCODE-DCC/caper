@@ -405,6 +405,7 @@ class Cromwell(object):
             server_port=server_port,
             is_server=True,
             embed_subworkflow=embed_subworkflow,
+            auto_update_metadata=True,
             on_server_start=on_server_start,
             on_status_change=on_status_change,
         )
