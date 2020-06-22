@@ -486,7 +486,7 @@ class CromwellBackendSLURM(CromwellBackendLocal):
                         -n 1 \\
                         --ntasks-per-node=1 \\
                         ${'--cpus-per-task=' + cpu} \\
-                        ${'--mem=' + memory_mb} \\
+                        ${true="--mem=" false="" defined(memory_mb)}${memory_mb} \\
                         ${'-p ' + slurm_partition} \\
                         ${'--account ' + slurm_account} \\
                         ${'--gres gpu:' + gpu}$ \\
@@ -586,8 +586,8 @@ class CromwellBackendSGE(CromwellBackendLocal):
                     -e ${err} \\
                     ${if cpu>1 then '-pe ' + sge_pe + ' ' else ''} \\
                     ${if cpu>1 then cpu else ''} \\
-                    ${'-l h_vmem=' + memory_mb/cpu + 'm'} \\
-                    ${'-l s_vmem=' + memory_mb/cpu + 'm'} \\
+                    ${true="-l h_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}${true=" / " false="" defined(memory_mb)}${if defined(memory_mb) then cpu else ""}${true=")m" false="" defined(memory_mb)} \\
+                    ${true="-l s_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}${true=" / " false="" defined(memory_mb)}${if defined(memory_mb) then cpu else ""}${true=")m" false="" defined(memory_mb)} \\
                     ${'-l h_rt=' + time + ':00:00'} \\
                     ${'-l s_rt=' + time + ':00:00'} \\
                     ${'-q ' + sge_queue} \\
@@ -665,7 +665,7 @@ class CromwellBackendPBS(CromwellBackendLocal):
                     -N ${job_name} \\
                     -o ${out} \\
                     -e ${err} \\
-                    ${'-lselect=1:ncpus=' + cpu}${':mem=' + memory_mb + 'mb'} \\
+                    ${true="-lselect=1:ncpus=" false="" defined(cpu)}${cpu}${true=":mem=" false="" defined(memory_mb)}${memory_mb}${true="mb" false="" defined(memory_mb)} \\
                     ${'-lwalltime=' + time + ':0:0'} \\
                     ${'-lngpus=' + gpu} \\
                     ${'-q ' + pbs_queue} \\
