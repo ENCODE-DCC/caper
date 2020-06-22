@@ -426,32 +426,38 @@ def subcmd_troubleshoot(caper_client, args):
     )
 
 
-def main():
+def main(args=None):
+    """
+    Args:
+        args:
+            List of command line arguments.
+            If defined use it instead of sys.argv.
+    """
     parser, _ = get_parser_and_defaults()
 
-    if len(sys.argv[1:]) == 0:
+    if args is None and len(sys.argv[1:]) == 0:
         parser.print_help()
         parser.exit()
 
-    known_args, _ = parser.parse_known_args()
+    known_args, _ = parser.parse_known_args(args)
     check_flags(known_args)
+    print_version(parser, known_args)
 
-    args = parser.parse_args()
+    parsed_args = parser.parse_args()
 
-    print_version(parser, args)
-    init_logging(args)
-    init_autouri(args)
-    check_dirs(args)
-    check_db_path(args)
-    check_backend(args)
+    init_logging(parsed_args)
+    init_autouri(parsed_args)
+    check_dirs(parsed_args)
+    check_db_path(parsed_args)
+    check_backend(parsed_args)
 
-    if args.action == 'init':
-        init_caper_conf(args.conf, args.platform)
+    if parsed_args.action == 'init':
+        init_caper_conf(parsed_args.conf, parsed_args.platform)
 
-    if args.action in ('run', 'server'):
-        runner(args)
+    if parsed_args.action in ('run', 'server'):
+        runner(parsed_args)
     else:
-        client(args)
+        client(parsed_args)
 
 
 if __name__ == '__main__':

@@ -47,6 +47,8 @@ def get_parser_and_defaults(conf_file=None):
     parser = argparse.ArgumentParser(
         description='Caper (Cromwell-assisted Pipeline ExecutioneR)'
     )
+    parser.add_argument('-v', '--version', action='store_true', help='Show version')
+
     subparser = parser.add_subparsers(dest='action')
 
     parent_init = argparse.ArgumentParser(add_help=False)
@@ -57,7 +59,6 @@ def get_parser_and_defaults(conf_file=None):
     parent_all.add_argument(
         '-c', '--conf', help='Specify config file', default=DEFAULT_CAPER_CONF
     )
-    parent_all.add_argument('-v', '--version', action='store_true', help='Show version')
     parent_all.add_argument(
         '-D', '--debug', action='store_true', help='Prints all logs >= DEBUG level'
     )
