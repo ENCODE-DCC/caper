@@ -400,7 +400,7 @@ class CromwellBackendLocal(CromwellBackendBase):
     LOCAL_HASH_STRAT_PATH_MTIME = 'path+modtime'
     SOFT_GLOB_OUTPUT_CMD = 'ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null'
 
-    DEFAULT_LOCAL_HASH_STRAT = LOCAL_HASH_STRAT_FILE
+    DEFAULT_LOCAL_HASH_STRAT = LOCAL_HASH_STRAT_PATH_MTIME
 
     def __init__(
         self,
