@@ -177,6 +177,7 @@ def runner(args, nonblocking_server=False):
         postgresql_db_password=args.postgresql_db_password,
         postgresql_db_name=args.postgresql_db_name,
         gcp_prj=args.gcp_prj,
+        use_google_cloud_life_sciences=args.use_google_cloud_life_sciences,
         gcp_zones=args.gcp_zones,
         gcp_call_caching_dup_strat=args.gcp_call_caching_dup_strat,
         out_gcs_bucket=args.out_gcs_bucket,
@@ -197,7 +198,7 @@ def runner(args, nonblocking_server=False):
         subcmd_run(c, args)
 
     elif args.action == 'server':
-        subcmd_server(c, args, nonblocking=nonblocking_server)
+        return subcmd_server(c, args, nonblocking=nonblocking_server)
 
     else:
         raise ValueError('Unsupported runner action {act}'.format(act=args.action))
@@ -279,7 +280,7 @@ def subcmd_server(caper_runner, args, nonblocking=False):
                 server_port=args.port,
                 server_heartbeat=sh,
                 custom_backend_conf=get_abspath(args.backend_file),
-                fileobj_stdout=sys.stdout if nonblocking else f,
+                fileobj_stdout=None if nonblocking else f,
                 embed_subworkflow=True,
                 java_heap_server=args.java_heap_server,
                 dry_run=args.dry_run,
@@ -465,12 +466,12 @@ def main(args=None, nonblocking_server=False):
     check_backend(parsed_args)
 
     if parsed_args.action == 'init':
-        return init_caper_conf(parsed_args.conf, parsed_args.platform)
+        init_caper_conf(parsed_args.conf, parsed_args.platform)
 
     if parsed_args.action in ('run', 'server'):
         return runner(parsed_args, nonblocking_server=nonblocking_server)
     else:
-        return client(parsed_args)
+        client(parsed_args)
 
 
 if __name__ == '__main__':

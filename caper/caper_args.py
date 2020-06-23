@@ -255,6 +255,16 @@ def get_parser_and_defaults(conf_file=None):
     group_gc = parent_runner.add_argument_group(title='GCP backend arguments')
     group_gc.add_argument('--gcp-prj', help='GC project')
     group_gc.add_argument(
+        '--use-google-cloud-life-sciences',
+        action='store_true',
+        help='Use Google Cloud Life Sciences API instead of '
+        'deprecated Genomics API.'
+        'Life Sciences API requires only one zone specified in'
+        'gcp-zones.'
+        'See https://cloud.google.com/life-sciences/docs/concepts/locations '
+        'for supported zones.',
+    )
+    group_gc.add_argument(
         '--gcp-zones',
         help='GCP zones which are comma-separated. (e.g. us-west1-b,us-central1-b)',
     )

@@ -53,6 +53,7 @@ class CaperBackendConf:
         gcp_prj=None,
         out_gcs_bucket=None,
         gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
+        use_google_cloud_life_sciences=False,
         aws_batch_arn=None,
         aws_region=None,
         out_s3_bucket=None,
@@ -122,6 +123,14 @@ class CaperBackendConf:
                 Output bucket path for gcp backend. Must start with gs://.
             gcp_call_caching_dup_strat:
                 Call-caching duplication strategy.
+            use_google_cloud_life_sciences:
+                Use Google Cloud Life Sciences API.
+                This requires only one zone specified in gcp_zones.
+                If not specified default zone will be used.
+                See Cromwell document:
+                    https://cromwell.readthedocs.io/en/stable/backends/Google/.
+                Also check supported zones:
+                    https://cloud.google.com/life-sciences/docs/concepts/locations
             aws_batch_arn:
                 ARN for AWS Batch.
             aws_region:
@@ -231,6 +240,7 @@ class CaperBackendConf:
                     gcp_prj=gcp_prj,
                     out_gcs_bucket=out_gcs_bucket,
                     call_caching_dup_strat=gcp_call_caching_dup_strat,
+                    use_google_cloud_life_sciences=use_google_cloud_life_sciences,
                     gcp_zones=gcp_zones,
                 ),
             )
@@ -278,34 +288,33 @@ class CaperBackendConf:
 
         if backend == BACKEND_SGE:
             if self._sge_pe is None:
-                raise Exception(
-                    '--sge-pe (Sun GridEngine parallel environment) '
+                raise ValueError(
+                    'sge-pe (Sun GridEngine parallel environment) '
                     'is required for backend sge.'
                 )
         elif backend == BACKEND_GCP:
             if self._gcp_prj is None:
-                raise Exception(
-                    '--gcp-prj (Google Cloud Platform project) '
+                raise ValueError(
+                    'gcp-prj (Google Cloud Platform project) '
                     'is required for backend gcp.'
                 )
             if self._out_gcs_bucket is None:
-                raise Exception(
-                    '--out-gcs-bucket (gs:// output bucket path) '
+                raise ValueError(
+                    'out-gcs-bucket (gs:// output bucket path) '
                     'is required for backend gcp.'
                 )
         elif backend == BACKEND_AWS:
             if self._aws_batch_arn is None:
-                raise Exception(
-                    '--aws-batch-arn (ARN for AWS Batch) '
-                    'is required for backend aws.'
+                raise ValueError(
+                    'aws-batch-arn (ARN for AWS Batch) ' 'is required for backend aws.'
                 )
             if self._aws_region is None:
-                raise Exception(
-                    '--aws-region (AWS region) ' 'is required for backend aws.'
+                raise ValueError(
+                    'aws-region (AWS region) ' 'is required for backend aws.'
                 )
             if self._out_s3_bucket is None:
-                raise Exception(
-                    '--out-s3-bucket (s3:// output bucket path) '
+                raise ValueError(
+                    'out-s3-bucket (s3:// output bucket path) '
                     'is required for backend aws.'
                 )
 

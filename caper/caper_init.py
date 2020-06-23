@@ -123,6 +123,16 @@ out-gcs-bucket=
 #   reference: refer to old output file in metadata.json file.
 #   copy: make a copy.
 gcp-call-caching-dup-strat=
+
+# Set is as true to use Google Cloud Life Sciences API
+# instead of Google Cloud Genomics API (deprecating).
+use-google-cloud-life-sciences=false
+
+# Life Sciences API requires (only) one zone specified in gcp-zones.
+# Check supported zones:
+#   https://cloud.google.com/life-sciences/docs/concepts/locations
+# If you keep using Genomics API then you can still specify multiple zones.
+gcp-zones=
 """
     + CONF_CONTENTS_TMP_DIR
 )

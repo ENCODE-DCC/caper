@@ -55,8 +55,9 @@ class CaperRunner(CaperBase):
         postgresql_db_name=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_NAME,
         file_db=None,
         gcp_prj=None,
-        gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         out_gcs_bucket=None,
+        gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
+        use_google_cloud_life_sciences=False,
         aws_batch_arn=None,
         aws_region=None,
         out_s3_bucket=None,
@@ -99,6 +100,7 @@ class CaperRunner(CaperBase):
             file_db:
             gcp_prj:
             gcp_call_caching_dup_strat:
+            use_google_cloud_life_sciences:
             out_gcs_bucket:
             aws_batch_arn:
             aws_region:
@@ -153,6 +155,7 @@ class CaperRunner(CaperBase):
             gcp_prj=gcp_prj,
             out_gcs_bucket=out_gcs_bucket,
             gcp_call_caching_dup_strat=gcp_call_caching_dup_strat,
+            use_google_cloud_life_sciences=use_google_cloud_life_sciences,
             aws_batch_arn=aws_batch_arn,
             aws_region=aws_region,
             out_s3_bucket=out_s3_bucket,

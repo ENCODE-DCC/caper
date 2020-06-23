@@ -264,9 +264,9 @@ class CromwellBackendGCP(CromwellBackendBase):
         gcp_prj,
         out_gcs_bucket,
         call_caching_dup_strat=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
+        use_google_cloud_life_sciences=False,
         gcp_zones=None,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
-        use_google_cloud_life_sciences=False,
     ):
         super().__init__(
             backend_name=BACKEND_GCP, max_concurrent_tasks=max_concurrent_tasks
@@ -288,7 +288,7 @@ class CromwellBackendGCP(CromwellBackendBase):
             if len(zones) > 1:
                 raise ValueError(
                     'Google Cloud Life Sciences API requires '
-                    'only one zone (region) in gcp_zones.'
+                    'only one zone (region) in gcp_zones. '
                     'See https://cloud.google.com/life-sciences/docs/concepts/locations '
                     'for supported zones. Default zone is {z}'.format(
                         z=CromwellBackendGCP.DEFAULT_ZONE_V2BETA

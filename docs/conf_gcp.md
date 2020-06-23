@@ -10,6 +10,7 @@
     * Google Cloud Storage (DO NOT click on "Create credentials")
     * Google Cloud Storage JSON API
     * Genomics API
+    * Google Cloud Life Sciences API
 
 7. Install [Google Cloud Platform SDK](https://cloud.google.com/sdk/downloads) and authenticate through it. You will be asked to enter verification keys. Get keys from the URLs they provide.
     ```bash
@@ -30,3 +31,12 @@
 # Setting up a Caper server instance
 
 You will find [this](./conf_encode_workshop_2019.md) useful to set up your own Caper server on Google Cloud Platform.
+
+# How to run Caper with a service account
+
+Create a secret key JSON file for your service account. Make sure that your service account has enough permission for provionsing VM instances and write permission on output/cache Google Cloud Storage bucket (`--out-gcs-bucket` and `--tmp-gcs-bucket`).
+
+Add your key JSON file path to environment variable GOOGLE_APPLICATION_CREDENTIALS.
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=YOUR_KEY_JSON_FILE_PATH
+```

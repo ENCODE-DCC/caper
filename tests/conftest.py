@@ -11,16 +11,8 @@ def pytest_addoption(parser):
         '--ci-prefix', default='default_ci_prefix', help='Prefix for CI test.'
     )
     parser.addoption(
-        '--s3-root',
-        default='s3://encode-test-autouri/tmp',
-        help='S3 root path for CI test. '
-        'This S3 bucket must be configured without versioning. '
-        'Make it publicly accessible. '
-        'Read access for everyone is enough for testing. ',
-    )
-    parser.addoption(
         '--gcs-root',
-        default='gs://encode-test-autouri/tmp',
+        default='gs://encode-test-caper/tmp',
         help='GCS root path for CI test. '
         'This GCS bucket must be publicly accessible '
         '(read access for everyone is enough for testing).',
@@ -40,13 +32,6 @@ def pytest_addoption(parser):
 @pytest.fixture(scope="session")
 def ci_prefix(request):
     return request.config.getoption("--ci-prefix").rstrip('/')
-
-
-@pytest.fixture(scope="session")
-def s3_root(request):
-    """S3 root to generate test S3 URIs on.
-    """
-    return request.config.getoption("--s3-root").rstrip('/')
 
 
 @pytest.fixture(scope="session")

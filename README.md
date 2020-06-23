@@ -1,20 +1,21 @@
-> **CRITICAL**: Caper has been updated to use [Autouri](https://github.com/ENCODE-DCC/autouri) instead of its own localization module. If you are upgrading from old Caper < 0.8. Upgrade Caper with the following commands. If it doesn't work remove Caper `pip uninstall caper` and clean-install it `pip install caper`.
-```bash
-$ pip install caper --upgrade
-```
+# Major changes for Caper 1.0.
+- Upgraded Cromwell from 47 to 51.
+- Google Cloud Platform backend (`gcp`):
+  - Added `--use-google-cloud-life-sciences` to use Google Cloud Life Sciences API (v2beta) instead of deprecating Google Cloud Genomics API (v2alpha1).
+    - You need to specify only one zone `--gcp-zones` to use Life Sciences API. Check [supported regions](https://cloud.google.com/life-sciences/docs/concepts/locations)
+    - Make sure to enable `Google Cloud Life Sciences API` on Google Cloud Platform console (APIs & Services -> `+` button on top).
 
-> **IMPORTANT**: If you use `--use-gsutil-for-s3` then you need to update your `gsutil`. This flag allows a direct transfer between `gs://` and `s3://`. This requires `gsutil` >= 4.47. See this [issue](https://github.com/GoogleCloudPlatform/gsutil/issues/935) for details.
+- Local backends (`local`, `slurm`, `sge`, `pbs`)
+  - Default hashing strategy: `file` (based on md5sum) to `path+modtime`.
+  - Default file duplication strategy: `hard-link` to `soft-link`.
+    - You still need to use `--soft-glob-output` for filesystems that do not allow hard linking (e.g. beeGFS).
+
+> **CRITICAL**: Due to change in Caper 1.0 (Cromwell `47` to `51`), metadata database (`--db`) generated before 1.0 will not work with >= 1.0.
+
+> **IMPORTANT**: `--use-gsutil-for-s3` requires `gsutil` installed on your system. This flag allows a direct transfer between `gs://` and `s3://`. This requires `gsutil` >= 4.47. See this [issue](https://github.com/GoogleCloudPlatform/gsutil/issues/935) for details. `gsutil` is based on Python 2.
 ```bash
 $ pip install gsutil --upgrade
 ```
-
-**IMPORATNT**: A new flag `--soft-glob-output` is added to use soft-linking for globbing outputs. Use it for `caper server/run` (not for `caper submit`) on a filesystem that does not allow hard-linking: e.g. beeGFS.
-
-**IMPORATNT**: Caper defaults back to **NOT** use a file-based metadata DB, which means no call-caching (re-using outputs from previous workflows) by default.
-
-**IMPORATNT**: Even if you still want to use a file-based DB (`--db file` and `--file-db [DB_PATH]`), metadata DB generated from Caper<0.6 (with Cromwell-42) is not compatible with metadata DB generated from Caper>=0.6 (with Cromwell-47). Refer to [this doc](https://github.com/broadinstitute/cromwell/releases/tag/43) for such migration.
-
-See [this](#metadata-database) for details about metadata DB. Define a DB type with `db=` in your conf `~/.caper/default.conf` to use a metadata DB.
 
 # Caper
 
