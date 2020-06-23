@@ -489,7 +489,7 @@ class CromwellBackendSLURM(CromwellBackendLocal):
                         ${true="--mem=" false="" defined(memory_mb)}${memory_mb} \\
                         ${'-p ' + slurm_partition} \\
                         ${'--account ' + slurm_account} \\
-                        ${'--gres gpu:' + gpu}$ \\
+                        ${'--gres gpu:' + gpu} \\
                         ${slurm_extra_param} \\
                         --wrap "${if !defined(singularity) then '/bin/bash ' + script
                                   else
