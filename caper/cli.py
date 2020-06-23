@@ -149,7 +149,7 @@ def check_backend(args):
         args.backend = BACKEND_LOCAL
 
 
-def runner(args):
+def runner(args, nonblocking_server=False):
     c = CaperRunner(
         tmp_dir=args.tmp_dir,
         out_dir=args.out_dir,
@@ -197,7 +197,7 @@ def runner(args):
         subcmd_run(c, args)
 
     elif args.action == 'server':
-        subcmd_server(c, args)
+        subcmd_server(c, args, nonblocking=nonblocking_server)
 
     else:
         raise ValueError('Unsupported runner action {act}'.format(act=args.action))
@@ -255,27 +255,37 @@ def client(args):
             raise ValueError('Unsupported client action {act}'.format(act=args.action))
 
 
-def subcmd_server(caper_runner, args):
-    cromwell_stdout = get_abspath(args.cromwell_stdout)
+def subcmd_server(caper_runner, args, nonblocking=False):
+    """
+    Args:
+        nonblocking:
+            Make this function returns a Thread object
+            instead of blocking.
+            Also writes Cromwell's STDOUT on sys.stdout
+            instead of a file (args.cromwell_stdout).
+    """
+    sh = None
+    if not args.no_server_heartbeat:
+        sh = ServerHeartbeat(
+            heartbeat_file=args.server_heartbeat_file,
+            heartbeat_timeout=args.server_heartbeat_timeout,
+        )
 
+    cromwell_stdout = get_abspath(args.cromwell_stdout)
     with open(cromwell_stdout, 'w') as f:
-        sh = None
-        if not args.no_server_heartbeat:
-            sh = ServerHeartbeat(
-                heartbeat_file=args.server_heartbeat_file,
-                heartbeat_timeout=args.server_heartbeat_timeout,
-            )
         try:
             th = caper_runner.server(
                 default_backend=args.backend,
                 server_port=args.port,
                 server_heartbeat=sh,
                 custom_backend_conf=get_abspath(args.backend_file),
-                fileobj_stdout=f,
+                fileobj_stdout=sys.stdout if nonblocking else f,
                 embed_subworkflow=True,
                 java_heap_server=args.java_heap_server,
                 dry_run=args.dry_run,
             )
+            if nonblocking:
+                return th
             th.join()
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING)
@@ -426,12 +436,15 @@ def subcmd_troubleshoot(caper_client, args):
     )
 
 
-def main(args=None):
+def main(args=None, nonblocking_server=False):
     """
     Args:
         args:
             List of command line arguments.
             If defined use it instead of sys.argv.
+        nonblocking_server:
+            "server" subcommand will return a Thread object
+            instead of waiting (Thread.join()).
     """
     parser, _ = get_parser_and_defaults()
 
@@ -443,7 +456,7 @@ def main(args=None):
     check_flags(known_args)
     print_version(parser, known_args)
 
-    parsed_args = parser.parse_args()
+    parsed_args = parser.parse_args(args)
 
     init_logging(parsed_args)
     init_autouri(parsed_args)
@@ -452,12 +465,12 @@ def main(args=None):
     check_backend(parsed_args)
 
     if parsed_args.action == 'init':
-        init_caper_conf(parsed_args.conf, parsed_args.platform)
+        return init_caper_conf(parsed_args.conf, parsed_args.platform)
 
     if parsed_args.action in ('run', 'server'):
-        runner(parsed_args)
+        return runner(parsed_args, nonblocking_server=nonblocking_server)
     else:
-        client(parsed_args)
+        return client(parsed_args)
 
 
 if __name__ == '__main__':
