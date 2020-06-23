@@ -231,7 +231,6 @@ class CromwellBackendGCP(CromwellBackendBase):
         }
     }
     TEMPLATE_BACKEND = {
-        'actor-factory': 'cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory',
         'config': {
             'default-runtime-attributes': {},
             'genomics-api-queries-per-100-seconds': 1000,
@@ -239,12 +238,20 @@ class CromwellBackendGCP(CromwellBackendBase):
             'genomics': {
                 'auth': 'application-default',
                 'compute-service-account': 'default',
-                'endpoint-url': 'https://genomics.googleapis.com/',
                 'restrict-metadata-access': False,
             },
             'filesystems': {'gcs': {'auth': 'application-default', 'caching': {}}},
-        },
+        }
     }
+    ACTOR_FACTORY_V2ALPHA = (
+        'cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory'
+    )
+    ACTOR_FACTORY_V2BETA = (
+        'cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory'
+    )
+    GENOMICS_ENDPOINT_V2ALPHA = 'https://genomics.googleapis.com/'
+    GENOMICS_ENDPOINT_V2BETA = 'https://lifesciences.googleapis.com/'
+    DEFAULT_ZONE_V2BETA = 'us-central1'
 
     REGEX_DELIMITER_GCP_ZONES = r',| '
     CALL_CACHING_DUP_STRAT_REFERENCE = 'reference'
@@ -259,6 +266,7 @@ class CromwellBackendGCP(CromwellBackendBase):
         call_caching_dup_strat=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         gcp_zones=None,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
+        use_google_cloud_life_sciences=False,
     ):
         super().__init__(
             backend_name=BACKEND_GCP, max_concurrent_tasks=max_concurrent_tasks
@@ -267,7 +275,42 @@ class CromwellBackendGCP(CromwellBackendBase):
         self.merge_backend(CromwellBackendGCP.TEMPLATE_BACKEND)
 
         config = self.backend_config
+        genomics = config['genomics']
+
+        if gcp_zones:
+            zones = re.split(CromwellBackendGCP.REGEX_DELIMITER_GCP_ZONES, gcp_zones)
+        else:
+            zones = []
+
+        if use_google_cloud_life_sciences:
+            self.backend['actor-factory'] = CromwellBackendGCP.ACTOR_FACTORY_V2BETA
+            genomics['endpoint-url'] = CromwellBackendGCP.GENOMICS_ENDPOINT_V2BETA
+            if len(zones) > 1:
+                raise ValueError(
+                    'Google Cloud Life Sciences API requires '
+                    'only one zone (region) in gcp_zones.'
+                    'See https://cloud.google.com/life-sciences/docs/concepts/locations '
+                    'for supported zones. Default zone is {z}'.format(
+                        z=CromwellBackendGCP.DEFAULT_ZONE_V2BETA
+                    )
+                )
+            elif len(zones) == 0:
+                logging.warning(
+                    'gcp_zones not specified. using default zone {z}'.format(
+                        z=CromwellBackendGCP.DEFAULT_ZONE_V2BETA
+                    )
+                )
+                genomics['location'] = CromwellBackendGCP.DEFAULT_ZONE_V2BETA
+            else:
+                genomics['location'] = zones[0]
+        else:
+            self.backend['actor-factory'] = CromwellBackendGCP.ACTOR_FACTORY_V2ALPHA
+            genomics['endpoint-url'] = CromwellBackendGCP.GENOMICS_ENDPOINT_V2ALPHA
+            if zones:
+                self.backend_config_dra['zones'] = ' '.join(zones)
+
         config['project'] = gcp_prj
+
         if not out_gcs_bucket.startswith('gs://'):
             raise ValueError(
                 'Wrong GCS bucket URI for out_gcs_bucket: {v}'.format(v=out_gcs_bucket)
@@ -283,13 +326,6 @@ class CromwellBackendGCP(CromwellBackendBase):
                 'Wrong call_caching_dup_strat: {v}'.format(v=call_caching_dup_strat)
             )
         caching['duplication-strategy'] = call_caching_dup_strat
-
-        dra = self.backend_config_dra
-        if gcp_zones:
-            zones = ' '.join(
-                re.split(CromwellBackendGCP.REGEX_DELIMITER_GCP_ZONES, gcp_zones)
-            )
-            dra['zones'] = zones
 
 
 class CromwellBackendAWS(CromwellBackendBase):
