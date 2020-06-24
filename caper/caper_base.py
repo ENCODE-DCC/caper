@@ -79,6 +79,9 @@ class CaperBase:
             make_md5_file:
                 Make .md5 file for localized files. This is for local only since
                 GCS/S3 bucket paths already include md5 hash information in their metadata.
+
+        Returns:
+            localized URI.
         """
         if backend == BACKEND_GCP:
             loc_prefix = self._tmp_gcs_bucket
@@ -90,6 +93,23 @@ class CaperBase:
         return AutoURI(f).localize_on(
             loc_prefix, recursive=recursive, make_md5_file=make_md5_file
         )
+
+    def localize_on_backend_if_modified(
+        self, f, backend, recursive=False, make_md5_file=False
+    ):
+        """Wrapper for localize_on_backend.
+
+        If localized file is not modified due to recursive localization,
+        then it means that localization for such file was redundant.
+        So returns the original file instead of a redundantly localized one.
+        """
+        f_loc = self.localize_on_backend(
+            f=f, backend=backend, recursive=recursive, make_md5_file=make_md5_file
+        )
+
+        if AutoURI(f).basename == AutoURI(f_loc).basename:
+            return f
+        return f_loc
 
     def create_timestamped_tmp_dir(self, prefix=''):
         """Creates/returns a local temporary directory on self._tmp_dir.

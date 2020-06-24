@@ -8,6 +8,9 @@ See test_cli_server_client.py for 'caper server/submit/...'.
 We will use gcp (Google Cloud Platform) backend to test server-client
 functions.
 """
+import json
+import os
+
 import pytest
 
 from caper.cli import main as cli_main
@@ -74,3 +77,46 @@ def test_run(tmp_path, cromwell, womtool):
     assert (tmp_path / 'file_db_prefix.lobs').exists()
     assert (tmp_path / 'metadata.json').exists()
     assert (tmp_path / 'cromwell_stdout.o').exists()
+
+
+def test_run_gcp_with_life_sciences_api(
+    tmp_path, gcs_root, ci_prefix, cromwell, womtool
+):
+    """Test run with Google Cloud Life Sciences API
+    """
+    out_gcs_bucket = os.path.join(gcs_root, 'caper_out', ci_prefix)
+    tmp_gcs_bucket = os.path.join(gcs_root, 'caper_tmp')
+
+    # prepare WDLs and input JSON, imports to be submitted
+    make_directory_with_wdls(str(tmp_path))
+    wdl = tmp_path / 'main.wdl'
+    inputs = tmp_path / 'inputs.json'
+    metadata = tmp_path / 'metadata.json'
+
+    cmd = ['run', str(wdl)]
+    cmd += ['--inputs', str(inputs)]
+    cmd += ['-m', str(metadata)]
+    cmd += ['--use-google-cloud-life-sciences']
+    cmd += ['--gcp-zones', 'us-central1']
+    cmd += ['--tmp-dir', str(tmp_path / 'tmp_dir')]
+    cmd += ['--backend', 'gcp']
+    cmd += ['--out-gcs-bucket', out_gcs_bucket]
+    cmd += ['--tmp-gcs-bucket', tmp_gcs_bucket]
+    cmd += ['--cromwell-stdout', str(tmp_path / 'cromwell_stdout.o')]
+    # test with file type DB
+    cmd += ['--db', 'file']
+    cmd += ['--db-timeout', '50000']
+    cmd += ['--file-db', str(tmp_path / 'file_db_prefix')]
+    cmd += ['--max-concurrent-tasks', '2']
+    cmd += ['--max-concurrent-workflows', '2']
+    cmd += ['--disable-call-caching']
+    cmd += ['--cromwell', cromwell]
+    cmd += ['--womtool', womtool]
+    cmd += ['--java-heap-run', '4G']
+    cmd += ['--docker', 'ubuntu:latest']
+    print(' '.join(cmd))
+
+    cli_main(cmd)
+    m_dict = json.loads(metadata.read_text())
+
+    assert m_dict['status'] == 'Succeeded'

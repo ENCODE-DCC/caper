@@ -10,14 +10,17 @@ from caper.wdl_parser import WDLParser
 
 from .example_wdl import make_directory_with_wdls
 
+TIMEOUT_SERVER_SPIN_UP = 120
+TIMEOUT_SERVER_RUN_WORKFLOW = 480
 
-def test_server_client(tmp_path, gcs_root, cromwell, womtool):
+
+def test_server_client(tmp_path, gcs_root, ci_prefix, cromwell, womtool):
     """Test server, client stuffs
     """
     # server command line
     server_port = 8015
 
-    out_gcs_bucket = os.path.join(gcs_root, 'caper_out')
+    out_gcs_bucket = os.path.join(gcs_root, 'caper_out', ci_prefix)
     tmp_gcs_bucket = os.path.join(gcs_root, 'caper_tmp')
 
     cmd = ['server']
@@ -38,6 +41,7 @@ def test_server_client(tmp_path, gcs_root, cromwell, womtool):
     cmd += ['--cromwell', cromwell]
     cmd += ['--java-heap-server', '4G']
     cmd += ['--port', str(server_port)]
+    print(' '.join(cmd))
 
     try:
         th = cli_main(cmd, nonblocking_server=True)
@@ -46,7 +50,7 @@ def test_server_client(tmp_path, gcs_root, cromwell, womtool):
         t_start = time.time()
         while th.status is None:
             time.sleep(1)
-            if time.time() - t_start > 60:
+            if time.time() - t_start > TIMEOUT_SERVER_SPIN_UP:
                 raise TimeoutError('Timed out waiting for Cromwell server spin-up.')
 
         # prepare WDLs and input JSON, imports to be submitted
@@ -57,7 +61,7 @@ def test_server_client(tmp_path, gcs_root, cromwell, womtool):
         imports = p.zip_subworkflows(str(tmp_path / 'imports.zip'))
 
         # test "submit" with on_hold
-        cmd += ['submit', str(wdl)]
+        cmd = ['submit', str(wdl)]
         cmd += ['--inputs', str(inputs)]
         cmd += ['--imports', str(imports)]
         cmd += ['--ignore-womtool']
@@ -65,7 +69,7 @@ def test_server_client(tmp_path, gcs_root, cromwell, womtool):
         cmd += ['--max-retries', '1']
         cmd += ['--docker', 'ubuntu:latest']
         cmd += ['--backend', 'gcp']
-        cmd += ['--on-hold']
+        cmd += ['--hold']
         cli_main(cmd)
 
         time.sleep(5)
@@ -78,7 +82,7 @@ def test_server_client(tmp_path, gcs_root, cromwell, womtool):
         assert m['status'] == 'On Hold'
 
         # unhold it
-        cmd += ['unhold', workflow_id]
+        cmd = ['unhold', workflow_id]
         cli_main(cmd)
 
         time.sleep(5)
@@ -89,11 +93,11 @@ def test_server_client(tmp_path, gcs_root, cromwell, womtool):
         t_start = time.time()
         while True:
             time.sleep(5)
-            print('polling: ', workflow_id)
             m = cra.get_metadata([workflow_id])[0]
+            print('polling: ', workflow_id, m['status'])
             if m['status'] in ('Done', 'Failed', 'Succeeded'):
                 break
-            if time.time() - t_start > 120:
+            if time.time() - t_start > TIMEOUT_SERVER_RUN_WORKFLOW:
                 raise TimeoutError('Timed out waiting for workflow being done.')
 
     finally:

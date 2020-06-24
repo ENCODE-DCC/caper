@@ -1,16 +1,26 @@
 # Major changes for Caper 1.0.
-- Upgraded Cromwell from 47 to 51.
-- Google Cloud Platform backend (`gcp`):
-  - Added `--use-google-cloud-life-sciences` to use Google Cloud Life Sciences API (v2beta) instead of deprecating Google Cloud Genomics API (v2alpha1).
-    - You need to specify only one zone `--gcp-zones` to use Life Sciences API. Check [supported regions](https://cloud.google.com/life-sciences/docs/concepts/locations)
-    - Make sure to enable `Google Cloud Life Sciences API` on Google Cloud Platform console (APIs & Services -> `+` button on top).
 
-- Local backends (`local`, `slurm`, `sge`, `pbs`)
+> **CRITICAL**: Due to change in Caper 1.0 (Cromwell `47` to `51`), metadata database (`--db`) generated before 1.0 will not work with >= 1.0. See details below.
+
+Upgraded Cromwell from 47 to 51.
+  - Metadata DB generated with Caper<1.0 will not work with Caper>=1.0.
+    - See [this note](https://github.com/broadinstitute/cromwell/releases/tag/49) to find DB migration instruction.
+
+Changed hashing strategy for all local backends (`local`, `slurm`, `sge`, `pbs`).
   - Default hashing strategy: `file` (based on md5sum) to `path+modtime`.
-  - Default file duplication strategy: `hard-link` to `soft-link`.
-    - You still need to use `--soft-glob-output` for filesystems that do not allow hard linking (e.g. beeGFS).
 
-> **CRITICAL**: Due to change in Caper 1.0 (Cromwell `47` to `51`), metadata database (`--db`) generated before 1.0 will not work with >= 1.0.
+Changed duplication strategy for all local backends (`local`, `slurm`, `sge`, `pbs`).
+  - Default file duplication strategy: `hard-link` to `soft-link`.
+    - For filesystems (e.g. beeGFS) that do not allow hard-linking.
+      - Caper<1.0 still hard-linked input files even with `--soft-glob-output`.
+      - For Caper>=1.0, you still need to use `--soft-glob-output` for such filesystems.
+
+Google Cloud Platform backend (`gcp`):
+  - Added `--use-google-cloud-life-sciences` to use Google Cloud Life Sciences API (v2beta) instead of deprecating Google Cloud Genomics API (v2alpha1). To use `--use-google-cloud-life-sciences`,
+    - For `caper server/run`, you need to specify only one zone `--gcp-zones` to use Life Sciences API. Check [supported regions](https://cloud.google.com/life-sciences/docs/concepts/locations).
+    - For `caper submit`, `--gcp-zones` will be just ignored. Make sure that `caper server` is started with correct (single/supported) `--gcp-zones`.
+    - Make sure to enable `Google Cloud Life Sciences API` on Google Cloud Platform console (APIs & Services -> `+` button on top).
+    - We will deprecate old `Genomics API` support. `Life Sciences API` will become default after next 2-3 releases.
 
 > **IMPORTANT**: `--use-gsutil-for-s3` requires `gsutil` installed on your system. This flag allows a direct transfer between `gs://` and `s3://`. This requires `gsutil` >= 4.47. See this [issue](https://github.com/GoogleCloudPlatform/gsutil/issues/935) for details. `gsutil` is based on Python 2.
 ```bash

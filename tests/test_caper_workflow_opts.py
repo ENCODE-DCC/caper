@@ -22,6 +22,7 @@ def test_create_file(tmp_path):
     pbs_extra_param = 'my_extra_param'
 
     co = CaperWorkflowOpts(
+        use_google_cloud_life_sciences=False,
         gcp_zones=gcp_zones,
         slurm_partition=slurm_partition,
         slurm_account=slurm_account,
@@ -85,6 +86,26 @@ def test_create_file(tmp_path):
     assert dra['maxRetries'] == max_retries
     assert os.path.basename(f) == basename
     assert os.path.dirname(f) == str(tmp_path)
+
+
+def test_create_file_with_google_cloud_life_sciences(tmp_path):
+    """Test with use_google_cloud_life_sciences flag.
+    zones should not be written to dra.
+    """
+    gcp_zones = 'us-west-1,us-west-2'
+
+    co = CaperWorkflowOpts(use_google_cloud_life_sciences=True, gcp_zones=gcp_zones)
+
+    wdl = tmp_path / 'test.wdl'
+    wdl.write_text('')
+
+    f = co.create_file(directory=str(tmp_path), wdl=str(wdl))
+
+    with open(f) as fp:
+        d = json.loads(fp.read())
+
+    dra = d[CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES]
+    assert 'zones' not in dra
 
 
 def test_create_file_docker(tmp_path):

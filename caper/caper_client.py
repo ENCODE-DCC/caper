@@ -302,7 +302,7 @@ class CaperClientSubmit(CaperClient):
             backend = self._cromwell_rest_api.get_default_backend()
 
         if inputs:
-            maybe_remote_file = self.localize_on_backend(
+            maybe_remote_file = self.localize_on_backend_if_modified(
                 inputs, backend=backend, recursive=not no_deepcopy, make_md5_file=True
             )
             inputs = AutoURI(maybe_remote_file).localize_on(tmp_dir)

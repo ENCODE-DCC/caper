@@ -21,6 +21,7 @@ class CaperWorkflowOpts:
 
     def __init__(
         self,
+        use_google_cloud_life_sciences=False,
         gcp_zones=None,
         slurm_partition=None,
         slurm_account=None,
@@ -35,6 +36,11 @@ class CaperWorkflowOpts:
         All parameters are optional.
 
         Args:
+            use_google_cloud_life_sciences:
+                Use Google Cloud Life Sciences API instead of Genomics API
+                which has beed deprecated.
+                If this flag is on gcp_zones is ignored since such single zone
+                should be defined in backend.conf (not in workflow.opts.json).
             gcp_zones:
                 For gcp backend only.
                 List of GCP zones to run workflows on.
@@ -76,7 +82,8 @@ class CaperWorkflowOpts:
             zones = ' '.join(
                 re.split(CromwellBackendGCP.REGEX_DELIMITER_GCP_ZONES, gcp_zones)
             )
-            dra['zones'] = zones
+            if not use_google_cloud_life_sciences:
+                dra['zones'] = zones
 
         if slurm_partition:
             dra['slurm_partition'] = slurm_partition

@@ -260,8 +260,8 @@ def subcmd_server(caper_runner, args, nonblocking=False):
     """
     Args:
         nonblocking:
-            Make this function returns a Thread object
-            instead of blocking.
+            Make this function return a Thread object
+            instead of blocking (Thread.join()).
             Also writes Cromwell's STDOUT on sys.stdout
             instead of a file (args.cromwell_stdout).
     """
@@ -287,10 +287,12 @@ def subcmd_server(caper_runner, args, nonblocking=False):
             )
             if nonblocking:
                 return th
-            th.join()
+            if th:
+                th.join()
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING)
-            th.stop()
+            if th:
+                th.stop()
 
 
 def subcmd_run(caper_runner, args):
@@ -321,10 +323,12 @@ def subcmd_run(caper_runner, args):
                 java_heap_womtool=args.java_heap_womtool,
                 dry_run=args.dry_run,
             )
-            th.join()
+            if th:
+                th.join()
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING)
-            th.stop()
+            if th:
+                th.stop()
 
 
 def subcmd_submit(caper_client, args):

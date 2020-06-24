@@ -125,7 +125,7 @@ class Cromwell(object):
                 wdl_,
             ]
             if inputs:
-                cmd += ['-i', inputs]
+                cmd += ['-i', AutoURI(inputs).localize_on(tmp_d)]
 
             logger.info('Validating WDL/inputs/imports with Womtool...')
 

@@ -101,6 +101,9 @@ class CaperRunner(CaperBase):
             gcp_prj:
             gcp_call_caching_dup_strat:
             use_google_cloud_life_sciences:
+                Use Google Cloud Life Sciences API instead of Genomics API
+                which has beed deprecated.
+                gcp_zones must be defined and only one zone is allowed.
             out_gcs_bucket:
             aws_batch_arn:
             aws_region:
@@ -171,6 +174,7 @@ class CaperRunner(CaperBase):
         )
 
         self._caper_workflow_opts = CaperWorkflowOpts(
+            use_google_cloud_life_sciences=use_google_cloud_life_sciences,
             gcp_zones=gcp_zones,
             slurm_partition=slurm_partition,
             slurm_account=slurm_account,
@@ -318,9 +322,10 @@ class CaperRunner(CaperBase):
         logger.info('Localizing files on work_dir. {d}'.format(d=work_dir))
 
         if inputs:
-            inputs = self.localize_on_backend(
+            maybe_remote_file = self.localize_on_backend_if_modified(
                 inputs, backend=backend, recursive=not no_deepcopy, make_md5_file=True
             )
+            inputs = AutoURI(maybe_remote_file).localize_on(work_dir)
 
         if imports:
             imports = AutoURI(imports).localize_on(work_dir)

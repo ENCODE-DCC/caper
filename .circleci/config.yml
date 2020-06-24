@@ -1,0 +1,91 @@
+---
+version: 2.1
+
+defaults:
+  machine:
+    image: circleci/classic:latest
+  working_directory: ~/caper
+
+
+machine_defaults: &machine_defaults
+  machine:
+    image: ubuntu-1604:201903-01
+  working_directory: ~/caper
+
+
+update_apt: &update_apt
+  name: Update apt
+  command: |
+    sudo apt-get update
+
+
+install_python3: &install_python3_java
+  name: Install python3, pip3, java
+  command: |
+    sudo apt-get install software-properties-common git wget curl default-jre -y
+    sudo add-apt-repository ppa:deadsnakes/ppa -y
+    sudo apt-get update && sudo apt-get install python3.6 -y
+    sudo wget https://bootstrap.pypa.io/get-pip.py
+    sudo python3.6 get-pip.py
+    sudo ln -s /usr/bin/python3.6 /usr/local/bin/python3
+
+
+install_py3_packages: &install_py3_packages
+  name: Install Python packages
+  command: |
+    sudo pip3 install pytest requests dateparser filelock
+    sudo pip3 install --upgrade pyasn1-modules
+
+
+install_gcs_lib: &install_gcs_lib
+  name: Install Google Cloud SDK (gcloud and gsutil) and Python API (google-cloud-storage)
+  command: |
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+    sudo apt-get update && sudo apt-get install google-cloud-sdk -y
+    sudo pip3 install google-cloud-storage
+
+
+install_aws_lib: &install_aws_lib
+  name: Install AWS Python API (boto3) and CLI (awscli)
+  command: |
+    sudo pip3 install boto3 awscli
+
+
+jobs:
+  pytest:
+    <<: *machine_defaults
+    steps:
+      - checkout
+      - run: *update_apt
+      - run: *install_python3_java
+      - run: *install_py3_packages
+      - run: *install_gcs_lib
+      - run: *install_aws_lib
+      - run:
+          no_output_timeout: 60m
+          command: |
+            cd tests/
+
+            # auth for gcloud and gsutil
+            echo ${GCLOUD_SERVICE_ACCOUNT_SECRET_JSON} > tmp_key.json
+            gcloud auth activate-service-account --project=${GOOGLE_PROJECT_ID} --key-file=tmp_key.json
+            gcloud config set project ${GOOGLE_PROJECT_ID}
+            export GOOGLE_APPLICATION_CREDENTIALS="${PWD}/tmp_key.json"
+
+            # run pytest
+            pytest --ci-prefix ${CIRCLE_WORKFLOW_ID} \
+                   --gcs-root ${GCS_ROOT}
+
+            # use gsutil to clean up
+            export BOTO_CONFIG=/dev/null
+            rm -f tmp_key.json
+            gsutil -m rm -rf ${GCS_ROOT}/${CIRCLE_WORKFLOW_ID}
+
+
+# Define workflow here
+workflows:
+  version: 2.1
+  build_workflow:
+    jobs:
+      - pytest
