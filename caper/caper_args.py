@@ -675,10 +675,13 @@ def get_parser_and_defaults(conf_file=None):
         p_troubleshoot,
         p_debug,
     ]
-    conf_dict = update_parsers_defaults_with_conf(
-        parsers=subparsers,
-        conf_file=conf_file,
-        conf_key_map=CAPER_1_0_0_PARAM_KEY_NAME_CHANGE,
-    )
+    if os.path.exists(conf_file):
+        conf_dict = update_parsers_defaults_with_conf(
+            parsers=subparsers,
+            conf_file=conf_file,
+            conf_key_map=CAPER_1_0_0_PARAM_KEY_NAME_CHANGE,
+        )
+    else:
+        conf_dict = None
 
     return parser, conf_dict
