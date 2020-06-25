@@ -18,6 +18,7 @@ CONF_CONTENTS = dedent(
     flag-w-default2='False'
     flag-wo-default='FALSE'
     flag-wo-default2="True"
+    to_be-replaced=1
 """
 )
 
@@ -80,7 +81,9 @@ def test_read_from_conf(tmp_path):
     c = tmp_path / 'c1.conf'
     c.write_text(CONF_CONTENTS)
 
-    d1 = read_from_conf(c, no_strip_quote=False)
+    d1 = read_from_conf(
+        c, no_strip_quote=False, conf_key_map={'to_be_replaced': 'replaced_key'}
+    )
     assert d1['param_wo_default'] == 'please_remove_double_quote'
     assert d1['param_w_type_wo_default'] == '4.0'
     assert d1['param_w_type_wo_default2'] == '5.0'
@@ -91,6 +94,8 @@ def test_read_from_conf(tmp_path):
     assert d1['flag_w_default2'] == 'False'
     assert d1['flag_wo_default'] == 'FALSE'
     assert d1['flag_wo_default2'] == 'True'
+    assert d1['replaced_key'] == '1'
+    assert 'to_be-replaced' not in d1
 
     d2 = read_from_conf(c, no_strip_quote=True)
     assert d2['param_wo_default'] == '"please_remove_double_quote"'

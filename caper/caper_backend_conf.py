@@ -31,7 +31,7 @@ class CaperBackendConf:
     def __init__(
         self,
         default_backend,
-        out_dir,
+        local_out_dir,
         disable_call_caching=False,
         max_concurrent_workflows=CromwellBackendCommon.DEFAULT_MAX_CONCURRENT_WORKFLOWS,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
@@ -74,7 +74,7 @@ class CaperBackendConf:
         Args:
             default_backend:
                 Default backend.
-            out_dir:
+            local_out_dir:
                 Output directory for all local backends.
                 Define this even if you don't want to run on local backends
                 since "Local" is a Cromwell's default backend and it needs this.
@@ -197,7 +197,7 @@ class CaperBackendConf:
         merge_dict(
             self._template,
             CromwellBackendLocal(
-                out_dir=out_dir,
+                local_out_dir=local_out_dir,
                 max_concurrent_tasks=max_concurrent_tasks,
                 soft_glob_output=soft_glob_output,
                 local_hash_strat=local_hash_strat,
@@ -207,7 +207,7 @@ class CaperBackendConf:
         merge_dict(
             self._template,
             CromwellBackendSLURM(
-                out_dir=out_dir,
+                local_out_dir=local_out_dir,
                 max_concurrent_tasks=max_concurrent_tasks,
                 soft_glob_output=soft_glob_output,
                 local_hash_strat=local_hash_strat,
@@ -220,7 +220,7 @@ class CaperBackendConf:
         merge_dict(
             self._template,
             CromwellBackendSGE(
-                out_dir=out_dir,
+                local_out_dir=local_out_dir,
                 max_concurrent_tasks=max_concurrent_tasks,
                 soft_glob_output=soft_glob_output,
                 local_hash_strat=local_hash_strat,
@@ -233,7 +233,7 @@ class CaperBackendConf:
         merge_dict(
             self._template,
             CromwellBackendPBS(
-                out_dir=out_dir,
+                local_out_dir=local_out_dir,
                 max_concurrent_tasks=max_concurrent_tasks,
                 soft_glob_output=soft_glob_output,
                 local_hash_strat=local_hash_strat,

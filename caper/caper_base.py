@@ -133,3 +133,11 @@ class CaperBase:
         )
 
         return work_dir
+
+    def get_work_dir_for_backend(self, backend):
+        if backend == BACKEND_GCP:
+            return self._gcp_work_dir
+        elif backend == BACKEND_AWS:
+            return self._aws_work_dir
+        else:
+            return self._local_work_dir

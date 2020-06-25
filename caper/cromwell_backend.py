@@ -452,7 +452,7 @@ class CromwellBackendLocal(CromwellBackendBase):
 
     def __init__(
         self,
-        out_dir,
+        local_out_dir,
         backend_name=BACKEND_LOCAL,
         soft_glob_output=False,
         local_hash_strat=DEFAULT_LOCAL_HASH_STRAT,
@@ -480,9 +480,9 @@ class CromwellBackendLocal(CromwellBackendBase):
         if soft_glob_output:
             config['glob-link-command'] = CromwellBackendLocal.SOFT_GLOB_OUTPUT_CMD
 
-        if out_dir is None:
-            raise ValueError('out_dir must be provided.')
-        config['root'] = out_dir
+        if local_out_dir is None:
+            raise ValueError('local_out_dir must be provided.')
+        config['root'] = local_out_dir
 
 
 class CromwellBackendSLURM(CromwellBackendLocal):
@@ -566,7 +566,7 @@ class CromwellBackendSLURM(CromwellBackendLocal):
 
     def __init__(
         self,
-        out_dir,
+        local_out_dir,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
         soft_glob_output=False,
         local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
@@ -575,7 +575,7 @@ class CromwellBackendSLURM(CromwellBackendLocal):
         slurm_extra_param=None,
     ):
         super().__init__(
-            out_dir=out_dir,
+            local_out_dir=local_out_dir,
             backend_name=BACKEND_SLURM,
             max_concurrent_tasks=max_concurrent_tasks,
             soft_glob_output=soft_glob_output,
@@ -652,7 +652,7 @@ class CromwellBackendSGE(CromwellBackendLocal):
 
     def __init__(
         self,
-        out_dir,
+        local_out_dir,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
         soft_glob_output=False,
         local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
@@ -661,7 +661,7 @@ class CromwellBackendSGE(CromwellBackendLocal):
         sge_extra_param=None,
     ):
         super().__init__(
-            out_dir=out_dir,
+            local_out_dir=local_out_dir,
             backend_name=BACKEND_SGE,
             max_concurrent_tasks=max_concurrent_tasks,
             soft_glob_output=soft_glob_output,
@@ -730,7 +730,7 @@ class CromwellBackendPBS(CromwellBackendLocal):
 
     def __init__(
         self,
-        out_dir,
+        local_out_dir,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
         soft_glob_output=False,
         local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
@@ -738,7 +738,7 @@ class CromwellBackendPBS(CromwellBackendLocal):
         pbs_extra_param=None,
     ):
         super().__init__(
-            out_dir=out_dir,
+            local_out_dir=local_out_dir,
             backend_name=BACKEND_PBS,
             max_concurrent_tasks=max_concurrent_tasks,
             soft_glob_output=soft_glob_output,

@@ -305,6 +305,13 @@ class CaperClientSubmit(CaperClient):
             backend = self._cromwell_rest_api.get_default_backend()
 
         if inputs:
+            # if inputs, inputs can be localization on corresponding
+            # backend's work_dir. check if such work_dir is defined.
+            if self.get_work_dir_for_backend(backend) is None:
+                raise ValueError(
+                    'work_dir is not defined for your backend. {b}'.format(b=backend)
+                )
+
             maybe_remote_file = self.localize_on_backend_if_modified(
                 inputs, backend=backend, recursive=not no_deepcopy, make_md5_file=True
             )

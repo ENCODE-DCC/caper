@@ -68,6 +68,7 @@ def test_server_client(tmp_path, gcs_root, ci_prefix, cromwell, womtool, gcp_prj
         cmd += ['--inputs', str(inputs)]
         cmd += ['--imports', str(imports)]
         cmd += ['--gcp-zones', 'us-central1']
+        cmd += ['--gcp-work-dir', tmp_gcs_bucket]
         cmd += ['--ignore-womtool']
         cmd += ['--java-heap-womtool', '2G']
         cmd += ['--max-retries', '1']

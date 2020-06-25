@@ -104,14 +104,14 @@ def check_flags(args):
 
 
 def check_dirs(args):
-    """Convert local directories (out_dir, local_work_dir) to absolute ones.
-    Also, if temporar/cache directory is not defined for each storage,
+    """Convert local directories (local_out_dir, local_work_dir) to absolute ones.
+    Also, if temporary/cache directory is not defined for each storage,
     then append ".caper_tmp" on output directory and use it.
     """
-    if hasattr(args, 'out_dir'):
-        args.out_dir = get_abspath(args.out_dir)
+    if hasattr(args, 'local_out_dir'):
+        args.local_out_dir = get_abspath(args.local_out_dir)
         if not args.local_work_dir:
-            args.local_work_dir = os.path.join(args.out_dir, DEFAULT_TMP_DIR_NAME)
+            args.local_work_dir = os.path.join(args.local_out_dir, DEFAULT_TMP_DIR_NAME)
     else:
         if not args.local_work_dir:
             args.local_work_dir = os.path.join(os.getcwd(), DEFAULT_TMP_DIR_NAME)
@@ -136,7 +136,7 @@ def check_db_path(args):
             if hasattr(args, 'inputs') and args.inputs:
                 prefix += '_' + os.path.splitext(os.path.basename(args.inputs))[0]
 
-            args.file_db = os.path.join(args.out_dir, prefix)
+            args.file_db = os.path.join(args.local_out_dir, prefix)
 
 
 def check_backend(args):
@@ -159,7 +159,7 @@ def runner(args, nonblocking_server=False):
 
     c = CaperRunner(
         local_work_dir=args.local_work_dir,
-        out_dir=args.out_dir,
+        local_out_dir=args.local_out_dir,
         default_backend=args.backend,
         gcp_work_dir=args.gcp_work_dir,
         aws_work_dir=args.aws_work_dir,

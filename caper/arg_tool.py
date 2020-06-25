@@ -113,7 +113,12 @@ def update_parsers_defaults_with_conf(
     if isinstance(parsers, ArgumentParser):
         parsers = [parsers]
 
-    defaults = read_from_conf(conf_file, conf_section, no_strip_quote)
+    defaults = read_from_conf(
+        conf_file=conf_file,
+        conf_section=conf_section,
+        conf_key_map=conf_key_map,
+        no_strip_quote=no_strip_quote,
+    )
 
     if val_default:
         for k, v in val_default.items():

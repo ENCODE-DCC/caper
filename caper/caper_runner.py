@@ -30,7 +30,7 @@ class CaperRunner(CaperBase):
     def __init__(
         self,
         local_work_dir,
-        out_dir,
+        local_out_dir,
         default_backend,
         gcp_work_dir=None,
         aws_work_dir=None,
@@ -142,7 +142,7 @@ class CaperRunner(CaperBase):
 
         self._caper_backend_conf = CaperBackendConf(
             default_backend=default_backend,
-            out_dir=out_dir,
+            local_out_dir=local_out_dir,
             disable_call_caching=disable_call_caching,
             max_concurrent_workflows=max_concurrent_workflows,
             max_concurrent_tasks=max_concurrent_tasks,
