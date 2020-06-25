@@ -80,7 +80,7 @@ def test_run(tmp_path, cromwell, womtool):
 
 
 def test_run_gcp_with_life_sciences_api(
-    tmp_path, gcs_root, ci_prefix, cromwell, womtool
+    tmp_path, gcs_root, ci_prefix, cromwell, womtool, gcp_prj
 ):
     """Test run with Google Cloud Life Sciences API
     """
@@ -97,7 +97,10 @@ def test_run_gcp_with_life_sciences_api(
     cmd += ['--inputs', str(inputs)]
     cmd += ['-m', str(metadata)]
     cmd += ['--use-google-cloud-life-sciences']
+    cmd += ['--gcp-prj', gcp_prj]
     cmd += ['--gcp-zones', 'us-central1']
+    cmd += ['--gcp-memory-retry-error-keys', 'Killed']
+    cmd += ['--gcp-memory-retry-multiplier', '1.5']
     cmd += ['--tmp-dir', str(tmp_path / 'tmp_dir')]
     cmd += ['--backend', 'gcp']
     cmd += ['--out-gcs-bucket', out_gcs_bucket]

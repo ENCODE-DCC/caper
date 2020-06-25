@@ -10,11 +10,11 @@ from caper.wdl_parser import WDLParser
 
 from .example_wdl import make_directory_with_wdls
 
-TIMEOUT_SERVER_SPIN_UP = 120
+TIMEOUT_SERVER_SPIN_UP = 240
 TIMEOUT_SERVER_RUN_WORKFLOW = 480
 
 
-def test_server_client(tmp_path, gcs_root, ci_prefix, cromwell, womtool):
+def test_server_client(tmp_path, gcs_root, ci_prefix, cromwell, womtool, gcp_prj):
     """Test server, client stuffs
     """
     # server command line
@@ -26,7 +26,10 @@ def test_server_client(tmp_path, gcs_root, ci_prefix, cromwell, womtool):
     cmd = ['server']
     cmd += ['--tmp-dir', str(tmp_path / 'tmp_dir')]
     cmd += ['--backend', 'gcp']
+    cmd += ['--gcp-prj', gcp_prj]
     cmd += ['--out-gcs-bucket', out_gcs_bucket]
+    cmd += ['--gcp-memory-retry-error-keys', 'OutOfMemory,Killed']
+    cmd += ['--gcp-memory-retry-multiplier', '1.3']
     cmd += ['--tmp-gcs-bucket', tmp_gcs_bucket]
     cmd += ['--cromwell-stdout', str(tmp_path / 'cromwell_stdout.o')]
     # test with file type DB

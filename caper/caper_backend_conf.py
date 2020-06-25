@@ -52,6 +52,8 @@ class CaperBackendConf:
         file_db=None,
         gcp_prj=None,
         out_gcs_bucket=None,
+        gcp_memory_retry_error_keys=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS,
+        gcp_memory_retry_multiplier=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         use_google_cloud_life_sciences=False,
         aws_batch_arn=None,
@@ -121,6 +123,14 @@ class CaperBackendConf:
                 Google project name.
             out_gcs_bucket:
                 Output bucket path for gcp backend. Must start with gs://.
+            gcp_memory_retry_error_keys:
+                List of error messages to catch failures due to OOM (out of memory error).
+                e.g. ['OutOfMemoryError', 'Killed']
+                If an error occurs caught by these keys, then instance's memory will
+                be increased for next retrial by gcp_memory_retry_error_multiplier.
+            gcp_memory_retry_error_multiplier:
+                Multiplier for GCP memory-retry.
+                See description for gcp_memory_retry_error_keys.
             gcp_call_caching_dup_strat:
                 Call-caching duplication strategy.
             use_google_cloud_life_sciences:
@@ -138,6 +148,7 @@ class CaperBackendConf:
             out_s3_bucket:
                 Output bucket path for aws backend. Must start with s3://.
             gcp_zones:
+                List of zones for GCP.
                 For this and all arguments below this,
                 see details in CaperWorkflowOpts.__init__.
                 These parameters can be defined either in a backend conf file or
@@ -239,6 +250,8 @@ class CaperBackendConf:
                     max_concurrent_tasks=max_concurrent_tasks,
                     gcp_prj=gcp_prj,
                     out_gcs_bucket=out_gcs_bucket,
+                    gcp_memory_retry_error_keys=gcp_memory_retry_error_keys,
+                    gcp_memory_retry_multiplier=gcp_memory_retry_multiplier,
                     call_caching_dup_strat=gcp_call_caching_dup_strat,
                     use_google_cloud_life_sciences=use_google_cloud_life_sciences,
                     gcp_zones=gcp_zones,

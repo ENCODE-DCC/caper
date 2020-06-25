@@ -1,5 +1,4 @@
 import logging
-import re
 from collections import UserDict
 from copy import deepcopy
 from textwrap import dedent
@@ -253,48 +252,61 @@ class CromwellBackendGCP(CromwellBackendBase):
     GENOMICS_ENDPOINT_V2BETA = 'https://lifesciences.googleapis.com/'
     DEFAULT_ZONE_V2BETA = 'us-central1'
 
-    REGEX_DELIMITER_GCP_ZONES = r',| '
     CALL_CACHING_DUP_STRAT_REFERENCE = 'reference'
     CALL_CACHING_DUP_STRAT_COPY = 'copy'
 
     DEFAULT_GCP_CALL_CACHING_DUP_STRAT = CALL_CACHING_DUP_STRAT_REFERENCE
+    DEFAULT_MEMORY_RETRY_KEYS = ['OutOfMemoryError', 'Killed']
+    DEFAULT_MEMORY_RETRY_MULTIPLIER = 1.2
 
     def __init__(
         self,
         gcp_prj,
         out_gcs_bucket,
+        gcp_memory_retry_error_keys=DEFAULT_MEMORY_RETRY_KEYS,
+        gcp_memory_retry_multiplier=DEFAULT_MEMORY_RETRY_MULTIPLIER,
         call_caching_dup_strat=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         use_google_cloud_life_sciences=False,
         gcp_zones=None,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
     ):
+        """
+        Args:
+            gcp_zones:
+                List of zones (regions).
+                If use_google_cloud_life_sciences, only one zone is allowed.
+            gcp_memory_retry_error_keys:
+                List of error strings to catch out-of-memory error.
+        """
         super().__init__(
             backend_name=BACKEND_GCP, max_concurrent_tasks=max_concurrent_tasks
         )
         merge_dict(self.data, CromwellBackendGCP.TEMPLATE)
         self.merge_backend(CromwellBackendGCP.TEMPLATE_BACKEND)
 
+        if gcp_zones is None:
+            gcp_zones = []
+
         config = self.backend_config
         genomics = config['genomics']
 
-        if gcp_zones:
-            zones = re.split(CromwellBackendGCP.REGEX_DELIMITER_GCP_ZONES, gcp_zones)
-        else:
-            zones = []
-
+        config['memory-retry'] = {
+            'error-keys': gcp_memory_retry_error_keys,
+            'multiplier': gcp_memory_retry_multiplier,
+        }
         if use_google_cloud_life_sciences:
             self.backend['actor-factory'] = CromwellBackendGCP.ACTOR_FACTORY_V2BETA
             genomics['endpoint-url'] = CromwellBackendGCP.GENOMICS_ENDPOINT_V2BETA
-            if len(zones) > 1:
+            if len(gcp_zones) > 1:
                 raise ValueError(
                     'Google Cloud Life Sciences API requires '
                     'only one zone (region) in gcp_zones. '
                     'See https://cloud.google.com/life-sciences/docs/concepts/locations '
-                    'for supported zones. Default zone is {z}'.format(
+                    'for supported gcp_zones. Default zone is {z}'.format(
                         z=CromwellBackendGCP.DEFAULT_ZONE_V2BETA
                     )
                 )
-            elif len(zones) == 0:
+            elif len(gcp_zones) == 0:
                 logging.warning(
                     'gcp_zones not specified. using default zone {z}'.format(
                         z=CromwellBackendGCP.DEFAULT_ZONE_V2BETA
@@ -302,12 +314,12 @@ class CromwellBackendGCP(CromwellBackendBase):
                 )
                 genomics['location'] = CromwellBackendGCP.DEFAULT_ZONE_V2BETA
             else:
-                genomics['location'] = zones[0]
+                genomics['location'] = gcp_zones[0]
         else:
             self.backend['actor-factory'] = CromwellBackendGCP.ACTOR_FACTORY_V2ALPHA
             genomics['endpoint-url'] = CromwellBackendGCP.GENOMICS_ENDPOINT_V2ALPHA
-            if zones:
-                self.backend_config_dra['zones'] = ' '.join(zones)
+            if gcp_zones:
+                self.backend_config_dra['zones'] = ' '.join(gcp_zones)
 
         config['project'] = gcp_prj
 

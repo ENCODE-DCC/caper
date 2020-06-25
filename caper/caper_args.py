@@ -258,8 +258,24 @@ def get_parser_and_defaults(conf_file=None):
     group_gc = parent_runner.add_argument_group(
         title='GCP backend arguments for server/runner'
     )
-
     group_gc.add_argument('--gcp-prj', help='GC project')
+    group_gc.add_argument(
+        '--gcp-memory-retry-error-keys',
+        default=','.join(CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS),
+        help='If an error caught by these comma-separated keys occurs, '
+        'then increase memory by --gcp-memory-retry-multiplier '
+        'for retrials controlled by --max-retries. '
+        'See https://cromwell.readthedocs.io/en/stable/backends/Google/ '
+        'for details. ',
+    )
+    group_gc.add_argument(
+        '--gcp-memory-retry-multiplier',
+        help='If an error caught by --gcp-memory-retry-error-keys occurs, '
+        'then increase memory by this '
+        'for retrials controlled by --max-retries. '
+        'See https://cromwell.readthedocs.io/en/stable/backends/Google/ '
+        'for details.',
+    )
     group_gc_all.add_argument(
         '--use-google-cloud-life-sciences',
         action='store_true',
@@ -272,7 +288,7 @@ def get_parser_and_defaults(conf_file=None):
     )
     group_gc_all.add_argument(
         '--gcp-zones',
-        help='GCP zones which are comma-separated. (e.g. us-west1-b,us-central1-b)',
+        help='Comma-separated GCP zones (regions). (e.g. us-west1-b,us-central1-b)',
     )
     group_gc.add_argument(
         '--gcp-call-caching-dup-strat',

@@ -56,6 +56,8 @@ class CaperRunner(CaperBase):
         file_db=None,
         gcp_prj=None,
         out_gcs_bucket=None,
+        gcp_memory_retry_error_keys=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS,
+        gcp_memory_retry_multiplier=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         use_google_cloud_life_sciences=False,
         aws_batch_arn=None,
@@ -105,6 +107,8 @@ class CaperRunner(CaperBase):
                 which has beed deprecated.
                 gcp_zones must be defined and only one zone is allowed.
             out_gcs_bucket:
+            gcp_memory_retry_error_keys:
+            gcp_memory_retry_multiplier:
             aws_batch_arn:
             aws_region:
             out_s3_bucket:
@@ -157,6 +161,8 @@ class CaperRunner(CaperBase):
             postgresql_db_name=postgresql_db_name,
             gcp_prj=gcp_prj,
             out_gcs_bucket=out_gcs_bucket,
+            gcp_memory_retry_error_keys=gcp_memory_retry_error_keys,
+            gcp_memory_retry_multiplier=gcp_memory_retry_multiplier,
             gcp_call_caching_dup_strat=gcp_call_caching_dup_strat,
             use_google_cloud_life_sciences=use_google_cloud_life_sciences,
             aws_batch_arn=aws_batch_arn,

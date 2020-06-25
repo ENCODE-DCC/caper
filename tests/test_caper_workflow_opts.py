@@ -11,7 +11,8 @@ from caper.cromwell_backend import BACKEND_AWS, BACKEND_GCP
 def test_create_file(tmp_path):
     """Test without docker/singularity.
     """
-    gcp_zones = 'us-west-1,us-west-2'
+    use_google_cloud_life_sciences = False
+    gcp_zones = ['us-west-1', 'us-west-2']
     slurm_partition = 'my_partition'
     slurm_account = 'my_account'
     slurm_extra_param = 'my_extra_param'
@@ -22,7 +23,7 @@ def test_create_file(tmp_path):
     pbs_extra_param = 'my_extra_param'
 
     co = CaperWorkflowOpts(
-        use_google_cloud_life_sciences=False,
+        use_google_cloud_life_sciences=use_google_cloud_life_sciences,
         gcp_zones=gcp_zones,
         slurm_partition=slurm_partition,
         slurm_account=slurm_account,
@@ -72,7 +73,7 @@ def test_create_file(tmp_path):
         d = json.loads(fp.read())
 
     dra = d[CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES]
-    assert dra['zones'] == ' '.join(gcp_zones.split(','))
+    assert dra['zones'] == ' '.join(gcp_zones)
     assert dra['slurm_partition'] == 'not_my_partition'
     assert dra['slurm_account'] == slurm_account
     assert dra['slurm_extra_param'] == slurm_extra_param
@@ -92,7 +93,7 @@ def test_create_file_with_google_cloud_life_sciences(tmp_path):
     """Test with use_google_cloud_life_sciences flag.
     zones should not be written to dra.
     """
-    gcp_zones = 'us-west-1,us-west-2'
+    gcp_zones = ['us-west-1', 'us-west-2']
 
     co = CaperWorkflowOpts(use_google_cloud_life_sciences=True, gcp_zones=gcp_zones)
 

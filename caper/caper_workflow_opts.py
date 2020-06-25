@@ -2,12 +2,11 @@ import copy
 import json
 import logging
 import os
-import re
 
 from autouri import AutoURI
 
 from .caper_wdl_parser import CaperWDLParser
-from .cromwell_backend import BACKEND_AWS, BACKEND_GCP, CromwellBackendGCP
+from .cromwell_backend import BACKEND_AWS, BACKEND_GCP
 from .dict_tool import merge_dict
 from .singularity import Singularity
 
@@ -78,12 +77,8 @@ class CaperWorkflowOpts:
         self._template = {CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES: dict()}
         dra = self._template[CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES]
 
-        if gcp_zones:
-            zones = ' '.join(
-                re.split(CromwellBackendGCP.REGEX_DELIMITER_GCP_ZONES, gcp_zones)
-            )
-            if not use_google_cloud_life_sciences:
-                dra['zones'] = zones
+        if gcp_zones and not use_google_cloud_life_sciences:
+            dra['zones'] = ' '.join(gcp_zones)
 
         if slurm_partition:
             dra['slurm_partition'] = slurm_partition

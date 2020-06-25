@@ -27,6 +27,9 @@ def pytest_addoption(parser):
         default=Cromwell.DEFAULT_WOMTOOL,
         help='URI for Womtool JAR. Local path is recommended.',
     )
+    parser.addoption(
+        '--gcp-prj', default='encode-dcc-1016', help='Project on Google Cloud Platform.'
+    )
 
 
 @pytest.fixture(scope="session")
@@ -49,3 +52,8 @@ def cromwell(request):
 @pytest.fixture(scope="session")
 def womtool(request):
     return request.config.getoption("--womtool")
+
+
+@pytest.fixture(scope="session")
+def gcp_prj(request):
+    return request.config.getoption("--gcp-prj")

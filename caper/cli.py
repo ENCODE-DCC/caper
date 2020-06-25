@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import re
 import sys
 
 from autouri import GCSURI, AutoURI
@@ -27,6 +28,7 @@ DEFAULT_TMP_DIR_NAME = '.caper_tmp'
 DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
+REGEX_DELIMITER_GCP_PARAMS = r',| '
 
 
 def get_abspath(path):
@@ -150,6 +152,13 @@ def check_backend(args):
 
 
 def runner(args, nonblocking_server=False):
+    if args.gcp_zones:
+        args.gcp_zones = re.split(REGEX_DELIMITER_GCP_PARAMS, args.gcp_zones)
+    if args.gcp_memory_retry_error_keys:
+        args.gcp_memory_retry_error_keys = re.split(
+            REGEX_DELIMITER_GCP_PARAMS, args.gcp_memory_retry_error_keys
+        )
+
     c = CaperRunner(
         tmp_dir=args.tmp_dir,
         out_dir=args.out_dir,
@@ -181,6 +190,8 @@ def runner(args, nonblocking_server=False):
         gcp_zones=args.gcp_zones,
         gcp_call_caching_dup_strat=args.gcp_call_caching_dup_strat,
         out_gcs_bucket=args.out_gcs_bucket,
+        gcp_memory_retry_error_keys=args.gcp_memory_retry_error_keys,
+        gcp_memory_retry_multiplier=args.gcp_memory_retry_multiplier,
         aws_batch_arn=args.aws_batch_arn,
         aws_region=args.aws_region,
         out_s3_bucket=args.out_s3_bucket,
@@ -211,6 +222,8 @@ def client(args):
             heartbeat_file=args.server_heartbeat_file,
             heartbeat_timeout=args.server_heartbeat_timeout,
         )
+    if args.gcp_zones:
+        args.gcp_zones = re.split(REGEX_DELIMITER_GCP_PARAMS, args.gcp_zones)
 
     if args.action == 'submit':
         c = CaperClientSubmit(

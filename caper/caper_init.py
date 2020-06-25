@@ -137,6 +137,12 @@ use-google-cloud-life-sciences=false
 # If you keep using Genomics API then you can still specify multiple zones.
 # e.g. us-west1-a,us-west1-b,us-west1-c
 gcp-zones=
+
+# Increase instance's memory when retrying upon OOM (out of memory error)
+gcp-memory-retry-multiplier=1.2
+
+# Number of retrials. This parameter also applies to non-OOM failure.
+max-retries=1
 """
     + CONF_CONTENTS_TMP_DIR
 )
