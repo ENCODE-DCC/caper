@@ -192,7 +192,10 @@ We highly recommend to use a default configuration file described in the section
 	**Conf. file**|**Cmd. line**|**Description**
 	:-----|:-----|:-----
 	gcp-prj|--gcp-prj|Google Cloud project
-	gcp-zone|--gcp-zones|Comma-delimited Google Cloud Platform zones to provision worker instances (e.g. us-central1-c,us-west1-b)
+	use-google-cloud-life-sciences|--use-google-cloud-life-sciences|Use Google Cloud Life Sciences API instead of (deprecated) Genomics API
+	gcp-memory-retry-error-keys|--gcp-memory-retry-error-keys|If an error caught by these comma-separated keys occurs then increase instance's memory by --gcp-memory-retry-multiplier and retry (controlled by --max-retries).
+	gcp-memory-retry-multiplier|--gcp-memory-retry-multiplier|Multiplier for memory-retry.
+	gcp-zones|--gcp-zones|Comma-delimited Google Cloud Platform zones to provision worker instances (e.g. us-central1-c,us-west1-b)
 	out-gcs-bucket|--out-gcs-bucket|Output GCS bucket for GC backend
 	tmp-gcs-bucket|--tmp-gcs-bucket|Tmp. GCS bucket for GC backend
 
@@ -242,23 +245,41 @@ We highly recommend to use a default configuration file described in the section
 	postgresql-db-password|--postgresql-db-password|cromwell|(Optional) PostgreSQL DB password
 	postgresql-db-name|--postgresql-db-name|cromwell|(Optional) PostgreSQL DB name for Cromwell
 
-* Cromwell server settings. IP address and port for a Cromwell server.
+* Caper server/run parameters.
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
-	ip|--ip|localhost|Cromwell server IP address or hostname
-	port|--port|8000|Cromwell server port
-	no-server-heartbeat|--no-server-heartbeat||Flag to disable server heartbeat file.
-	server-heartbeat-file|--server-heartbeat-file|`~/.caper/default_server_heartbeat`|Heartbeat file for Caper clients to get IP and port of a server.
-	server-heartbeat-timeout|--server-heartbeat-timeout|120000|Timeout for a heartbeat file in Milliseconds.
-
-	cromwell|--cromwell|[cromwell-40.jar](https://github.com/broadinstitute/cromwell/releases/download/40/cromwell-40.jar)|Path or URL for Cromwell JAR file
+	cromwell|--cromwell|[cromwell-51.jar](https://github.com/broadinstitute/cromwell/releases/download/51/cromwell-51.jar)|Path or URL for Cromwell JAR file
 	max-concurrent-tasks|--max-concurrent-tasks|1000|Maximum number of concurrent tasks
 	max-concurrent-workflows|--max-concurrent-workflows|40|Maximum number of concurrent workflows
 	max-retries|--max-retries|1|Maximum number of retries for failing tasks
 	disable-call-caching|--disable-call-caching| |Disable Cromwell's call-caching (re-using outputs)
 	soft-glob-output|--soft-glob-output||Use soft-linking for globbing outputs for a filesystem that does not allow hard-linking: e.g. beeGFS.
 	backend-file|--backend-file| |Custom Cromwell backend conf file. This will override Caper's built-in backends
+
+* Caper server/client parameters.
+
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
+	:-----|:-----|:-----|:-----
+	ip|--ip|localhost|Cromwell server hostname/IP address or hostname
+	port|--port|8000|Cromwell server port
+	no-server-heartbeat|--no-server-heartbeat||Flag to disable server heartbeat file.
+	server-heartbeat-file|--server-heartbeat-file|`~/.caper/default_server_heartbeat`|Heartbeat file for Caper clients to get IP and port of a server.
+
+* Caper run/client parameters.
+
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
+	:-----|:-----|:-----|:-----
+	womtool|--womtool|[womtool-51.jar](https://github.com/broadinstitute/cromwell/releases/download/51/womtool-51.jar)|Path or URL for Womtool JAR file (to validate WDL/inputs).
+	ignore-womtool|--ignore-womtool|False|Skip Womtool validation.
+	java-heap-womtool|--java-heap-womtool|1G|Java heap memory for Womtool.
+
+* Caper client parameters.
+
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
+	:-----|:-----|:-----|:-----
+	server-heartbeat-timeout|--server-heartbeat-timeout|120000|Timeout for a heartbeat file in Milliseconds.
+
 
 * Troubleshoot parameters for `caper troubleshoot` subcommand.
 
