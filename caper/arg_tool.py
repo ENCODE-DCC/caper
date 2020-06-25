@@ -4,7 +4,9 @@ from configparser import ConfigParser, MissingSectionHeaderError
 from distutils.util import strtobool
 
 
-def read_from_conf(conf_file, conf_section='defaults', no_strip_quote=False):
+def read_from_conf(
+    conf_file, conf_section='defaults', conf_key_map=None, no_strip_quote=False
+):
     """Read key/value from conf_section of conf_file.
     Hyphens (-) in keys will be replace with underscores (_).
     All keys and values are considered as strings.
@@ -18,6 +20,11 @@ def read_from_conf(conf_file, conf_section='defaults', no_strip_quote=False):
         conf_section:
             Section in conf_file.
             If section doesn't exist then make one and set as default.
+        conf_key_map:
+            Mapping of keys parsed from conf file.
+            This is useful if you want to replace an old key name with a new one.
+            e.g. to make your code backward compatible when you want to
+            change parameter's name.
         no_strip_quote:
             Do not strip single/double quotes from values in conf_file.
 
@@ -43,7 +50,10 @@ def read_from_conf(conf_file, conf_section='defaults', no_strip_quote=False):
         if not no_strip_quote:
             v = v.strip('"\'')
         if v:
-            result[k.replace('-', '_')] = v
+            k_ = k.replace('-', '_')
+            if conf_key_map and k_ in conf_key_map:
+                k_ = conf_key_map[k_]
+            result[k_] = v
 
     return result
 
@@ -52,6 +62,7 @@ def update_parsers_defaults_with_conf(
     parsers,
     conf_file,
     conf_section='defaults',
+    conf_key_map=None,
     no_strip_quote=False,
     val_type=None,
     val_default=None,
@@ -77,11 +88,13 @@ def update_parsers_defaults_with_conf(
             List of argparse.ArgumentParser objects to be updated with
             new defaults defined in conf_file. Useful for subparsers.
         conf_file:
-            INI-like conf file to find defaults key/value.
+            See read_from_conf()
         conf_section:
-            Section in conf_file.
+            See read_from_conf()
+        conf_key_map:
+            See read_from_conf()
         no_strip_quote:
-            Do not strip single/double quotes from values in conf_file.
+            See read_from_conf()
         val_type:
             {key: value's type} where key is a key in conf_file.
             If not defined, var's type can be guessed either from

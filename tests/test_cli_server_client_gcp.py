@@ -24,13 +24,13 @@ def test_server_client(tmp_path, gcs_root, ci_prefix, cromwell, womtool, gcp_prj
     tmp_gcs_bucket = os.path.join(gcs_root, 'caper_tmp')
 
     cmd = ['server']
-    cmd += ['--tmp-dir', str(tmp_path / 'tmp_dir')]
+    cmd += ['--local-work-dir', str(tmp_path / 'tmp_dir')]
     cmd += ['--backend', 'gcp']
     cmd += ['--gcp-prj', gcp_prj]
-    cmd += ['--out-gcs-bucket', out_gcs_bucket]
+    cmd += ['--gcp-out-dir', out_gcs_bucket]
     cmd += ['--gcp-memory-retry-error-keys', 'OutOfMemory,Killed']
     cmd += ['--gcp-memory-retry-multiplier', '1.3']
-    cmd += ['--tmp-gcs-bucket', tmp_gcs_bucket]
+    cmd += ['--gcp-work-dir', tmp_gcs_bucket]
     cmd += ['--cromwell-stdout', str(tmp_path / 'cromwell_stdout.o')]
     # test with file type DB
     cmd += ['--db', 'file']
@@ -40,7 +40,7 @@ def test_server_client(tmp_path, gcs_root, ci_prefix, cromwell, womtool, gcp_prj
     cmd += ['--max-concurrent-workflows', '2']
     cmd += ['--disable-call-caching']
     cmd += ['--local-hash-strat', 'path']
-    cmd += ['--out-dir', str(tmp_path / 'out_dir')]
+    cmd += ['--local-out-dir', str(tmp_path / 'out_dir')]
     cmd += ['--cromwell', cromwell]
     cmd += ['--java-heap-server', '4G']
     cmd += ['--port', str(server_port)]

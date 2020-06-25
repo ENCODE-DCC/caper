@@ -98,7 +98,7 @@ debug, troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason 
 
 > **IMPORTANT**: `--deepcopy` has been deprecated and it's activated by default. You can disable it with `--no-deepcopy`.
 
-Deepcopy allows Caper to **RECURSIVELY** copy files defined in your input JSON into your target backend's temporary storage. For example, Cromwell cannot read directly from URLs in an [input JSON file](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/examples/caper/ENCSR356KRQ_subsampled.json), but Caper makes copies of these URLs on your backend's temporary directory (e.g. `--tmp-dir` for `local`, `--tmp-gcs-bucket` for `gcp`) and pass them to Cromwell.
+Deepcopy allows Caper to **RECURSIVELY** copy files defined in your input JSON into your target backend's temporary storage. For example, Cromwell cannot read directly from URLs in an [input JSON file](https://github.com/ENCODE-DCC/atac-seq-pipeline/blob/master/examples/caper/ENCSR356KRQ_subsampled.json), but Caper makes copies of these URLs on your backend's temporary directory (e.g. `--local-work-dir` for `local`, `--gcp-work-dir` for `gcp`) and pass them to Cromwell.
 
 ## How to manage configuration file per project
 
@@ -110,7 +110,7 @@ db=file
 file-db=~/.caper/file_db_project_1
 port=8000
 backend=local
-out-dir=/scratch/user/caper_out_project_1
+local-out-dir=/scratch/user/caper_out_project_1
 ```
 
 We want to run pipelines on Google Cloud Platform for project-2. Run a server with `caper -c project_2.conf server` and submit a workflow with `caper -c project_2.conf submit [WDL] ...` or run a single workflow `caper -c project_2.conf run [WDL] ...`.
@@ -120,7 +120,7 @@ file-db=~/.caper/file_db_project_2
 port=8001
 backend=gcp
 gcp-prj=YOUR_GCP_PRJ_NAME
-out-gcs-bucket=gs://caper_out_project_2
+gcp-out-dir=gs://caper_out_project_2
 ```
 
 Then you will see no conflict in file DBs and network ports (`8000` vs. `8001`) between two projects.
@@ -157,7 +157,7 @@ We highly recommend to use a default configuration file described in the section
 	--java-heap-server|Java heap memory for caper server (default: 10G)
 	--java-heap-run|Java heap memory for caper run (default: 3G)
 
-* Choose a default backend. Deepcopy is enabled by default. All data files will be automatically transferred to a target local/remote storage corresponding to a chosen backend. Make sure that you correctly configure temporary directories for source/target storages (`--tmp-dir`, `--tmp-gcs-bucket` and `--tmp-s3-bucket`). To disable this feature use `--no-deepcopy`.
+* Choose a default backend. Deepcopy is enabled by default. All data files will be automatically transferred to a target local/remote storage corresponding to a chosen backend. Make sure that you correctly configure temporary directories for source/target storages (`--local-work-dir`, `--gcp-work-dir` and `--aws-work-dir`). To disable this feature use `--no-deepcopy`.
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
@@ -179,13 +179,12 @@ We highly recommend to use a default configuration file described in the section
 	:-----|:-----|:-----|:-----
 	use-gsutil-for-s3|--use-gsutil-for-s3|Use `gsutil` for direct transfer between S3 and GCS buckets. Otherwise Caper streams file transfer through local machine for S3 <-> GCS.
 
-
 * Local backend settings
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
-	out-dir|--out-dir|`$CWD`|Output directory for local backend
-	tmp-dir|--tmp-dir|`$CWD/caper\_tmp`|Tmp. directory for local backend
+	local-out-dir, out-dir|--local-out-dir, --out-dir|`$CWD`|Output directory for local backend
+	local-work-dir, tmp-dir|--local-work-dir, --tmp-dir|`$CWD/caper\_tmp`|Working/temp directory for local backend
 
 * Google Cloud Platform backend settings
 
@@ -196,8 +195,8 @@ We highly recommend to use a default configuration file described in the section
 	gcp-memory-retry-error-keys|--gcp-memory-retry-error-keys|If an error caught by these comma-separated keys occurs then increase instance's memory by --gcp-memory-retry-multiplier and retry (controlled by --max-retries).
 	gcp-memory-retry-multiplier|--gcp-memory-retry-multiplier|Multiplier for memory-retry.
 	gcp-zones|--gcp-zones|Comma-delimited Google Cloud Platform zones to provision worker instances (e.g. us-central1-c,us-west1-b)
-	out-gcs-bucket|--out-gcs-bucket|Output GCS bucket for GC backend
-	tmp-gcs-bucket|--tmp-gcs-bucket|Tmp. GCS bucket for GC backend
+	gcp-out-dir, out-gcs-bucket|--gcp-out-dir, --out-gcs-bucket|Output GCS bucket path for GC backend
+	gcp-work-dir, tmp-gcs-bucket|--gcp-work-dir, --tmp-gcs-bucket|Tmp. GCS bucket path for GC backend
 
 * AWS backend settings
 
@@ -205,8 +204,8 @@ We highly recommend to use a default configuration file described in the section
 	:-----|:-----|:-----
 	aws-batch-arn|--aws-batch-arn|ARN for AWS Batch
 	aws-region|--aws-region|AWS region (e.g. us-west-1)
-	out-s3-bucket|--out-s3-bucket|Output S3 bucket for AWS backend
-	tmp-s3-bucket|--tmp-s3-bucket|Tmp. S3 bucket for AWS backend
+	aws-out-dir, out-s3-bucket|--aws-out-dir, --out-s3-bucket|Output S3 bucket path for AWS backend
+	aws-work-dir, tmp-s3-bucket|--aws-work-dir, --tmp-s3-bucket|Tmp. S3 bucket path for AWS backend
 
 	DEPREACTED OLD PARAMETERS:
 
@@ -319,12 +318,12 @@ There are six built-in backends for Caper. Each backend must run on its designat
 
 | Backend | Description          | Storage | Required parameters                                                     |
 |---------|----------------------|---------|-------------------------------------------------------------------------|
-|gcp    |Google Cloud Platform | gcs   | --gcp-prj, --out-gcs-bucket, --tmp-gcs-bucket                     |
-|aws    |AWS                   | s3    | --aws-batch-arn, --aws-region, --out-s3-bucket, --tmp-s3-bucket |
-|Local  |Default local backend | local | --out-dir, --tmp-dir                                                |
-|slurm  |local SLURM backend   | local | --out-dir, --tmp-dir, --slurm-partition or --slurm-account      |
-|sge    |local SGE backend     | local | --out-dir, --tmp-dir, --sge-pe                                    |
-|pds    |local PBS backend     | local | --out-dir, --tmp-dir                                                |
+|gcp    |Google Cloud Platform | gcs   | --gcp-prj, --gcp-out-dir, --gcp-work-dir                     |
+|aws    |AWS                   | s3    | --aws-batch-arn, --aws-region, --aws-out-dir, --aws-work-dir |
+|Local  |Default local backend | local | --local-out-dir, --local-work-dir                                                |
+|slurm  |local SLURM backend   | local | --local-out-dir, --local-work-dir, --slurm-partition or --slurm-account      |
+|sge    |local SGE backend     | local | --local-out-dir, --local-work-dir, --sge-pe                                    |
+|pds    |local PBS backend     | local | --local-out-dir, --local-work-dir                                                |
 
 You can also use your own MySQL database if you [configure MySQL for Caper](DETAILS.md/#mysql-server).
 
@@ -363,15 +362,15 @@ Activate your `CONDA_ENV` before running Caper (both for `run` and `server` mode
 $ conda activate [COND_ENV]
 ```
 
-## Temporary directory
+## Working (temporary) directory
 
-There are four types of storages. Each storage except for URL has its own temporary directory/bucket defined by the following parameters.
+There are four types of storages. Each storage except for URL has its own working/temporary directory/uri defined by the following parameters. These directories are used for storing Caper's intermediate files and cached big data files for localization on corrsponding storages. e.g. localizing files on GCS to S3 (on --gcp-work-dir) to run pipeline on AWS instance with GCS files.
 
 | Storage | URI(s)       | Command line parameter    |
 |---------|--------------|---------------------------|
-| local | Path         | --tmp-dir               |
-| gcs   | gs://      | --tmp-gcs-bucket        |
-| s3    | s3://      | --tmp-s3-bucket         |
+| local | Path         | --local-work-dir               |
+| gcs   | gs://      | --gcp-work-dir        |
+| s3    | s3://      | --aws-work-dir         |
 | url   | http(s):// | not available (read-only) |
 
 ## Output directory
@@ -380,9 +379,9 @@ Output directories are defined similarly as temporary ones. Those are actual out
 
 | Storage | URI(s)       | Command line parameter    |
 |---------|--------------|---------------------------|
-| local | Path         | --out-dir               |
-| gcs   | gs://      | --out-gcs-bucket        |
-| s3    | s3://      | --out-s3-bucket         |
+| local | Path         | --local-out-dir               |
+| gcs   | gs://      | --gcp-out-dir        |
+| s3    | s3://      | --aws-out-dir         |
 | url   | http(s):// | not available (read-only) |
 
 Workflow's final output file `metadata.json` will be written to each workflow's directory (with workflow UUID) under this output directory.
@@ -393,9 +392,9 @@ Inter-storage transfer is done by keeping source's directory structure and appen
 
 | Storage | Command line parameters                              |
 |---------|------------------------------------------------------|
-| local | --tmp-dir /scratch/user/caper_tmp             |
-| gcs   | --tmp-gcs-bucket gs://my_gcs_bucket/caper_tmp |
-| s3    | --tmp-s3-bucket s3://my_s3_bucket/caper_tmp   |
+| local | --local-work-dir /scratch/user/caper_tmp             |
+| gcs   | --gcp-work-dir gs://my_gcs_bucket/caper_tmp |
+| s3    | --aws-work-dir s3://my_s3_bucket/caper_tmp   |
 
 A local file `/home/user/a/b/c/hello.gz` can be copied (on demand) to
 
@@ -421,7 +420,7 @@ Example:
 
 ### Security
 
-> **WARNING**: Please keep your local temporary directory **SECURE**. Caper writes temporary files (`backend.conf`, `inputs.json`, `workflow_opts.json` and `labels.json`) for Cromwell on `local` temporary directory defined by `--tmp-dir`. The following sensitive information can be exposed on these directories.
+> **WARNING**: Please keep your local temporary directory **SECURE**. Caper writes temporary files (`backend.conf`, `inputs.json`, `workflow_opts.json` and `labels.json`) for Cromwell on `local` temporary directory defined by `--local-work-dir`. The following sensitive information can be exposed on these directories.
 
 | Sensitve information               | Temporary filename   |
 |------------------------------------|----------------------|

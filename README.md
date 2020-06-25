@@ -74,13 +74,13 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 	export PATH=$PATH:~/.local/bin
 	```
 
-5) Choose a platform from the following table and initialize Caper. This will create a default Caper configuration file `~/.caper/default.conf`, which have only required parameters for each platform. There are special platforms for Stanford Sherlock/SCG users. This will also install Cromwell/Womtool JARs on `~/.caper`. Downloading those files can take up to 10 minutes. Once they are installed, Caper can completely work offline with local data files.
+5) Choose a backend/platform from the following table and initialize Caper. This will create a default Caper configuration file `~/.caper/default.conf`, which have only required parameters for each platform. There are special platforms for Stanford Sherlock/SCG users. This will also install Cromwell/Womtool JARs on `~/.caper`. Downloading those files can take up to 10 minutes. Once they are installed, Caper can completely work offline with local data files.
 
 	```bash
-	$ caper init [PLATFORM]
+	$ caper init [BACKEND/PLATFORM]
 	```
 
-	**Platform**|**Description**
+	**Backend/Platform**|**Description**
 	:--------|:-----
 	sherlock | Stanford Sherlock cluster (SLURM)
 	scg | Stanford SCG cluster (SLURM)
@@ -96,21 +96,21 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 
 	**Parameter**|**Description**
 	:--------|:-----
-	tmp-dir | **IMPORTANT**: A directory to store all cached files for inter-storage file transfer. DO NOT USE `/tmp`.
+	local-work-dir | **IMPORTANT**: DO NOT USE `/tmp`. This is a working directory to store all important intermediate files for Caper. This directory is also used to store big cached files for localization of remote files. e.g. to run pipelines locally with remote files (`gs://`, `s3://`, `http://`, ...) copies of such files are stored here.
 	slurm-partition | SLURM partition. Define only if required by a cluster. You must define it for Stanford Sherlock.
 	slurm-account | SLURM partition. Define only if required by a cluster. You must define it for Stanford SCG.
 	sge-pe | Parallel environment of SGE. Find one with `$ qconf -spl` or ask you admin to add one if not exists.
 	aws-batch-arn | ARN for AWS Batch.
 	aws-region | AWS region (e.g. us-west-1)
-	out-s3-bucket | Output bucket path for AWS. This should start with `s3://`.
+	aws-out-dir | Output bucket path for AWS. This should start with `s3://`.
 	gcp-prj | Google Cloud Platform Project
-	out-gcs-bucket | Output bucket path for Google Cloud Platform. This should start with `gs://`.
+	gcp-out-dir | Output bucket path for Google Cloud Platform. This should start with `gs://`.
 
 7) To use Caper on Google Cloud Platform (GCP), [configure for GCP](docs/conf_gcp.md). To use Caper on Amazon Web Service (AWS), [configure for AWS](docs/conf_aws.md).
 
 ## Output directory
 
-> **IMPORTANT**: Unless you are running Caper on cloud platforms (`aws`, `gcp`) and `--out-dir` is not explicitly defined, all outputs will be written to a current working directory where you run `caper run` or `caper server`.
+> **IMPORTANT**: Unless you are running Caper on cloud platforms (`aws`, `gcp`) and `--local-out-dir` is not explicitly defined, all outputs will be written to a current working directory where you run `caper run` or `caper server`.
 
 Therefore, change directory first and run Caper there.
 
@@ -195,7 +195,7 @@ Create a small leader instance on your GCP project/AWS region. Follow above inst
 
 > **IMPORTANT**: It's **STRONGLY** recommended to attach/mount a persistent disk/EBS volume with enough space to it. Caper's call-caching file DB grows quickly to reach 10 GB, which is a default size for most small instances.
 
-Also, make sure that `tmp-dir` in `~/.caper/default.conf` points to a directory on a large disk. All intermediate files and big cached files for inter-storage transfer will be stored there.
+Also, make sure that `local-work-dir` in `~/.caper/default.conf` points to a directory on a large disk. All intermediate files and big cached files for inter-storage transfer will be stored there.
 
 Mount a persistent disk and change directory into it. A **BIG** DB file to enable Cromwell's call-caching (re-using previous failed workflow's outputs) will be generated on this current working directory.
 ```bash
@@ -212,7 +212,7 @@ Run a server on a screen. Detach from the screen (`Ctrl+A` and then `d`).
 $ caper server
 ```
 
-Submit a workflow to the server. All pipeline outputs will be written to `out-gcs-bucket` (for GCP) or `out-s3-bucket` (for AWS) in defined `~/.caper/default.conf`.
+Submit a workflow to the server. All pipeline outputs will be written to `gcp-out-dir` (for GCP) or `aws-out-dir` (for AWS) in defined `~/.caper/default.conf`.
 ```bash
 $ caper submit [WDL] -i [INPUT_JSON]
 ```

@@ -10,46 +10,50 @@ logger = logging.getLogger(__name__)
 
 
 class CaperBase:
-    def __init__(self, tmp_dir, tmp_gcs_bucket=None, tmp_s3_bucket=None):
-        """Manages cache/temp directories for localization on the following
+    def __init__(self, local_work_dir, gcp_work_dir=None, aws_work_dir=None):
+        """Manages work/cache/temp directories for localization on the following
         storages:
-            - Local*: Local path -> tmp_dir**
-            - gcp: GCS bucket path -> tmp_gcs_bucket
-            - aws: S3 bucket path -> tmp_s3_bucket
+            - Local*: Local path -> local_work_dir**
+            - gcp: GCS bucket path -> gcp_work_dir
+            - aws: S3 bucket path -> aws_work_dir
 
         * Note that it starts with capital L, which is a default backend of Cromwell's
         default configuration file (application.conf).
-        ** /tmp is not allowed here. This directory is very important to store
-        intermediate files used by Cromwell/AutoURI (filter transfer/localization).
+        ** /tmp is not recommended. This directory is very important to store
+        intermediate files used by Cromwell/AutoURI (file transfer/localization).
 
         Args:
-            tmp_dir:
-                Local cache directory to store files files localized for Local backend.
-            tmp_gcs_bucket:
+            local_work_dir:
+                Local work/temp/cache directory to store files localized for local backends.
+                Unlike other two directories. This directory is also used to make a
+                working directory to store intermediate files to run Cromwell.
+            gcp_work_dir:
                 GCS cache directory to store files localized on GCS for gcp backend.
-            tmp_s3_bucket:
+            aws_work_dir:
                 S3 cache directory to store files localized on S3 for aws backend.
         """
-        if not AbsPath(tmp_dir).is_valid:
+        if not AbsPath(local_work_dir).is_valid:
             raise ValueError(
-                'tmp_dir should be a valid local abspath. {f}'.format(f=tmp_dir)
-            )
-        if tmp_dir == '/tmp':
-            raise ValueError('/tmp is now allowed for tmp_dir. {f}'.format(f=tmp_dir))
-        if tmp_gcs_bucket and not GCSURI(tmp_gcs_bucket).is_valid:
-            raise ValueError(
-                'tmp_gcs_bucket should be a valid GCS path. {f}'.format(
-                    f=tmp_gcs_bucket
+                'local_work_dir should be a valid local abspath. {f}'.format(
+                    f=local_work_dir
                 )
             )
-        if tmp_s3_bucket and not S3URI(tmp_s3_bucket).is_valid:
+        if local_work_dir == '/tmp':
             raise ValueError(
-                'tmp_s3_bucket should be a valid S3 path. {f}'.format(f=tmp_s3_bucket)
+                '/tmp is now allowed for local_work_dir. {f}'.format(f=local_work_dir)
+            )
+        if gcp_work_dir and not GCSURI(gcp_work_dir).is_valid:
+            raise ValueError(
+                'gcp_work_dir should be a valid GCS path. {f}'.format(f=gcp_work_dir)
+            )
+        if aws_work_dir and not S3URI(aws_work_dir).is_valid:
+            raise ValueError(
+                'aws_work_dir should be a valid S3 path. {f}'.format(f=aws_work_dir)
             )
 
-        self._tmp_dir = tmp_dir
-        self._tmp_gcs_bucket = tmp_gcs_bucket
-        self._tmp_s3_bucket = tmp_s3_bucket
+        self._local_work_dir = local_work_dir
+        self._gcp_work_dir = gcp_work_dir
+        self._aws_work_dir = aws_work_dir
 
     def localize_on_backend(self, f, backend, recursive=False, make_md5_file=False):
         """Localize a file according to the chosen backend.
@@ -63,9 +67,9 @@ class CaperBase:
         For example, /somewhere/test.json -> gs://example-tmp-gcs-bucket/somewhere/test.gcs.json
 
         loc_prefix will be one of the cache directories according to the backend type
-            - gcp -> tmp_gcs_bucket
-            - aws -> tmp_s3_bucket
-            - all others (local) -> tmp_dir
+            - gcp -> gcp_work_dir
+            - aws -> aws_work_dir
+            - all others (local) -> local_work_dir
 
         Args:
             f:
@@ -84,11 +88,11 @@ class CaperBase:
             localized URI.
         """
         if backend == BACKEND_GCP:
-            loc_prefix = self._tmp_gcs_bucket
+            loc_prefix = self._gcp_work_dir
         elif backend == BACKEND_AWS:
-            loc_prefix = self._tmp_s3_bucket
+            loc_prefix = self._aws_work_dir
         else:
-            loc_prefix = self._tmp_dir
+            loc_prefix = self._local_work_dir
 
         return AutoURI(f).localize_on(
             loc_prefix, recursive=recursive, make_md5_file=make_md5_file
@@ -102,6 +106,8 @@ class CaperBase:
         If localized file is not modified due to recursive localization,
         then it means that localization for such file was redundant.
         So returns the original file instead of a redundantly localized one.
+        We can check if file is modifed or not by looking at their basename.
+        Modified localized file has a suffix of the target storage. e.g. .s3.
         """
         f_loc = self.localize_on_backend(
             f=f, backend=backend, recursive=recursive, make_md5_file=make_md5_file
@@ -111,8 +117,8 @@ class CaperBase:
             return f
         return f_loc
 
-    def create_timestamped_tmp_dir(self, prefix=''):
-        """Creates/returns a local temporary directory on self._tmp_dir.
+    def create_timestamped_work_dir(self, prefix=''):
+        """Creates/returns a local temporary directory on self._local_work_dir.
 
         Args:
             prefix:
@@ -120,8 +126,10 @@ class CaperBase:
                 Directory name will be self._tmpdir / prefix / timestamp.
         """
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-        tmp_dir = os.path.join(self._tmp_dir, prefix, timestamp)
-        os.makedirs(tmp_dir, exist_ok=True)
-        logger.info('Creating a timestamped temporary directory. {d}'.format(d=tmp_dir))
+        work_dir = os.path.join(self._local_work_dir, prefix, timestamp)
+        os.makedirs(work_dir, exist_ok=True)
+        logger.info(
+            'Creating a timestamped temporary directory. {d}'.format(d=work_dir)
+        )
 
-        return tmp_dir
+        return work_dir

@@ -104,29 +104,27 @@ def check_flags(args):
 
 
 def check_dirs(args):
-    """Convert local directories (out_dir, tmp_dir) to absolute ones.
+    """Convert local directories (out_dir, local_work_dir) to absolute ones.
     Also, if temporar/cache directory is not defined for each storage,
     then append ".caper_tmp" on output directory and use it.
     """
     if hasattr(args, 'out_dir'):
         args.out_dir = get_abspath(args.out_dir)
-        if not args.tmp_dir:
-            args.tmp_dir = os.path.join(args.out_dir, DEFAULT_TMP_DIR_NAME)
+        if not args.local_work_dir:
+            args.local_work_dir = os.path.join(args.out_dir, DEFAULT_TMP_DIR_NAME)
     else:
-        if not args.tmp_dir:
-            args.tmp_dir = os.path.join(os.getcwd(), DEFAULT_TMP_DIR_NAME)
+        if not args.local_work_dir:
+            args.local_work_dir = os.path.join(os.getcwd(), DEFAULT_TMP_DIR_NAME)
 
-    args.tmp_dir = get_abspath(args.tmp_dir)
+    args.local_work_dir = get_abspath(args.local_work_dir)
 
-    if hasattr(args, 'out_gcs_bucket'):
-        if args.out_gcs_bucket and not args.tmp_gcs_bucket:
-            args.tmp_gcs_bucket = os.path.join(
-                args.out_gcs_bucket, DEFAULT_TMP_DIR_NAME
-            )
+    if hasattr(args, 'gcp_out_dir'):
+        if args.gcp_out_dir and not args.gcp_work_dir:
+            args.gcp_work_dir = os.path.join(args.gcp_out_dir, DEFAULT_TMP_DIR_NAME)
 
-    if hasattr(args, 'out_s3_bucket'):
-        if args.out_s3_bucket and not args.tmp_s3_bucket:
-            args.tmp_s3_bucket = os.path.join(args.out_s3_bucket, DEFAULT_TMP_DIR_NAME)
+    if hasattr(args, 'aws_out_dir'):
+        if args.aws_out_dir and not args.aws_work_dir:
+            args.aws_work_dir = os.path.join(args.aws_out_dir, DEFAULT_TMP_DIR_NAME)
 
 
 def check_db_path(args):
@@ -160,11 +158,11 @@ def runner(args, nonblocking_server=False):
         )
 
     c = CaperRunner(
-        tmp_dir=args.tmp_dir,
+        local_work_dir=args.local_work_dir,
         out_dir=args.out_dir,
         default_backend=args.backend,
-        tmp_gcs_bucket=args.tmp_gcs_bucket,
-        tmp_s3_bucket=args.tmp_s3_bucket,
+        gcp_work_dir=args.gcp_work_dir,
+        aws_work_dir=args.aws_work_dir,
         cromwell=get_abspath(args.cromwell),
         womtool=get_abspath(args.womtool),
         disable_call_caching=args.disable_call_caching,
@@ -189,12 +187,12 @@ def runner(args, nonblocking_server=False):
         use_google_cloud_life_sciences=args.use_google_cloud_life_sciences,
         gcp_zones=args.gcp_zones,
         gcp_call_caching_dup_strat=args.gcp_call_caching_dup_strat,
-        out_gcs_bucket=args.out_gcs_bucket,
+        gcp_out_dir=args.gcp_out_dir,
         gcp_memory_retry_error_keys=args.gcp_memory_retry_error_keys,
         gcp_memory_retry_multiplier=args.gcp_memory_retry_multiplier,
         aws_batch_arn=args.aws_batch_arn,
         aws_region=args.aws_region,
-        out_s3_bucket=args.out_s3_bucket,
+        aws_out_dir=args.aws_out_dir,
         slurm_partition=getattr(args, 'slurm_partition', None),
         slurm_account=getattr(args, 'slurm_account', None),
         slurm_extra_param=getattr(args, 'slurm_extra_param', None),
@@ -227,10 +225,10 @@ def client(args):
 
     if args.action == 'submit':
         c = CaperClientSubmit(
-            tmp_dir=args.tmp_dir,
-            tmp_gcs_bucket=args.tmp_gcs_bucket,
-            tmp_s3_bucket=args.tmp_s3_bucket,
-            server_hostname=args.ip,
+            local_work_dir=args.local_work_dir,
+            gcp_work_dir=args.gcp_work_dir,
+            aws_work_dir=args.aws_work_dir,
+            server_hostname=args.hostname,
             server_port=args.port,
             server_heartbeat=sh,
             womtool=get_abspath(args.womtool),
@@ -249,10 +247,10 @@ def client(args):
 
     else:
         c = CaperClient(
-            tmp_dir=args.tmp_dir,
-            tmp_gcs_bucket=args.tmp_gcs_bucket,
-            tmp_s3_bucket=args.tmp_s3_bucket,
-            server_hostname=args.ip,
+            local_work_dir=args.local_work_dir,
+            gcp_work_dir=args.gcp_work_dir,
+            aws_work_dir=args.aws_work_dir,
+            server_hostname=args.hostname,
             server_port=args.port,
             server_heartbeat=sh,
         )

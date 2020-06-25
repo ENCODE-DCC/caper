@@ -2,6 +2,7 @@ import argparse
 import os
 
 from .arg_tool import update_parsers_defaults_with_conf
+from .backward_compatibility import CAPER_1_0_0_PARAM_KEY_NAME_CHANGE
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
 from .cromwell_backend import (
@@ -67,6 +68,7 @@ def get_parser_and_defaults(conf_file=None):
         title='cache directories for localization'
     )
     group_loc.add_argument(
+        '--local-work-dir',
         '--tmp-dir',
         help='Temporary directory to store Cromwell\'s intermediate backend files. '
         'These files include backend.conf, workflow_opts.json, imports.zip. and '
@@ -76,11 +78,13 @@ def get_parser_and_defaults(conf_file=None):
         'also used for storing cached files for local/slurm/sge/pbs backends.',
     )
     group_loc.add_argument(
+        '--gcp-work-dir',
         '--tmp-gcs-bucket',
         help='Temporary directory to store cached files for gcp backend. '
         'e.g. gs://my-bucket/caper-cache-dir. ',
     )
     group_loc.add_argument(
+        '--aws-work-dir',
         '--tmp-s3-bucket',
         help='Temporary directory to store cached files for aws backend. '
         'e.g. s3://my-bucket/caper-cache-dir. ',
@@ -244,6 +248,7 @@ def get_parser_and_defaults(conf_file=None):
 
     group_local = parent_runner.add_argument_group(title='local backend arguments')
     group_local.add_argument(
+        '--local-out-dir',
         '--out-dir',
         default=DEFAULT_OUT_DIR,
         help='Output directory path for local backend. '
@@ -301,6 +306,7 @@ def get_parser_and_defaults(conf_file=None):
         'copy: make a copy, reference: refer to old output in metadata.json.',
     )
     group_gc.add_argument(
+        '--gcp-out-dir',
         '--out-gcs-bucket',
         help='Output directory path for GCP backend. ' 'e.g. gs://my-bucket/my-output.',
     )
@@ -309,6 +315,7 @@ def get_parser_and_defaults(conf_file=None):
     group_aws.add_argument('--aws-batch-arn', help='ARN for AWS Batch')
     group_aws.add_argument('--aws-region', help='AWS region (e.g. us-west-1)')
     group_aws.add_argument(
+        '--aws-out-dir',
         '--out-s3-bucket',
         help='Output path on S3 bucket for AWS backend. '
         'e.g. s3://my-bucket/my-output.',
@@ -521,9 +528,10 @@ def get_parser_and_defaults(conf_file=None):
 
     parent_client = argparse.ArgumentParser(add_help=False)
     parent_client.add_argument(
+        '--hostname',
         '--ip',
         default=CromwellRestAPI.DEFAULT_HOSTNAME,
-        help='Hostname (IP address) of Caper server.',
+        help='Hostname (or IP address) of Caper server.',
     )
 
     # list
@@ -667,6 +675,10 @@ def get_parser_and_defaults(conf_file=None):
         p_troubleshoot,
         p_debug,
     ]
-    conf_dict = update_parsers_defaults_with_conf(subparsers, conf_file)
+    conf_dict = update_parsers_defaults_with_conf(
+        parsers=subparsers,
+        conf_file=conf_file,
+        conf_key_map=CAPER_1_0_0_PARAM_KEY_NAME_CHANGE,
+    )
 
     return parser, conf_dict

@@ -29,12 +29,11 @@ local-hash-strat=path+modtime
 """
 
 CONF_CONTENTS_TMP_DIR = """
-# Temporary cache directory.
-# DO NOT USE /tmp. Use local absolute path here.
-# Caper stores important temporary/cached files here.
-# If not defined, Caper will make .caper_tmp/ on CWD
-# or your local output directory (--out-dir).
-tmp-dir=
+# Local working/temporary directory.
+# DO NOT USE /tmp. Use an absolute path here.
+# Caper stores important small-temporary/big-cached files here.
+# If not defined, Caper will make .caper_tmp/ on local-out-dir or CWD
+local-work-dir=
 """
 
 DEFAULT_CONF_CONTENTS_LOCAL = (
@@ -108,7 +107,7 @@ DEFAULT_CONF_CONTENTS_AWS = (
 backend=aws
 aws-batch-arn=
 aws-region=
-out-s3-bucket=
+aws-out-dir=
 """
     + CONF_CONTENTS_TMP_DIR
 )
@@ -117,15 +116,16 @@ DEFAULT_CONF_CONTENTS_GCP = (
     """
 backend=gcp
 gcp-prj=
-out-gcs-bucket=
+gcp-out-dir=
 
 # Call-cached outputs will be duplicated by making a copy or reference
 #   reference: refer to old output file in metadata.json file.
-#   copy: make a copy.
+#   copy (not recommended): make a copy for a new workflow.
 gcp-call-caching-dup-strat=
 
 # Set is as true to use Google Cloud Life Sciences API
 # instead of Google Cloud Genomics API (deprecating).
+# Make sure to enable Google Cloud Life Sciences API on your Google Cloud Console
 use-google-cloud-life-sciences=false
 
 # Comma-separated zones (regions) for Google Cloud Platform.
@@ -138,10 +138,10 @@ use-google-cloud-life-sciences=false
 # e.g. us-west1-a,us-west1-b,us-west1-c
 gcp-zones=
 
-# Increase instance's memory when retrying upon OOM (out of memory error)
+# Increase instance's memory when retrying upon OOM (out of memory) error.
 gcp-memory-retry-multiplier=1.2
 
-# Number of retrials. This parameter also applies to non-OOM failure.
+# Number of retrials. This parameter also applies to non-OOM failures.
 max-retries=1
 """
     + CONF_CONTENTS_TMP_DIR

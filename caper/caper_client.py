@@ -1,6 +1,4 @@
 import logging
-import os
-from datetime import datetime
 
 from autouri import AutoURI
 
@@ -18,9 +16,9 @@ logger = logging.getLogger(__name__)
 class CaperClient(CaperBase):
     def __init__(
         self,
-        tmp_dir,
-        tmp_gcs_bucket=None,
-        tmp_s3_bucket=None,
+        local_work_dir,
+        gcp_work_dir=None,
+        aws_work_dir=None,
         server_hostname=CromwellRestAPI.DEFAULT_HOSTNAME,
         server_port=CromwellRestAPI.DEFAULT_PORT,
         server_heartbeat=None,
@@ -39,7 +37,9 @@ class CaperClient(CaperBase):
                 This object is to read hostname/port pair from it.
         """
         super().__init__(
-            tmp_dir=tmp_dir, tmp_gcs_bucket=tmp_gcs_bucket, tmp_s3_bucket=tmp_s3_bucket
+            local_work_dir=local_work_dir,
+            gcp_work_dir=gcp_work_dir,
+            aws_work_dir=aws_work_dir,
         )
 
         if server_heartbeat:
@@ -131,9 +131,9 @@ class CaperClient(CaperBase):
 class CaperClientSubmit(CaperClient):
     def __init__(
         self,
-        tmp_dir,
-        tmp_gcs_bucket=None,
-        tmp_s3_bucket=None,
+        local_work_dir,
+        gcp_work_dir=None,
+        aws_work_dir=None,
         server_hostname=CromwellRestAPI.DEFAULT_HOSTNAME,
         server_port=CromwellRestAPI.DEFAULT_PORT,
         server_heartbeat=None,
@@ -178,9 +178,9 @@ class CaperClientSubmit(CaperClient):
                 PBS extra parameter to be appended to qsub command line.
         """
         super().__init__(
-            tmp_dir=tmp_dir,
-            tmp_gcs_bucket=tmp_gcs_bucket,
-            tmp_s3_bucket=tmp_s3_bucket,
+            local_work_dir=local_work_dir,
+            gcp_work_dir=gcp_work_dir,
+            aws_work_dir=aws_work_dir,
             server_hostname=server_hostname,
             server_port=server_port,
             server_heartbeat=server_heartbeat,
@@ -223,7 +223,7 @@ class CaperClientSubmit(CaperClient):
         hold=False,
         java_heap_womtool=Cromwell.DEFAULT_JAVA_HEAP_WOMTOOL,
         dry_run=False,
-        tmp_dir=None,
+        work_dir=None,
     ):
         """Submit a workflow to Cromwell server.
 
@@ -283,26 +283,23 @@ class CaperClientSubmit(CaperClient):
                 Java heap (java -Xmx) for Womtool.
             dry_run:
                 Stop before running Java command line for Cromwell.
-            tmp_dir:
+            work_dir:
                 Local temporary directory to store all temporary files.
                 Temporary files mean intermediate files used for running Cromwell.
                 For example, workflow options file, imports zip file.
                 Localized (recursively) data files defined in input JSON
                 will NOT be stored here.
-                They will be localized on self._tmp_dir instead.
-                If this is not defined, then cache directory self._tmp_dir will be used.
+                They will be localized on self._local_work_dir instead.
+                If this is not defined, then cache directory self._local_work_dir will be used.
         """
         u_wdl = AutoURI(wdl)
         if not u_wdl.exists:
             raise FileNotFoundError('WDL does not exists. {wdl}'.format(wdl=wdl))
 
-        if tmp_dir is None:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-            suffix = os.path.join(u_wdl.basename_wo_ext, timestamp)
-            tmp_dir = os.path.join(self._tmp_dir, suffix)
-        os.makedirs(tmp_dir, exist_ok=True)
+        if work_dir is None:
+            work_dir = self.create_timestamped_work_dir(prefix=u_wdl.basename_wo_ext)
 
-        wdl = u_wdl.localize_on(tmp_dir)
+        wdl = u_wdl.localize_on(work_dir)
 
         if backend is None:
             backend = self._cromwell_rest_api.get_default_backend()
@@ -311,10 +308,10 @@ class CaperClientSubmit(CaperClient):
             maybe_remote_file = self.localize_on_backend_if_modified(
                 inputs, backend=backend, recursive=not no_deepcopy, make_md5_file=True
             )
-            inputs = AutoURI(maybe_remote_file).localize_on(tmp_dir)
+            inputs = AutoURI(maybe_remote_file).localize_on(work_dir)
 
         options = self._caper_workflow_opts.create_file(
-            directory=tmp_dir,
+            directory=work_dir,
             wdl=wdl,
             backend=backend,
             inputs=inputs,
@@ -327,7 +324,7 @@ class CaperClientSubmit(CaperClient):
         )
 
         labels = self._caper_labels.create_file(
-            directory=tmp_dir,
+            directory=work_dir,
             backend=backend,
             custom_labels=labels,
             str_label=str_label,
@@ -336,9 +333,9 @@ class CaperClientSubmit(CaperClient):
 
         wdl_parser = CaperWDLParser(wdl)
         if imports:
-            imports = AutoURI(imports).localize_on(tmp_dir)
+            imports = AutoURI(imports).localize_on(work_dir)
         else:
-            imports = wdl_parser.create_imports_file(tmp_dir)
+            imports = wdl_parser.create_imports_file(work_dir)
 
         logger.debug(
             'submit params: wdl={w}, imports={imp}, inputs={i}, '

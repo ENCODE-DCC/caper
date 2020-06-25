@@ -51,14 +51,14 @@ class CaperBackendConf:
         postgresql_db_name=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_NAME,
         file_db=None,
         gcp_prj=None,
-        out_gcs_bucket=None,
+        gcp_out_dir=None,
         gcp_memory_retry_error_keys=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS,
         gcp_memory_retry_multiplier=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         use_google_cloud_life_sciences=False,
         aws_batch_arn=None,
         aws_region=None,
-        out_s3_bucket=None,
+        aws_out_dir=None,
         gcp_zones=None,
         slurm_partition=None,
         slurm_account=None,
@@ -121,7 +121,7 @@ class CaperBackendConf:
                 you cannot run multiple caper run/server with the same file DB.
             gcp_prj:
                 Google project name.
-            out_gcs_bucket:
+            gcp_out_dir:
                 Output bucket path for gcp backend. Must start with gs://.
             gcp_memory_retry_error_keys:
                 List of error messages to catch failures due to OOM (out of memory error).
@@ -145,7 +145,7 @@ class CaperBackendConf:
                 ARN for AWS Batch.
             aws_region:
                 AWS region. Multple regions are not allowed.
-            out_s3_bucket:
+            aws_out_dir:
                 Output bucket path for aws backend. Must start with s3://.
             gcp_zones:
                 List of zones for GCP.
@@ -243,13 +243,13 @@ class CaperBackendConf:
         )
 
         # cloud backends
-        if gcp_prj and out_gcs_bucket:
+        if gcp_prj and gcp_out_dir:
             merge_dict(
                 self._template,
                 CromwellBackendGCP(
                     max_concurrent_tasks=max_concurrent_tasks,
                     gcp_prj=gcp_prj,
-                    out_gcs_bucket=out_gcs_bucket,
+                    gcp_out_dir=gcp_out_dir,
                     gcp_memory_retry_error_keys=gcp_memory_retry_error_keys,
                     gcp_memory_retry_multiplier=gcp_memory_retry_multiplier,
                     call_caching_dup_strat=gcp_call_caching_dup_strat,
@@ -258,25 +258,25 @@ class CaperBackendConf:
                 ),
             )
 
-        if aws_batch_arn and aws_region and out_s3_bucket:
+        if aws_batch_arn and aws_region and aws_out_dir:
             merge_dict(
                 self._template,
                 CromwellBackendAWS(
                     max_concurrent_tasks=max_concurrent_tasks,
                     aws_batch_arn=aws_batch_arn,
                     aws_region=aws_region,
-                    out_s3_bucket=out_s3_bucket,
+                    aws_out_dir=aws_out_dir,
                 ),
             )
 
         # keep these variables for a backend checking later
         self._sge_pe = sge_pe
         self._gcp_prj = gcp_prj
-        self._out_gcs_bucket = out_gcs_bucket
+        self._gcp_out_dir = gcp_out_dir
 
         self._aws_batch_arn = aws_batch_arn
         self._aws_region = aws_region
-        self._out_s3_bucket = out_s3_bucket
+        self._aws_out_dir = aws_out_dir
 
     def create_file(
         self,
@@ -311,9 +311,9 @@ class CaperBackendConf:
                     'gcp-prj (Google Cloud Platform project) '
                     'is required for backend gcp.'
                 )
-            if self._out_gcs_bucket is None:
+            if self._gcp_out_dir is None:
                 raise ValueError(
-                    'out-gcs-bucket (gs:// output bucket path) '
+                    'gcp-out-dir (gs:// output bucket path) '
                     'is required for backend gcp.'
                 )
         elif backend == BACKEND_AWS:
@@ -325,9 +325,9 @@ class CaperBackendConf:
                 raise ValueError(
                     'aws-region (AWS region) ' 'is required for backend aws.'
                 )
-            if self._out_s3_bucket is None:
+            if self._aws_out_dir is None:
                 raise ValueError(
-                    'out-s3-bucket (s3:// output bucket path) '
+                    'aws-out-dir (s3:// output bucket path) '
                     'is required for backend aws.'
                 )
 

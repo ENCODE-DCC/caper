@@ -262,7 +262,7 @@ class CromwellBackendGCP(CromwellBackendBase):
     def __init__(
         self,
         gcp_prj,
-        out_gcs_bucket,
+        gcp_out_dir,
         gcp_memory_retry_error_keys=DEFAULT_MEMORY_RETRY_KEYS,
         gcp_memory_retry_multiplier=DEFAULT_MEMORY_RETRY_MULTIPLIER,
         call_caching_dup_strat=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
@@ -323,11 +323,11 @@ class CromwellBackendGCP(CromwellBackendBase):
 
         config['project'] = gcp_prj
 
-        if not out_gcs_bucket.startswith('gs://'):
+        if not gcp_out_dir.startswith('gs://'):
             raise ValueError(
-                'Wrong GCS bucket URI for out_gcs_bucket: {v}'.format(v=out_gcs_bucket)
+                'Wrong GCS bucket URI for gcp_out_dir: {v}'.format(v=gcp_out_dir)
             )
-        config['root'] = out_gcs_bucket
+        config['root'] = gcp_out_dir
 
         caching = config['filesystems']['gcs']['caching']
         if call_caching_dup_strat not in (
@@ -363,7 +363,7 @@ class CromwellBackendAWS(CromwellBackendBase):
         self,
         aws_batch_arn,
         aws_region,
-        out_s3_bucket,
+        aws_out_dir,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
     ):
         super().__init__(
@@ -376,11 +376,11 @@ class CromwellBackendAWS(CromwellBackendBase):
         aws['region'] = aws_region
 
         config = self.backend_config
-        if not out_s3_bucket.startswith('s3://'):
+        if not aws_out_dir.startswith('s3://'):
             raise ValueError(
-                'Wrong S3 bucket URI for out_s3_bucket: {v}'.format(v=out_s3_bucket)
+                'Wrong S3 bucket URI for aws_out_dir: {v}'.format(v=aws_out_dir)
             )
-        config['root'] = out_s3_bucket
+        config['root'] = aws_out_dir
 
         dra = self.backend_config_dra
         dra['queueArn'] = aws_batch_arn

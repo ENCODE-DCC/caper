@@ -29,11 +29,11 @@ class CaperRunner(CaperBase):
 
     def __init__(
         self,
-        tmp_dir,
+        local_work_dir,
         out_dir,
         default_backend,
-        tmp_gcs_bucket=None,
-        tmp_s3_bucket=None,
+        gcp_work_dir=None,
+        aws_work_dir=None,
         cromwell=Cromwell.DEFAULT_CROMWELL,
         womtool=Cromwell.DEFAULT_WOMTOOL,
         disable_call_caching=False,
@@ -55,14 +55,14 @@ class CaperRunner(CaperBase):
         postgresql_db_name=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_NAME,
         file_db=None,
         gcp_prj=None,
-        out_gcs_bucket=None,
+        gcp_out_dir=None,
         gcp_memory_retry_error_keys=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS,
         gcp_memory_retry_multiplier=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         use_google_cloud_life_sciences=False,
         aws_batch_arn=None,
         aws_region=None,
-        out_s3_bucket=None,
+        aws_out_dir=None,
         gcp_zones=None,
         slurm_partition=None,
         slurm_account=None,
@@ -106,12 +106,12 @@ class CaperRunner(CaperBase):
                 Use Google Cloud Life Sciences API instead of Genomics API
                 which has beed deprecated.
                 gcp_zones must be defined and only one zone is allowed.
-            out_gcs_bucket:
+            gcp_out_dir:
             gcp_memory_retry_error_keys:
             gcp_memory_retry_multiplier:
             aws_batch_arn:
             aws_region:
-            out_s3_bucket:
+            aws_out_dir:
             gcp_zones:
                 For this and all below arguments,
                 see details in CaperWorkflowOpts.__init__.
@@ -133,7 +133,9 @@ class CaperRunner(CaperBase):
                 PBS extra parameter to be appended to qsub command line.
         """
         super().__init__(
-            tmp_dir=tmp_dir, tmp_gcs_bucket=tmp_gcs_bucket, tmp_s3_bucket=tmp_s3_bucket
+            local_work_dir=local_work_dir,
+            gcp_work_dir=gcp_work_dir,
+            aws_work_dir=aws_work_dir,
         )
 
         self._cromwell = Cromwell(cromwell=cromwell, womtool=womtool)
@@ -160,14 +162,14 @@ class CaperRunner(CaperBase):
             postgresql_db_password=postgresql_db_password,
             postgresql_db_name=postgresql_db_name,
             gcp_prj=gcp_prj,
-            out_gcs_bucket=out_gcs_bucket,
+            gcp_out_dir=gcp_out_dir,
             gcp_memory_retry_error_keys=gcp_memory_retry_error_keys,
             gcp_memory_retry_multiplier=gcp_memory_retry_multiplier,
             gcp_call_caching_dup_strat=gcp_call_caching_dup_strat,
             use_google_cloud_life_sciences=use_google_cloud_life_sciences,
             aws_batch_arn=aws_batch_arn,
             aws_region=aws_region,
-            out_s3_bucket=out_s3_bucket,
+            aws_out_dir=aws_out_dir,
             gcp_zones=gcp_zones,
             slurm_partition=slurm_partition,
             slurm_account=slurm_account,
@@ -302,8 +304,8 @@ class CaperRunner(CaperBase):
                 For example, backend config file, workflow options file.
                 Localized (recursively) data files defined in input JSON
                 will NOT be stored here.
-                They will be localized on self._tmp_dir instead.
-                If this is not defined, then cache directory self._tmp_dir will be used.
+                They will be localized on self._local_work_dir instead.
+                If this is not defined, then cache directory self._local_work_dir will be used.
                 However, Cromwell Java process itself will run on CWD instead of this directory.
             java_heap_run:
                 Java heap (java -Xmx) for Cromwell server mode.
@@ -323,7 +325,7 @@ class CaperRunner(CaperBase):
             str_label = AutoURI(inputs).basename_wo_ext
 
         if work_dir is None:
-            work_dir = self.create_timestamped_tmp_dir(prefix=u_wdl.basename_wo_ext)
+            work_dir = self.create_timestamped_work_dir(prefix=u_wdl.basename_wo_ext)
 
         logger.info('Localizing files on work_dir. {d}'.format(d=work_dir))
 
@@ -450,14 +452,14 @@ class CaperRunner(CaperBase):
                 Local temporary directory to store all temporary files.
                 Temporary files mean intermediate files used for running Cromwell.
                 For example, auto-generated backend config file and workflow options file.
-                If this is not defined, then cache directory self._tmp_dir with a timestamp
+                If this is not defined, then cache directory self._local_work_dir with a timestamp
                 will be used.
                 However, Cromwell Java process itself will run on CWD instead of this directory.
             dry_run:
                 Stop before running Java command line for Cromwell.
         """
         if work_dir is None:
-            work_dir = self.create_timestamped_tmp_dir(
+            work_dir = self.create_timestamped_work_dir(
                 prefix=CaperRunner.SERVER_TMP_DIR_PREFIX
             )
 
