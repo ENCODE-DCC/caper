@@ -252,9 +252,15 @@ def get_parser_and_defaults(conf_file=None):
         'For aws, define --aws-out-dir.',
     )
 
-    group_gc = parent_runner.add_argument_group(title='GCP backend arguments')
+    group_gc_all = parent_backend.add_argument_group(
+        title='GCP backend arguments for server/runner/client'
+    )
+    group_gc = parent_runner.add_argument_group(
+        title='GCP backend arguments for server/runner'
+    )
+
     group_gc.add_argument('--gcp-prj', help='GC project')
-    group_gc.add_argument(
+    group_gc_all.add_argument(
         '--use-google-cloud-life-sciences',
         action='store_true',
         help='Use Google Cloud Life Sciences API instead of '
@@ -264,7 +270,7 @@ def get_parser_and_defaults(conf_file=None):
         'See https://cloud.google.com/life-sciences/docs/concepts/locations '
         'for supported zones.',
     )
-    group_gc.add_argument(
+    group_gc_all.add_argument(
         '--gcp-zones',
         help='GCP zones which are comma-separated. (e.g. us-west1-b,us-central1-b)',
     )

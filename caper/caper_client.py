@@ -138,6 +138,7 @@ class CaperClientSubmit(CaperClient):
         server_port=CromwellRestAPI.DEFAULT_PORT,
         server_heartbeat=None,
         womtool=Cromwell.DEFAULT_WOMTOOL,
+        use_google_cloud_life_sciences=False,
         gcp_zones=None,
         slurm_partition=None,
         slurm_account=None,
@@ -153,6 +154,10 @@ class CaperClientSubmit(CaperClient):
         Args:
             womtool:
                 Womtool JAR file.
+            use_google_cloud_life_sciences:
+                Use Google Cloud Life Sciences API.
+                gcp_zones will be ignored since it's already configured with in
+                server side backend.conf.
             gcp_zones:
                 GCP zones. Used for gcp backend only.
             slurm_partition:
@@ -184,6 +189,7 @@ class CaperClientSubmit(CaperClient):
         self._cromwell = Cromwell(womtool=womtool)
 
         self._caper_workflow_opts = CaperWorkflowOpts(
+            use_google_cloud_life_sciences=use_google_cloud_life_sciences,
             gcp_zones=gcp_zones,
             slurm_partition=slurm_partition,
             slurm_account=slurm_account,

@@ -17,15 +17,15 @@ BACKEND_ALIAS_SCG = 'scg'
 CONF_CONTENTS_LOCAL_HASH_STRAT = """
 # Hashing strategy for call-caching (3 choices)
 # This parameter is for local (local/slurm/sge/pbs) backend only.
-# This is important for re-using outputs from previous/failed workflows.
+# This is important for call-caching,
+# which means re-using outputs from previous/failed workflows.
 # Cache will miss if different strategy is used.
-# "file" method has been default for all old versions of Caper.
-# So we will keep "file" as default to be compatible with old metadata DB.
-# But "path+modtime" is recommended for new users.
-#   file: md5sum hash (slow).
-#   path: path.
-#   path+modtime: path + mtime.
-local-hash-strat=file
+# "file" method has been default for all old versions of Caper<1.0.
+# "path+modtime" is a new default for Caper>=1.0,
+#   file: use md5sum hash (slow).
+#   path: use path.
+#   path+modtime: use path and modification time.
+local-hash-strat=path+modtime
 """
 
 CONF_CONTENTS_TMP_DIR = """
@@ -128,10 +128,14 @@ gcp-call-caching-dup-strat=
 # instead of Google Cloud Genomics API (deprecating).
 use-google-cloud-life-sciences=false
 
+# Comma-separated zones (regions) for Google Cloud Platform.
 # Life Sciences API requires (only) one zone specified in gcp-zones.
 # Check supported zones:
 #   https://cloud.google.com/life-sciences/docs/concepts/locations
+# e.g. us-central1
+#
 # If you keep using Genomics API then you can still specify multiple zones.
+# e.g. us-west1-a,us-west1-b,us-west1-c
 gcp-zones=
 """
     + CONF_CONTENTS_TMP_DIR

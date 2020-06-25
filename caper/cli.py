@@ -221,6 +221,7 @@ def client(args):
             server_port=args.port,
             server_heartbeat=sh,
             womtool=get_abspath(args.womtool),
+            use_google_cloud_life_sciences=args.use_google_cloud_life_sciences,
             gcp_zones=args.gcp_zones,
             slurm_partition=args.slurm_partition,
             slurm_account=args.slurm_account,
@@ -472,7 +473,7 @@ def main(args=None, nonblocking_server=False):
     if parsed_args.action == 'init':
         init_caper_conf(parsed_args.conf, parsed_args.platform)
 
-    if parsed_args.action in ('run', 'server'):
+    elif parsed_args.action in ('run', 'server'):
         return runner(parsed_args, nonblocking_server=nonblocking_server)
     else:
         client(parsed_args)

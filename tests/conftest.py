@@ -12,7 +12,7 @@ def pytest_addoption(parser):
     )
     parser.addoption(
         '--gcs-root',
-        default='gs://encode-test-caper/tmp',
+        default='gs://encode-test-caper',
         help='GCS root path for CI test. '
         'This GCS bucket must be publicly accessible '
         '(read access for everyone is enough for testing).',
