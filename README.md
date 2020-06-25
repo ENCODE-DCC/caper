@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/ENCODE-DCC/caper.svg?style=svg)](https://circleci.com/gh/ENCODE-DCC/caper)
+
 # Major changes for Caper 1.0.
 
 > **CRITICAL**: Due to change in Caper 1.0 (Cromwell `47` to `51`), metadata database (`--db`) generated before 1.0 will not work with >= 1.0. See details below.
@@ -21,6 +23,10 @@ Google Cloud Platform backend (`gcp`):
     - For `caper submit`, `--gcp-zones` will be just ignored. Make sure that `caper server` is started with correct (single/supported) `--gcp-zones`.
     - Make sure to enable `Google Cloud Life Sciences API` on Google Cloud Platform console (APIs & Services -> `+` button on top).
     - We will deprecate old `Genomics API` support. `Life Sciences API` will become default after next 2-3 releases.
+  - Added [`memory-retry`](https://cromwell.readthedocs.io/en/stable/backends/Google/) to Caper. This is for `gcp` backend only.
+    - Retries (controlled by `--max-retries`) on an instance with increased memory if workflow fails due to OOM (out-of-memory) error.
+    - Comma-separated keys to catch OOM: `--gcp-prj-memory-retry-error-keys`
+    - Multiplier for every retrial due to OOM: `--gcp-prj-memory-retry-multiplier`
 
 > **IMPORTANT**: `--use-gsutil-for-s3` requires `gsutil` installed on your system. This flag allows a direct transfer between `gs://` and `s3://`. This requires `gsutil` >= 4.47. See this [issue](https://github.com/GoogleCloudPlatform/gsutil/issues/935) for details. `gsutil` is based on Python 2.
 ```bash
