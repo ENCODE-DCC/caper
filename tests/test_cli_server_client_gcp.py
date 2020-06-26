@@ -76,9 +76,11 @@ def test_server_client(
 
         # test "submit" with on_hold
         cmd = ['submit', str(wdl)]
+        if gcp_service_account_key_json:
+            cmd += ['--gcp-service-account-key-json', gcp_service_account_key_json]
         cmd += ['--inputs', str(inputs)]
         cmd += ['--imports', str(imports)]
-        cmd += ['--gcp-zones', 'us-central1']
+        cmd += ['--gcp-zones', 'us-west1-a,us-west1-b']
         cmd += ['--gcp-work-dir', tmp_gcs_bucket]
         cmd += ['--ignore-womtool']
         cmd += ['--java-heap-womtool', '2G']

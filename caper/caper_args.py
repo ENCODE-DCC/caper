@@ -63,6 +63,14 @@ def get_parser_and_defaults(conf_file=None):
     parent_all.add_argument(
         '-D', '--debug', action='store_true', help='Prints all logs >= DEBUG level'
     )
+    parent_all.add_argument(
+        '--gcp-service-account-key-json',
+        help='Secret key JSON file for Google Cloud Platform service account. '
+        'This service account should have enough permission to '
+        'Storage for client functions and '
+        'Storage/Compute Engine/Genomics API/Life Sciences API '
+        'for server/runner functions.',
+    )
 
     group_loc = parent_all.add_argument_group(
         title='cache directories for localization'
@@ -280,13 +288,6 @@ def get_parser_and_defaults(conf_file=None):
         'for retrials controlled by --max-retries. '
         'See https://cromwell.readthedocs.io/en/stable/backends/Google/ '
         'for details.',
-    )
-    group_gc_all.add_argument(
-        '--gcp-service-account-key-json',
-        help='Secret key JSON file for Google Cloud Platform service account. '
-        'This service account should have enough permission to '
-        'storage for client functions and '
-        'storage/VM instance for server/runner functions.',
     )
     group_gc_all.add_argument(
         '--use-google-cloud-life-sciences',

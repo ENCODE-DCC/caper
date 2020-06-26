@@ -10,23 +10,28 @@ Upgraded Cromwell from 47 to 51.
 
 Changed hashing strategy for all local backends (`local`, `slurm`, `sge`, `pbs`).
   - Default hashing strategy: `file` (based on md5sum) to `path+modtime`.
+  - Changing hashing strategy with the same metadata DB will result in cache-miss.
 
 Changed duplication strategy for all local backends (`local`, `slurm`, `sge`, `pbs`).
   - Default file duplication strategy: `hard-link` to `soft-link`.
     - For filesystems (e.g. beeGFS) that do not allow hard-linking.
-      - Caper<1.0 still hard-linked input files even with `--soft-glob-output`.
+      - Caper<1.0 hard-linked input files even with `--soft-glob-output`.
       - For Caper>=1.0, you still need to use `--soft-glob-output` for such filesystems.
 
 Google Cloud Platform backend (`gcp`):
-  - Added `--use-google-cloud-life-sciences` to use Google Cloud Life Sciences API (v2beta) instead of deprecating Google Cloud Genomics API (v2alpha1). To use `--use-google-cloud-life-sciences`,
-    - For `caper server/run`, you need to specify only one zone `--gcp-zones` to use Life Sciences API. Check [supported regions](https://cloud.google.com/life-sciences/docs/concepts/locations).
-    - For `caper submit`, `--gcp-zones` will be just ignored. Make sure that `caper server` is started with correct (single/supported) `--gcp-zones`.
+  - Cau use a service account instead of an application default (end user's auth.).
+    - Added `--gcp-service-account-key-json`.
+    - Make sure that such service account has enough permission (roles) to resources on Google Cloud Platform project (`--gcp-prj`). See [details](docs/conf_gcp.md#how-to-run-caper-with-a-service-account).
+  - Can use Google Cloud Life Sciences API (v2beta) instead of deprecating Google Cloud Genomics API (v2alpha1).
+    - Added `--use-google-cloud-life-sciences`.
+    - For `caper server/run`, you need to specify a region `--gcp-region` to use Life Sciences API. Check [supported regions](https://cloud.google.com/life-sciences/docs/concepts/locations). `--gcp-zones` will be ignored.
     - Make sure to enable `Google Cloud Life Sciences API` on Google Cloud Platform console (APIs & Services -> `+` button on top).
-    - We will deprecate old `Genomics API` support. `Life Sciences API` will become default after next 2-3 releases.
+    - Also if you use a service account then add a role `Life Sciences Admin` to your service account.
+    - We will deprecate old `Genomics API` support. `Life Sciences API` will become a new default after next 2-3 releases.
   - Added [`memory-retry`](https://cromwell.readthedocs.io/en/stable/backends/Google/) to Caper. This is for `gcp` backend only.
     - Retries (controlled by `--max-retries`) on an instance with increased memory if workflow fails due to OOM (out-of-memory) error.
-    - Comma-separated keys to catch OOM: `--gcp-prj-memory-retry-error-keys`
-    - Multiplier for every retrial due to OOM: `--gcp-prj-memory-retry-multiplier`
+    - Comma-separated keys to catch OOM: `--gcp-prj-memory-retry-error-keys`.
+    - Multiplier for every retrial due to OOM: `--gcp-prj-memory-retry-multiplier`.
 
 > **IMPORTANT**: `--use-gsutil-for-s3` requires `gsutil` installed on your system. This flag allows a direct transfer between `gs://` and `s3://`. This requires `gsutil` >= 4.47. See this [issue](https://github.com/GoogleCloudPlatform/gsutil/issues/935) for details. `gsutil` is based on Python 2.
 ```bash

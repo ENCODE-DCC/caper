@@ -235,7 +235,6 @@ def client(args):
             server_heartbeat=sh,
             womtool=get_abspath(args.womtool),
             use_google_cloud_life_sciences=args.use_google_cloud_life_sciences,
-            gcp_region=args.gcp_region,
             gcp_zones=args.gcp_zones,
             slurm_partition=args.slurm_partition,
             slurm_account=args.slurm_account,
