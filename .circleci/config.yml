@@ -76,18 +76,24 @@ jobs:
           command: |
             cd tests/
 
-            # auth for gcloud and gsutil
+            # service account's key file
             echo ${GCLOUD_SERVICE_ACCOUNT_SECRET_JSON} > tmp_key.json
-            gcloud config set project ${GOOGLE_PROJECT_ID}
-            export GOOGLE_APPLICATION_CREDENTIALS="${PWD}/tmp_key.json"
+            export KEY_FILE="${PWD}/tmp_key.json"
 
             # run pytest
             pytest --ci-prefix ${CIRCLE_WORKFLOW_ID} \
-                   --gcs-root ${GCS_ROOT}
+                   --gcs-root ${GCS_ROOT} \
+                   --gcp-service-account-key-json ${KEY_FILE} \
+                   --gcp-prj ${GOOGLE_PROJECT_ID}
+
+            # auth for gsutil
+            export GOOGLE_APPLICATION_CREDENTIALS=${KEY_FILE}
+            export GOOGLE_CLOUD_PROJECT=${GOOGLE_PROJECT_ID}
+            # gcloud auth activate-service-account --project=${GOOGLE_PROJECT_ID} --key-file=${KEY_FILE}
+            # gcloud config set project ${GOOGLE_PROJECT_ID}
+            export BOTO_CONFIG=/dev/null
 
             # use gsutil to clean up
-            gcloud auth activate-service-account --project=${GOOGLE_PROJECT_ID} --key-file=tmp_key.json
-            export BOTO_CONFIG=/dev/null
             rm -f tmp_key.json
             gsutil -m rm -rf ${GCS_ROOT}/${CIRCLE_WORKFLOW_ID}
 

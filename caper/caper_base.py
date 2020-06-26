@@ -10,7 +10,15 @@ logger = logging.getLogger(__name__)
 
 
 class CaperBase:
-    def __init__(self, local_work_dir, gcp_work_dir=None, aws_work_dir=None):
+    ENV_GOOGLE_APPLICATION_CREDENTIALS = 'GOOGLE_APPLICATION_CREDENTIALS'
+
+    def __init__(
+        self,
+        local_work_dir,
+        gcp_work_dir=None,
+        aws_work_dir=None,
+        gcp_service_account_key_json=None,
+    ):
         """Manages work/cache/temp directories for localization on the following
         storages:
             - Local*: Local path -> local_work_dir**
@@ -22,15 +30,22 @@ class CaperBase:
         ** /tmp is not recommended. This directory is very important to store
         intermediate files used by Cromwell/AutoURI (file transfer/localization).
 
+        Also manages Google Cloud auth (key JSON file) since both Caper client/server
+        require permission to access to storage.
+
         Args:
             local_work_dir:
-                Local work/temp/cache directory to store files localized for local backends.
+                Local cache directory to store files localized for local backends.
                 Unlike other two directories. This directory is also used to make a
                 working directory to store intermediate files to run Cromwell.
+                e.g. backend.conf and workflow_opts.json.
             gcp_work_dir:
                 GCS cache directory to store files localized on GCS for gcp backend.
             aws_work_dir:
                 S3 cache directory to store files localized on S3 for aws backend.
+            gcp_service_account_key_json:
+                Google Cloud service account for authentication.
+                This service account should have enough permission to storage.
         """
         if not AbsPath(local_work_dir).is_valid:
             raise ValueError(
@@ -54,6 +69,38 @@ class CaperBase:
         self._local_work_dir = local_work_dir
         self._gcp_work_dir = gcp_work_dir
         self._aws_work_dir = aws_work_dir
+
+        self._set_env_gcp_app_credentials(gcp_service_account_key_json)
+
+    def _set_env_gcp_app_credentials(
+        self,
+        gcp_service_account_key_json=None,
+        env_name=ENV_GOOGLE_APPLICATION_CREDENTIALS,
+    ):
+        """Initalizes environment for authentication (VM instance/storage).
+
+        Args:
+            gcp_service_account_key_json:
+                Secret key JSON file for auth.
+                This service account should have full permission to storage and
+                VM instance.
+                Environment variable GOOGLE_APPLICATION_CREDENTIALS will be
+                updated with this.
+        """
+        if gcp_service_account_key_json:
+            if env_name in os.environ:
+                auth_file = os.environ[env_name]
+                if not os.path.samefile(auth_file, gcp_service_account_key_json):
+                    logger.warning(
+                        'Env var {env} does not match with '
+                        'gcp_service_account_key_json. '
+                        'Using application default credentials? '.format(env=env_name)
+                    )
+            logger.info(
+                'Adding GCP service account key JSON {key} to '
+                'env var {env}'.format(key=gcp_service_account_key_json, env=env_name)
+            )
+            os.environ[env_name] = gcp_service_account_key_json
 
     def localize_on_backend(self, f, backend, recursive=False, make_md5_file=False):
         """Localize a file according to the chosen backend.

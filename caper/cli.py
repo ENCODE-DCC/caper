@@ -163,6 +163,7 @@ def runner(args, nonblocking_server=False):
         default_backend=args.backend,
         gcp_work_dir=args.gcp_work_dir,
         aws_work_dir=args.aws_work_dir,
+        gcp_service_account_key_json=get_abspath(args.gcp_service_account_key_json),
         cromwell=get_abspath(args.cromwell),
         womtool=get_abspath(getattr(args, 'womtool', None)),
         disable_call_caching=args.disable_call_caching,
@@ -220,19 +221,21 @@ def client(args):
             heartbeat_file=args.server_heartbeat_file,
             heartbeat_timeout=args.server_heartbeat_timeout,
         )
-    if args.gcp_zones:
-        args.gcp_zones = re.split(REGEX_DELIMITER_GCP_PARAMS, args.gcp_zones)
-
     if args.action == 'submit':
+        if args.gcp_zones:
+            args.gcp_zones = re.split(REGEX_DELIMITER_GCP_PARAMS, args.gcp_zones)
+
         c = CaperClientSubmit(
             local_work_dir=args.local_work_dir,
             gcp_work_dir=args.gcp_work_dir,
             aws_work_dir=args.aws_work_dir,
+            gcp_service_account_key_json=get_abspath(args.gcp_service_account_key_json),
             server_hostname=args.hostname,
             server_port=args.port,
             server_heartbeat=sh,
             womtool=get_abspath(args.womtool),
             use_google_cloud_life_sciences=args.use_google_cloud_life_sciences,
+            gcp_region=args.gcp_region,
             gcp_zones=args.gcp_zones,
             slurm_partition=args.slurm_partition,
             slurm_account=args.slurm_account,
@@ -250,6 +253,7 @@ def client(args):
             local_work_dir=args.local_work_dir,
             gcp_work_dir=args.gcp_work_dir,
             aws_work_dir=args.aws_work_dir,
+            gcp_service_account_key_json=get_abspath(args.gcp_service_account_key_json),
             server_hostname=args.hostname,
             server_port=args.port,
             server_heartbeat=sh,

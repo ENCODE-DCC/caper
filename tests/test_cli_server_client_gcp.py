@@ -14,7 +14,15 @@ TIMEOUT_SERVER_SPIN_UP = 240
 TIMEOUT_SERVER_RUN_WORKFLOW = 480
 
 
-def test_server_client(tmp_path, gcs_root, ci_prefix, cromwell, womtool, gcp_prj):
+def test_server_client(
+    tmp_path,
+    gcs_root,
+    ci_prefix,
+    cromwell,
+    womtool,
+    gcp_prj,
+    gcp_service_account_key_json,
+):
     """Test server, client stuffs
     """
     # server command line
@@ -26,7 +34,10 @@ def test_server_client(tmp_path, gcs_root, ci_prefix, cromwell, womtool, gcp_prj
     cmd = ['server']
     cmd += ['--local-work-dir', str(tmp_path / 'tmp_dir')]
     cmd += ['--backend', 'gcp']
+    if gcp_service_account_key_json:
+        cmd += ['--gcp-service-account-key-json', gcp_service_account_key_json]
     cmd += ['--gcp-prj', gcp_prj]
+    cmd += ['--gcp-zones', 'us-west1-a,us-west1-b']
     cmd += ['--gcp-out-dir', out_gcs_bucket]
     cmd += ['--gcp-memory-retry-error-keys', 'OutOfMemory,Killed']
     cmd += ['--gcp-memory-retry-multiplier', '1.3']

@@ -223,23 +223,18 @@ class CromwellBackendBase(UserDict):
 
 
 class CromwellBackendGCP(CromwellBackendBase):
-    TEMPLATE = {
-        'google': {
-            'application-name': 'cromwell',
-            'auths': [{'name': 'application-default', 'scheme': 'application_default'}],
-        }
-    }
+    TEMPLATE = {'google': {'application-name': 'cromwell', 'auths': []}}
     TEMPLATE_BACKEND = {
         'config': {
             'default-runtime-attributes': {},
             'genomics-api-queries-per-100-seconds': 1000,
             'maximum-polling-interval': 600,
+            'localization-attempts': 3,
             'genomics': {
-                'auth': 'application-default',
-                'compute-service-account': 'default',
                 'restrict-metadata-access': False,
+                'compute-service-account': 'default',
             },
-            'filesystems': {'gcs': {'auth': 'application-default', 'caching': {}}},
+            'filesystems': {'gcs': {'caching': {}}},
         }
     }
     ACTOR_FACTORY_V2ALPHA = (
@@ -250,7 +245,7 @@ class CromwellBackendGCP(CromwellBackendBase):
     )
     GENOMICS_ENDPOINT_V2ALPHA = 'https://genomics.googleapis.com/'
     GENOMICS_ENDPOINT_V2BETA = 'https://lifesciences.googleapis.com/'
-    DEFAULT_ZONE_V2BETA = 'us-central1'
+    DEFAULT_REGION = 'us-central1'
 
     CALL_CACHING_DUP_STRAT_REFERENCE = 'reference'
     CALL_CACHING_DUP_STRAT_COPY = 'copy'
@@ -266,15 +261,25 @@ class CromwellBackendGCP(CromwellBackendBase):
         gcp_memory_retry_error_keys=DEFAULT_MEMORY_RETRY_KEYS,
         gcp_memory_retry_multiplier=DEFAULT_MEMORY_RETRY_MULTIPLIER,
         call_caching_dup_strat=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
+        gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
+        gcp_region=DEFAULT_REGION,
         gcp_zones=None,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
     ):
         """
         Args:
+            gcp_service_account_key_json:
+                Use this key JSON file to use service_account scheme
+                instead of application_default.
+            use_google_cloud_life_sciences:
+                Use Google Cloud Life Sciences API (v2beta) instead of
+                deprecated Genomics API (v2alpha1).
+            gcp_region:
+                Region for Google Cloud Life Sciences API.
             gcp_zones:
-                List of zones (regions).
-                If use_google_cloud_life_sciences, only one zone is allowed.
+                List of zones for Genomics API.
+                Ignored if use_google_cloud_life_sciences.
             gcp_memory_retry_error_keys:
                 List of error strings to catch out-of-memory error.
         """
@@ -284,11 +289,26 @@ class CromwellBackendGCP(CromwellBackendBase):
         merge_dict(self.data, CromwellBackendGCP.TEMPLATE)
         self.merge_backend(CromwellBackendGCP.TEMPLATE_BACKEND)
 
-        if gcp_zones is None:
-            gcp_zones = []
-
         config = self.backend_config
         genomics = config['genomics']
+        filesystems = config['filesystems']
+
+        if gcp_service_account_key_json:
+            genomics['auth'] = 'service-account'
+            filesystems['gcs']['auth'] = 'service-account'
+            self['google']['auths'].append(
+                {
+                    'name': 'service-account',
+                    'scheme': 'service_account',
+                    'json-file': gcp_service_account_key_json,
+                }
+            )
+        else:
+            genomics['auth'] = 'application-default'
+            filesystems['gcs']['auth'] = 'application-default'
+            self['google']['auths'].append(
+                {'name': 'application-default', 'scheme': 'application_default'}
+            )
 
         config['memory-retry'] = {
             'error-keys': gcp_memory_retry_error_keys,
@@ -297,24 +317,7 @@ class CromwellBackendGCP(CromwellBackendBase):
         if use_google_cloud_life_sciences:
             self.backend['actor-factory'] = CromwellBackendGCP.ACTOR_FACTORY_V2BETA
             genomics['endpoint-url'] = CromwellBackendGCP.GENOMICS_ENDPOINT_V2BETA
-            if len(gcp_zones) > 1:
-                raise ValueError(
-                    'Google Cloud Life Sciences API requires '
-                    'only one zone (region) in gcp_zones. '
-                    'See https://cloud.google.com/life-sciences/docs/concepts/locations '
-                    'for supported gcp_zones. Default zone is {z}'.format(
-                        z=CromwellBackendGCP.DEFAULT_ZONE_V2BETA
-                    )
-                )
-            elif len(gcp_zones) == 0:
-                logging.warning(
-                    'gcp_zones not specified. using default zone {z}'.format(
-                        z=CromwellBackendGCP.DEFAULT_ZONE_V2BETA
-                    )
-                )
-                genomics['location'] = CromwellBackendGCP.DEFAULT_ZONE_V2BETA
-            else:
-                genomics['location'] = gcp_zones[0]
+            genomics['location'] = gcp_region
         else:
             self.backend['actor-factory'] = CromwellBackendGCP.ACTOR_FACTORY_V2ALPHA
             genomics['endpoint-url'] = CromwellBackendGCP.GENOMICS_ENDPOINT_V2ALPHA
@@ -329,7 +332,7 @@ class CromwellBackendGCP(CromwellBackendBase):
             )
         config['root'] = gcp_out_dir
 
-        caching = config['filesystems']['gcs']['caching']
+        caching = filesystems['gcs']['caching']
         if call_caching_dup_strat not in (
             CromwellBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
             CromwellBackendGCP.CALL_CACHING_DUP_STRAT_COPY,

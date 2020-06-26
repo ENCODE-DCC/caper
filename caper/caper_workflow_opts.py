@@ -38,8 +38,7 @@ class CaperWorkflowOpts:
             use_google_cloud_life_sciences:
                 Use Google Cloud Life Sciences API instead of Genomics API
                 which has beed deprecated.
-                If this flag is on gcp_zones is ignored since such single zone
-                should be defined in backend.conf (not in workflow.opts.json).
+                If this flag is on gcp_zones is ignored.
             gcp_zones:
                 For gcp backend only.
                 List of GCP zones to run workflows on.

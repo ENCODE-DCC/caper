@@ -30,30 +30,38 @@ def pytest_addoption(parser):
     parser.addoption(
         '--gcp-prj', default='encode-dcc-1016', help='Project on Google Cloud Platform.'
     )
+    parser.addoption(
+        '--gcp-service-account-key-json', help='JSON key file for GCP service account.'
+    )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope='session')
 def ci_prefix(request):
-    return request.config.getoption("--ci-prefix").rstrip('/')
+    return request.config.getoption('--ci-prefix').rstrip('/')
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope='session')
 def gcs_root(request):
     """GCS root to generate test GCS URIs on.
     """
-    return request.config.getoption("--gcs-root").rstrip('/')
+    return request.config.getoption('--gcs-root').rstrip('/')
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope='session')
 def cromwell(request):
-    return request.config.getoption("--cromwell")
+    return request.config.getoption('--cromwell')
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope='session')
 def womtool(request):
-    return request.config.getoption("--womtool")
+    return request.config.getoption('--womtool')
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope='session')
 def gcp_prj(request):
-    return request.config.getoption("--gcp-prj")
+    return request.config.getoption('--gcp-prj')
+
+
+@pytest.fixture(scope='session')
+def gcp_service_account_key_json(request):
+    return request.config.getoption('--gcp-service-account-key-json')

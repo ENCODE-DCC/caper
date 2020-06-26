@@ -55,7 +55,9 @@ class CaperBackendConf:
         gcp_memory_retry_error_keys=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS,
         gcp_memory_retry_multiplier=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
+        gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
+        gcp_region=CromwellBackendGCP.DEFAULT_REGION,
         aws_batch_arn=None,
         aws_region=None,
         aws_out_dir=None,
@@ -133,6 +135,10 @@ class CaperBackendConf:
                 See description for gcp_memory_retry_error_keys.
             gcp_call_caching_dup_strat:
                 Call-caching duplication strategy.
+            gcp_service_account_key_json:
+                GCP service account key JSON.
+                If defined, service_account scheme will be used instead of application_default
+                in Cromwell.
             use_google_cloud_life_sciences:
                 Use Google Cloud Life Sciences API.
                 This requires only one zone specified in gcp_zones.
@@ -141,6 +147,9 @@ class CaperBackendConf:
                     https://cromwell.readthedocs.io/en/stable/backends/Google/.
                 Also check supported zones:
                     https://cloud.google.com/life-sciences/docs/concepts/locations
+            gcp_region:
+                Region for Google Cloud Life Sciences API.
+                Ignored if not use_google_cloud_life_sciences.
             aws_batch_arn:
                 ARN for AWS Batch.
             aws_region:
@@ -148,7 +157,7 @@ class CaperBackendConf:
             aws_out_dir:
                 Output bucket path for aws backend. Must start with s3://.
             gcp_zones:
-                List of zones for GCP.
+                List of zones for Google Cloud Genomics API.
                 For this and all arguments below this,
                 see details in CaperWorkflowOpts.__init__.
                 These parameters can be defined either in a backend conf file or
@@ -244,6 +253,15 @@ class CaperBackendConf:
 
         # cloud backends
         if gcp_prj and gcp_out_dir:
+            if gcp_service_account_key_json and not os.path.exists(
+                gcp_service_account_key_json
+            ):
+                raise FileNotFoundError(
+                    'gcp_service_account_key_json does not exist. f={f}'.format(
+                        f=gcp_service_account_key_json
+                    )
+                )
+
             merge_dict(
                 self._template,
                 CromwellBackendGCP(
@@ -253,7 +271,9 @@ class CaperBackendConf:
                     gcp_memory_retry_error_keys=gcp_memory_retry_error_keys,
                     gcp_memory_retry_multiplier=gcp_memory_retry_multiplier,
                     call_caching_dup_strat=gcp_call_caching_dup_strat,
+                    gcp_service_account_key_json=gcp_service_account_key_json,
                     use_google_cloud_life_sciences=use_google_cloud_life_sciences,
+                    gcp_region=gcp_region,
                     gcp_zones=gcp_zones,
                 ),
             )

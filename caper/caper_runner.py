@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class CaperRunner(CaperBase):
+    ENV_GOOGLE_CLOUD_PROJECT = 'GOOGLE_CLOUD_PROJECT'
     DEFAULT_FILE_DB_PREFIX = 'default_caper_file_db'
     SERVER_TMP_DIR_PREFIX = '.caper_server'
 
@@ -59,7 +60,9 @@ class CaperRunner(CaperBase):
         gcp_memory_retry_error_keys=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS,
         gcp_memory_retry_multiplier=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
+        gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
+        gcp_region=CromwellBackendGCP.DEFAULT_REGION,
         aws_batch_arn=None,
         aws_region=None,
         aws_out_dir=None,
@@ -102,10 +105,16 @@ class CaperRunner(CaperBase):
             file_db:
             gcp_prj:
             gcp_call_caching_dup_strat:
+            gcp_service_account_key_json:
+                This will be added to environment variable
+                GOOGLE_APPLICATION_CREDENTIALS
+                If not match with existing key then error out.
             use_google_cloud_life_sciences:
                 Use Google Cloud Life Sciences API instead of Genomics API
                 which has beed deprecated.
-                gcp_zones must be defined and only one zone is allowed.
+            gcp_region:
+                Region for Google Cloud Life Sciences API.
+                Ignored if not use_google_cloud_life_sciences.
             gcp_out_dir:
             gcp_memory_retry_error_keys:
             gcp_memory_retry_multiplier:
@@ -136,7 +145,9 @@ class CaperRunner(CaperBase):
             local_work_dir=local_work_dir,
             gcp_work_dir=gcp_work_dir,
             aws_work_dir=aws_work_dir,
+            gcp_service_account_key_json=gcp_service_account_key_json,
         )
+        self._set_env_gcp_prj(gcp_prj)
 
         self._cromwell = Cromwell(cromwell=cromwell, womtool=womtool)
 
@@ -166,7 +177,9 @@ class CaperRunner(CaperBase):
             gcp_memory_retry_error_keys=gcp_memory_retry_error_keys,
             gcp_memory_retry_multiplier=gcp_memory_retry_multiplier,
             gcp_call_caching_dup_strat=gcp_call_caching_dup_strat,
+            gcp_service_account_key_json=gcp_service_account_key_json,
             use_google_cloud_life_sciences=use_google_cloud_life_sciences,
+            gcp_region=gcp_region,
             aws_batch_arn=aws_batch_arn,
             aws_region=aws_region,
             aws_out_dir=aws_out_dir,
@@ -195,6 +208,26 @@ class CaperRunner(CaperBase):
         )
 
         self._caper_labels = CaperLabels()
+
+    def _set_env_gcp_prj(self, gcp_prj=None, env_name=ENV_GOOGLE_CLOUD_PROJECT):
+        """Initalizes environment for authentication (storage).
+        Args:
+            gcp_prj:
+                Environment variable GOOGLE_CLOUD_PROJECT will be updated with
+                this.
+        """
+        if gcp_prj:
+            if env_name in os.environ:
+                prj = os.environ[env_name]
+                if prj != gcp_prj:
+                    logger.warning(
+                        'Env var {env} does not match with '
+                        'gcp_prj {prj}.'.format(env=env_name, prj=gcp_prj)
+                    )
+            logger.info(
+                'Adding {prj} to env var {env}'.format(prj=gcp_prj, env=env_name)
+            )
+            os.environ[env_name] = gcp_prj
 
     def run(
         self,

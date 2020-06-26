@@ -19,6 +19,7 @@ class CaperClient(CaperBase):
         local_work_dir,
         gcp_work_dir=None,
         aws_work_dir=None,
+        gcp_service_account_key_json=None,
         server_hostname=CromwellRestAPI.DEFAULT_HOSTNAME,
         server_port=CromwellRestAPI.DEFAULT_PORT,
         server_heartbeat=None,
@@ -40,6 +41,7 @@ class CaperClient(CaperBase):
             local_work_dir=local_work_dir,
             gcp_work_dir=gcp_work_dir,
             aws_work_dir=aws_work_dir,
+            gcp_service_account_key_json=gcp_service_account_key_json,
         )
 
         if server_heartbeat:
