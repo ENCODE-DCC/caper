@@ -9,8 +9,8 @@ Upgraded Cromwell from 47 to 51.
     - See [this note](https://github.com/broadinstitute/cromwell/releases/tag/49) to find DB migration instruction.
 
 Changed hashing strategy for all local backends (`local`, `slurm`, `sge`, `pbs`).
-  - Default hashing strategy: `file` (based on md5sum) to `path+modtime`.
-  - Changing hashing strategy with the same metadata DB will result in cache-miss.
+  - Default hashing strategy: `file` (based on md5sum, which is expensive) to `path+modtime`.
+  - Changing hashing strategy and using the same metadata DB will result in cache-miss.
 
 Changed duplication strategy for all local backends (`local`, `slurm`, `sge`, `pbs`).
   - Default file duplication strategy: `hard-link` to `soft-link`.
@@ -32,6 +32,30 @@ Google Cloud Platform backend (`gcp`):
     - Retries (controlled by `--max-retries`) on an instance with increased memory if workflow fails due to OOM (out-of-memory) error.
     - Comma-separated keys to catch OOM: `--gcp-prj-memory-retry-error-keys`.
     - Multiplier for every retrial due to OOM: `--gcp-prj-memory-retry-multiplier`.
+
+Change of parameter names. Backward compatible.
+  - `--out-dir` -> `--local-out-dir`
+  - `--out-gcs-bucket` -> `--gcp-out-dir`
+  - `--out-s3-bucket` -> `--aws-out-dir`
+  - `--tmp-dir` -> `--local-work-dir`
+  - `--tmp-gcs-bucket` -> `--gcp-work-dir`
+  - `--tmp-s3-bucket` -> `--aws-work-dir`
+
+Added parameters
+  - `--use-google-cloud-life-sciences` and `--gcp-region`: Use Life Sciences API (Cromwell's v2beta scheme).
+  - `--gcp-service-account-key-json`: Use a service account for auth on GCP (instead of application default).
+  - `--gcp-prj-memory-retry-error-keys`: Comma-separated keys to catch OOM error on GCP.
+  - `--gcp-prj-memory-retry-multiplier`: Multiplier for every retrial due to OOM error on GCP.
+  - `--cromwell-stdout`: Redirect Cromwell STDOUT/STDERR to file.
+
+Improved Python interface.
+  - Old Caper<1.0 was originally designed for CLI.
+  - New Caper>=1.0 is designed for Python interface first and then CLI is based on such Python interface.
+  - Can retrieve `metadata.json` embedded with subworkflows' metadata JSON.
+
+Better logging and troubleshooting.
+  - Defaults to write Cromwell STDOUT/STDERR to `cromwell.out` (controlled by `--cromwell-stdout`).
+
 
 > **IMPORTANT**: `--use-gsutil-for-s3` requires `gsutil` installed on your system. This flag allows a direct transfer between `gs://` and `s3://`. This requires `gsutil` >= 4.47. See this [issue](https://github.com/GoogleCloudPlatform/gsutil/issues/935) for details. `gsutil` is based on Python 2.
 ```bash
