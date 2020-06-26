@@ -84,7 +84,8 @@ jobs:
             pytest --ci-prefix ${CIRCLE_WORKFLOW_ID} \
                    --gcs-root ${GCS_ROOT} \
                    --gcp-service-account-key-json ${KEY_FILE} \
-                   --gcp-prj ${GOOGLE_PROJECT_ID}
+                   --gcp-prj ${GOOGLE_PROJECT_ID} \
+                   -vv -s
 
             # auth for gsutil
             export GOOGLE_APPLICATION_CREDENTIALS=${KEY_FILE}
