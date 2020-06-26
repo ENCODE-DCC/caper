@@ -19,15 +19,23 @@ update_apt: &update_apt
     sudo apt-get update
 
 
-install_python3: &install_python3_java_singularity
+install_python3: &install_python3_java
   name: Install python3, pip3, java
   command: |
     sudo apt-get install software-properties-common git wget curl default-jre -y
     sudo add-apt-repository ppa:deadsnakes/ppa -y
-    sudo apt-get update && sudo apt-get install python3.6 singularity-container -y
+    sudo apt-get update && sudo apt-get install python3.6 -y
     sudo wget https://bootstrap.pypa.io/get-pip.py
     sudo python3.6 get-pip.py
     sudo ln -s /usr/bin/python3.6 /usr/local/bin/python3
+
+
+install_singularity: &install_singularity
+  name: Install Singularity (container)
+  command: |
+    sudo wget -O- http://neuro.debian.net/lists/xenial.us-ca.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
+    sudo apt-key adv --recv-keys --keyserver hkp://pool.sks-keyservers.net:80 0xA5D32F012649A5A9
+    sudo apt-get update && sudo apt-get install singularity-container
 
 
 install_py3_packages: &install_py3_packages
@@ -58,7 +66,8 @@ jobs:
     steps:
       - checkout
       - run: *update_apt
-      - run: *install_python3_java_singularity
+      - run: *install_python3_java
+      - run: *install_singularity
       - run: *install_py3_packages
       - run: *install_gcs_lib
       - run: *install_aws_lib
