@@ -101,7 +101,7 @@ def test_all(tmp_path, cromwell, womtool):
         assert cra.get_labels(workflow_id)['caper-str-label'] == test_label
 
         # abort it
-        assert cra.find([workflow_id])[0]['status'] == 'Submitted'
+        assert cra.find([workflow_id])[0]['status'] in ('Submitted', 'On Hold')
         cra.abort([workflow_id])
         time.sleep(5)
         assert cra.find([workflow_id])[0]['status'] == 'Aborted'

@@ -10,8 +10,8 @@ from caper.wdl_parser import WDLParser
 
 from .example_wdl import make_directory_with_wdls
 
-TIMEOUT_SERVER_SPIN_UP = 240
-TIMEOUT_SERVER_RUN_WORKFLOW = 480
+TIMEOUT_SERVER_SPIN_UP = 480
+TIMEOUT_SERVER_RUN_WORKFLOW = 960
 
 
 def test_server_client(
