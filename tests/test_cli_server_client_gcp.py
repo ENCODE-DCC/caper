@@ -10,7 +10,7 @@ from caper.wdl_parser import WDLParser
 
 from .example_wdl import make_directory_with_wdls
 
-TIMEOUT_SERVER_SPIN_UP = 480
+TIMEOUT_SERVER_SPIN_UP = 500
 TIMEOUT_SERVER_RUN_WORKFLOW = 960
 
 
@@ -45,7 +45,7 @@ def test_server_client(
     cmd += ['--cromwell-stdout', str(tmp_path / 'cromwell_stdout.o')]
     # test with file type DB
     cmd += ['--db', 'file']
-    cmd += ['--db-timeout', '50000']
+    cmd += ['--db-timeout', '500000']
     cmd += ['--file-db', str(tmp_path / 'file_db_prefix')]
     cmd += ['--max-concurrent-tasks', '2']
     cmd += ['--max-concurrent-workflows', '2']

@@ -53,7 +53,7 @@ def test_run(tmp_path, cromwell, womtool):
     cmd += ['--backend', 'local']
     cmd += ['--cromwell-stdout', str(tmp_path / 'cromwell_stdout.o')]
     cmd += ['--db', 'file']
-    cmd += ['--db-timeout', '50000']
+    cmd += ['--db-timeout', '500000']
     cmd += ['--file-db', str(tmp_path / 'file_db_prefix')]
     cmd += ['--max-concurrent-tasks', '2']
     cmd += ['--max-concurrent-workflows', '2']
@@ -118,7 +118,7 @@ def test_run_gcp_with_life_sciences_api(
     cmd += ['--cromwell-stdout', str(tmp_path / 'cromwell_stdout.o')]
     # test with file type DB
     cmd += ['--db', 'file']
-    cmd += ['--db-timeout', '50000']
+    cmd += ['--db-timeout', '500000']
     cmd += ['--file-db', str(tmp_path / 'file_db_prefix')]
     cmd += ['--max-concurrent-tasks', '2']
     cmd += ['--max-concurrent-workflows', '2']
