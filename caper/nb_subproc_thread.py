@@ -144,9 +144,10 @@ class NBSubprocThread(Thread):
                 try:
                     b = q.get_nowait()
                     stdout = b.decode()
-                    self._stdout += stdout
-                    if on_stdout and stdout:
-                        self._status = on_stdout(stdout)
+                    if stdout:
+                        self._stdout += stdout
+                        if on_stdout:
+                            self._status = on_stdout(stdout)
                 except Empty:
                     pass
                 except KeyboardInterrupt:
