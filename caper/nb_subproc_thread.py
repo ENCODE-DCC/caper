@@ -68,7 +68,7 @@ class NBSubprocThread(Thread):
             args=(args, cwd, stdin, on_poll, on_stdout, on_terminate),
         )
         self._poll_interval = poll_interval
-        self._stdout = ''
+        self._stdout_list = []
         self._rc = None
         self._stop_it = False
         self._status = None
@@ -76,7 +76,7 @@ class NBSubprocThread(Thread):
 
     @property
     def stdout(self):
-        return self._stdout
+        return ''.join(self._stdout_list)
 
     @property
     def rc(self):
@@ -145,7 +145,7 @@ class NBSubprocThread(Thread):
                     b = q.get_nowait()
                     stdout = b.decode()
                     if stdout:
-                        self._stdout += stdout
+                        self._stdout_list.append(stdout)
                         if on_stdout:
                             self._status = on_stdout(stdout)
                 except Empty:
