@@ -25,7 +25,7 @@ install_python3: &install_python3_java
     sudo apt-get install software-properties-common git wget curl default-jre -y
     sudo add-apt-repository ppa:deadsnakes/ppa -y
     sudo apt-get update && sudo apt-get install python3.6 -y
-    sudo wget https://bootstrap.pypa.io/get-pip.py
+    sudo wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py
     sudo python3.6 get-pip.py
     sudo ln -s /usr/bin/python3.6 /usr/local/bin/python3
 
@@ -33,7 +33,7 @@ install_python3: &install_python3_java
 install_singularity: &install_singularity
   name: Install Singularity (container)
   command: |
-    sudo wget -O- http://neuro.debian.net/lists/xenial.us-ca.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
+    sudo wget --no-check-certificate -O- http://neuro.debian.net/lists/xenial.us-ca.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
     sudo apt-key adv --recv-keys --keyserver hkp://pool.sks-keyservers.net:80 0xA5D32F012649A5A9
     sudo apt-get update && sudo apt-get install singularity-container
 
@@ -49,7 +49,7 @@ install_gcs_lib: &install_gcs_lib
   name: Install Google Cloud SDK (gcloud and gsutil) and Python API (google-cloud-storage)
   command: |
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+    curl -k https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
     sudo apt-get update && sudo apt-get install google-cloud-sdk -y
     sudo pip3 install google-cloud-storage
 
