@@ -145,7 +145,7 @@ class NBSubprocThread(Thread):
                     b = q.get_nowait()
                     stdout = b.decode()
                     self._stdout += stdout
-                    if on_stdout:
+                    if on_stdout and stdout:
                         self._status = on_stdout(stdout)
                 except Empty:
                     pass
