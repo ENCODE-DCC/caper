@@ -43,8 +43,7 @@ def test_server_client(
     cmd += ['--gcp-memory-retry-multiplier', '1.3']
     cmd += ['--gcp-work-dir', tmp_gcs_bucket]
     cmd += ['--cromwell-stdout', str(tmp_path / 'cromwell_stdout.o')]
-    # test with file type DB
-    cmd += ['--db', 'file']
+    cmd += ['--db', 'in-memory']
     cmd += ['--db-timeout', '500000']
     cmd += ['--file-db', str(tmp_path / 'file_db_prefix')]
     cmd += ['--max-concurrent-tasks', '2']
