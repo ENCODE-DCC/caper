@@ -93,7 +93,7 @@ jobs:
                    --gcp-prj ${GOOGLE_PROJECT_ID} \
                    --cromwell ${CROMWELL_JAR} \
                    --womtool ${WOMTOOL_JAR} \
-                   --debug \
+                   --debug-caper \
                    -vv -s
 
             # auth for gsutil

@@ -37,7 +37,7 @@ def test_mutually_exclusive_params(tmp_path):
         cli_main(cmd)
 
 
-def test_run(tmp_path, cromwell, womtool, debug):
+def test_run(tmp_path, cromwell, womtool, debug_caper):
     """Will test most local parameters (run only) here.
     """
     make_directory_with_wdls(str(tmp_path))
@@ -70,7 +70,7 @@ def test_run(tmp_path, cromwell, womtool, debug):
     cmd += ['--java-heap-run', '2G']
     cmd += ['--max-retries', '1']
     cmd += ['--metadata-output', str(tmp_path / 'metadata.json')]
-    if debug:
+    if debug_caper:
         cmd += ['--debug']
 
     cli_main(cmd)
@@ -89,7 +89,7 @@ def test_run_gcp_with_life_sciences_api(
     womtool,
     gcp_prj,
     gcp_service_account_key_json,
-    debug,
+    debug_caper,
 ):
     """Test run with Google Cloud Life Sciences API
     """
@@ -130,7 +130,7 @@ def test_run_gcp_with_life_sciences_api(
     cmd += ['--womtool', womtool]
     cmd += ['--java-heap-run', '4G']
     cmd += ['--docker', 'ubuntu:latest']
-    if debug:
+    if debug_caper:
         cmd += ['--debug']
     print(' '.join(cmd))
 

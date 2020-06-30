@@ -34,7 +34,7 @@ def pytest_addoption(parser):
         '--gcp-service-account-key-json', help='JSON key file for GCP service account.'
     )
     parser.addoption(
-        '--debug', action='store_true', help='Debug-level logging for CLI tests.'
+        '--debug-caper', action='store_true', help='Debug-level logging for CLI tests.'
     )
 
 
@@ -71,5 +71,5 @@ def gcp_service_account_key_json(request):
 
 
 @pytest.fixture(scope='session')
-def debug(request):
-    return request.config.getoption('--debug')
+def debug_caper(request):
+    return request.config.getoption('--debug-caper')

@@ -22,7 +22,7 @@ def test_server_client(
     womtool,
     gcp_prj,
     gcp_service_account_key_json,
-    debug,
+    debug_caper,
 ):
     """Test server, client stuffs
     """
@@ -55,6 +55,8 @@ def test_server_client(
     cmd += ['--cromwell', cromwell]
     cmd += ['--java-heap-server', '8G']
     cmd += ['--port', str(server_port)]
+    if debug_caper:
+        cmd += ['--debug']
     print(' '.join(cmd))
 
     try:
@@ -88,6 +90,8 @@ def test_server_client(
         cmd += ['--docker', 'ubuntu:latest']
         cmd += ['--backend', 'gcp']
         cmd += ['--hold']
+        if debug_caper:
+            cmd += ['--debug']
         cli_main(cmd)
 
         time.sleep(5)
