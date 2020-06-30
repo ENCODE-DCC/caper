@@ -175,7 +175,7 @@ class NBSubprocThread(Thread):
         if on_terminate:
             self._ret = on_terminate()
         logger.info(
-            'Terminated subprocess. status={s}, rc={rc}, ret={ret}'.format(
-                s=self._status, rc=self._rc, ret=self._ret
+            'Terminated subprocess. rc={rc}, status={s}'.format(
+                s=self._status, rc=self._rc
             )
         )
