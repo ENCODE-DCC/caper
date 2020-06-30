@@ -53,7 +53,7 @@ def test_server_client(
     cmd += ['--local-hash-strat', 'path']
     cmd += ['--local-out-dir', str(tmp_path / 'out_dir')]
     cmd += ['--cromwell', cromwell]
-    cmd += ['--java-heap-server', '4G']
+    cmd += ['--java-heap-server', '8G']
     cmd += ['--port', str(server_port)]
     print(' '.join(cmd))
 
