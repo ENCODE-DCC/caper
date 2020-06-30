@@ -399,6 +399,9 @@ class Cromwell(object):
         ]
         if backend_conf:
             cmd += ['-Dconfig.file={}'.format(backend_conf)]
+            logger.debug(
+                'backend_conf contents:\n{s}'.format(s=AutoURI(backend_conf).read())
+            )
 
         cmd += [self._cromwell, 'server']
 
@@ -430,7 +433,7 @@ class Cromwell(object):
             if wm.is_server_started():
                 if server_heartbeat and not server_heartbeat.is_alive():
                     server_heartbeat.start(port=server_port, hostname=server_hostname)
-                return True
+                return 'server_started'
 
         def on_terminate():
             nonlocal server_heartbeat

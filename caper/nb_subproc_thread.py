@@ -159,7 +159,9 @@ class NBSubprocThread(Thread):
                 cnt += 1
 
             if self._stop_it:
-                logger.info('Stopped subprocess. status={s}'.format(s=self._status))
+                logger.info(
+                    'Stopped subprocess. prev_status={s}'.format(s=self._status)
+                )
             if self._rc:
                 logger.error(stdout.strip('\n'))
 
@@ -175,7 +177,7 @@ class NBSubprocThread(Thread):
         if on_terminate:
             self._ret = on_terminate()
         logger.info(
-            'Terminated subprocess. rc={rc}, status={s}'.format(
+            'Terminated subprocess. rc={rc}, prev_status={s}'.format(
                 s=self._status, rc=self._rc
             )
         )
