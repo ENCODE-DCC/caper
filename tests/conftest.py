@@ -33,6 +33,9 @@ def pytest_addoption(parser):
     parser.addoption(
         '--gcp-service-account-key-json', help='JSON key file for GCP service account.'
     )
+    parser.addoption(
+        '--debug', action='store_true', help='Debug-level logging for CLI tests.'
+    )
 
 
 @pytest.fixture(scope='session')
@@ -65,3 +68,8 @@ def gcp_prj(request):
 @pytest.fixture(scope='session')
 def gcp_service_account_key_json(request):
     return request.config.getoption('--gcp-service-account-key-json')
+
+
+@pytest.fixture(scope='session')
+def debug(request):
+    return request.config.getoption('--debug')

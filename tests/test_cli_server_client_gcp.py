@@ -22,6 +22,7 @@ def test_server_client(
     womtool,
     gcp_prj,
     gcp_service_account_key_json,
+    debug,
 ):
     """Test server, client stuffs
     """
