@@ -99,13 +99,11 @@ jobs:
             # auth for gsutil
             export GOOGLE_APPLICATION_CREDENTIALS=${KEY_FILE}
             export GOOGLE_CLOUD_PROJECT=${GOOGLE_PROJECT_ID}
-            # gcloud auth activate-service-account --project=${GOOGLE_PROJECT_ID} --key-file=${KEY_FILE}
-            # gcloud config set project ${GOOGLE_PROJECT_ID}
             export BOTO_CONFIG=/dev/null
 
-            # use gsutil to clean up
+            # clean up
             rm -f tmp_key.json
-            gsutil -m rm -rf ${GCS_ROOT}/caper_out/${CIRCLE_WORKFLOW_ID}
+            gsutil -m rm -rf ${GCS_ROOT}/caper_out/${CIRCLE_WORKFLOW_ID} || true
 
 
 # Define workflow here
