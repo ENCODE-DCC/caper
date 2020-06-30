@@ -223,7 +223,7 @@ class CromwellBackendBase(UserDict):
 
 
 class CromwellBackendGCP(CromwellBackendBase):
-    TEMPLATE = {'google': {'application-name': 'cromwell', 'auths': []}}
+    TEMPLATE = {'google': {'application-name': 'cromwell'}}
     TEMPLATE_BACKEND = {
         'config': {
             'default-runtime-attributes': {},
@@ -296,19 +296,19 @@ class CromwellBackendGCP(CromwellBackendBase):
         if gcp_service_account_key_json:
             genomics['auth'] = 'service-account'
             filesystems['gcs']['auth'] = 'service-account'
-            self['google']['auths'].append(
+            self['google']['auths'] = [
                 {
                     'name': 'service-account',
                     'scheme': 'service_account',
                     'json-file': gcp_service_account_key_json,
                 }
-            )
+            ]
         else:
             genomics['auth'] = 'application-default'
             filesystems['gcs']['auth'] = 'application-default'
-            self['google']['auths'].append(
+            self['google']['auths'] = [
                 {'name': 'application-default', 'scheme': 'application_default'}
-            )
+            ]
 
         config['memory-retry'] = {
             'error-keys': gcp_memory_retry_error_keys,
