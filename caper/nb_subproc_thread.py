@@ -81,9 +81,8 @@ class NBSubprocThread(Thread):
     @property
     def rc(self):
         """Returns:
-            -1 if CalledProcessError occurs
-            -2 if any other general exception (Exception) occurs
-            Otherwise returncode code of shell command line args will be returned.
+            returncode of subprocess.Popen.poll
+            None if stopped or any other general exception (Exception) occurs
         """
         return self._rc
 
@@ -142,8 +141,7 @@ class NBSubprocThread(Thread):
                 if self._stop_it:
                     break
                 try:
-                    b = q.get_nowait()
-                    stdout = b.decode()
+                    stdout = q.get_nowait().decode()
                     if stdout:
                         self._stdout_list.append(stdout)
                         if on_stdout:
@@ -155,22 +153,29 @@ class NBSubprocThread(Thread):
                 if on_poll:
                     self._status = on_poll(cnt)
                 if p.poll() is not None:
+                    self._rc = p.poll()
                     break
                 time.sleep(self._poll_interval)
                 cnt += 1
 
             if self._stop_it:
-                self._rc = -1
-            else:
-                self._rc = p.poll()
+                logger.info('Stopped subprocess. status={s}'.format(s=self._status))
+            if self._rc:
+                logger.error(stdout.strip('\n'))
 
         except CalledProcessError as e:
             self._rc = e.returncode
+            logger.error(e)
         except Exception as e:
-            self._rc = -2
-            logging.error(e)
+            logger.error(e)
         finally:
+            th_q.join()
             p.terminate()
 
         if on_terminate:
             self._ret = on_terminate()
+        logger.info(
+            'Terminated subprocess. status={s}, rc={rc}, ret={ret}'.format(
+                s=self._status, rc=self._rc, ret=self._ret
+            )
+        )

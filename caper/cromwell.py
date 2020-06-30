@@ -227,6 +227,10 @@ class Cromwell(object):
         Returns:
             th:
                 Thread for Cromwell's run mode. None if dry_run.
+                Notes:
+                    Thread's return value (th.ret) is Cromwell's output metadata dict.
+                    It is None if Cromwell subprocess itself didn't run,
+                    If it ran but workflow failed then metadata dict is not None.
         """
         self.install_cromwell()
 
@@ -279,17 +283,18 @@ class Cromwell(object):
             nonlocal metadata
             nonlocal fileobj_troubleshoot
 
-            metadata_dict = json.loads(AutoURI(metadata).read())
-            cm = CromwellMetadata(metadata_dict)
-            cm.write_on_workflow_root()
+            if os.path.exists(metadata):
+                metadata_dict = json.loads(AutoURI(metadata).read())
+                cm = CromwellMetadata(metadata_dict)
+                cm.write_on_workflow_root()
 
-            if cm.workflow_status != 'Succeeded' and fileobj_troubleshoot:
-                # auto-troubleshoot on terminate if workflow is not successful
-                logger.info('Workflow failed. Auto-troubleshooting...')
-                cm.troubleshoot(fileobj=fileobj_troubleshoot)
+                if cm.workflow_status != 'Succeeded' and fileobj_troubleshoot:
+                    # auto-troubleshoot on terminate if workflow is not successful
+                    logger.info('Workflow failed. Auto-troubleshooting...')
+                    cm.troubleshoot(fileobj=fileobj_troubleshoot)
 
-            # to make it a return value of the thread after it is done (joined)
-            return metadata_dict
+                # to make it a return value of the thread after it is done (joined)
+                return metadata_dict
 
         th = NBSubprocThread(
             cmd, cwd=cwd, on_stdout=on_stdout, on_terminate=on_terminate
