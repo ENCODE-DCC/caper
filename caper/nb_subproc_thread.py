@@ -171,7 +171,6 @@ class NBSubprocThread(Thread):
         except Exception as e:
             logger.error(e)
         finally:
-            th_q.join()
             p.terminate()
 
         if on_terminate:
