@@ -44,7 +44,7 @@ CONF_CONTENTS_FOR_SUBPARSER = dedent(
 
 
 @pytest.fixture
-def get_test_parser():
+def parser_wo_subparsers():
     parser = argparse.ArgumentParser()
     parser.add_argument('--param-wo-default')
     parser.add_argument('--param-w-type-wo-default', type=float)
@@ -61,7 +61,7 @@ def get_test_parser():
 
 
 @pytest.fixture
-def get_test_parser_with_subparsers():
+def parser_with_subparsers():
     parser = argparse.ArgumentParser()
     subparser = parser.add_subparsers(dest='action')
 
@@ -113,14 +113,14 @@ def test_read_from_conf(tmp_path):
         d2 = read_from_conf(c2)
 
 
-def test_update_parsers_defaults_with_conf(tmp_path, get_test_parser):
+def test_update_parsers_defaults_with_conf(tmp_path, parser_wo_subparsers):
     """Check if this function correctly updates argparse parser's
     default values.
     """
     val_type = {'param_w_type_wo_default2': float}
     val_default = {'param_w_type_wo_default3': 'hello', 'param_w_int_default3': 50}
 
-    p1 = get_test_parser
+    p1 = parser_wo_subparsers
     c1 = tmp_path / 'c1.conf'
 
     # can mix up _ and -
@@ -155,12 +155,12 @@ def test_update_parsers_defaults_with_conf(tmp_path, get_test_parser):
 
 
 def test_update_parsers_defaults_with_conf_with_subparsers(
-    tmp_path, get_test_parser_with_subparsers
+    tmp_path, parser_with_subparsers
 ):
     """Check if this function correctly updates argparse parser's
     default values.
     """
-    p, subparsers = get_test_parser_with_subparsers
+    p, subparsers = parser_with_subparsers
     c1 = tmp_path / 'c1.conf'
 
     # can mix up _ and -
