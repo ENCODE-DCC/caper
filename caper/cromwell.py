@@ -56,21 +56,19 @@ class Cromwell:
         self._cromwell = cromwell
         self._womtool = womtool
 
-        u_cromwell_install_dir = AbsPath(cromwell_install_dir)
-        if not u_cromwell_install_dir.is_valid:
+        if not AbsPath(cromwell_install_dir).is_valid:
             raise ValueError(
                 'crommwell_install_dir is not a valid absolute '
                 'path. {path}'.format(path=cromwell_install_dir)
             )
-        self._cromwell_install_dir = u_cromwell_install_dir.uri
+        self._cromwell_install_dir = cromwell_install_dir
 
-        u_womtool_install_dir = AbsPath(womtool_install_dir)
-        if not u_womtool_install_dir.is_valid:
+        if not AbsPath(womtool_install_dir).is_valid:
             raise ValueError(
                 'womtool_install_dir is not a valid absolute '
                 'path. {path}'.format(path=womtool_install_dir)
             )
-        self._womtool_install_dir = u_womtool_install_dir.uri
+        self._womtool_install_dir = womtool_install_dir.uri
 
     def validate(
         self,
