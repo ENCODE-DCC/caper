@@ -9,7 +9,7 @@ from .dict_tool import merge_dict
 logger = logging.getLogger(__name__)
 
 
-class HOCONString(object):
+class HOCONString:
     RE_INCLUDE_LINE = r'^\s*include\s'
 
     def __init__(self, hocon_str):

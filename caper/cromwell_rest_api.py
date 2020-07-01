@@ -9,7 +9,7 @@ from .cromwell_metadata import CromwellMetadata
 logger = logging.getLogger(__name__)
 
 
-class CromwellRestAPI(object):
+class CromwellRestAPI:
     QUERY_URL = 'http://{hostname}:{port}'
     ENDPOINT_BACKEND = '/api/workflows/v1/backends'
     ENDPOINT_WORKFLOWS = '/api/workflows/v1/query'

@@ -8,7 +8,7 @@ from autouri.loc_aux import recurse_json
 logger = logging.getLogger(__name__)
 
 
-class Singularity(object):
+class Singularity:
     DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
     DEFAULT_COMMON_ROOT_SEARCH_LEVEL = 5
 

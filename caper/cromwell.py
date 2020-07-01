@@ -18,7 +18,7 @@ class PortAlreadyInUseError(Exception):
     pass
 
 
-class Cromwell(object):
+class Cromwell:
     """Wraps Cromwell/Womtool.
     """
 
