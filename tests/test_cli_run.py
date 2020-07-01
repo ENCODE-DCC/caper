@@ -37,6 +37,7 @@ def test_mutually_exclusive_params(tmp_path):
         cli_main(cmd)
 
 
+@pytest.mark.integration
 def test_run(tmp_path, cromwell, womtool, debug_caper):
     """Will test most local parameters (run only) here.
     """
@@ -81,6 +82,8 @@ def test_run(tmp_path, cromwell, womtool, debug_caper):
     assert (tmp_path / 'cromwell_stdout.o').exists()
 
 
+@pytest.mark.google_cloud
+@pytest.mark.integration
 def test_run_gcp_with_life_sciences_api(
     tmp_path,
     gcs_root,

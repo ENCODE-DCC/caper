@@ -4,6 +4,8 @@ gcp (Google Cloud Platform) backend is tested here with server/client functions.
 import os
 import time
 
+import pytest
+
 from caper.cli import main as cli_main
 from caper.cromwell_rest_api import CromwellRestAPI
 from caper.wdl_parser import WDLParser
@@ -14,6 +16,8 @@ TIMEOUT_SERVER_SPIN_UP = 500
 TIMEOUT_SERVER_RUN_WORKFLOW = 960
 
 
+@pytest.mark.google_cloud
+@pytest.mark.integration
 def test_server_client(
     tmp_path,
     gcs_root,
