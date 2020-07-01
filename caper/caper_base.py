@@ -53,7 +53,7 @@ class CaperBase:
                     f=local_work_dir
                 )
             )
-        if local_work_dir == '/tmp':
+        if local_work_dir.startswith('/tmp'):
             raise ValueError(
                 '/tmp is now allowed for local_work_dir. {f}'.format(f=local_work_dir)
             )
