@@ -23,17 +23,19 @@ class NBSubprocThread(Thread):
         """Non-blocking STDOUT streaming for subprocess.Popen.
         Note that STDERR is always redirected to STDOUT.
 
-        This class makes two threads (main and sub).
-        Main thread for subprocess.Popen, sub thread for nb-streaming STDOUT.
+        This class makes a daemonized thread for nonblocking
+        streaming of STDOUT/STDERR.
 
-        Note that return value of callback functions are used for status or return
-        value (property status, ret) of this thread itself.
+        Note that return value of callback functions are updated
+        for the following properties:
+            - status:
+                updated with return value of on_poll, on_stdout
+            - returnvalue:
+                updated with return value of on_terminate
 
-        Return value of on_poll and on_std_out are used to update property status.
-        Return value of on_terminate is used to update property ret.
-
-        These are useful to check status of the thread and get the final return
-        value of the function that this thread runs.
+        This is useful to check status of the thread and
+        get the final return value of the function that this class
+        actually runs.
 
         Args:
             args:
@@ -46,20 +48,18 @@ class NBSubprocThread(Thread):
                 at subprocess.PIPE/subprocess.STDOUT.
             on_poll:
                 Callback on every polling.
-                This callback function should take one argument:
-                    - iter (int):
-                        Number of iterations for polling.
+                Return value is used for updating property status.
             on_stdout:
-                Callback on every non-empty STDOUT line (ending with backslash n).
+                Callback on every non-empty STDOUT line
+                (ending with backslash n).
                 You can use this to print out STDOUT as well.
-                Return value will replace
+                Return value is used for updating property status.
                 This callback function should take one argument:
                     - stdout (string):
                         New incoming STDOUT line string including backslash n.
             on_terminate:
-                Callback on terminating a thread.
-                Note that return value of this function will be the final return
-                value (property ret) of this thread after it is done (joined).
+                Callback on terminating/completing a thread.
+                Return value is used for updating property returnvalue.
             poll_interval (float):
                 Polling interval in seconds.
         """
@@ -69,36 +69,37 @@ class NBSubprocThread(Thread):
         )
         self._poll_interval = poll_interval
         self._stdout_list = []
-        self._rc = None
+        self._returncode = None
         self._stop_it = False
         self._status = None
-        self._ret = None
+        self._returnvalule = None
 
     @property
     def stdout(self):
         return ''.join(self._stdout_list)
 
     @property
-    def rc(self):
-        """Returns:
-            returncode of subprocess.Popen.poll
-            None if stopped or any other general exception (Exception) occurs
+    def returncode(self):
+        """Returns subprocess.Popen.returncode.
+        None if not completed or any general Exception occurs.
         """
-        return self._rc
+        return self._returncode
 
     @property
     def status(self):
         """Updated with return value of on_poll() for every polling.
-        Also updated with returnv alue of on_stdout() for every stdout (full line(s)).
+        Also updated with return value of on_stdout() for every new stdout.
         """
         return self._status
 
     @property
-    def ret(self):
-        """Return value updated with return value of on_terminate()
-        None if thread is not done.
+    def returnvalue(self):
+        """Updated with return value of on_terminate()
+        which is called when a thread is terminated.
+        None if thread is still running so that on_terminate() has not been called yet.
+        This works like an actual return value of the function ran inside a thread.
         """
-        return self._ret
+        return self._returnvalule
 
     def stop(self):
         """Subprocess will be teminated after next polling.
@@ -132,11 +133,10 @@ class NBSubprocThread(Thread):
         try:
             p = Popen(args, stdout=PIPE, stderr=STDOUT, cwd=cwd, stdin=stdin)
             q = Queue()
-            th_q = Thread(target=enqueue_stdout, args=(p.stdout, q))
-            th_q.daemon = True
-            th_q.start()
+            thread_stdout = Thread(target=enqueue_stdout, args=(p.stdout, q))
+            thread_stdout.daemon = True
+            thread_stdout.start()
 
-            cnt = 0
             while True:
                 if self._stop_it:
                     break
@@ -151,22 +151,21 @@ class NBSubprocThread(Thread):
                 except KeyboardInterrupt:
                     raise
                 if on_poll:
-                    self._status = on_poll(cnt)
+                    self._status = on_poll()
                 if p.poll() is not None:
-                    self._rc = p.poll()
+                    self._returncode = p.poll()
                     break
                 time.sleep(self._poll_interval)
-                cnt += 1
 
             if self._stop_it:
                 logger.info(
                     'Stopped subprocess. prev_status={s}'.format(s=self._status)
                 )
-            if self._rc:
+            if self._returncode:
                 logger.error(stdout.strip('\n'))
 
         except CalledProcessError as e:
-            self._rc = e.returncode
+            self._returncode = e.returncode
             logger.error(e)
         except Exception as e:
             logger.error(e)
@@ -174,9 +173,9 @@ class NBSubprocThread(Thread):
             p.terminate()
 
         if on_terminate:
-            self._ret = on_terminate()
+            self._returnvalule = on_terminate()
         logger.info(
             'Terminated subprocess. rc={rc}, prev_status={s}'.format(
-                s=self._status, rc=self._rc
+                s=self._status, rc=self._returncode
             )
         )

@@ -18,6 +18,18 @@ class PortAlreadyInUseError(Exception):
     pass
 
 
+def install_file(f, install_dir, label):
+    """Install f locally on install_dir.
+    If f is already local then skip it.
+    """
+    u = AutoURI(f)
+    if isinstance(u, AbsPath):
+        return u.uri
+    logger.info('Installing {label}... {f}'.format(label=label, f=f))
+    path = os.path.join(os.path.expanduser(install_dir), u.basename)
+    return u.cp(path)
+
+
 class Cromwell:
     """Wraps Cromwell/Womtool.
     """
@@ -137,10 +149,10 @@ class Cromwell:
             th.start()
             th.join()
 
-            if th.rc:
+            if th.returncode:
                 logger.error(
-                    'RC={rc}\nSTDOUT/STDERR={o}\n'
-                    'Womtool validation failed.'.format(rc=th.rc, o=stdout)
+                    'RC={rc}\nSTDOUT/STDERR={stdout}\n'
+                    'Womtool validation failed.'.format(rc=th.returncode, stdout=stdout)
                 )
                 return False
             else:
@@ -172,7 +184,7 @@ class Cromwell:
         However, its NBSubprocThread object has a return value which is validated
         after the thread is done (joined).
         Such return value is metadata dict, which is a final output of Cromwell run.
-        You can simply get it by thread.ret after thread is done.
+        You can simply get it by thread.returnvalue after thread is done.
 
         Args:
             inputs:.
@@ -226,7 +238,8 @@ class Cromwell:
             th:
                 Thread for Cromwell's run mode. None if dry_run.
                 Notes:
-                    Thread's return value (th.ret) is Cromwell's output metadata dict.
+                    Thread's return value (th.returnvalue)
+                    is Cromwell's output metadata dict.
                     It is None if Cromwell subprocess itself didn't run,
                     If it ran but workflow failed then metadata dict is not None.
         """
@@ -417,7 +430,9 @@ class Cromwell:
         )
 
         def on_stdout(stdout):
-            """Returns True when server is ready to take submissions
+            """Returns 'server_started' when server is ready to take submissions.
+            Return value of this callback function is to update .status
+            of an NBSubprocThread object.
             """
             nonlocal fileobj_stdout
             nonlocal wm
@@ -447,25 +462,13 @@ class Cromwell:
         return th
 
     def install_cromwell(self):
-        self._cromwell = Cromwell.__install_file(
+        self._cromwell = install_file(
             self._cromwell, self._cromwell_install_dir, 'Cromwell JAR'
         )
         return self._cromwell
 
     def install_womtool(self):
-        self._womtool = Cromwell.__install_file(
+        self._womtool = install_file(
             self._womtool, self._womtool_install_dir, 'Womtool JAR'
         )
         return self._womtool
-
-    @staticmethod
-    def __install_file(f, install_dir, label):
-        """Install f locally on install_dir.
-        If f is already local then skip it.
-        """
-        u = AutoURI(f)
-        if isinstance(u, AbsPath):
-            return u.uri
-        logger.info('Installing {label}... {f}'.format(label=label, f=f))
-        path = os.path.join(os.path.expanduser(install_dir), u.basename)
-        return u.cp(path)

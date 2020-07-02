@@ -28,8 +28,12 @@ def on_stdout(stdout):
     assert stdout.endswith('\n')
 
 
-def on_poll(cnt):
-    print('polling count:', cnt)
+def on_poll():
+    print('polling')
+
+
+def on_terminate():
+    return 'done'
 
 
 def test_nb_subproc_thread(tmp_path):
@@ -37,15 +41,21 @@ def test_nb_subproc_thread(tmp_path):
     sh.write_text(SH_CONTENTS)
 
     th = NBSubprocThread(
-        args=['bash', str(sh)], on_poll=on_poll, on_stdout=on_stdout, poll_interval=0.1
+        args=['bash', str(sh)],
+        on_poll=on_poll,
+        on_stdout=on_stdout,
+        on_terminate=on_terminate,
+        poll_interval=0.1,
     )
+    assert th.returnvalue is None
     assert not th.is_alive()
     th.start()
     assert th.is_alive()
     # rc is None while running
-    assert th.rc is None
+    assert th.returncode is None
     th.join()
-    assert th.rc == 10
+    assert th.returncode == 10
+    assert th.returnvalue == 'done'
 
 
 def test_nb_subproc_thread_stopped(tmp_path):
@@ -60,7 +70,7 @@ def test_nb_subproc_thread_stopped(tmp_path):
     th.join()
     assert not th.is_alive()
     # rc is None if terminated
-    assert th.rc is None
+    assert th.returncode is None
     # subprocess is terminated until it reaches kitty 4 (4 sec > 3 sec).
     assert 'hello kitty 4' not in th.stdout
 
@@ -69,7 +79,7 @@ def test_nb_subproc_thread_nonzero_rc(tmp_path):
     th = NBSubprocThread(args=['cat', 'asdfasf'], on_stdout=on_stdout)
     th.start()
     th.join()
-    print(th.rc, th.stdout)
-    assert th.rc == 1
+    print(th.returncode, th.stdout)
+    assert th.returncode == 1
     # check if stderr is redirected to stdout and it's captured
     assert 'asdfasf' in th.stdout

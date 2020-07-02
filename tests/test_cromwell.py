@@ -72,11 +72,11 @@ def test_run(tmp_path, cromwell, womtool):
         )
     finally:
         th.join()
-    assert th.rc == 0
+    assert th.returncode == 0
 
     # check if metadata.json is written on both specified location
     # (tmp_path/metadata.json) and workflow's root directory
-    metadata_dict = th.ret
+    metadata_dict = th.returnvalue
     root_dir = metadata_dict['workflowRoot']
 
     with open(os.path.join(root_dir, 'metadata.json')) as fp:
@@ -105,7 +105,7 @@ def test_run(tmp_path, cromwell, womtool):
         )
     finally:
         th.join()
-    assert th.rc == 0
+    assert th.returncode == 0
 
 
 def test_server(tmp_path, cromwell, womtool):

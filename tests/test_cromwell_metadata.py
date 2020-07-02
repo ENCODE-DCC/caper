@@ -24,7 +24,7 @@ def test_on_successful_workflow(tmp_path, cromwell, womtool):
         cwd=str(tmp_path / 'successful'),
     )
     th.join()
-    metadata = th.ret
+    metadata = th.returnvalue
     assert metadata
 
     cm = CromwellMetadata(metadata)
@@ -81,8 +81,8 @@ def test_on_failed_workflow(tmp_path, cromwell, womtool):
     th.join()
 
     # check failed
-    assert th.rc
-    metadata = th.ret
+    assert th.returncode
+    metadata = th.returnvalue
     assert metadata
     cm = CromwellMetadata(metadata)
 
