@@ -349,9 +349,9 @@ class CaperClientSubmit(CaperClient):
             imports = wdl_parser.create_imports_file(work_dir)
 
         logger.debug(
-            'submit params: wdl={w}, imports={imp}, inputs={i}, '
-            'options={o}, labels={l}, hold={hold}'.format(
-                w=wdl, imp=imports, i=inputs, o=options, l=labels, hold=hold
+            'submit params: wdl={wdl}, imports={imp}, inputs={inp}, '
+            'options={opt}, labels={lbl}, hold={hold}'.format(
+                wdl=wdl, imp=imports, inp=inputs, opt=options, lbl=labels, hold=hold
             )
         )
 
