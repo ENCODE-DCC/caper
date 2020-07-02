@@ -127,7 +127,6 @@ class CromwellWorkflowMonitor:
                         self._on_server_start()
                     logger.info('Cromwell server started. Ready to take submissions.')
                     break
-        return
 
     def _update_workflows(self, stderr):
         """Workflow statuses:
