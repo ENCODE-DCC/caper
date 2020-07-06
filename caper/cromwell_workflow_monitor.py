@@ -8,21 +8,98 @@ from .cromwell_rest_api import CromwellRestAPI
 logger = logging.getLogger(__name__)
 
 
+class WorkflowStatusTransition:
+    def __init__(self, regex, status_transitions):
+        """
+        Args:
+            regex:
+                Regular expression to catch workflow's status transition from
+                a string (Cromwell's stderr).
+                This reg-ex should have only one group which can catch
+                workflow's string UUID.
+            status_transitions:
+                List (or tuple) of possible status transitions.
+                Transition is defined by a tuple of previous and next
+                statuses where each status is a plain string.
+                e.g. [('Submitted', 'Running'),]
+                Iterating over this list, only the first valid transition,
+                where a previous status is matched, found will be used.
+        """
+        self._regex = regex
+        self._status_transitions = status_transitions
+
+    def parse(self, line, workflow_status_map):
+        """
+        Args:
+            line:
+                Line to be parsed to catch status transition.
+            workflow_status_map:
+                Dict of workflow_id (key) and previus_status (value) pairs.
+                This is used to get previous status of a workflow.
+                If None then previous status will be ignored.
+        Returns:
+            workflow_id:
+                Workflow's string ID.
+            status:
+                New status after transition.
+        """
+        r = re.findall(self._regex, line)
+        if len(r) > 0:
+            wf_id = r[0].strip()
+            if wf_id in workflow_status_map:
+                prev_status = workflow_status_map[wf_id]
+            else:
+                prev_status = None
+            for st1, st2 in self._status_transitions:
+                if st1 is None or st1 == prev_status:
+                    logger.info(
+                        'Workflow: id={id}, status={status}'.format(
+                            id=wf_id, status=st2
+                        )
+                    )
+                    return wf_id, st2
+                    break
+        return None, None
+
+
 class CromwellWorkflowMonitor:
     """Class constants include several regular expressions to catch
     status changes of workflow/task by Cromwell's STDERR (logging level>=INFO).
     """
 
-    RE_WORKFLOW_SUBMITTED = r'workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) submitted'
-    RE_WORKFLOW_START = r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)'
-    RE_WORKFLOW_FINISH = r'WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) is in a terminal state'
-    RE_WORKFLOW_FAILED = r'Workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) failed'
-    RE_WORKFLOW_ABORT_REQUESTED = r'Abort requested for workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)\.'
-    RE_CROMWELL_SERVER_START = r'Cromwell \d+ service started on'
-    RE_TASK_START = r'\[UUID\((\b[0-9a-f]{8})\)(.+):(\d+):(\d+)\]: job id: (\d+)'
-    RE_TASK_STATUS = (
-        r'\[UUID\((\b[0-9a-f]{8})\)(.+):(\d+):(\d+)\]: Status change from (.+) to (.+)'
+    ALL_STATUS_TRANSITIONS = (
+        WorkflowStatusTransition(
+            regex=r'workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) submitted',
+            status_transitions=((None, 'Submitted'),),
+        ),
+        WorkflowStatusTransition(
+            regex=r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)',
+            status_transitions=((None, 'Running'),),
+        ),
+        WorkflowStatusTransition(
+            regex=r'Workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) failed',
+            status_transitions=((None, 'Failed'),),
+        ),
+        WorkflowStatusTransition(
+            regex=r'Abort requested for workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)\.',
+            status_transitions=((None, 'Aborting'),),
+        ),
+        WorkflowStatusTransition(
+            regex=r'WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) is in a terminal state',
+            status_transitions=(
+                ('Failed', 'Failed'),
+                ('Aborting', 'Aborted'),
+                (None, 'Succeeded'),
+            ),
+        ),
     )
+
+    RE_CROMWELL_SERVER_START = r'Cromwell \d+ service started on'
+    RE_TASK_START = r'\[UUID\((\b[0-9a-f]{8})\)(.+):(.+):(\d+)\]: job id: (\d+)'
+    RE_TASK_STATUS_CHANGE = (
+        r'\[UUID\((\b[0-9a-f]{8})\)(.+):(.+):(\d+)\]: Status change from (.+) to (.+)'
+    )
+
     MAX_RETRY_UPDATE_METADATA = 3
     INTERVAL_RETRY_UPDATE_METADATA = 10.0
     DEFAULT_SERVER_HOSTNAME = 'localhost'
@@ -93,7 +170,7 @@ class CromwellWorkflowMonitor:
         self._on_status_change = on_status_change
         self._on_server_start = on_server_start
 
-        self._wf_statuses = dict()
+        self._workflow_status_map = dict()
         self._is_server_started = False
 
     def is_server_started(self):
@@ -129,102 +206,67 @@ class CromwellWorkflowMonitor:
                     break
 
     def _update_workflows(self, stderr):
-        """Workflow statuses:
-            - Submitted
-            - Running
-            - Failed
-            - Succeeded
+        """Updates workflow status by parsing Cromwell's stderr lines.
         """
         updated_workflows = set()
         for line in stderr.split('\n'):
-            r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_SUBMITTED, line)
-            if len(r) > 0:
-                wf_id = r[0].strip()
-                self._wf_statuses[wf_id] = 'Submitted'
-                updated_workflows.add(wf_id)
-                logger.info(
-                    'Workflow status change: id={id}, status={status}'.format(
-                        id=wf_id, status='Submitted'
-                    )
+            for st_transitions in CromwellWorkflowMonitor.ALL_STATUS_TRANSITIONS:
+                workflow_id, status = st_transitions.parse(
+                    line, self._workflow_status_map
                 )
-
-            r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_START, line)
-            if len(r) > 0:
-                wf_id = r[0].strip()
-                self._wf_statuses[wf_id] = 'Running'
-                updated_workflows.add(wf_id)
-                logger.info(
-                    'Workflow status change: id={id}, status={status}'.format(
-                        id=wf_id, status='Running'
-                    )
-                )
-
-            r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_FAILED, line)
-            if len(r) > 0:
-                wf_id = r[0].strip()
-                self._wf_statuses[wf_id] = 'Failed'
-                updated_workflows.add(wf_id)
-                logger.info(
-                    'Workflow status change: id={id}, status={status}'.format(
-                        id=wf_id, status='Failed'
-                    )
-                )
-
-            r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_ABORT_REQUESTED, line)
-            if len(r) > 0:
-                wf_id = r[0].strip()
-                self._wf_statuses[wf_id] = 'Aborting'
-                updated_workflows.add(wf_id)
-                logger.info(
-                    'Workflow status change: id={id}, status={status}'.format(
-                        id=wf_id, status='Aborting'
-                    )
-                )
-
-            r = re.findall(CromwellWorkflowMonitor.RE_WORKFLOW_FINISH, line)
-            if len(r) > 0:
-                wf_id = r[0].strip()
-                status = self._wf_statuses[wf_id]
-                if status == 'Aborting':
-                    status = 'Aborted'
-                    updated_workflows.add(wf_id)
-                    logger.info(
-                        'Workflow status change: id={id}, status={status}'.format(
-                            id=wf_id, status=status
-                        )
-                    )
-                elif status == 'Failed':
-                    pass
-                else:
-                    status = 'Succeeded'
-                    self._wf_statuses[wf_id] = status
-                    updated_workflows.add(wf_id)
-                    logger.info(
-                        'Workflow status change: id={id}, status={status}'.format(
-                            id=wf_id, status=status
-                        )
-                    )
+                if workflow_id:
+                    self._workflow_status_map[workflow_id] = status
+                    updated_workflows.add(workflow_id)
 
         return updated_workflows
 
     def _update_tasks(self, stderr):
-        """Task statuses:
-            - WaitingForReturnCode
-            - Done
+        """Check if workflow's task status changed by parsing Cromwell's stderr lines.
         """
         updated_workflows = set()
         for line in stderr.split('\n'):
-            r = re.findall(CromwellWorkflowMonitor.RE_TASK_START, line)
-            if len(r) > 0:
-                short_id = r[0]
-                wf_id = self._find_workflow_id_by_short_id(short_id)
-                updated_workflows.add(wf_id)
+            r_common = None
+            r_start = re.findall(CromwellWorkflowMonitor.RE_TASK_START, line)
+            if len(r_start) > 0:
+                r_common = r_start[0]
+                status = 'Started'
+                job_id = r_common[4]
 
-            r = re.findall(CromwellWorkflowMonitor.RE_TASK_STATUS, line)
-            if len(r) > 0:
-                short_id = r[0]
-                wf_id = self._find_workflow_id_by_short_id(short_id)
-                updated_workflows.add(wf_id)
+            r_status_change = re.findall(
+                CromwellWorkflowMonitor.RE_TASK_STATUS_CHANGE, line
+            )
+            if len(r_status_change) > 0:
+                r_common = r_status_change[0]
+                status = r_common[5]
+                job_id = None
+
+            if r_common and len(r_common) > 0:
+                short_id = r_common[0]
+                workflow_id = None
+                for w in self._workflow_status_map:
+                    if w.startswith(short_id):
+                        workflow_id = w
+                        break
+                task_name = r_common[1]
+                shard_idx = r_common[2]
+                if shard_idx == 'NA':
+                    shard_idx = -1
+                else:
+                    shard_idx = int(shard_idx)
+                retry = int(r_common[3])
+
+                msg = 'Task: id={id}, task={name}:{shard_idx}, retry={retry}, status={status}'.format(
+                    id=workflow_id,
+                    name=task_name,
+                    shard_idx=shard_idx,
+                    retry=retry - 1,
+                    status=status,
+                )
+                if job_id:
+                    msg += ', job_id={job_id}'.format(job_id=job_id)
+                logger.info(msg)
+
+                updated_workflows.add(workflow_id)
 
         return updated_workflows
 
@@ -251,8 +293,3 @@ class CromwellWorkflowMonitor:
                 )
                 continue
             break
-
-    def _find_workflow_id_by_short_id(self, short_id):
-        for wf_id in self._wf_statuses:
-            if wf_id.startswith(short_id):
-                return wf_id

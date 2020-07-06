@@ -17,7 +17,7 @@ class NBSubprocThread(Thread):
     """
 
     DEFAULT_POLL_INTERVAL_SEC = 0.01
-    NUM_ERROR_LINES = 100
+    NUM_ERROR_LINES = 30
 
     def __init__(
         self,
@@ -28,6 +28,7 @@ class NBSubprocThread(Thread):
         on_stdout=None,
         on_terminate=None,
         poll_interval=DEFAULT_POLL_INTERVAL_SEC,
+        quiet=False,
     ):
         """Non-blocking STDOUT streaming for subprocess.Popen.
         Note that STDERR is always redirected to STDOUT.
@@ -71,12 +72,16 @@ class NBSubprocThread(Thread):
                 Return value is used for updating property returnvalue.
             poll_interval (float):
                 Polling interval in seconds.
+            quiet:
+                No logging.
         """
         super().__init__(
             target=self._popen,
             args=(args, cwd, stdin, on_poll, on_stdout, on_terminate),
         )
         self._poll_interval = poll_interval
+        self._quiet = quiet
+
         self._stdout_list = []
         self._returncode = None
         self._stop_it = False
@@ -166,31 +171,25 @@ class NBSubprocThread(Thread):
                     break
                 time.sleep(self._poll_interval)
 
-            if self._stop_it:
+            if self._stop_it and not self._quiet:
                 logger.info(
                     'Stopped subprocess. prev_status={s}'.format(s=self._status)
                 )
-            if self._returncode:
-                logger.error(
-                    'Showing a few lines of error:\n{contents}'.format(
-                        contents=''.join(
-                            self._stdout_list[-NBSubprocThread.NUM_ERROR_LINES :]
-                        )
-                    )
-                )
+            if self._returncode and not self._quiet:
+                logger.error('Non-zero returncode={rc}'.format(rc=self._returncode))
 
         except CalledProcessError as e:
             self._returncode = e.returncode
-            logger.error(e)
-        except Exception as e:
-            logger.error(e)
+            if not self._quiet:
+                logger.error(e)
         finally:
             p.terminate()
 
         if on_terminate:
             self._returnvalule = on_terminate()
-        logger.info(
-            'Terminated subprocess. rc={rc}, prev_status={s}'.format(
-                s=self._status, rc=self._returncode
+        if not self._quiet:
+            logger.info(
+                'Terminated subprocess. rc={rc}, prev_status={s}'.format(
+                    s=self._status, rc=self._returncode
+                )
             )
-        )

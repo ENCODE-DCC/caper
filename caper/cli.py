@@ -304,6 +304,11 @@ def subcmd_server(caper_runner, args, nonblocking=False):
                 return th
             if th:
                 th.join()
+                if th.returncode:
+                    logger.error(
+                        'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
+                    )
+
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING)
             if th:
@@ -340,6 +345,11 @@ def subcmd_run(caper_runner, args):
             )
             if th:
                 th.join()
+                if th.returncode:
+                    logger.error(
+                        'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
+                    )
+
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING)
             if th:

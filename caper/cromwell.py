@@ -145,7 +145,7 @@ class Cromwell:
                 nonlocal stdout
                 stdout += s
 
-            th = NBSubprocThread(cmd, cwd=tmp_d, on_stdout=on_stdout)
+            th = NBSubprocThread(cmd, cwd=tmp_d, on_stdout=on_stdout, quiet=True)
             th.start()
             th.join()
 
