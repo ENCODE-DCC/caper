@@ -128,5 +128,6 @@ def test_server_client(
 
     finally:
         # all done. so stop the server
-        th.stop()
-        th.join()
+        if th:
+            th.stop()
+            th.join()

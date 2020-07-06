@@ -53,10 +53,6 @@ class CaperBase:
                     f=local_work_dir
                 )
             )
-        if local_work_dir.startswith('/tmp'):
-            raise ValueError(
-                '/tmp is now allowed for local_work_dir. {f}'.format(f=local_work_dir)
-            )
         if gcp_work_dir and not GCSURI(gcp_work_dir).is_valid:
             raise ValueError(
                 'gcp_work_dir should be a valid GCS path. {f}'.format(f=gcp_work_dir)
