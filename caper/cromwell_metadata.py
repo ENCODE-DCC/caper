@@ -93,7 +93,6 @@ class CromwellMetadata:
                 'Failed to write metadata file. workflowRoot not found. '
                 'wf_id={i}'.format(i=workflow_id)
             )
-
         return metadata_file
 
     def troubleshoot(self, fileobj, show_completed_task=False, show_stdout=False):
