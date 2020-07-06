@@ -137,6 +137,8 @@ class NBSubprocThread(Thread):
                 q.put(line)
             stdout.close()
 
+        self._stop_it = False
+
         try:
             p = Popen(args, stdout=PIPE, stderr=STDOUT, cwd=cwd, stdin=stdin)
             q = Queue()
