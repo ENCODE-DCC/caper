@@ -44,11 +44,11 @@ class CromwellMetadata:
         if 'calls' in self._metadata:
             return self._metadata['calls']
 
-    def recurse_calls(self, fnc_call, parent_call_names=tuple()):
+    def recurse_calls(self, fn_call, parent_call_names=tuple()):
         """Recurse on tasks in metadata.
 
         Args:
-            fnc_call:
+            fn_call:
                 Function to be called recursively for each call (task).
                 This function should take the following three arguments.
                     call_name:
@@ -67,14 +67,14 @@ class CromwellMetadata:
                     subworkflow = call['subWorkflowMetadata']
                     subworkflow_metadata = CromwellMetadata(subworkflow)
                     subworkflow_metadata.recurse_calls(
-                        fnc_call, parent_call_names=parent_call_names + (call_name,)
+                        fn_call, parent_call_names=parent_call_names + (call_name,)
                     )
                 else:
-                    fnc_call(call_name, call, parent_call_names)
+                    fn_call(call_name, call, parent_call_names)
 
     def write_on_workflow_root(self, basename=DEFAULT_METADATA_BASENAME):
         """Update metadata JSON file on metadata's output root directory.
-        If there is a subworkflow, nest it's metadata into main workflow's one
+        If there is a subworkflow, nest its metadata into main workflow's one
 
         Args:
             write_subworkflow:

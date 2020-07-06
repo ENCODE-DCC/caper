@@ -475,7 +475,7 @@ class CaperRunner(CaperBase):
             embed_subworkflow:
                 Caper stores/updates metadata.JSON file on
                 each workflow's root directory whenever there is status change
-                of workflow (or it's tasks).
+                of workflow (or its tasks).
                 This flag ensures that any subworkflow's metadata JSON will be
                 embedded in main (this) workflow's metadata JSON.
                 This is to mimic behavior of Cromwell run mode's -m parameter.

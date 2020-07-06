@@ -134,7 +134,7 @@ class CromwellWorkflowMonitor:
                 Cromwell server port for Cromwell REST API.
                 This is used to get metadata JSON of a workflow.
             embed_subworkflow:
-                Whenever there is any status change of workflow (or any of it's tasks)
+                Whenever there is any status change of workflow (or any of its tasks)
                 It tries to write/update metadata JSON file on workflow's root.
                 For this metadata JSON file, embed subworkflow's metadata JSON in it.
                 If this is turned off, then metadata JSON will just have subworkflow's ID.
