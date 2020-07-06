@@ -65,8 +65,8 @@ class CromwellMetadata:
             for call in call_list:
                 if 'subWorkflowMetadata' in call:
                     subworkflow = call['subWorkflowMetadata']
-                    sub_m = CromwellMetadata(subworkflow)
-                    sub_m.recurse_calls(
+                    subworkflow_metadata = CromwellMetadata(subworkflow)
+                    subworkflow_metadata.recurse_calls(
                         fnc_call, parent_call_names=parent_call_names + (call_name,)
                     )
                 else:
