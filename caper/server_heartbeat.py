@@ -26,7 +26,7 @@ class ServerHeartbeat:
         """Server heartbeat to share store server's hostname/port with clients.
 
         Args:
-            hearrbeat_file:
+            heartbeat_file:
                 Server writes hostname/port on this file.
                 Client reads hostname/port from this file.
             heartbeat_timeout:
