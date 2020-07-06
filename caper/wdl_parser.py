@@ -129,7 +129,7 @@ class WDLParser:
         if depth > WDLParser.RECURSION_DEPTH_LIMIT:
             raise ValueError(
                 'Reached recursion depth limit while zipping subworkflows recursively. '
-                'Possible clyclic import or self-refencing in WDLs? wdl={wdl}'.format(
+                'Possible cyclic import or self-refencing in WDLs? wdl={wdl}'.format(
                     wdl=self._wdl
                 )
             )
