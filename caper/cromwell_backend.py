@@ -469,8 +469,8 @@ class CromwellBackendLocal(CromwellBackendBase):
         self.merge_backend(CromwellBackendLocal.TEMPLATE_BACKEND)
 
         config = self.backend_config
-        fs_local = config['filesystems']['local']
-        caching = fs_local['caching']
+        filesystem_local = config['filesystems']['local']
+        caching = filesystem_local['caching']
 
         if local_hash_strat not in (
             CromwellBackendLocal.LOCAL_HASH_STRAT_FILE,
