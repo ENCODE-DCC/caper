@@ -26,7 +26,7 @@ class NBSubprocThread(Thread):
         stdin=None,
         on_poll=None,
         on_stdout=None,
-        on_terminate=None,
+        on_finish=None,
         poll_interval=DEFAULT_POLL_INTERVAL_SEC,
         quiet=False,
     ):
@@ -41,7 +41,7 @@ class NBSubprocThread(Thread):
             - status:
                 updated with return value of on_poll, on_stdout
             - returnvalue:
-                updated with return value of on_terminate
+                updated with return value of on_finish
 
         This is useful to check status of the thread and
         get the final return value of the function that this class
@@ -67,7 +67,7 @@ class NBSubprocThread(Thread):
                 This callback function should take one argument:
                     - stdout (string):
                         New incoming STDOUT line string including backslash n.
-            on_terminate:
+            on_finish:
                 Callback on terminating/completing a thread.
                 Return value is used for updating property returnvalue.
             poll_interval (float):
@@ -76,8 +76,7 @@ class NBSubprocThread(Thread):
                 No logging.
         """
         super().__init__(
-            target=self._popen,
-            args=(args, cwd, stdin, on_poll, on_stdout, on_terminate),
+            target=self._popen, args=(args, cwd, stdin, on_poll, on_stdout, on_finish)
         )
         self._poll_interval = poll_interval
         self._quiet = quiet
@@ -108,9 +107,9 @@ class NBSubprocThread(Thread):
 
     @property
     def returnvalue(self):
-        """Updated with return value of on_terminate()
+        """Updated with return value of on_finish()
         which is called when a thread is terminated.
-        None if thread is still running so that on_terminate() has not been called yet.
+        None if thread is still running so that on_finish() has not been called yet.
         This works like an actual return value of the function ran inside a thread.
         """
         return self._returnvalule
@@ -121,13 +120,7 @@ class NBSubprocThread(Thread):
         self._stop_it = True
 
     def _popen(
-        self,
-        args,
-        cwd=None,
-        stdin=None,
-        on_poll=None,
-        on_stdout=None,
-        on_terminate=None,
+        self, args, cwd=None, stdin=None, on_poll=None, on_stdout=None, on_finish=None
     ):
         """Wrapper for subprocess.Popen.
         stdout/stderr is fixed at subprocess.PIPE/subprocess.STDOUT.
@@ -185,11 +178,18 @@ class NBSubprocThread(Thread):
         finally:
             p.terminate()
 
-        if on_terminate:
-            self._returnvalule = on_terminate()
+        if on_finish:
+            self._returnvalule = on_finish()
         if not self._quiet:
-            logger.info(
-                'Terminated subprocess. rc={rc}, prev_status={s}'.format(
-                    s=self._status, rc=self._returncode
+            if self._returncode:
+                logger.info(
+                    'Finished Subprocess. returncode={rc}, prev_status={s}'.format(
+                        s=self._status, rc=self._returncode
+                    )
                 )
-            )
+            else:
+                logger.error(
+                    'Subprocess failed. returncode={rc}, prev_status={s}'.format(
+                        s=self._status, rc=self._returncode
+                    )
+                )

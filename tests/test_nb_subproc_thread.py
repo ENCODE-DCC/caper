@@ -32,7 +32,7 @@ def on_poll():
     print('polling')
 
 
-def on_terminate():
+def on_finish():
     return 'done'
 
 
@@ -44,7 +44,7 @@ def test_nb_subproc_thread(tmp_path):
         args=['bash', str(sh)],
         on_poll=on_poll,
         on_stdout=on_stdout,
-        on_terminate=on_terminate,
+        on_finish=on_finish,
         poll_interval=0.1,
     )
     assert th.returnvalue is None

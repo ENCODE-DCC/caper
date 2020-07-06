@@ -290,7 +290,7 @@ class Cromwell:
                 fileobj_stdout.flush()
             wm.update(stdout)
 
-        def on_terminate():
+        def on_finish():
             nonlocal metadata
             nonlocal fileobj_troubleshoot
 
@@ -307,9 +307,7 @@ class Cromwell:
                 # to make it a return value of the thread after it is done (joined)
                 return metadata_dict
 
-        th = NBSubprocThread(
-            cmd, cwd=cwd, on_stdout=on_stdout, on_terminate=on_terminate
-        )
+        th = NBSubprocThread(cmd, cwd=cwd, on_stdout=on_stdout, on_finish=on_finish)
         th.start()
 
         return th
@@ -448,15 +446,13 @@ class Cromwell:
                     server_heartbeat.start(port=server_port, hostname=server_hostname)
                 return 'server_started'
 
-        def on_terminate():
+        def on_finish():
             nonlocal server_heartbeat
 
             if server_heartbeat:
                 server_heartbeat.stop()
 
-        th = NBSubprocThread(
-            cmd, cwd=cwd, on_stdout=on_stdout, on_terminate=on_terminate
-        )
+        th = NBSubprocThread(cmd, cwd=cwd, on_stdout=on_stdout, on_finish=on_finish)
         th.start()
 
         return th
