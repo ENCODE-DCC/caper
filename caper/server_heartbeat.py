@@ -110,7 +110,7 @@ class ServerHeartbeat:
 
         while True:
             try:
-                logger.info(
+                logger.debug(
                     'Writing heartbeat: {hostname}, {port}'.format(
                         hostname=hostname, port=port
                     )
