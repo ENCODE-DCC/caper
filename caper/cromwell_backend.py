@@ -218,8 +218,8 @@ class CromwellBackendBase(UserDict):
         return self.backend['config']
 
     @property
-    def backend_config_dra(self):
-        """Backend's default runtime attributes (DRA).
+    def default_runtime_attributes(self):
+        """Backend's default runtime attributes in self.backend_config.
         """
         return self.backend_config['default-runtime-attributes']
 
@@ -324,7 +324,7 @@ class CromwellBackendGCP(CromwellBackendBase):
             self.backend['actor-factory'] = CromwellBackendGCP.ACTOR_FACTORY_V2ALPHA
             genomics['endpoint-url'] = CromwellBackendGCP.GENOMICS_ENDPOINT_V2ALPHA
             if gcp_zones:
-                self.backend_config_dra['zones'] = ' '.join(gcp_zones)
+                self.default_runtime_attributes['zones'] = ' '.join(gcp_zones)
 
         config['project'] = gcp_prj
 
@@ -387,8 +387,7 @@ class CromwellBackendAWS(CromwellBackendBase):
             )
         config['root'] = aws_out_dir
 
-        dra = self.backend_config_dra
-        dra['queueArn'] = aws_batch_arn
+        self.default_runtime_attributes['queueArn'] = aws_batch_arn
 
 
 class CromwellBackendLocal(CromwellBackendBase):
@@ -588,13 +587,12 @@ class CromwellBackendSLURM(CromwellBackendLocal):
         )
         self.merge_backend(CromwellBackendSLURM.TEMPLATE_BACKEND)
 
-        dra = self.backend_config_dra
         if slurm_partition:
-            dra['slurm_partition'] = slurm_partition
+            self.default_runtime_attributes['slurm_partition'] = slurm_partition
         if slurm_account:
-            dra['slurm_account'] = slurm_account
+            self.default_runtime_attributes['slurm_account'] = slurm_account
         if slurm_extra_param:
-            dra['slurm_extra_param'] = slurm_extra_param
+            self.default_runtime_attributes['slurm_extra_param'] = slurm_extra_param
 
 
 class CromwellBackendSGE(CromwellBackendLocal):
@@ -674,13 +672,12 @@ class CromwellBackendSGE(CromwellBackendLocal):
         )
         self.merge_backend(CromwellBackendSGE.TEMPLATE_BACKEND)
 
-        dra = self.backend_config_dra
         if sge_pe:
-            dra['sge_pe'] = sge_pe
+            self.default_runtime_attributes['sge_pe'] = sge_pe
         if sge_queue:
-            dra['sge_queue'] = sge_queue
+            self.default_runtime_attributes['sge_queue'] = sge_queue
         if sge_extra_param:
-            dra['sge_extra_param'] = sge_extra_param
+            self.default_runtime_attributes['sge_extra_param'] = sge_extra_param
 
 
 class CromwellBackendPBS(CromwellBackendLocal):
@@ -751,8 +748,7 @@ class CromwellBackendPBS(CromwellBackendLocal):
         )
         self.merge_backend(CromwellBackendPBS.TEMPLATE_BACKEND)
 
-        dra = self.backend_config_dra
         if pbs_queue:
-            dra['pbs_queue'] = pbs_queue
+            self.default_runtime_attributes['pbs_queue'] = pbs_queue
         if pbs_extra_param:
-            dra['pbs_extra_param'] = pbs_extra_param
+            self.default_runtime_attributes['pbs_extra_param'] = pbs_extra_param
