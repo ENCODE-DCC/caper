@@ -8,7 +8,16 @@ logger = logging.getLogger(__name__)
 
 
 class NBSubprocThread(Thread):
+    """Class constants:
+
+    DEFAULT_POLL_INTERVAL_SEC:
+        Default poll interval in seconds.
+    NUM_ERROR_LINES:
+        Number of STDOUT/STDERR lines to be shown when an error occurs.
+    """
+
     DEFAULT_POLL_INTERVAL_SEC = 0.01
+    NUM_ERROR_LINES = 100
 
     def __init__(
         self,
@@ -162,7 +171,13 @@ class NBSubprocThread(Thread):
                     'Stopped subprocess. prev_status={s}'.format(s=self._status)
                 )
             if self._returncode:
-                logger.error(stdout.strip('\n'))
+                logger.error(
+                    'Showing a few lines of error:\n{contents}'.format(
+                        contents=''.join(
+                            self._stdout_list[-NBSubprocThread.NUM_ERROR_LINES :]
+                        )
+                    )
+                )
 
         except CalledProcessError as e:
             self._returncode = e.returncode
