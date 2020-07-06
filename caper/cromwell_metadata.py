@@ -83,7 +83,6 @@ class CromwellMetadata:
         if 'workflowRoot' in self._metadata:
             root = self._metadata['workflowRoot']
             metadata_file = '/'.join([root, basename])
-
             AutoURI(metadata_file).write(json.dumps(self._metadata, indent=4) + '\n')
             logger.info('Wrote metadata file. {f}'.format(f=metadata_file))
         else:
