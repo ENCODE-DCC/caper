@@ -290,7 +290,7 @@ def subcmd_server(caper_runner, args, nonblocking=False):
     cromwell_stdout = get_abspath(args.cromwell_stdout)
     with open(cromwell_stdout, 'w') as f:
         try:
-            th = caper_runner.server(
+            thread = caper_runner.server(
                 default_backend=args.backend,
                 server_port=args.port,
                 server_heartbeat=sh,
@@ -301,18 +301,18 @@ def subcmd_server(caper_runner, args, nonblocking=False):
                 dry_run=args.dry_run,
             )
             if nonblocking:
-                return th
-            if th:
-                th.join()
-                if th.returncode:
+                return thread
+            if thread:
+                thread.join()
+                if thread.returncode:
                     logger.error(
                         'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
                     )
 
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING)
-            if th:
-                th.stop()
+            if thread:
+                thread.stop()
 
 
 def subcmd_run(caper_runner, args):
@@ -320,7 +320,7 @@ def subcmd_run(caper_runner, args):
 
     with open(cromwell_stdout, 'w') as f:
         try:
-            th = caper_runner.run(
+            thread = caper_runner.run(
                 backend=args.backend,
                 wdl=get_abspath(args.wdl),
                 inputs=get_abspath(args.inputs),
@@ -343,17 +343,17 @@ def subcmd_run(caper_runner, args):
                 java_heap_womtool=args.java_heap_womtool,
                 dry_run=args.dry_run,
             )
-            if th:
-                th.join()
-                if th.returncode:
+            if thread:
+                thread.join()
+                if thread.returncode:
                     logger.error(
                         'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
                     )
 
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING)
-            if th:
-                th.stop()
+            if thread:
+                thread.stop()
 
 
 def subcmd_submit(caper_client, args):
