@@ -80,7 +80,7 @@ class Cromwell:
                 'womtool_install_dir is not a valid absolute '
                 'path. {path}'.format(path=womtool_install_dir)
             )
-        self._womtool_install_dir = womtool_install_dir.uri
+        self._womtool_install_dir = womtool_install_dir
 
     def validate(
         self,
