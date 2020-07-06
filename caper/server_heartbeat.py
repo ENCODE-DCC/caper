@@ -40,7 +40,7 @@ class ServerHeartbeat:
         self._interval_update_heartbeat = interval_update_heartbeat
 
         self._stop_it = False
-        self._th = None
+        self._thread = None
 
     def start(self, port, hostname=None):
         """Starts a thread that writes hostname/port of a server
@@ -53,18 +53,18 @@ class ServerHeartbeat:
                 Optional hostname to be written to heartbeat file.
                 socket.gethostname() will be used if not defined.
         """
-        self._th = Thread(target=self._write_to_file, args=(port, hostname))
-        self._th.start()
-        return self._th
+        self._thread = Thread(target=self._write_to_file, args=(port, hostname))
+        self._thread.start()
+        return self._thread
 
     def is_alive(self):
-        return self._th.is_alive() if self._th else False
+        return self._thread.is_alive() if self._thread else False
 
     def stop(self):
         self._stop_it = True
 
-        if self._th:
-            self._th.join()
+        if self._thread:
+            self._thread.join()
 
     def read(self, raise_timeout=False):
         """Read from heartbeat file.
