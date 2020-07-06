@@ -47,23 +47,22 @@ class CromwellRestAPI:
             JSON Response from POST request submit a workflow
         """
         manifest = {}
-        manifest['workflowSource'] = CromwellRestAPI.__get_string_io_from_file(source)
-        if dependencies is not None:
-            manifest['workflowDependencies'] = CromwellRestAPI.__get_bytes_io_from_file(
-                dependencies
-            )
-        if inputs is not None:
-            manifest['workflowInputs'] = CromwellRestAPI.__get_string_io_from_file(
-                inputs
-            )
+        with open(source) as fp:
+            manifest['workflowSource'] = io.StringIO(fp.read())
+        if dependencies:
+            with open(dependencies, 'rb') as fp:
+                manifest['workflowDependencies'] = io.BytesIO(fp.read())
+        if inputs:
+            with open(inputs) as fp:
+                manifest['workflowInputs'] = io.StringIO(fp.read())
         else:
             manifest['workflowInputs'] = io.StringIO('{}')
-        if options is not None:
-            manifest['workflowOptions'] = CromwellRestAPI.__get_string_io_from_file(
-                options
-            )
-        if labels is not None:
-            manifest['labels'] = CromwellRestAPI.__get_string_io_from_file(labels)
+        if options:
+            with open(options) as fp:
+                manifest['workflowOptions'] = io.StringIO(fp.read())
+        if labels:
+            with open(labels) as fp:
+                manifest['labels'] = io.StringIO(fp.read())
         if on_hold:
             manifest['workflowOnHold'] = True
 
@@ -354,13 +353,3 @@ class CromwellRestAPI:
                 )
             ) from None
         return resp.json()
-
-    @staticmethod
-    def __get_string_io_from_file(fname):
-        with open(fname, 'r') as fp:
-            return io.StringIO(fp.read())
-
-    @staticmethod
-    def __get_bytes_io_from_file(fname):
-        with open(fname, 'rb') as fp:
-            return io.BytesIO(fp.read())
