@@ -53,6 +53,8 @@ class CromwellBackendCommon(UserDict):
     ):
         super().__init__(deepcopy(CromwellBackendCommon.TEMPLATE))
 
+        if default_backend is None:
+            default_backend = DEFAULT_BACKEND
         self['backend']['default'] = default_backend
         self['call-caching']['enabled'] = not disable_call_caching
         self['system']['max-concurrent-workflows'] = max_concurrent_workflows
