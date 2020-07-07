@@ -20,6 +20,7 @@ backend {{
   }}
 }}
 """
+TIMEOUT_SERVER_SPIN_UP = 200
 
 
 def test_validate(tmp_path, cromwell, womtool):
@@ -113,7 +114,6 @@ def test_server(tmp_path, cromwell, womtool):
     """
     server_port = 8005
     fileobj_stdout = sys.stdout
-    fileobj_stdout = None
 
     c = Cromwell(cromwell=cromwell, womtool=womtool)
 
@@ -158,7 +158,7 @@ def test_server(tmp_path, cromwell, womtool):
         t_start = time.time()
         while not is_server_started:
             time.sleep(1)
-            if time.time() - t_start > 60:
+            if time.time() - t_start > TIMEOUT_SERVER_SPIN_UP:
                 raise TimeoutError('Timed out waiting for Cromwell server spin-up.')
 
         # another way of checking server is started
