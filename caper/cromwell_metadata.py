@@ -87,7 +87,7 @@ class CromwellMetadata:
             logger.info('Wrote metadata file. {f}'.format(f=metadata_file))
         else:
             metadata_file = None
-            workflow_id = self._metadata['id'] if 'id' in self._metadata else None
+            workflow_id = self._metadata.get('id')
             logger.warning(
                 'Failed to write metadata file. workflowRoot not found. '
                 'wf_id={i}'.format(i=workflow_id)
@@ -124,20 +124,19 @@ class CromwellMetadata:
             )
 
         def troubleshoot_call(call_name, call, parent_call_names):
-            status = call['executionStatus'] if 'executionStatus' in call else None
-            shard_index = call['shardIndex'] if 'shardIndex' in call else None
-            rc = call['returnCode'] if 'returnCode' in call else None
-            job_id = call['jobId'] if 'jobId' in call else None
-            stdout = call['stdout'] if 'stdout' in call else None
-            stderr = call['stderr'] if 'stderr' in call else None
+            status = call.get('executionStatus')
+            shard_index = call.get('shardIndex')
+            rc = call.get('returnCode')
+            job_id = call.get('jobId')
+            stdout = call.get('stdout')
+            stderr = call.get('stderr')
             run_start = None
             run_end = None
-            if 'executionEvents' in call:
-                for ev in call['executionEvents']:
-                    if ev['description'].startswith('Running'):
-                        run_start = ev['startTime']
-                        run_end = ev['endTime']
-                        break
+            for event in call.get('executionEvents', []):
+                if event['description'].startswith('Running'):
+                    run_start = event['startTime']
+                    run_end = event['endTime']
+                    break
             if not show_completed_task and status in ('Done', 'Succeeded'):
                 return
             fileobj.write(
@@ -158,13 +157,15 @@ class CromwellMetadata:
                 )
             )
             if stderr:
-                u = AutoURI(stderr)
-                if u.exists:
-                    fileobj.write('STDERR_CONTENTS=\n{s}\n'.format(s=u.read()))
+                if AutoURI(stderr).exists:
+                    fileobj.write(
+                        'STDERR_CONTENTS=\n{s}\n'.format(s=AutoURI(stderr).read())
+                    )
             if show_stdout and stdout:
-                u = AutoURI(stdout)
-                if u.exists:
-                    fileobj.write('STDOUT_CONTENTS=\n{s}\n'.format(s=u.read()))
+                if AutoURI(stdout).exists:
+                    fileobj.write(
+                        'STDOUT_CONTENTS=\n{s}\n'.format(s=AutoURI(stdout).read())
+                    )
 
         fileobj.write('* Recursively finding failures in calls (tasks)...\n')
         self.recurse_calls(troubleshoot_call)
