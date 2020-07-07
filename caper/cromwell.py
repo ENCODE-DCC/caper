@@ -22,7 +22,7 @@ def install_file(f, install_dir, label):
     """Install f locally on install_dir.
     If f is already local then skip it.
     """
-    if AbsPath(f).valid:
+    if AbsPath(f).is_valid:
         return AbsPath(f).uri
     logger.info('Installing {label}... {f}'.format(label=label, f=f))
     path = os.path.join(os.path.expanduser(install_dir), AutoURI(f).basename)

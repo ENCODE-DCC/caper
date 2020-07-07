@@ -357,7 +357,7 @@ class CaperRunner(CaperBase):
             str_label = AutoURI(inputs).basename_wo_ext
 
         if work_dir is None:
-            work_dir = self.create_timestamped_loc_dir(
+            work_dir = self.create_timestamped_work_dir(
                 prefix=AutoURI(wdl).basename_wo_ext
             )
 
