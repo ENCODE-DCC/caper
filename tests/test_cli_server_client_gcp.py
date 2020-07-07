@@ -98,7 +98,7 @@ def test_server_client(
             cmd += ['--debug']
         cli_main(cmd)
 
-        time.sleep(5)
+        time.sleep(10)
 
         # find workflow ID
         cra = CromwellRestAPI(hostname='localhost', port=server_port)

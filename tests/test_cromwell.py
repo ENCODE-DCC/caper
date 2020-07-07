@@ -20,7 +20,9 @@ backend {{
   }}
 }}
 """
+
 TIMEOUT_SERVER_SPIN_UP = 200
+TIMEOUT_SERVER_RUN_WORKFLOW = 960
 
 
 def test_validate(tmp_path, cromwell, womtool):
@@ -181,7 +183,7 @@ def test_server(tmp_path, cromwell, womtool):
         while not is_workflow_done:
             time.sleep(1)
             print('polling: ', workflow_id, is_workflow_done)
-            if time.time() - t_start > 60:
+            if time.time() - t_start > TIMEOUT_SERVER_RUN_WORKFLOW:
                 raise TimeoutError('Timed out waiting for workflow being done.')
 
         metadata = cra.get_metadata([workflow_id], embed_subworkflow=True)[0]
