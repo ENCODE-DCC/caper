@@ -8,16 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class NBSubprocThread(Thread):
-    """Class constants:
-
-    DEFAULT_POLL_INTERVAL_SEC:
-        Default poll interval in seconds.
-    NUM_ERROR_LINES:
-        Number of STDOUT/STDERR lines to be shown when an error occurs.
-    """
-
     DEFAULT_POLL_INTERVAL_SEC = 0.01
-    NUM_ERROR_LINES = 30
 
     def __init__(
         self,
