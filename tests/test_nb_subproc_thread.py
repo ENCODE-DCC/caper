@@ -64,14 +64,14 @@ def test_nb_subproc_thread_stopped(tmp_path):
 
     th = NBSubprocThread(args=['bash', str(sh)], on_stdout=on_stdout)
     th.start()
-    time.sleep(3)
-    th.stop()
+    time.sleep(2)
     assert th.is_alive()
+    th.stop()
     th.join()
     assert not th.is_alive()
     # rc is None if terminated
     assert th.returncode is None
-    # subprocess is terminated until it reaches kitty 4 (4 sec > 3 sec).
+    # subprocess is terminated until it reaches kitty 4 (4 sec > 2 sec).
     assert 'hello kitty 4' not in th.stdout
 
 
