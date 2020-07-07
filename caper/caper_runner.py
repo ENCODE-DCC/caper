@@ -350,15 +350,16 @@ class CaperRunner(CaperBase):
             metadata_file:
                 URI of metadata JSON file.
         """
-        u_wdl = AutoURI(wdl)
-        if not u_wdl.exists:
+        if not AutoURI(wdl).exists:
             raise FileNotFoundError('WDL does not exists. {wdl}'.format(wdl=wdl))
 
         if str_label is None and inputs:
             str_label = AutoURI(inputs).basename_wo_ext
 
         if work_dir is None:
-            work_dir = self.create_timestamped_work_dir(prefix=u_wdl.basename_wo_ext)
+            work_dir = self.create_timestamped_work_dir(
+                prefix=AutoURI(wdl).basename_wo_ext
+            )
 
         logger.info('Localizing files on work_dir. {d}'.format(d=work_dir))
 

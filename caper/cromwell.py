@@ -98,32 +98,30 @@ class Cromwell:
         """
         self.install_womtool()
 
-        u_wdl = AutoURI(wdl)
-        if not u_wdl.exists:
+        wdl_file = AutoURI(wdl)
+        if not wdl_file.exists:
             raise FileNotFoundError(
                 'WDL file does not exist. wdl={wdl}'.format(wdl=wdl)
             )
         if inputs:
-            u_inputs = AutoURI(inputs)
-            if not u_inputs.exists:
+            if not AutoURI(inputs).exists:
                 raise FileNotFoundError(
                     'Inputs JSON defined but does not exist. i={i}'.format(i=inputs)
                 )
 
         with tempfile.TemporaryDirectory() as tmp_d:
             if imports:
-                u_imports = AutoURI(imports)
-                if not u_imports.exists:
+                if not AutoURI(imports).exists:
                     raise FileNotFoundError(
                         'Imports file defined but does not exist. i={i}'.format(
                             i=imports
                         )
                     )
-                wdl_ = os.path.join(tmp_d, u_wdl.basename)
-                u_wdl.cp(wdl_)
+                wdl_ = os.path.join(tmp_d, wdl_file.basename)
+                wdl_file.cp(wdl_)
                 shutil.unpack_archive(imports, tmp_d)
             else:
-                wdl_ = u_wdl.localize_on(tmp_d)
+                wdl_ = wdl_file.localize_on(tmp_d)
 
             cmd = [
                 'java',

@@ -296,20 +296,20 @@ class CaperClientSubmit(CaperClient):
                 They will be localized on self._local_work_dir instead.
                 If this is not defined, then cache directory self._local_work_dir will be used.
         """
-        u_wdl = AutoURI(wdl)
-        if not u_wdl.exists:
+        wdl_file = AutoURI(wdl)
+        if not wdl_file.exists:
             raise FileNotFoundError('WDL does not exists. {wdl}'.format(wdl=wdl))
 
         if work_dir is None:
-            work_dir = self.create_timestamped_work_dir(prefix=u_wdl.basename_wo_ext)
+            work_dir = self.create_timestamped_work_dir(prefix=wdl_file.basename_wo_ext)
 
-        wdl = u_wdl.localize_on(work_dir)
+        wdl = wdl_file.localize_on(work_dir)
 
         if backend is None:
             backend = self._cromwell_rest_api.get_default_backend()
 
         if inputs:
-            # if inputs, inputs can be localization on corresponding
+            # inputs should be localized on corresponding
             # backend's work_dir. check if such work_dir is defined.
             if self.get_work_dir_for_backend(backend) is None:
                 raise ValueError(

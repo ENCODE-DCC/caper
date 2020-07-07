@@ -141,12 +141,12 @@ class WDLParser:
 
         num_sub_wf_packed = 0
         for sub_rel_to_parent in self.imports:
-            u_sub = AutoURI(sub_rel_to_parent)
+            sub_wdl_file = AutoURI(sub_rel_to_parent)
 
-            if isinstance(u_sub, HTTPURL):
-                sub_abs = u_sub.uri
+            if isinstance(sub_wdl_file, HTTPURL):
+                sub_abs = sub_wdl_file.uri
                 imported_as_url_sub = True
-            elif isinstance(u_sub, AbsPath):
+            elif isinstance(sub_wdl_file, AbsPath):
                 raise ValueError(
                     'For sub WDL zipping, absolute path is not allowed for sub WDL. '
                     'main={main}, sub={sub}'.format(
@@ -157,8 +157,7 @@ class WDLParser:
                 sub_abs = os.path.realpath(
                     os.path.join(main_wdl_dir, sub_rel_to_parent)
                 )
-                u_sub_abs = AbsPath(sub_abs)
-                if not u_sub_abs.exists:
+                if not AbsPath(sub_abs).exists:
                     raise FileNotFoundError(
                         'Sub WDL does not exist. Did you import main WDL '
                         'as a URL but sub WDL references a local file? '
@@ -181,7 +180,7 @@ class WDLParser:
                 rel_path = os.path.relpath(sub_abs, root_wdl_dir)
                 cp_dest = os.path.join(root_zip_dir, rel_path)
 
-                u_sub_abs.cp(cp_dest)
+                AbsPath(sub_abs).cp(cp_dest)
                 num_sub_wf_packed += 1
                 imported_as_url_sub = False
 

@@ -443,10 +443,10 @@ def subcmd_troubleshoot(caper_client, args):
         )
 
     # check if it's a file
-    u_metadata = AutoURI(get_abspath(args.wf_id_or_label[0]))
+    metadata_file = AutoURI(get_abspath(args.wf_id_or_label[0]))
 
-    if u_metadata.exists:
-        metadata = json.loads(u_metadata.read())
+    if metadata_file.exists:
+        metadata = json.loads(metadata_file.read())
     else:
         m = caper_client.metadata(
             wf_ids_or_labels=args.wf_id_or_label, embed_subworkflow=True
