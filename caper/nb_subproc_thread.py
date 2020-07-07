@@ -138,8 +138,6 @@ class NBSubprocThread(Thread):
             thread_stdout.start()
 
             while True:
-                if self._stop_it:
-                    break
                 try:
                     stdout = q.get_nowait().decode()
                     if stdout:
@@ -148,21 +146,20 @@ class NBSubprocThread(Thread):
                             self._status = on_stdout(stdout)
                 except Empty:
                     pass
-                except KeyboardInterrupt:
-                    raise
                 if on_poll:
                     self._status = on_poll()
                 if p.poll() is not None:
                     self._returncode = p.poll()
                     break
+                if self._stop_it:
+                    break
                 time.sleep(self._poll_interval)
 
-            if self._stop_it and not self._quiet:
-                logger.info(
-                    'Stopped subprocess. prev_status={s}'.format(s=self._status)
-                )
-            if self._returncode and not self._quiet:
-                logger.error('Non-zero returncode={rc}'.format(rc=self._returncode))
+            if not self._quiet:
+                if self._stop_it:
+                    logger.info(
+                        'Stopped subprocess. prev_status={s}'.format(s=self._status)
+                    )
 
         except CalledProcessError as e:
             self._returncode = e.returncode
@@ -173,16 +170,15 @@ class NBSubprocThread(Thread):
 
         if on_finish:
             self._returnvalule = on_finish()
+
         if not self._quiet:
             if self._returncode:
-                logger.info(
-                    'Finished Subprocess. returncode={rc}, prev_status={s}'.format(
-                        s=self._status, rc=self._returncode
-                    )
+                logger.error(
+                    'Subprocess failed. returncode={rc}'.format(rc=self._returncode)
                 )
             else:
-                logger.error(
-                    'Subprocess failed. returncode={rc}, prev_status={s}'.format(
-                        s=self._status, rc=self._returncode
+                logger.info(
+                    'Finished Subprocess. returncode={rc}, prev_status={s}'.format(
+                        rc=self._returncode, s=self._status
                     )
                 )
