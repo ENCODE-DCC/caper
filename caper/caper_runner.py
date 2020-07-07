@@ -30,11 +30,11 @@ class CaperRunner(CaperBase):
 
     def __init__(
         self,
-        local_work_dir,
+        local_loc_dir,
         local_out_dir,
         default_backend,
-        gcp_work_dir=None,
-        aws_work_dir=None,
+        gcp_loc_dir=None,
+        aws_loc_dir=None,
         cromwell=Cromwell.DEFAULT_CROMWELL,
         womtool=Cromwell.DEFAULT_WOMTOOL,
         disable_call_caching=False,
@@ -142,9 +142,9 @@ class CaperRunner(CaperBase):
                 PBS extra parameter to be appended to qsub command line.
         """
         super().__init__(
-            local_work_dir=local_work_dir,
-            gcp_work_dir=gcp_work_dir,
-            aws_work_dir=aws_work_dir,
+            local_loc_dir=local_loc_dir,
+            gcp_loc_dir=gcp_loc_dir,
+            aws_loc_dir=aws_loc_dir,
             gcp_service_account_key_json=gcp_service_account_key_json,
         )
         self._set_env_gcp_prj(gcp_prj)
@@ -337,8 +337,8 @@ class CaperRunner(CaperBase):
                 For example, backend config file, workflow options file.
                 Localized (recursively) data files defined in input JSON
                 will NOT be stored here.
-                They will be localized on self._local_work_dir instead.
-                If this is not defined, then cache directory self._local_work_dir will be used.
+                They will be localized on self._local_loc_dir instead.
+                If this is not defined, then cache directory self._local_loc_dir will be used.
                 However, Cromwell Java process itself will run on CWD instead of this directory.
             java_heap_run:
                 Java heap (java -Xmx) for Cromwell server mode.
@@ -357,7 +357,7 @@ class CaperRunner(CaperBase):
             str_label = AutoURI(inputs).basename_wo_ext
 
         if work_dir is None:
-            work_dir = self.create_timestamped_work_dir(
+            work_dir = self.create_timestamped_loc_dir(
                 prefix=AutoURI(wdl).basename_wo_ext
             )
 
@@ -486,7 +486,7 @@ class CaperRunner(CaperBase):
                 Local temporary directory to store all temporary files.
                 Temporary files mean intermediate files used for running Cromwell.
                 For example, auto-generated backend config file and workflow options file.
-                If this is not defined, then cache directory self._local_work_dir with a timestamp
+                If this is not defined, then cache directory self._local_loc_dir with a timestamp
                 will be used.
                 However, Cromwell Java process itself will run on CWD instead of this directory.
             dry_run:

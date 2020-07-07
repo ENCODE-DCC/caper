@@ -76,7 +76,7 @@ def get_parser_and_defaults(conf_file=None):
         title='cache directories for localization'
     )
     group_loc.add_argument(
-        '--local-work-dir',
+        '--local-loc-dir',
         '--tmp-dir',
         help='Temporary directory to store Cromwell\'s intermediate backend files. '
         'These files include backend.conf, workflow_opts.json, imports.zip. and '
@@ -86,13 +86,13 @@ def get_parser_and_defaults(conf_file=None):
         'also used for storing cached files for local/slurm/sge/pbs backends.',
     )
     group_loc.add_argument(
-        '--gcp-work-dir',
+        '--gcp-loc-dir',
         '--tmp-gcs-bucket',
         help='Temporary directory to store cached files for gcp backend. '
         'e.g. gs://my-bucket/caper-cache-dir. ',
     )
     group_loc.add_argument(
-        '--aws-work-dir',
+        '--aws-loc-dir',
         '--tmp-s3-bucket',
         help='Temporary directory to store cached files for aws backend. '
         'e.g. s3://my-bucket/caper-cache-dir. ',

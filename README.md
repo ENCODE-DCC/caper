@@ -37,9 +37,9 @@ Change of parameter names. Backward compatible.
   - `--out-dir` -> `--local-out-dir`
   - `--out-gcs-bucket` -> `--gcp-out-dir`
   - `--out-s3-bucket` -> `--aws-out-dir`
-  - `--tmp-dir` -> `--local-work-dir`
-  - `--tmp-gcs-bucket` -> `--gcp-work-dir`
-  - `--tmp-s3-bucket` -> `--aws-work-dir`
+  - `--tmp-dir` -> `--local-loc-dir`
+  - `--tmp-gcs-bucket` -> `--gcp-loc-dir`
+  - `--tmp-s3-bucket` -> `--aws-loc-dir`
 
 Added parameters
   - `--use-google-cloud-life-sciences` and `--gcp-region`: Use Life Sciences API (Cromwell's v2beta scheme).
@@ -125,7 +125,7 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 
 	**Parameter**|**Description**
 	:--------|:-----
-	local-work-dir | **IMPORTANT**: DO NOT USE `/tmp`. This is a working directory to store all important intermediate files for Caper. This directory is also used to store big cached files for localization of remote files. e.g. to run pipelines locally with remote files (`gs://`, `s3://`, `http://`, ...) copies of such files are stored here.
+	local-loc-dir | **IMPORTANT**: DO NOT USE `/tmp`. This is a working directory to store all important intermediate files for Caper. This directory is also used to store big cached files for localization of remote files. e.g. to run pipelines locally with remote files (`gs://`, `s3://`, `http://`, ...) copies of such files are stored here.
 	slurm-partition | SLURM partition. Define only if required by a cluster. You must define it for Stanford Sherlock.
 	slurm-account | SLURM partition. Define only if required by a cluster. You must define it for Stanford SCG.
 	sge-pe | Parallel environment of SGE. Find one with `$ qconf -spl` or ask you admin to add one if not exists.
@@ -224,7 +224,7 @@ Create a small leader instance on your GCP project/AWS region. Follow above inst
 
 > **IMPORTANT**: It's **STRONGLY** recommended to attach/mount a persistent disk/EBS volume with enough space to it. Caper's call-caching file DB grows quickly to reach 10 GB, which is a default size for most small instances.
 
-Also, make sure that `local-work-dir` in `~/.caper/default.conf` points to a directory on a large disk. All intermediate files and big cached files for inter-storage transfer will be stored there.
+Also, make sure that `local-loc-dir` in `~/.caper/default.conf` points to a directory on a large disk. All intermediate files and big cached files for inter-storage transfer will be stored there.
 
 Mount a persistent disk and change directory into it. A **BIG** DB file to enable Cromwell's call-caching (re-using previous failed workflow's outputs) will be generated on this current working directory.
 ```bash

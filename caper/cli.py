@@ -104,27 +104,27 @@ def check_flags(args):
 
 
 def check_dirs(args):
-    """Convert local directories (local_out_dir, local_work_dir) to absolute ones.
+    """Convert local directories (local_out_dir, local_loc_dir) to absolute ones.
     Also, if temporary/cache directory is not defined for each storage,
     then append ".caper_tmp" on output directory and use it.
     """
     if hasattr(args, 'local_out_dir'):
         args.local_out_dir = get_abspath(args.local_out_dir)
-        if not args.local_work_dir:
-            args.local_work_dir = os.path.join(args.local_out_dir, DEFAULT_TMP_DIR_NAME)
+        if not args.local_loc_dir:
+            args.local_loc_dir = os.path.join(args.local_out_dir, DEFAULT_TMP_DIR_NAME)
     else:
-        if not args.local_work_dir:
-            args.local_work_dir = os.path.join(os.getcwd(), DEFAULT_TMP_DIR_NAME)
+        if not args.local_loc_dir:
+            args.local_loc_dir = os.path.join(os.getcwd(), DEFAULT_TMP_DIR_NAME)
 
-    args.local_work_dir = get_abspath(args.local_work_dir)
+    args.local_loc_dir = get_abspath(args.local_loc_dir)
 
     if hasattr(args, 'gcp_out_dir'):
-        if args.gcp_out_dir and not args.gcp_work_dir:
-            args.gcp_work_dir = os.path.join(args.gcp_out_dir, DEFAULT_TMP_DIR_NAME)
+        if args.gcp_out_dir and not args.gcp_loc_dir:
+            args.gcp_loc_dir = os.path.join(args.gcp_out_dir, DEFAULT_TMP_DIR_NAME)
 
     if hasattr(args, 'aws_out_dir'):
-        if args.aws_out_dir and not args.aws_work_dir:
-            args.aws_work_dir = os.path.join(args.aws_out_dir, DEFAULT_TMP_DIR_NAME)
+        if args.aws_out_dir and not args.aws_loc_dir:
+            args.aws_loc_dir = os.path.join(args.aws_out_dir, DEFAULT_TMP_DIR_NAME)
 
 
 def check_db_path(args):
@@ -158,11 +158,11 @@ def runner(args, nonblocking_server=False):
         )
 
     c = CaperRunner(
-        local_work_dir=args.local_work_dir,
+        local_loc_dir=args.local_loc_dir,
         local_out_dir=args.local_out_dir,
         default_backend=args.backend,
-        gcp_work_dir=args.gcp_work_dir,
-        aws_work_dir=args.aws_work_dir,
+        gcp_loc_dir=args.gcp_loc_dir,
+        aws_loc_dir=args.aws_loc_dir,
         gcp_service_account_key_json=get_abspath(args.gcp_service_account_key_json),
         cromwell=get_abspath(args.cromwell),
         womtool=get_abspath(getattr(args, 'womtool', None)),
@@ -226,9 +226,9 @@ def client(args):
             args.gcp_zones = re.split(REGEX_DELIMITER_GCP_PARAMS, args.gcp_zones)
 
         c = CaperClientSubmit(
-            local_work_dir=args.local_work_dir,
-            gcp_work_dir=args.gcp_work_dir,
-            aws_work_dir=args.aws_work_dir,
+            local_loc_dir=args.local_loc_dir,
+            gcp_loc_dir=args.gcp_loc_dir,
+            aws_loc_dir=args.aws_loc_dir,
             gcp_service_account_key_json=get_abspath(args.gcp_service_account_key_json),
             server_hostname=args.hostname,
             server_port=args.port,
@@ -249,9 +249,9 @@ def client(args):
 
     else:
         c = CaperClient(
-            local_work_dir=args.local_work_dir,
-            gcp_work_dir=args.gcp_work_dir,
-            aws_work_dir=args.aws_work_dir,
+            local_loc_dir=args.local_loc_dir,
+            gcp_loc_dir=args.gcp_loc_dir,
+            aws_loc_dir=args.aws_loc_dir,
             gcp_service_account_key_json=get_abspath(args.gcp_service_account_key_json),
             server_hostname=args.hostname,
             server_port=args.port,

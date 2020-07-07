@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 class CaperClient(CaperBase):
     def __init__(
         self,
-        local_work_dir,
-        gcp_work_dir=None,
-        aws_work_dir=None,
+        local_loc_dir,
+        gcp_loc_dir=None,
+        aws_loc_dir=None,
         gcp_service_account_key_json=None,
         server_hostname=CromwellRestAPI.DEFAULT_HOSTNAME,
         server_port=CromwellRestAPI.DEFAULT_PORT,
@@ -38,9 +38,9 @@ class CaperClient(CaperBase):
                 This object is to read hostname/port pair from it.
         """
         super().__init__(
-            local_work_dir=local_work_dir,
-            gcp_work_dir=gcp_work_dir,
-            aws_work_dir=aws_work_dir,
+            local_loc_dir=local_loc_dir,
+            gcp_loc_dir=gcp_loc_dir,
+            aws_loc_dir=aws_loc_dir,
             gcp_service_account_key_json=gcp_service_account_key_json,
         )
 
@@ -133,9 +133,9 @@ class CaperClient(CaperBase):
 class CaperClientSubmit(CaperClient):
     def __init__(
         self,
-        local_work_dir,
-        gcp_work_dir=None,
-        aws_work_dir=None,
+        local_loc_dir,
+        gcp_loc_dir=None,
+        aws_loc_dir=None,
         gcp_service_account_key_json=None,
         server_hostname=CromwellRestAPI.DEFAULT_HOSTNAME,
         server_port=CromwellRestAPI.DEFAULT_PORT,
@@ -181,9 +181,9 @@ class CaperClientSubmit(CaperClient):
                 PBS extra parameter to be appended to qsub command line.
         """
         super().__init__(
-            local_work_dir=local_work_dir,
-            gcp_work_dir=gcp_work_dir,
-            aws_work_dir=aws_work_dir,
+            local_loc_dir=local_loc_dir,
+            gcp_loc_dir=gcp_loc_dir,
+            aws_loc_dir=aws_loc_dir,
             gcp_service_account_key_json=gcp_service_account_key_json,
             server_hostname=server_hostname,
             server_port=server_port,
@@ -293,8 +293,8 @@ class CaperClientSubmit(CaperClient):
                 For example, workflow options file, imports zip file.
                 Localized (recursively) data files defined in input JSON
                 will NOT be stored here.
-                They will be localized on self._local_work_dir instead.
-                If this is not defined, then cache directory self._local_work_dir will be used.
+                They will be localized on self._local_loc_dir instead.
+                If this is not defined, then cache directory self._local_loc_dir will be used.
         """
         wdl_file = AutoURI(wdl)
         if not wdl_file.exists:
@@ -310,8 +310,9 @@ class CaperClientSubmit(CaperClient):
 
         if inputs:
             # inputs should be localized on corresponding
-            # backend's work_dir. check if such work_dir is defined.
-            if self.get_work_dir_for_backend(backend) is None:
+            # backend's localization directory.
+            # check if such loc_dir is defined.
+            if self.get_loc_dir(backend) is None:
                 raise ValueError(
                     'work_dir is not defined for your backend. {b}'.format(b=backend)
                 )

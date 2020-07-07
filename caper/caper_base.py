@@ -14,16 +14,16 @@ class CaperBase:
 
     def __init__(
         self,
-        local_work_dir,
-        gcp_work_dir=None,
-        aws_work_dir=None,
+        local_loc_dir,
+        gcp_loc_dir=None,
+        aws_loc_dir=None,
         gcp_service_account_key_json=None,
     ):
         """Manages work/cache/temp directories for localization on the following
         storages:
-            - Local*: Local path -> local_work_dir**
-            - gcp: GCS bucket path -> gcp_work_dir
-            - aws: S3 bucket path -> aws_work_dir
+            - Local*: Local path -> local_loc_dir**
+            - gcp: GCS bucket path -> gcp_loc_dir
+            - aws: S3 bucket path -> aws_loc_dir
 
         * Note that it starts with capital L, which is a default backend of Cromwell's
         default configuration file (application.conf).
@@ -34,37 +34,37 @@ class CaperBase:
         require permission to access to storage.
 
         Args:
-            local_work_dir:
+            local_loc_dir:
                 Local cache directory to store files localized for local backends.
                 Unlike other two directories. This directory is also used to make a
                 working directory to store intermediate files to run Cromwell.
                 e.g. backend.conf and workflow_opts.json.
-            gcp_work_dir:
+            gcp_loc_dir:
                 GCS cache directory to store files localized on GCS for gcp backend.
-            aws_work_dir:
+            aws_loc_dir:
                 S3 cache directory to store files localized on S3 for aws backend.
             gcp_service_account_key_json:
                 Google Cloud service account for authentication.
                 This service account should have enough permission to storage.
         """
-        if not AbsPath(local_work_dir).is_valid:
+        if not AbsPath(local_loc_dir).is_valid:
             raise ValueError(
-                'local_work_dir should be a valid local abspath. {f}'.format(
-                    f=local_work_dir
+                'local_loc_dir should be a valid local abspath. {f}'.format(
+                    f=local_loc_dir
                 )
             )
-        if gcp_work_dir and not GCSURI(gcp_work_dir).is_valid:
+        if gcp_loc_dir and not GCSURI(gcp_loc_dir).is_valid:
             raise ValueError(
-                'gcp_work_dir should be a valid GCS path. {f}'.format(f=gcp_work_dir)
+                'gcp_loc_dir should be a valid GCS path. {f}'.format(f=gcp_loc_dir)
             )
-        if aws_work_dir and not S3URI(aws_work_dir).is_valid:
+        if aws_loc_dir and not S3URI(aws_loc_dir).is_valid:
             raise ValueError(
-                'aws_work_dir should be a valid S3 path. {f}'.format(f=aws_work_dir)
+                'aws_loc_dir should be a valid S3 path. {f}'.format(f=aws_loc_dir)
             )
 
-        self._local_work_dir = local_work_dir
-        self._gcp_work_dir = gcp_work_dir
-        self._aws_work_dir = aws_work_dir
+        self._local_loc_dir = local_loc_dir
+        self._gcp_loc_dir = gcp_loc_dir
+        self._aws_loc_dir = aws_loc_dir
 
         self._set_env_gcp_app_credentials(gcp_service_account_key_json)
 
@@ -110,9 +110,9 @@ class CaperBase:
         For example, /somewhere/test.json -> gs://example-tmp-gcs-bucket/somewhere/test.gcs.json
 
         loc_prefix will be one of the cache directories according to the backend type
-            - gcp -> gcp_work_dir
-            - aws -> aws_work_dir
-            - all others (local) -> local_work_dir
+            - gcp -> gcp_loc_dir
+            - aws -> aws_loc_dir
+            - all others (local) -> local_loc_dir
 
         Args:
             f:
@@ -131,11 +131,11 @@ class CaperBase:
             localized URI.
         """
         if backend == BACKEND_GCP:
-            loc_prefix = self._gcp_work_dir
+            loc_prefix = self._gcp_loc_dir
         elif backend == BACKEND_AWS:
-            loc_prefix = self._aws_work_dir
+            loc_prefix = self._aws_loc_dir
         else:
-            loc_prefix = self._local_work_dir
+            loc_prefix = self._local_loc_dir
 
         return AutoURI(f).localize_on(
             loc_prefix, recursive=recursive, make_md5_file=make_md5_file
@@ -169,7 +169,7 @@ class CaperBase:
                 Directory name will be self._tmpdir / prefix / timestamp.
         """
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-        work_dir = os.path.join(self._local_work_dir, prefix, timestamp)
+        work_dir = os.path.join(self._local_loc_dir, prefix, timestamp)
         os.makedirs(work_dir, exist_ok=True)
         logger.info(
             'Creating a timestamped temporary directory. {d}'.format(d=work_dir)
@@ -177,10 +177,12 @@ class CaperBase:
 
         return work_dir
 
-    def get_work_dir_for_backend(self, backend):
+    def get_loc_dir(self, backend):
+        """Get localization directory for a backend.
+        """
         if backend == BACKEND_GCP:
-            return self._gcp_work_dir
+            return self._gcp_loc_dir
         elif backend == BACKEND_AWS:
-            return self._aws_work_dir
+            return self._aws_loc_dir
         else:
-            return self._local_work_dir
+            return self._local_loc_dir

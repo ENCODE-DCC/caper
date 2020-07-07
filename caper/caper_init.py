@@ -29,11 +29,11 @@ local-hash-strat=path+modtime
 """
 
 CONF_CONTENTS_TMP_DIR = """
-# Local working/temporary directory.
-# DO NOT USE /tmp. Use an absolute path here.
-# Caper stores important small-temporary/big-cached files here.
-# If not defined, Caper will make .caper_tmp/ on local-out-dir or CWD
-local-work-dir=
+# Local directory for localized files and Cromwell's intermediate files
+# If not defined, Caper will make .caper_tmp/ on local-out-dir or CWD.
+# /tmp is not recommended here since Caper store all localized data files
+# on this directory (e.g. input FASTQs defined as URLs in input JSON).
+local-loc-dir=
 """
 
 DEFAULT_CONF_CONTENTS_LOCAL = (
@@ -123,8 +123,7 @@ gcp-out-dir=
 #   copy (not recommended): make a copy for a new workflow.
 gcp-call-caching-dup-strat=
 
-# Use Google Cloud Life Sciences API
-# instead of Genomics API (deprecating).
+# Use Google Cloud Life Sciences API instead of Genomics API (deprecating).
 # Make sure to enable Google Cloud Life Sciences API on your Google Cloud Console
 use-google-cloud-life-sciences=false
 
