@@ -167,12 +167,6 @@ We highly recommend to use a default configuration file described in the section
 	format|--format, -f|id,status,<br>name,<br>str_label,<br>submission|Comma-separated list of items to be shown for `list` subcommand. Supported formats: `id` (workflow UUID), `status`, `name` (WDL basename), `str\_label` (Caper's special string label), `submission`, `start`, `end`
 	hide-result-before|--hide-result-before| | Datetime string to hide old workflows submitted before it. This is based on a simple string sorting. (e.g. 2019-06-13, 2019-06-13T10:07)
 
-	DEPRECATED OLD PARAMETERS:
-
-	**Conf. file**|**Cmd. line**|**Default**|**Description**
-	:-----|:-----|:-----|:-----
-	deepcopy-ext|--deepcopy-ext|json,<br>tsv|DEPRECATED. Caper defaults to use deepcopy for JSON, TSV and CSV.
-
 * Special parameter for a direct transfer between S3 and GCS buckets
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
@@ -184,7 +178,7 @@ We highly recommend to use a default configuration file described in the section
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
 	local-out-dir, out-dir|--local-out-dir, --out-dir|`$CWD`|Output directory for local backend
-	local-loc-dir, tmp-dir|--local-loc-dir, --tmp-dir|`$CWD/caper\_tmp`|Working/temp directory for local backend
+	local-loc-dir, tmp-dir|--local-loc-dir, --tmp-dir|`$CWD/caper\_tmp`|Tmp. directory for localization on local backend
 
 * Google Cloud Platform backend settings
 
@@ -195,8 +189,8 @@ We highly recommend to use a default configuration file described in the section
 	gcp-memory-retry-error-keys|--gcp-memory-retry-error-keys|If an error caught by these comma-separated keys occurs then increase instance's memory by --gcp-memory-retry-multiplier and retry (controlled by --max-retries).
 	gcp-memory-retry-multiplier|--gcp-memory-retry-multiplier|Multiplier for memory-retry.
 	gcp-zones|--gcp-zones|Comma-delimited Google Cloud Platform zones to provision worker instances (e.g. us-central1-c,us-west1-b)
-	gcp-out-dir, out-gcs-bucket|--gcp-out-dir, --out-gcs-bucket|Output GCS bucket path for GC backend
-	gcp-loc-dir, tmp-gcs-bucket|--gcp-loc-dir, --tmp-gcs-bucket|Tmp. GCS bucket path for GC backend
+	gcp-out-dir, out-gcs-bucket|--gcp-out-dir, --out-gcs-bucket|Output `gs://` directory for GC backend
+	gcp-loc-dir, tmp-gcs-bucket|--gcp-loc-dir, --tmp-gcs-bucket|Tmp. directory for localization on GC backend
 
 * AWS backend settings
 
@@ -204,8 +198,8 @@ We highly recommend to use a default configuration file described in the section
 	:-----|:-----|:-----
 	aws-batch-arn|--aws-batch-arn|ARN for AWS Batch
 	aws-region|--aws-region|AWS region (e.g. us-west-1)
-	aws-out-dir, out-s3-bucket|--aws-out-dir, --out-s3-bucket|Output S3 bucket path for AWS backend
-	aws-loc-dir, tmp-s3-bucket|--aws-loc-dir, --tmp-s3-bucket|Tmp. S3 bucket path for AWS backend
+	aws-out-dir, out-s3-bucket|--aws-out-dir, --out-s3-bucket|Output `s3://` directory for AWS backend
+	aws-loc-dir, tmp-s3-bucket|--aws-loc-dir, --tmp-s3-bucket|Tmp. directopy for localization on AWS backend
 
 	DEPREACTED OLD PARAMETERS:
 

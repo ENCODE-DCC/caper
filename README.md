@@ -78,7 +78,7 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 	$ java -version
 	```
 
-2) Make sure that you have `python3`(> 3.4.1) installed on your system. Use `pip` to install Caper.
+2) Make sure that you have `python >= 3.6` installed on your system. Use `pip` to install Caper. If you use a pipeline with its own Conda environment then activate the environment first. i.e. installing Caper inside the environment.
 
 	```bash
 	$ pip install caper
@@ -103,25 +103,25 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 	export PATH=$PATH:~/.local/bin
 	```
 
-5) Choose a backend/platform from the following table and initialize Caper. This will create a default Caper configuration file `~/.caper/default.conf`, which have only required parameters for each platform. There are special platforms for Stanford Sherlock/SCG users. This will also install Cromwell/Womtool JARs on `~/.caper`. Downloading those files can take up to 10 minutes. Once they are installed, Caper can completely work offline with local data files.
+5) Choose a backend from the following table and initialize Caper. This will create a default Caper configuration file `~/.caper/default.conf`, which have only required parameters for each backend. There are special options (`sherlock` and `scg`) for Stanford Sherlock/SCG users. `caper init` will also install Cromwell/Womtool JARs on `~/.caper/`. Downloading those files can take up to 10 minutes. Once they are installed, Caper can completely work offline with local data files.
 
 	```bash
-	$ caper init [BACKEND/PLATFORM]
+	$ caper init [BACKEND]
 	```
 
-	**Backend/Platform**|**Description**
+	**Backend**|**Description**
 	:--------|:-----
-	sherlock | Stanford Sherlock cluster (SLURM)
-	scg | Stanford SCG cluster (SLURM)
-	gcp | Google Cloud Platform
-	aws | Amazon Web Service
-	local | General local computer
-	sge | HPC with Sun GridEngine cluster engine
-	pbs | HPC with PBS cluster engine
-	slurm | HPC with SLURM cluster engine
+  local | General local computer.
+  slurm | HPC with SLURM cluster engine.
+  sge | HPC with Sun GridEngine cluster engine.
+  pbs | HPC with PBS cluster engine.
+	gcp | Google Cloud Platform.
+	aws | Amazon Web Service.
+  sherlock | Stanford Sherlock (based on `slurm` backend).
+  scg | Stanford SCG (based on `slurm` backend).
 
-6) Edit `~/.caper/default.conf` according to your chosen platform. Find instruction for each item in the following table.
-	> **IMPORTANT**: ONCE YOU HAVE INITIALIZED THE CONFIGURATION FILE `~/.caper/default.conf` WITH YOUR CHOSEN PLATFORM, THEN IT WILL HAVE ONLY REQUIRED PARAMETERS FOR THE CHOSEN PLATFORM. DO NOT LEAVE ANY PARAMETERS UNDEFINED OR CAPER WILL NOT WORK CORRECTLY.
+6) Edit `~/.caper/default.conf`. Find instruction for each parameter in the following table.
+	> **IMPORTANT**: DO NOT LEAVE ANY PARAMETERS UNDEFINED OR CAPER WILL NOT WORK CORRECTLY.
 
 	**Parameter**|**Description**
 	:--------|:-----
@@ -266,11 +266,13 @@ If Caper's built-in backends don't work as expected on your clusters (e.g. due t
 
 Find this `backend.conf` first by dry-running `caper run [WDL] --dry-run ...`. For example of a `slurm` backend:
 ```
-$ caper run toy.wdl --dry-run --backend slurm
-[Caper] Validating WDL/input JSON with womtool...
-Picked up _JAVA_OPTIONS: -Xms256M -Xmx4024M -XX:ParallelGCThreads=1
-Success!
-[Caper] cmd:  ['java', '-Xmx3G', '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO', '-DLOG_MODE=standard', '-jar', '-Dconfig.file=/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/backend.conf', '/users/leepc12/.caper/cromwell_jar/cromwell-47.jar', 'run', '/mnt/data2/scratch/leepc12/test_caper_refac/toy.wdl', '-i', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/inputs.json', '-o', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/workflow_opts.json', '-l', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/labels.json', '-m', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/metadata.json']
+$ caper run main.wdl --dry-run
+2020-07-07 11:18:13,196|caper.caper_runner|INFO| Adding encode-dcc-1016 to env var GOOGLE_CLOUD_PROJECT
+2020-07-07 11:18:13,197|caper.caper_base|INFO| Creating a timestamped temporary directory. /mnt/data/scratch/leepc12/test_caper_tmp/main/20200707_111813_197082
+2020-07-07 11:18:13,197|caper.caper_runner|INFO| Localizing files on work_dir. /mnt/data/scratch/leepc12/test_caper_tmp/main/20200707_111813_197082
+2020-07-07 11:18:13,829|caper.cromwell|INFO| Validating WDL/inputs/imports with Womtool...
+2020-07-07 11:18:16,034|caper.cromwell|INFO| Womtool validation passed.
+2020-07-07 11:18:16,035|caper.caper_runner|INFO| launching run: wdl=/mnt/data2/scratch/leepc12/test_wdl1_sub/main.wdl, inputs=None, backend_conf=/mnt/data/scratch/leepc12/test_caper_tmp/main/20200707_111813_197082/backend.conf
 ```
 
 Look for a file defined with a Java parameter `-Dconfig.file` and find a backend of interest (`slurm` in this example) in the file.
@@ -283,39 +285,87 @@ backend {
   ...
 
     slurm {
-      actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
       config {
         default-runtime-attributes {
           time = 24
         }
         concurrent-job-limit = 1000
         script-epilogue = "sleep 10 && sync"
+        filesystems {
+          local {
+            localization = [
+              "soft-link"
+              "hard-link"
+              "copy"
+            ]
+            caching {
+              check-sibling-md5 = true
+              duplication-strategy = [
+                "soft-link"
+                "hard-link"
+                "copy"
+              ]
+              hashing-strategy = "path+modtime"
+            }
+          }
+        }
+        run-in-background = true
+        runtime-attributes = """String? docker
+String? docker_user
+Int cpu = 1
+Int? gpu
+Int? time
+Int? memory_mb
+String? slurm_partition
+String? slurm_account
+String? slurm_extra_param
+String? singularity
+String? singularity_bindpath
+String? singularity_cachedir
+"""
+        submit = """if [ -z \"$SINGULARITY_BINDPATH\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
+if [ -z \"$SINGULARITY_CACHEDIR\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;
+
+ITER=0
+until [ $ITER -ge 3 ]; do
+    sbatch \
+        --export=ALL \
+        -J ${job_name} \
+        -D ${cwd} \
+        -o ${out} \
+        -e ${err} \
+        ${'-t ' + time*60} \
+        -n 1 \
+        --ntasks-per-node=1 \
+        ${'--cpus-per-task=' + cpu} \
+        ${true="--mem=" false="" defined(memory_mb)}${memory_mb} \
+        ${'-p ' + slurm_partition} \
+        ${'--account ' + slurm_account} \
+        ${'--gres gpu:' + gpu} \
+        ${slurm_extra_param} \
+        --wrap "${if !defined(singularity) then '/bin/bash ' + script
+                  else
+                    'singularity exec --cleanenv ' +
+                    '--home ' + cwd + ' ' +
+                    (if defined(gpu) then '--nv ' else '') +
+                    singularity + ' /bin/bash ' + script}" \
+        && break
+    ITER=$[$ITER+1]
+    sleep 30
+done
+"""
         root = "/mnt/data/scratch/leepc12/caper_out"
-        runtime-attributes = """
-        String? docker
-        String? docker_user
-        Int cpu = 1
-        Int? gpu
-        Int? time
-        Int? memory_mb
-        String? slurm_partition
-        String? slurm_account
-        String? slurm_extra_param
-        String? singularity
-        String? singularity_bindpath
-        String? singularity_cachedir
-    """
-        submit = """ITER=0; until [ $ITER -ge 3 ]; do
-        sbatch         --export=ALL         -J ${job_name}         -D ${cwd}         -o ${out}         -e ${err}         ${"-t " + time*60}         -n 1         --ntasks-per-node=1         ${true="--cpus-per-task=" false="" defined(cpu)}${cpu}         ${true="--mem=" false="" defined(memory_mb)}${memory_mb}         ${"-p " + slurm_partition}         ${"--account " + slurm_account}         ${true="--gres gpu:" false="" defined(gpu)}${gpu}         ${slurm_extra_param}         --wrap "${if defined(singularity) then '' else             '/bin/bash ${script} #'}             if [ -z \"$SINGULARITY_BINDPATH\" ]; then             export SINGULARITY_BINDPATH=${singularity_bindpath}; fi;             if [ -z \"$SINGULARITY_CACHEDIR\" ]; then             export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;             singularity exec --cleanenv --home ${cwd}             ${if defined(gpu) then '--nv' else ''}             ${singularity} /bin/bash ${script}" && break
-    ITER=$[$ITER+1]; sleep 30; done
-    """
-        kill = "scancel ${job_id}"
         exit-code-timeout-seconds = 360
-        check-alive = "for ITER in 1 2 3; do CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id}); if [ -z \"$CHK_ALIVE\" ]; then if [ \"$ITER\" == 3 ]; then /bin/bash -c 'exit 1'; else sleep 30; fi; else echo $CHK_ALIVE; break; fi; done"
+        check-alive = """for ITER in 1 2 3; do
+    CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id})
+    if [ -z "$CHK_ALIVE" ]; then if [ "$ITER" == 3 ]; then /bin/bash -c 'exit 1'; else sleep 30; fi; else echo $CHK_ALIVE; break; fi
+done
+"""
+        kill = "scancel ${job_id}"
         job-id-regex = "Submitted batch job (\\d+).*"
       }
+      actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
     }
-
   ...
 
 }
@@ -371,7 +421,7 @@ Caper server writes a heartbeat file (specified by `--server-heartbeat-file`) on
 Example heartbeat file:
 ```bash
 $ cat ~/.caper/default_server_heartbeat
-kadru.stanford.edu:8000
+your.hostname.com:8000
 ```
 
 This heartbeat file is useful when users don't want to find IP(hostname)/PORT of a running `caper server` especially when they `qsub`bed or `sbatch`ed `caper server` on their clusters. For such cases, IP (hostname of node/instance) of the server is later determined after the cluster engine starts the submitted `caper server` job and it's inconvenient for the users to find the IP (hostname) of the running server manually with `qstat` or `squeue` and add it back to Caper's configuration file `~/.caper/default.conf`.
@@ -411,8 +461,6 @@ In order to use call-caching, choose one of the following metadata database type
 2) `postgresql` (experimental): We don't provide a method to run PostgreSQL server and initialize it correctly for Crowmell. See [this](https://cromwell.readthedocs.io/en/stable/Configuring/) for details.
 
 3) `file` (**UNSTABLE**, not recommended): This is Cromwell's built-in [HyperSQL DB file mode](#file-database). Caper<0.6 defaulted to use it but a file DB turns out to be very unstable and get corrupted easily.
-
-	> **IMPORTANT**: File DBs generated from Caper>=0.6 and Caper<0.6 are not compatible with each other. See [release note of Cromwell-43](https://github.com/broadinstitute/cromwell/releases/tag/43) for details and how to migrate if required.
 
 ## MySQL database
 
