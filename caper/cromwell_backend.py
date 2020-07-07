@@ -586,6 +586,7 @@ class CromwellBackendSLURM(CromwellBackendLocal):
             local_hash_strat=local_hash_strat,
         )
         self.merge_backend(CromwellBackendSLURM.TEMPLATE_BACKEND)
+        self.backend_config.pop('submit-docker')
 
         if slurm_partition:
             self.default_runtime_attributes['slurm_partition'] = slurm_partition
@@ -671,6 +672,7 @@ class CromwellBackendSGE(CromwellBackendLocal):
             local_hash_strat=local_hash_strat,
         )
         self.merge_backend(CromwellBackendSGE.TEMPLATE_BACKEND)
+        self.backend_config.pop('submit-docker')
 
         if sge_pe:
             self.default_runtime_attributes['sge_pe'] = sge_pe
@@ -747,6 +749,7 @@ class CromwellBackendPBS(CromwellBackendLocal):
             local_hash_strat=local_hash_strat,
         )
         self.merge_backend(CromwellBackendPBS.TEMPLATE_BACKEND)
+        self.backend_config.pop('submit-docker')
 
         if pbs_queue:
             self.default_runtime_attributes['pbs_queue'] = pbs_queue
