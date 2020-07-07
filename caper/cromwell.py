@@ -22,12 +22,11 @@ def install_file(f, install_dir, label):
     """Install f locally on install_dir.
     If f is already local then skip it.
     """
-    u = AutoURI(f)
-    if isinstance(u, AbsPath):
-        return u.uri
+    if AbsPath(f).valid:
+        return AbsPath(f).uri
     logger.info('Installing {label}... {f}'.format(label=label, f=f))
-    path = os.path.join(os.path.expanduser(install_dir), u.basename)
-    return u.cp(path)
+    path = os.path.join(os.path.expanduser(install_dir), AutoURI(f).basename)
+    return AutoURI(f).cp(path)
 
 
 class Cromwell:
