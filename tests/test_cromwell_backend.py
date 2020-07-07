@@ -40,4 +40,4 @@ def test_cromwell_backend_base_backend_config_dra():
             'default-runtime-attributes': {'docker': 'ubuntu:latest'},
         }
     }
-    assert bb1.backend_config_dra == {'docker': 'ubuntu:latest'}
+    assert bb1.default_runtime_attributes == {'docker': 'ubuntu:latest'}

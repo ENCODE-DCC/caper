@@ -120,7 +120,7 @@ def test_run_gcp_with_life_sciences_api(
     cmd += ['--tmp-dir', str(tmp_path / 'tmp_dir')]
     cmd += ['--backend', 'gcp']
     cmd += ['--gcp-out-dir', out_gcs_bucket]
-    cmd += ['--gcp-work-dir', tmp_gcs_bucket]
+    cmd += ['--gcp-loc-dir', tmp_gcs_bucket]
     cmd += ['--cromwell-stdout', str(tmp_path / 'cromwell_stdout.o')]
     # test with file type DB
     cmd += ['--db', 'file']

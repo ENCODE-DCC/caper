@@ -37,7 +37,7 @@ def test_server_client(
     tmp_gcs_bucket = os.path.join(gcs_root, 'caper_tmp')
 
     cmd = ['server']
-    cmd += ['--local-work-dir', str(tmp_path / 'tmp_dir')]
+    cmd += ['--local-loc-dir', str(tmp_path / 'tmp_dir')]
     cmd += ['--backend', 'gcp']
     if gcp_service_account_key_json:
         cmd += ['--gcp-service-account-key-json', gcp_service_account_key_json]
@@ -46,7 +46,7 @@ def test_server_client(
     cmd += ['--gcp-out-dir', out_gcs_bucket]
     cmd += ['--gcp-memory-retry-error-keys', 'OutOfMemory,Killed']
     cmd += ['--gcp-memory-retry-multiplier', '1.3']
-    cmd += ['--gcp-work-dir', tmp_gcs_bucket]
+    cmd += ['--gcp-loc-dir', tmp_gcs_bucket]
     cmd += ['--cromwell-stdout', str(tmp_path / 'cromwell_stdout.o')]
     cmd += ['--db', 'in-memory']
     cmd += ['--db-timeout', '500000']
@@ -87,7 +87,7 @@ def test_server_client(
         cmd += ['--inputs', str(inputs)]
         cmd += ['--imports', str(imports)]
         cmd += ['--gcp-zones', 'us-west1-a,us-west1-b']
-        cmd += ['--gcp-work-dir', tmp_gcs_bucket]
+        cmd += ['--gcp-loc-dir', tmp_gcs_bucket]
         cmd += ['--ignore-womtool']
         cmd += ['--java-heap-womtool', '2G']
         cmd += ['--max-retries', '1']
