@@ -2,11 +2,15 @@
 
 # Major changes for Caper 1.0.
 
+If you are upgrading Caper from previous versions:
+  - Edit your `~/.caper/default.conf` to remove `cromwell=` and `womtool=` from it then Caper will automatically download Cromwell/Womtool version 51, which support new Google Cloud Life Sciences API (v2beta). You can also use `caper init [YOUR_BACKEND]` to locally install Cromwell/Womtool JARs.
+
 > **CRITICAL**: Due to change in Caper 1.0 (Cromwell `47` to `51`), metadata database (`--db`) generated before 1.0 will not work with >= 1.0. See details below.
 
 Upgraded Cromwell from 47 to 51.
   - Metadata DB generated with Caper<1.0 will not work with Caper>=1.0.
     - See [this note](https://github.com/broadinstitute/cromwell/releases/tag/49) to find DB migration instruction.
+  - We recommend to use Cromwell-51 with Caper>=1.0 since it's fully test with Cromwell-51.
 
 Changed hashing strategy for all local backends (`local`, `slurm`, `sge`, `pbs`).
   - Default hashing strategy: `file` (based on md5sum, which is expensive) to `path+modtime`.
