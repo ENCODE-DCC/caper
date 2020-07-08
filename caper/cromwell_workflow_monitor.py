@@ -99,6 +99,8 @@ class CromwellWorkflowMonitor:
     RE_TASK_STATUS_CHANGE = (
         r'\[UUID\((\b[0-9a-f]{8})\)(.+):(.+):(\d+)\]: Status change from (.+) to (.+)'
     )
+    RE_TASK_CALL_CACHED = r'\[UUID\((\b[0-9a-f]{8})\)\]: Job results retrieved \(CallCached\): \'(.+)\' \(scatter index: (.+), attempt (\d+)\)'
+    # [UUID(f0c9ae94)]: Job results retrieved (CallCached): 'atac.idr_ppr' (scatter index: None, attempt 1)
 
     MAX_RETRY_UPDATE_METADATA = 3
     INTERVAL_RETRY_UPDATE_METADATA = 10.0
@@ -232,6 +234,12 @@ class CromwellWorkflowMonitor:
                 status = 'Started'
                 job_id = r_common[4]
 
+            r_callcached = re.findall(CromwellWorkflowMonitor.RE_TASK_CALL_CACHED, line)
+            if len(r_callcached) > 0:
+                r_common = r_callcached[0]
+                status = 'CallCached'
+                job_id = None
+
             r_status_change = re.findall(
                 CromwellWorkflowMonitor.RE_TASK_STATUS_CHANGE, line
             )
@@ -249,10 +257,10 @@ class CromwellWorkflowMonitor:
                         break
                 task_name = r_common[1]
                 shard_idx = r_common[2]
-                if shard_idx == 'NA':
-                    shard_idx = -1
-                else:
+                try:
                     shard_idx = int(shard_idx)
+                except ValueError:
+                    shard_idx = -1
                 retry = int(r_common[3])
 
                 msg = 'Task: id={id}, task={name}:{shard_idx}, retry={retry}, status={status}'.format(
