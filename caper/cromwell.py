@@ -292,17 +292,19 @@ class Cromwell:
             nonlocal fileobj_troubleshoot
 
             if os.path.exists(metadata):
-                metadata_dict = json.loads(AutoURI(metadata).read())
-                cm = CromwellMetadata(metadata_dict)
-                cm.write_on_workflow_root()
+                json_contents = AutoURI(metadata).read()
+                if json_contents:
+                    metadata_dict = json.loads(json_contents)
+                    cm = CromwellMetadata(metadata_dict)
+                    cm.write_on_workflow_root()
 
-                if cm.workflow_status != 'Succeeded' and fileobj_troubleshoot:
-                    # auto-troubleshoot on terminate if workflow is not successful
-                    logger.info('Workflow failed. Auto-troubleshooting...')
-                    cm.troubleshoot(fileobj=fileobj_troubleshoot)
+                    if cm.workflow_status != 'Succeeded' and fileobj_troubleshoot:
+                        # auto-troubleshoot on terminate if workflow is not successful
+                        logger.info('Workflow failed. Auto-troubleshooting...')
+                        cm.troubleshoot(fileobj=fileobj_troubleshoot)
 
-                # to make it a return value of the thread after it is done (joined)
-                return metadata_dict
+                    # to make it a return value of the thread after it is done (joined)
+                    return metadata_dict
 
         th = NBSubprocThread(cmd, cwd=cwd, on_stdout=on_stdout, on_finish=on_finish)
         th.start()
