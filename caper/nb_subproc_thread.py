@@ -177,4 +177,4 @@ class NBSubprocThread(Thread):
                     'Subprocess failed. returncode={rc}'.format(rc=self._returncode)
                 )
             else:
-                logger.info('Subprocess inished successfully.')
+                logger.info('Subprocess finished successfully.')
