@@ -164,14 +164,14 @@ We highly recommend to use a default configuration file described in the section
 	backend|-b, --backend|local|Caper's built-in backend to run a workflow. Supported backends: `local`, `gcp`, `aws`, `slurm`, `sge` and `pbs`. Make sure to configure for chosen backend
 	hold|--hold| |Put a hold on a workflow when submitted to a Cromwell server
 	no-deepcopy|--no-deepcopy| |Disable deepcopy (copying files defined in an input JSON to corresponding file local/remote storage)
-	format|--format, -f|id,status,<br>name,<br>str_label,<br>submission|Comma-separated list of items to be shown for `list` subcommand. Supported formats: `id` (workflow UUID), `status`, `name` (WDL basename), `str\_label` (Caper's special string label), `submission`, `start`, `end`
-	hide-result-before|--hide-result-before| | Datetime string to hide old workflows submitted before it. This is based on a simple string sorting. (e.g. 2019-06-13, 2019-06-13T10:07)
+	format|--format, -f|id,status,<br>name,<br>str_label,<br>submission|Comma-separated list of items to be shown for `list` subcommand. Supported formats: `id` (workflow UUID), `status`, `name` (WDL basename), `str\_label` (Caper's special string label), `parent` (parent's workflow UUID: `None` if not subworkflow), `submission`, `start`, `end`
+	hide-result-before|--hide-result-before| | Datetime string to hide old workflows submitted before it. This is based on a simple string comparison (sorting). (e.g. 2019-06-13, 2019-06-13T10:07)
 
 * Special parameter for a direct transfer between S3 and GCS buckets
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
-	use-gsutil-for-s3|--use-gsutil-for-s3|Use `gsutil` for direct transfer between S3 and GCS buckets. Otherwise Caper streams file transfer through local machine for S3 <-> GCS.
+	use-gsutil-for-s3|--use-gsutil-for-s3|Use `gsutil` for direct transfer between S3 and GCS buckets. Otherwise Caper streams file transfer through local machine for S3 <-> GCS. Make sure that `gsutil` is installed and authentication for both GCS and S3 is done on shell environment level.
 
 * Local backend settings
 
