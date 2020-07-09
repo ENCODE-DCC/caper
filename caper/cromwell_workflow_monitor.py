@@ -100,7 +100,7 @@ class CromwellWorkflowMonitor:
         r'\[UUID\((\b[0-9a-f]{8})\)(.+):(.+):(\d+)\]: Status change from (.+) to (.+)'
     )
     RE_TASK_CALL_CACHED = r'\[UUID\((\b[0-9a-f]{8})\)\]: Job results retrieved \(CallCached\): \'(.+)\' \(scatter index: (.+), attempt (\d+)\)'
-    # [UUID(f0c9ae94)]: Job results retrieved (CallCached): 'atac.idr_ppr' (scatter index: None, attempt 1)
+    RE_SUBWORKFLOW_FOUND = r'(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)-SubWorkflowActor-SubWorkflow'
 
     MAX_RETRY_UPDATE_METADATA = 3
     INTERVAL_RETRY_UPDATE_METADATA = 10.0
@@ -173,6 +173,7 @@ class CromwellWorkflowMonitor:
         self._on_server_start = on_server_start
 
         self._workflow_status_map = dict()
+        self._subworkflows = set()
         self._is_server_started = False
 
     def is_server_started(self):
@@ -191,6 +192,7 @@ class CromwellWorkflowMonitor:
 
         updated_workflows = set()
         updated_workflows |= self._update_workflows(stderr)
+        self._update_subworkflows(stderr)
         updated_workflows |= self._update_tasks(stderr)
 
         for w in updated_workflows:
@@ -222,6 +224,15 @@ class CromwellWorkflowMonitor:
 
         return updated_workflows
 
+    def _update_subworkflows(self, stderr):
+        for line in stderr.split('\n'):
+            r_sub = re.findall(CromwellWorkflowMonitor.RE_SUBWORKFLOW_FOUND, line)
+            if len(r_sub) > 0:
+                subworkflow_id = r_sub[0]
+                if subworkflow_id not in self._subworkflows:
+                    logger.info('Subworkflow found: {id}'.format(id=subworkflow_id))
+                self._subworkflows.add(subworkflow_id)
+
     def _update_tasks(self, stderr):
         """Check if workflow's task status changed by parsing Cromwell's stderr lines.
         """
@@ -250,11 +261,7 @@ class CromwellWorkflowMonitor:
 
             if r_common and len(r_common) > 0:
                 short_id = r_common[0]
-                workflow_id = None
-                for w in self._workflow_status_map:
-                    if w.startswith(short_id):
-                        workflow_id = w
-                        break
+                workflow_id = self._find_workflow_id_from_short_id(short_id)
                 task_name = r_common[1]
                 shard_idx = r_common[2]
                 try:
@@ -277,6 +284,11 @@ class CromwellWorkflowMonitor:
                 updated_workflows.add(workflow_id)
 
         return updated_workflows
+
+    def _find_workflow_id_from_short_id(self, short_id):
+        for w in self._subworkflows.union(set(self._workflow_status_map.keys())):
+            if w.startswith(short_id):
+                return w
 
     def _update_metadata(self, workflow_id):
         """Update metadata on Cromwell'e exec root.
