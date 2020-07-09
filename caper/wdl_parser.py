@@ -23,7 +23,11 @@ class WDLParser:
             raise FileNotFoundError('WDL does not exist: wdl={wdl}'.format(wdl=wdl))
         self._wdl = wdl
         self._wdl_contents = AutoURI(wdl).read()
-        self._wdl_doc = parse_document(self._wdl_contents)
+        try:
+            self._wdl_doc = parse_document(self._wdl_contents)
+        except Exception:
+            logger.error('Failed to parse WDL with miniwdl.')
+            self._wdl_doc = None
 
     @property
     def contents(self):
@@ -31,11 +35,13 @@ class WDLParser:
 
     @property
     def workflow_meta(self):
-        return self._wdl_doc.workflow.meta
+        if self._wdl_doc:
+            return self._wdl_doc.workflow.meta
 
     @property
     def workflow_parameter_meta(self):
-        return self._wdl_doc.workflow.parameter_meta
+        if self._wdl_doc:
+            return self._wdl_doc.workflow.parameter_meta
 
     @property
     def imports(self):

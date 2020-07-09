@@ -25,8 +25,9 @@ class CaperWDLParser(WDLParser):
             Keep using old regex method
             if WDL_WORKFLOW_META_DOCKER doesn't exist in workflow's meta
         """
-        if CaperWDLParser.WDL_WORKFLOW_META_DOCKER in self.workflow_meta:
-            return self.workflow_meta[CaperWDLParser.WDL_WORKFLOW_META_DOCKER]
+        if self.workflow_meta:
+            if CaperWDLParser.WDL_WORKFLOW_META_DOCKER in self.workflow_meta:
+                return self.workflow_meta[CaperWDLParser.WDL_WORKFLOW_META_DOCKER]
 
         ret = self._find_val_of_matched_lines(CaperWDLParser.RE_WDL_COMMENT_DOCKER)
         if ret:
@@ -40,8 +41,9 @@ class CaperWDLParser(WDLParser):
             Keep using old regex method
             if WDL_WORKFLOW_META_SINGULARITY doesn't exist in workflow's meta
         """
-        if CaperWDLParser.WDL_WORKFLOW_META_SINGULARITY in self.workflow_meta:
-            return self.workflow_meta[CaperWDLParser.WDL_WORKFLOW_META_SINGULARITY]
+        if self.workflow_meta:
+            if CaperWDLParser.WDL_WORKFLOW_META_SINGULARITY in self.workflow_meta:
+                return self.workflow_meta[CaperWDLParser.WDL_WORKFLOW_META_SINGULARITY]
 
         ret = self._find_val_of_matched_lines(CaperWDLParser.RE_WDL_COMMENT_SINGULARITY)
         if ret:
