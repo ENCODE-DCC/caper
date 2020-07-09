@@ -395,13 +395,13 @@ def subcmd_list(caper_client, args):
         return
     for w in workflows:
         row = []
-        workflow_id = w['id'] if 'id' in w else None
-        parent_workflow_id = w['parentWorkflowId'] if 'parentWorkflowId' in w else None
+        workflow_id = w.get('id')
+        parent_workflow_id = w.get('parentWorkflowId')
 
         if args.hide_subworkflow and parent_workflow_id:
             continue
         if args.hide_result_before is not None:
-            if 'submission' in w and w['submission'] <= args.hide_result_before:
+            if w.get('submission') and w.get('submission') <= args.hide_result_before:
                 continue
         for f in formats:
             if f == 'workflow_id':
@@ -418,8 +418,10 @@ def subcmd_list(caper_client, args):
                 else:
                     lbl = None
                 row.append(str(lbl))
+            elif f == 'parent':
+                row.append(str(parent_workflow_id))
             else:
-                row.append(str(w[f] if f in w else None))
+                row.append(str(w.get(f)))
         print('\t'.join(row))
 
 

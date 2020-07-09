@@ -17,7 +17,7 @@ from .server_heartbeat import ServerHeartbeat
 from .singularity import Singularity
 
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
-DEFAULT_LIST_FORMAT = 'id,status,name,str_label,user,submission'
+DEFAULT_LIST_FORMAT = 'id,status,name,str_label,user,parent,submission'
 DEFAULT_OUT_DIR = '.'
 DEFAULT_CROMWELL_STDOUT = './cromwell.out'
 
