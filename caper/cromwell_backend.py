@@ -153,7 +153,7 @@ class CromwellBackendDatabase(UserDict):
 
         elif db == CromwellBackendDatabase.DB_MYSQL:
             database['profile'] = CromwellBackendDatabase.PROFILE_MYSQL
-            db_obj['driver'] = CromwellBackendDatabase.DRIVER_MYSQL
+            db_obj['driver'] = CromwellBackendDatabase.JDBC_DRIVER_MYSQL
             db_obj['url'] = CromwellBackendDatabase.JDBC_URL_MYSQL.format(
                 ip=mysql_db_ip, port=mysql_db_port, name=mysql_db_name
             )
@@ -162,7 +162,7 @@ class CromwellBackendDatabase(UserDict):
 
         elif db == CromwellBackendDatabase.DB_POSTGRESQL:
             database['profile'] = CromwellBackendDatabase.PROFILE_POSTGRESQL
-            db_obj['driver'] = CromwellBackendDatabase.DRIVER_POSTGRESQL
+            db_obj['driver'] = CromwellBackendDatabase.JDBC_DRIVER_POSTGRESQL
             db_obj['url'] = CromwellBackendDatabase.JDBC_URL_POSTGRESQL.format(
                 ip=postgresql_db_ip, port=postgresql_db_port, name=postgresql_db_name
             )
