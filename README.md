@@ -557,6 +557,45 @@ mysql-db-port=3306
 	$ singularity instance stop [CONTAINER_NAME]
 	```
 
+## PostgreSQL database
+
+Add the followings to Caper's conf file `~/.caper/default.conf`. You may need to change the port number if it conflicts.
+```
+db=postgresql
+postgresql-db-port=5432
+```
+
+You do not need superuser privilege to make your own database once you have PostgreSQL installed on your system. Ask your admin to install it.
+
+Make sure to match `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` with Caper's parameters `--postgresql-db-port`, `--postgresql-db-name`, `--postgresql-db-user`, and `--postgresql-db-password`. You can also define them in  `~/.caper/default.conf`.
+
+```bash
+# make sure to match those variables with corresponding Caper's parameters.
+$ DB_PORT=5432
+$ DB_NAME=cromwell
+$ DB_USER=cromwell
+$ DB_PASSWORD=cromwell
+
+# initialize PostgreSQL server with a specific data path
+# actual data will be stored on directory $DB_FILE_PATH
+$ DB_FILE_PATH=my_postgres
+$ initdb -D $DB_FILE_PATH -U $USER
+
+# start PostgreSQL server with a specific port
+$ DB_LOG_FILE=pg.log
+$ pg_ctl -D $DB_FILE_PATH -o "-F -p $DB_PORT" -l $DB_LOG_FILE start
+
+# create DB for Cromwell
+$ createdb $DB_NAME
+
+# add extension for Cromwell
+$ psql -d $DB_NAME -c "create extension lo;"
+
+# make a role (user)
+$ psql -d $DB_NAME -c "create role $DB_USER with superuser login password $DB_PASSWORD"
+```
+
+
 ## File database
 
 > **WARINING**: Using this type of metadata database is **NOT RECOMMENDED**. It's unstable and fragile.
