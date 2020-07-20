@@ -52,12 +52,13 @@ class WorkflowStatusTransition:
                 prev_status = None
             for st1, st2 in self._status_transitions:
                 if st1 is None or st1 == prev_status:
-                    logger.info(
-                        'Workflow: id={id}, status={status}'.format(
-                            id=wf_id, status=st2
+                    if st1 != st2:
+                        logger.info(
+                            'Workflow: id={id}, status={status}'.format(
+                                id=wf_id, status=st2
+                            )
                         )
-                    )
-                    return wf_id, st2
+                        return wf_id, st2
                     break
         return None, None
 
