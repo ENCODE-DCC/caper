@@ -1,288 +1,342 @@
 import argparse
 import os
-import sys
-from configparser import ConfigParser
-from distutils.util import strtobool
-from .caper_backend import CaperBackendBaseLocal
-from .caper_backend import CaperBackendDatabase
-from .caper_backend import CaperBackendGCP
-from .caper_backend import BACKENDS, BACKEND_LOCAL
-from .caper_backend import BACKEND_ALIAS_LOCAL
-from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
-from .caper_init import DEFAULT_CROMWELL_JAR, DEFAULT_WOMTOOL_JAR
-from . import __version__ as version
 
+from .arg_tool import update_parsers_defaults_with_conf
+from .backward_compatibility import CAPER_1_0_0_PARAM_KEY_NAME_CHANGE
+from .caper_workflow_opts import CaperWorkflowOpts
+from .cromwell import Cromwell
+from .cromwell_backend import (
+    CromwellBackendBase,
+    CromwellBackendCommon,
+    CromwellBackendDatabase,
+    CromwellBackendGCP,
+    CromwellBackendLocal,
+)
+from .cromwell_rest_api import CromwellRestAPI
+from .server_heartbeat import ServerHeartbeat
+from .singularity import Singularity
 
-DEFAULT_JAVA_HEAP_SERVER = '10G'
-DEFAULT_JAVA_HEAP_RUN = '3G'
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
-DEFAULT_SINGULARITY_CACHEDIR = '~/.caper/singularity_cachedir'
-DEFAULT_DB = CaperBackendDatabase.DB_TYPE_IN_MEMORY
-DEFAULT_MYSQL_DB_IP = 'localhost'
-DEFAULT_MYSQL_DB_PORT = 3306
-DEFAULT_MYSQL_DB_USER = 'cromwell'
-DEFAULT_MYSQL_DB_NAME = 'cromwell'
-DEFAULT_MYSQL_DB_PASSWORD = 'cromwell'
-DEFAULT_POSTGRESQL_DB_IP = 'localhost'
-DEFAULT_POSTGRESQL_DB_PORT = 5432
-DEFAULT_POSTGRESQL_DB_USER = 'cromwell'
-DEFAULT_POSTGRESQL_DB_NAME = 'cromwell'
-DEFAULT_POSTGRESQL_DB_PASSWORD = 'cromwell'
-DEFAULT_DB_TIMEOUT_MS = 30000
-DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
-DEFAULT_MAX_CONCURRENT_TASKS = 1000
-DEFAULT_MAX_RETRIES = 1
-DEFAULT_PORT = 8000
-DEFAULT_IP = 'localhost'
-DEFAULT_FORMAT = 'id,status,name,str_label,user,submission'
-DEFAULT_DEEPCOPY_EXT = 'json,tsv'
-DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
-DEFAULT_SERVER_HEARTBEAT_TIMEOUT_MS = 120000
-DEFAULT_CONF_CONTENTS = '\n\n'
-DEFAULT_GCP_CALL_CACHING_DUP_STRAT = CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE
-
-DYN_FLAGS = ['--singularity', '--docker']
-INVALID_EXT_FOR_DYN_FLAG = '.wdl'
+DEFAULT_LIST_FORMAT = 'id,status,name,str_label,user,parent,submission'
+DEFAULT_OUT_DIR = '.'
+DEFAULT_CROMWELL_STDOUT = './cromwell.out'
 
 
-def process_dyn_flags(remaining_args, dyn_flags,
-                      invalid_ext_for_dyn_flag):
-    """Special treatment for dynamic flags which can be used as
-    both params and flags
+def get_parser_and_defaults(conf_file=None):
+    """Creates a main parser and make a subparser for each subcommand.
+    There are many parent parsers defined here.
+    Each subparser will take a certain combination of these parent parsers
+    to share the same parameter arguments between subcommands.
+    e.g. subcommand run and server share the same --cromwell argument, which
+    is defined in a parent parser "parent_runner".
 
-    Example1: caper run --docker atac.wdl
-    atac.wdl can be misinterpreated as a docker image
-    This function switches the order of --docker and atac.wdl
-    Result1: caper run atac.wdl --docker
+    Finally each subparser's default is updated with values defined in conf_file.
 
-    Example2: caper run --singularity --docker atac.wdl
-    This example switches twice. This is just for an example
-    --singularity and --docker are mutually exclusive
-    Result2: caper run atac.wdl --singularity --docker
-    """
-    for f in DYN_FLAGS:
-        if f in remaining_args:
-            loc = remaining_args.index(f)
-            if loc < len(remaining_args) - 1:
-                if remaining_args[loc + 1].endswith(INVALID_EXT_FOR_DYN_FLAG):
-                    remaining_args[loc], remaining_args[loc + 1] = \
-                        remaining_args[loc + 1], remaining_args[loc]
-    return remaining_args
-
-
-def parse_caper_arguments():
-    """Argument parser for Caper
-
+    Args:
+        conf_file:
+            If defined, this will be used instead of partially parsing command line
+            arguments to find conf_file (-c).
     Returns:
-        dict of arguments
+        parser:
+            ArgumentParser object with all arguments defined for each sub-
+            command (subparser).
+        conf_dict:
+            Dict of key/value pairs parsed from conf_file.
+            Such value is converted into a correct type guessed from
+            defaults of arguments defined in ArgumentParser object.
     """
-    # write default conf file if not exists
-    default_caper_conf = os.path.expanduser(DEFAULT_CAPER_CONF)
-    if not os.path.exists(default_caper_conf):
-        os.makedirs(os.path.dirname(default_caper_conf), exist_ok=True)
-        with open(default_caper_conf, 'w') as fp:
-            fp.write(DEFAULT_CONF_CONTENTS)
+    parser = argparse.ArgumentParser(
+        description='Caper (Cromwell-assisted Pipeline ExecutioneR)'
+    )
+    parser.add_argument('-v', '--version', action='store_true', help='Show version')
 
-    conf_parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        add_help=False)
-    conf_parser.add_argument('-c', '--conf', help='Specify config file',
-                             metavar='FILE',
-                             default=DEFAULT_CAPER_CONF)
-    conf_parser.add_argument('-v', '--version', action='store_true',
-                             help='Show version')
-    known_args, remaining_argv = conf_parser.parse_known_args()
-    if known_args.version is not None and known_args.version:
-        print(version)
-        conf_parser.exit()
-    process_dyn_flags(remaining_argv, DYN_FLAGS, INVALID_EXT_FOR_DYN_FLAG)
-
-    # read conf file if it exists
-    defaults = {}
-
-    if known_args.conf is not None:
-        # resolve tilde (~) in conf path
-        known_args.conf = os.path.expanduser(known_args.conf)
-        if os.path.exists(known_args.conf):
-            config = ConfigParser()
-            with open(known_args.conf, 'r') as fp:
-                conf_contents = fp.read()
-            if '[defaults]' not in conf_contents.split('\n'):
-                conf_contents = '[defaults]\n' + conf_contents
-            config.read_string(conf_contents)
-            d = dict(config.items('defaults'))
-            # remove keys with empty string
-            d = {k: v.strip('"\'') for k, v in d.items() if v != ''}
-            # replace - with _
-            defaults.update({k.replace('-', '_'): v for k, v in d.items()})
-
-    parser = argparse.ArgumentParser(parents=[conf_parser])
     subparser = parser.add_subparsers(dest='action')
 
     parent_init = argparse.ArgumentParser(add_help=False)
-    choices = list(BACKENDS)
-    choices.pop(choices.index(BACKEND_LOCAL))
-    choices += [BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG, BACKEND_ALIAS_LOCAL]
-    parent_init.add_argument('platform',
-        choices=choices,
-        help='Platform to initialize Caper for.')
+    parent_init.add_argument('platform', help='Platform to initialize Caper for.')
 
     # all
     parent_all = argparse.ArgumentParser(add_help=False)
-    parent_all.add_argument('--dry-run',
-        action='store_true',
-        help='Caper does not take any action.')
-    parent_all.add_argument('-D', '--debug', action='store_true',
-                   help='Prints all logs >= DEBUG level')
+    parent_all.add_argument(
+        '-c', '--conf', help='Specify config file', default=DEFAULT_CAPER_CONF
+    )
+    parent_all.add_argument(
+        '-D', '--debug', action='store_true', help='Prints all logs >= DEBUG level'
+    )
+    parent_all.add_argument(
+        '--gcp-service-account-key-json',
+        help='Secret key JSON file for Google Cloud Platform service account. '
+        'This service account should have enough permission to '
+        'Storage for client functions and '
+        'Storage/Compute Engine/Genomics API/Life Sciences API '
+        'for server/runner functions.',
+    )
+
+    group_loc = parent_all.add_argument_group(
+        title='cache directories for localization'
+    )
+    group_loc.add_argument(
+        '--local-loc-dir',
+        '--tmp-dir',
+        help='Temporary directory to store Cromwell\'s intermediate backend files. '
+        'These files include backend.conf, workflow_opts.json, imports.zip. and '
+        'localized input JSON files due to deepcopying (recursive localization). '
+        'Cromwell\'s MySQL/PostgreSQL DB password can be exposed on backend.conf '
+        'on this directory. Therefore, DO NOT USE /tmp HERE. This directory is '
+        'also used for storing cached files for local/slurm/sge/pbs backends.',
+    )
+    group_loc.add_argument(
+        '--gcp-loc-dir',
+        '--tmp-gcs-bucket',
+        help='Temporary directory to store cached files for gcp backend. '
+        'e.g. gs://my-bucket/caper-cache-dir. ',
+    )
+    group_loc.add_argument(
+        '--aws-loc-dir',
+        '--tmp-s3-bucket',
+        help='Temporary directory to store cached files for aws backend. '
+        'e.g. s3://my-bucket/caper-cache-dir. ',
+    )
 
     # run, server, submit
     parent_backend = argparse.ArgumentParser(add_help=False)
+    parent_backend.add_argument('-b', '--backend', help='Backend to run a workflow')
     parent_backend.add_argument(
-        '-b', '--backend', help='Backend to run a workflow')
+        '--dry-run',
+        action='store_true',
+        help='Caper localizes remote files and validates WDL '
+        'but does not run/submit a pipeline.',
+    )
 
     # run, server
-    parent_host = argparse.ArgumentParser(add_help=False)
+    parent_runner = argparse.ArgumentParser(add_help=False)
 
-    group_db = parent_host.add_argument_group(
-        title='General DB settings (for both file DB and MySQL DB)')
+    parent_runner = parent_runner.add_argument_group(title='Cromwell logging arguments')
+    parent_runner.add_argument(
+        '--cromwell-stdout',
+        default=DEFAULT_CROMWELL_STDOUT,
+        help='Local file to write STDOUT of Cromwell Java process to. '
+        'This is for Cromwell (not for Caper\'s logging system). '
+        'Note that STDERR is redirected to STDOUT.',
+    )
+    group_db = parent_runner.add_argument_group(
+        title='General DB settings (for both file DB and MySQL DB)'
+    )
     group_db.add_argument(
-        '--db', choices=[
-            CaperBackendDatabase.DB_TYPE_IN_MEMORY,
-            CaperBackendDatabase.DB_TYPE_FILE,
-            CaperBackendDatabase.DB_TYPE_MYSQL,
-            CaperBackendDatabase.DB_TYPE_POSTGRESQL
-        ],
-        default=DEFAULT_DB,
-        help='Cromwell metadata database type')
+        '--db',
+        default=CromwellBackendDatabase.DEFAULT_DB,
+        help='Cromwell metadata database type',
+    )
     group_db.add_argument(
-        '--db-timeout', type=int, default=DEFAULT_DB_TIMEOUT_MS,
-        help='Milliseconds to wait for DB connection.')
+        '--db-timeout',
+        type=int,
+        default=CromwellBackendDatabase.DEFAULT_DB_TIMEOUT_MS,
+        help='Milliseconds to wait for DB connection.',
+    )
 
-    group_file_db = parent_host.add_argument_group(
-        title='HyperSQL file DB arguments (unstable, not recommended)')
+    group_file_db = parent_runner.add_argument_group(
+        title='HyperSQL file DB arguments (unstable, not recommended)'
+    )
     group_file_db.add_argument(
-        '--file-db', '-d',
-        help='Default DB file for Cromwell\'s built-in HyperSQL database.')
+        '--file-db',
+        '-d',
+        help='Default DB file for Cromwell\'s built-in HyperSQL database.',
+    )
 
-    group_mysql = parent_host.add_argument_group(
-        title='MySQL DB arguments')
+    group_mysql = parent_runner.add_argument_group(title='MySQL DB arguments')
     group_mysql.add_argument(
-        '--mysql-db-ip', default=DEFAULT_MYSQL_DB_IP,
-        help='MySQL Database IP address (e.g. localhost)')
+        '--mysql-db-ip',
+        default=CromwellBackendDatabase.DEFAULT_MYSQL_DB_IP,
+        help='MySQL Database IP address (e.g. localhost)',
+    )
     group_mysql.add_argument(
-        '--mysql-db-port', type=int, default=DEFAULT_MYSQL_DB_PORT,
-        help='MySQL Database TCP/IP port (e.g. 3306)')
-    group_mysql.add_argument(
-        '--mysql-db-user', default=DEFAULT_MYSQL_DB_USER,
-        help='MySQL DB username')
-    group_mysql.add_argument(
-        '--mysql-db-password', default=DEFAULT_MYSQL_DB_PASSWORD,
-        help='MySQL DB password')
-    group_mysql.add_argument(
-        '--mysql-db-name', default=DEFAULT_MYSQL_DB_NAME,
-        help='MySQL DB name for Cromwell')
-
-    group_postgresql = parent_host.add_argument_group(
-        title='PostgreSQL DB arguments')
-    group_postgresql.add_argument(
-        '--postgresql-db-ip', default=DEFAULT_POSTGRESQL_DB_IP,
-        help='PostgreSQL DB IP address (e.g. localhost)')
-    group_postgresql.add_argument(
-        '--postgresql-db-port', type=int, default=DEFAULT_POSTGRESQL_DB_PORT,
-        help='PostgreSQL DB TCP/IP port (e.g. 5432)')
-    group_postgresql.add_argument(
-        '--postgresql-db-user', default=DEFAULT_POSTGRESQL_DB_USER,
-        help='PostgreSQL DB username')
-    group_postgresql.add_argument(
-        '--postgresql-db-password', default=DEFAULT_POSTGRESQL_DB_PASSWORD,
-        help='PostgreSQL DB password')
-    group_postgresql.add_argument(
-        '--postgresql-db-name', default=DEFAULT_POSTGRESQL_DB_NAME,
-        help='PostgreSQL DB name for Cromwell')
-
-    group_cromwell = parent_host.add_argument_group(
-        title='Cromwell settings')
-    group_cromwell.add_argument(
-        '--cromwell', default=DEFAULT_CROMWELL_JAR,
-        help='Path or URL for Cromwell JAR file')
-    group_cromwell.add_argument(
-        '--max-concurrent-tasks', default=DEFAULT_MAX_CONCURRENT_TASKS,
+        '--mysql-db-port',
         type=int,
+        default=CromwellBackendDatabase.DEFAULT_MYSQL_DB_PORT,
+        help='MySQL Database TCP/IP port (e.g. 3306)',
+    )
+    group_mysql.add_argument(
+        '--mysql-db-user',
+        default=CromwellBackendDatabase.DEFAULT_MYSQL_DB_USER,
+        help='MySQL DB username',
+    )
+    group_mysql.add_argument(
+        '--mysql-db-password',
+        default=CromwellBackendDatabase.DEFAULT_MYSQL_DB_PASSWORD,
+        help='MySQL DB password',
+    )
+    group_mysql.add_argument(
+        '--mysql-db-name',
+        default=CromwellBackendDatabase.DEFAULT_MYSQL_DB_NAME,
+        help='MySQL DB name for Cromwell',
+    )
+
+    group_postgresql = parent_runner.add_argument_group(title='PostgreSQL DB arguments')
+    group_postgresql.add_argument(
+        '--postgresql-db-ip',
+        default=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_IP,
+        help='PostgreSQL DB IP address (e.g. localhost)',
+    )
+    group_postgresql.add_argument(
+        '--postgresql-db-port',
+        type=int,
+        default=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_PORT,
+        help='PostgreSQL DB TCP/IP port (e.g. 5432)',
+    )
+    group_postgresql.add_argument(
+        '--postgresql-db-user',
+        default=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_USER,
+        help='PostgreSQL DB username',
+    )
+    group_postgresql.add_argument(
+        '--postgresql-db-password',
+        default=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_PASSWORD,
+        help='PostgreSQL DB password',
+    )
+    group_postgresql.add_argument(
+        '--postgresql-db-name',
+        default=CromwellBackendDatabase.DEFAULT_POSTGRESQL_DB_NAME,
+        help='PostgreSQL DB name for Cromwell',
+    )
+
+    group_cromwell = parent_runner.add_argument_group(title='Cromwell settings')
+    group_cromwell.add_argument(
+        '--cromwell',
+        default=Cromwell.DEFAULT_CROMWELL,
+        help='Path or URL for Cromwell JAR file',
+    )
+    group_cromwell.add_argument(
+        '--max-concurrent-tasks',
+        type=int,
+        default=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
         help='Number of concurrent tasks. '
-             '"config.concurrent-job-limit" in Cromwell backend configuration '
-             'for each backend')
+        '"config.concurrent-job-limit" in Cromwell backend configuration '
+        'for each backend',
+    )
     group_cromwell.add_argument(
-        '--max-concurrent-workflows', default=DEFAULT_MAX_CONCURRENT_WORKFLOWS,
+        '--max-concurrent-workflows',
         type=int,
+        default=CromwellBackendCommon.DEFAULT_MAX_CONCURRENT_WORKFLOWS,
         help='Number of concurrent workflows. '
-             '"system.max-concurrent-workflows" in backend configuration')
+        '"system.max-concurrent-workflows" in backend configuration',
+    )
     group_cromwell.add_argument(
-        '--max-retries', default=DEFAULT_MAX_RETRIES,
-        type=int,
-        help='Number of retries for failing tasks. '
-             'equivalent to "maxRetries" in workflow options JSON file.')
-    group_cromwell.add_argument(
-        '--disable-call-caching', action='store_true',
+        '--disable-call-caching',
+        action='store_true',
         help='Disable Cromwell\'s call caching, which re-uses outputs from '
-             'previous workflows')
+        'previous workflows',
+    )
     group_cromwell.add_argument(
         '--backend-file',
-        help='Custom Cromwell backend configuration file to override all')
+        help='Custom Cromwell backend configuration file to override all',
+    )
     group_cromwell.add_argument(
-        '--soft-glob-output', action='store_true',
+        '--soft-glob-output',
+        action='store_true',
         help='Use soft-linking when globbing outputs for a filesystem that '
-             'does not allow hard-linking. e.g. beeGFS. '
-             'This flag does not work with backends based on a Docker container. '
-             'i.e. gcp and aws. Also, '
-             'it does not work with local backends (local/slurm/sge/pbs) '
-             'with --docker. However, it works fine with --singularity.')
+        'does not allow hard-linking. e.g. beeGFS. '
+        'This flag does not work with backends based on a Docker container. '
+        'i.e. gcp and aws. Also, '
+        'it does not work with local backends (local/slurm/sge/pbs) '
+        'with --. However, it works fine with --singularity.',
+    )
     group_cromwell.add_argument(
         '--local-hash-strat',
-        default=CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_FILE,
+        default=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
         choices=[
-            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_FILE,
-            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH,
-            CaperBackendBaseLocal.CALL_CACHING_HASH_STRAT_PATH_MTIME,
+            CromwellBackendLocal.LOCAL_HASH_STRAT_FILE,
+            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH,
+            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH_MTIME,
         ],
         help='File hashing strategy for call caching. '
-             'For local backends (local/slurm/sge/pbs) only. '
-             'file: use md5sum hash (slow), path: use path only, '
-             'path+modtime (default): use path + mtime.')
+        'For local backends (local/slurm/sge/pbs) only. '
+        'file: use md5sum hash (slow), path: use path only, '
+        'path+modtime (default): use path + mtime.',
+    )
 
-    group_local = parent_host.add_argument_group(
-        title='local backend arguments')
+    group_local = parent_runner.add_argument_group(title='local backend arguments')
     group_local.add_argument(
-        '--out-dir', default='.', help='Output directory for local backend')
-    group_local.add_argument(
-        '--tmp-dir', help='Temporary directory for local backend')
+        '--local-out-dir',
+        '--out-dir',
+        default=DEFAULT_OUT_DIR,
+        help='Output directory path for local backend. '
+        'Cloud backends (gcp, aws) use different output directories. '
+        'For gcp, define --gcp-out-dir. '
+        'For aws, define --aws-out-dir.',
+    )
 
-    group_gc = parent_host.add_argument_group(
-        title='GCP backend arguments')
+    group_gc_all = parent_backend.add_argument_group(
+        title='GCP backend arguments for server/runner/client'
+    )
+    group_gc = parent_runner.add_argument_group(
+        title='GCP backend arguments for server/runner'
+    )
     group_gc.add_argument('--gcp-prj', help='GC project')
-    group_gc.add_argument('--gcp-zones', help='GCP zones (e.g. us-west1-b,'
-                                              'us-central1-b)')
     group_gc.add_argument(
-        '--gcp-call-caching-dup-strat', default=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
+        '--gcp-memory-retry-error-keys',
+        default=','.join(CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS),
+        help='If an error caught by these comma-separated keys occurs, '
+        'then increase memory by --gcp-memory-retry-multiplier '
+        'for retrials controlled by --max-retries. '
+        'See https://cromwell.readthedocs.io/en/stable/backends/Google/ '
+        'for details. ',
+    )
+    group_gc.add_argument(
+        '--gcp-memory-retry-multiplier',
+        help='If an error caught by --gcp-memory-retry-error-keys occurs, '
+        'then increase memory by this '
+        'for retrials controlled by --max-retries. '
+        'See https://cromwell.readthedocs.io/en/stable/backends/Google/ '
+        'for details.',
+    )
+    group_gc_all.add_argument(
+        '--use-google-cloud-life-sciences',
+        action='store_true',
+        help='Use Google Cloud Life Sciences API (v2beta) instead of '
+        'deprecated Genomics API (v2alpha1).'
+        'Life Sciences API requires only one region specified with'
+        'gcp-region. gcp-zones will be ignored since it is for Genomics API.'
+        'See https://cloud.google.com/life-sciences/docs/concepts/locations '
+        'for supported regions.',
+    )
+    group_gc.add_argument(
+        '--gcp-region',
+        default=CromwellBackendGCP.DEFAULT_REGION,
+        help='GCP region for Google Cloud Life Sciences API. '
+        'This is used only when --use-google-cloud-life-sciences is defined.',
+    )
+    group_gc_all.add_argument(
+        '--gcp-zones',
+        help='Comma-separated GCP zones used for Genomics API. '
+        '(e.g. us-west1-b,us-central1-b). '
+        'If you use --use-google-cloud-life-sciences then '
+        'define --gcp-region instead.',
+    )
+    group_gc.add_argument(
+        '--gcp-call-caching-dup-strat',
+        default=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         choices=[
-            CaperBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
-            CaperBackendGCP.CALL_CACHING_DUP_STRAT_COPY
+            CromwellBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
+            CromwellBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
         ],
         help='Duplication strategy for call-cached outputs for GCP backend: '
-             'copy: make a copy, reference: refer to old output in metadata.json.')
+        'copy: make a copy, reference: refer to old output in metadata.json.',
+    )
     group_gc.add_argument(
-        '--out-gcs-bucket', help='Output GCS bucket for GCP backend')
-    group_gc.add_argument(
-        '--tmp-gcs-bucket', help='Temporary GCS bucket for GCP backend')
+        '--gcp-out-dir',
+        '--out-gcs-bucket',
+        help='Output directory path for GCP backend. ' 'e.g. gs://my-bucket/my-output.',
+    )
 
-    group_aws = parent_host.add_argument_group(
-        title='AWS backend arguments')
+    group_aws = parent_runner.add_argument_group(title='AWS backend arguments')
     group_aws.add_argument('--aws-batch-arn', help='ARN for AWS Batch')
     group_aws.add_argument('--aws-region', help='AWS region (e.g. us-west-1)')
     group_aws.add_argument(
-        '--out-s3-bucket', help='Output S3 bucket for AWS backend')
-    group_aws.add_argument(
-        '--tmp-s3-bucket', help='Temporary S3 bucket for AWS backend')
+        '--aws-out-dir',
+        '--out-s3-bucket',
+        help='Output path on S3 bucket for AWS backend. '
+        'e.g. s3://my-bucket/my-output.',
+    )
 
     # run, submit
     parent_submit = argparse.ArgumentParser(add_help=False)
@@ -290,161 +344,219 @@ def parse_caper_arguments():
     parent_submit.add_argument(
         'wdl',
         help='Path, URL or URI for WDL script '
-             'Example: /scratch/my.wdl, gs://some/where/our.wdl, '
-             'http://hello.com/world/your.wdl')
+        'Example: /scratch/my.wdl, gs://some/where/our.wdl, '
+        'http://hello.com/world/your.wdl',
+    )
+    parent_submit.add_argument('-i', '--inputs', help='Workflow inputs JSON file')
+    parent_submit.add_argument('-o', '--options', help='Workflow options JSON file')
+    parent_submit.add_argument('-l', '--labels', help='Workflow labels JSON file')
     parent_submit.add_argument(
-        '-i', '--inputs', help='Workflow inputs JSON file')
+        '-p', '--imports', help='Zip file of imported subworkflows'
+    )
     parent_submit.add_argument(
-        '-o', '--options', help='Workflow options JSON file')
-    parent_submit.add_argument(
-        '-l', '--labels',
-        help='Workflow labels JSON file')
-    parent_submit.add_argument(
-        '-p', '--imports',
-        help='Zip file of imported subworkflows')
-    parent_submit.add_argument(
-        '-s', '--str-label',
+        '-s',
+        '--str-label',
         help='Caper\'s special label for a workflow '
-             'This label will be added to a workflow labels JSON file '
-             'as a value for a key "caper-label". '
-             'DO NOT USE IRREGULAR CHARACTERS. USE LETTERS, NUMBERS, '
-             'DASHES AND UNDERSCORES ONLY (^[A-Za-z0-9\\-\\_]+$) '
-             'since this label is used to compose a path for '
-             'workflow\'s temporary directory (tmp_dir/label/timestamp/)')
+        'This label will be added to a workflow labels JSON file '
+        'as a value for a key "caper-label". '
+        'DO NOT USE IRREGULAR CHARACTERS. USE LETTERS, NUMBERS, '
+        'DASHES AND UNDERSCORES ONLY (^[A-Za-z0-9\\-\\_]+$) '
+        'since this label is used to compose a path for '
+        'workflow\'s temporary/cache directory (.caper_tmp/label/timestamp/)',
+    )
     parent_submit.add_argument(
-        '--hold', action='store_true',
-        help='Put a hold on a workflow when submitted to a Cromwell server.')
+        '--hold',
+        action='store_true',
+        help='Put a hold on a workflow when submitted to a Cromwell server.',
+    )
     parent_submit.add_argument(
-        '--singularity-cachedir', default=DEFAULT_SINGULARITY_CACHEDIR,
+        '--singularity-cachedir',
+        default=Singularity.DEFAULT_SINGULARITY_CACHEDIR,
         help='Singularity cache directory. Equivalent to exporting an '
-             'environment variable SINGULARITY_CACHEDIR. '
-             'Define it to prevent repeatedly building a singularity image '
-             'for every pipeline task')
+        'environment variable SINGULARITY_CACHEDIR. '
+        'Define it to prevent repeatedly building a singularity image '
+        'for every pipeline task',
+    )
     parent_submit.add_argument(
-        '--use-gsutil-for-s3', action='store_true',
+        '--use-gsutil-for-s3',
+        action='store_true',
         help='Use gsutil CLI for direct trasnfer between S3 and GCS buckets. '
-             'Otherwise, such file transfer will stream through local machine. '
-             'Make sure that gsutil is installed on your system and it has access to '
-             'credentials for AWS (e.g. ~/.boto or ~/.aws/credentials).')
-
-    # server
-    parent_server = argparse.ArgumentParser(add_help=False)
-    parent_server.add_argument(
-        '--java-heap-server', default=DEFAULT_JAVA_HEAP_SERVER,
-        help='Cromwell Java heap size for "server" mode (java -Xmx)')
-
-    # run
-    parent_run = argparse.ArgumentParser(add_help=False)
-    parent_run.add_argument(
-        '-m', '--metadata-output',
-        help='An optional directory path to output metadata JSON file')
-    parent_run.add_argument(
-        '--java-heap-run', default=DEFAULT_JAVA_HEAP_RUN,
-        help='Cromwell Java heap size for "run" mode (java -Xmx)')
-
+        'Otherwise, such file transfer will stream through local machine. '
+        'Make sure that gsutil is installed on your system and it has access to '
+        'credentials for AWS (e.g. ~/.boto or ~/.aws/credentials).',
+    )
     parent_submit.add_argument(
-        '--no-deepcopy', action='store_true',
+        '--no-deepcopy',
+        action='store_true',
         help='(IMPORTANT) --deepcopy has been deprecated. '
-             'Deepcopying is now activated by default. '
-             'This flag disables deepcopy for '
-             'JSON (.json), TSV (.tsv) and CSV (.csv) '
-             'files specified in an input JSON file (--inputs). '
-             'Find all path/URI string values in an input JSON file '
-             'and make copies of files on a local/remote storage '
-             'for a target backend. Make sure that you have installed '
-             'gsutil for GCS and aws for S3.')
+        'Deepcopying is now activated by default. '
+        'This flag disables deepcopy for '
+        'JSON (.json), TSV (.tsv) and CSV (.csv) '
+        'files specified in an input JSON file (--inputs). '
+        'Find all path/URI string values in an input JSON file '
+        'and make copies of files on a local/remote storage '
+        'for a target backend. Make sure that you have installed '
+        'gsutil for GCS and aws for S3.',
+    )
     parent_submit.add_argument(
-        '--ignore-womtool', action='store_true',
-        help='Ignore warnings from womtool.jar.')
+        '--ignore-womtool',
+        action='store_true',
+        help='Ignore warnings from womtool.jar.',
+    )
     parent_submit.add_argument(
-        '--womtool', default=DEFAULT_WOMTOOL_JAR,
-        help='Path or URL for Cromwell\'s womtool JAR file')
-
+        '--womtool',
+        default=Cromwell.DEFAULT_WOMTOOL,
+        help='Path or URL for Cromwell\'s womtool JAR file',
+    )
+    parent_submit.add_argument(
+        '--java-heap-womtool',
+        default=Cromwell.DEFAULT_JAVA_HEAP_WOMTOOL,
+        help='Java heap size for Womtool (java -Xmx)',
+    )
+    parent_submit.add_argument(
+        '--max-retries',
+        type=int,
+        default=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
+        help='Number of retries for failing tasks. '
+        'equivalent to "maxRetries" in workflow options JSON file.',
+    )
     group_dep = parent_submit.add_argument_group(
         title='dependency resolver for all backends',
-        description=''
-        'Cloud-based backends (gc and aws) will only use Docker '
+        description='Cloud-based backends (gc and aws) will only use Docker '
         'so that "--docker URI_FOR_DOCKER_IMG" must be specified '
         'in the command line argument or as a comment "#CAPER '
-        'docker URI_FOR_DOCKER_IMG" in a WDL file')
+        'docker URI_FOR_DOCKER_IMG" or value for "workflow.meta.caper_docker"'
+        'in a WDL file',
+    )
     group_dep.add_argument(
-        '--docker', nargs='*',
+        '--docker',
+        nargs='?',
+        const='',
+        default=None,
         help='URI for Docker image (e.g. ubuntu:latest). '
         'This can also be used as a flag to use Docker image address '
-        'defined in your WDL file as a comment ("#CAPER docker").')
+        'defined in your WDL file as a comment ("#CAPER docker") or '
+        'as "workflow.meta.caper_docker" in WDL.',
+    )
     group_dep_local = parent_submit.add_argument_group(
         title='dependency resolver for local backend',
-        description=''
-        'Singularity is for local backend only. Other backends '
+        description='Singularity is for local backend only. Other backends '
         '(gcp and aws) will use Docker only. '
         'Local backend defaults to not use any container-based methods. '
-        'Use "--singularity" or "--docker" to use containers')
+        'Use "--singularity" or "--docker" to use containers',
+    )
     group_dep_local.add_argument(
-        '--singularity', nargs='*',
+        '--singularity',
+        nargs='?',
+        const='',
+        default=None,
         help='URI or path for Singularity image '
-             '(e.g. ~/.singularity/ubuntu-latest.simg, '
-             'docker://ubuntu:latest, shub://vsoch/hello-world). '
-             'This can also be used as a flag to use Docker image address '
-             'defined in your WDL file as a comment ("#CAPER singularity").')
+        '(e.g. ~/.singularity/ubuntu-latest.simg, '
+        'docker://ubuntu:latest, shub://vsoch/hello-world). '
+        'This can also be used as a flag to use Docker image address '
+        'defined in your WDL file as a comment ("#CAPER singularity") or '
+        'as "workflow.meta.caper_singularity" in WDL.',
+    )
     group_dep_local.add_argument(
-        '--no-build-singularity', action='store_true',
-        help='Do not build singularity image before running a workflow. ')
+        '--no-build-singularity',
+        action='store_true',
+        help='Do not build singularity image before running a workflow. ',
+    )
 
     group_slurm = parent_submit.add_argument_group('SLURM arguments')
     group_slurm.add_argument('--slurm-partition', help='SLURM partition')
     group_slurm.add_argument('--slurm-account', help='SLURM account')
     group_slurm.add_argument(
-        '--slurm-extra-param',
-        help='SLURM extra parameters. Must be double-quoted')
+        '--slurm-extra-param', help='SLURM extra parameters. Must be double-quoted'
+    )
 
     group_sge = parent_submit.add_argument_group('SGE arguments')
     group_sge.add_argument(
-        '--sge-pe', help='SGE parallel environment. Check with "qconf -spl"')
+        '--sge-pe', help='SGE parallel environment. Check with "qconf -spl"'
+    )
+    group_sge.add_argument('--sge-queue', help='SGE queue. Check with "qconf -sql"')
     group_sge.add_argument(
-        '--sge-queue', help='SGE queue. Check with "qconf -sql"')
-    group_sge.add_argument(
-        '--sge-extra-param',
-        help='SGE extra parameters. Must be double-quoted')
+        '--sge-extra-param', help='SGE extra parameters. Must be double-quoted'
+    )
 
     group_pbs = parent_submit.add_argument_group('PBS arguments')
+    group_pbs.add_argument('--pbs-queue', help='PBS queue')
     group_pbs.add_argument(
-        '--pbs-queue', help='PBS queue')
-    group_pbs.add_argument(
-        '--pbs-extra-param',
-        help='PBS extra parameters. Must be double-quoted')
+        '--pbs-extra-param', help='PBS extra parameters. Must be double-quoted'
+    )
+
+    # server
+    parent_server = argparse.ArgumentParser(add_help=False)
+    parent_server.add_argument(
+        '--java-heap-server',
+        default=Cromwell.DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
+        help='Cromwell Java heap size for "server" mode (java -Xmx)',
+    )
+
+    # run
+    parent_run = argparse.ArgumentParser(add_help=False)
+    parent_run.add_argument(
+        '-m',
+        '--metadata-output',
+        help='An optional directory path to output metadata JSON file',
+    )
+    parent_run.add_argument(
+        '--java-heap-run',
+        default=Cromwell.DEFAULT_JAVA_HEAP_CROMWELL_RUN,
+        help='Cromwell Java heap size for "run" mode (java -Xmx)',
+    )
 
     # list, metadata, abort
     parent_search_wf = argparse.ArgumentParser(add_help=False)
     parent_search_wf.add_argument(
-        'wf_id_or_label', nargs='*',
+        'wf_id_or_label',
+        nargs='*',
         help='List of workflow IDs to find matching workflows to '
-             'commit a specified action (list, metadata and abort). '
-             'Wildcards (* and ?) are allowed.')
+        'commit a specified action (list, metadata and abort). '
+        'Wildcards (* and ?) are allowed.',
+    )
 
+    # server, all client subcommands
     parent_server_client = argparse.ArgumentParser(add_help=False)
     parent_server_client.add_argument(
-        '--port', default=DEFAULT_PORT, type=int,
-        help='Port for Caper server')
+        '--port',
+        type=int,
+        default=Cromwell.DEFAULT_SERVER_PORT,
+        help='Port for Caper server',
+    )
     parent_server_client.add_argument(
-        '--ip', default=DEFAULT_IP,
-        help='IP address for Caper server')
-    parent_server_client.add_argument(
-        '--no-server-heartbeat', action='store_true',
-        help='Disable server heartbeat file.')
+        '--no-server-heartbeat',
+        action='store_true',
+        help='Disable server heartbeat file.',
+    )
     parent_server_client.add_argument(
         '--server-heartbeat-file',
-        default=DEFAULT_SERVER_HEARTBEAT_FILE,
-        help='Heartbeat file for Caper clients to get IP and port of a server')
+        default=ServerHeartbeat.DEFAULT_SERVER_HEARTBEAT_FILE,
+        help='Heartbeat file for Caper clients to get IP and port of a server',
+    )
     parent_server_client.add_argument(
         '--server-heartbeat-timeout',
-        default=DEFAULT_SERVER_HEARTBEAT_TIMEOUT_MS,
+        type=int,
+        default=ServerHeartbeat.DEFAULT_HEARTBEAT_TIMEOUT_MS,
         help='Timeout for a heartbeat file in Milliseconds. '
-             'A heartbeat file older than '
-             'this interval will be ignored.')
+        'A heartbeat file older than '
+        'this interval will be ignored.',
+    )
 
+    parent_client = argparse.ArgumentParser(add_help=False)
+    parent_client.add_argument(
+        '--hostname',
+        '--ip',
+        default=CromwellRestAPI.DEFAULT_HOSTNAME,
+        help='Hostname (or IP address) of Caper server.',
+    )
+
+    # list
     parent_list = argparse.ArgumentParser(add_help=False)
     parent_list.add_argument(
-        '-f', '--format', default=DEFAULT_FORMAT,
+        '-f',
+        '--format',
+        default=DEFAULT_LIST_FORMAT,
         help='Comma-separated list of items to be shown for "list" '
         'subcommand. Any key name in workflow JSON from Cromwell '
         'server\'s response is allowed. '
@@ -452,106 +564,141 @@ def parse_caper_arguments():
         '"name" (WDL/CWL name), "submission" (date/time), "start", '
         '"end" and "user". '
         '"str_label" is a special key for Caper. See help context '
-        'of "--str-label" for details')
+        'of "--str-label" for details',
+    )
     parent_list.add_argument(
         '--hide-result-before',
         help='Hide workflows submitted before this date/time. '
-             'Use the same (or shorter) date/time format shown in '
-             '"caper list". '
-             'e.g. 2019-06-13, 2019-06-13T10:07')
+        'Use the same (or shorter) date/time format shown in '
+        '"caper list". '
+        'e.g. 2019-06-13, 2019-06-13T10:07',
+    )
     parent_list.add_argument(
-        '--hide-subworkflow', action='store_true',
-        help='Hide subworkflows from "caper list".')
+        '--hide-subworkflow',
+        action='store_true',
+        help='Hide subworkflows from "caper list".',
+    )
 
-    # troubleshoot
+    # troubleshoot/debug
     parent_troubleshoot = argparse.ArgumentParser(add_help=False)
     parent_troubleshoot.add_argument(
-        '--show-completed-task', action='store_true',
-        help='Show information about completed tasks.')
+        '--show-completed-task',
+        action='store_true',
+        help='Show information about completed tasks.',
+    )
+    parent_troubleshoot.add_argument(
+        '--show-stdout', action='store_true', help='Show STDOUT for failed tasks.'
+    )
 
+    # all subcommands
     p_init = subparser.add_parser(
         'init',
         help='Initialize Caper\'s configuration file. THIS WILL OVERWRITE ON '
-             'A SPECIFIED(-c)/DEFAULT CONF FILE. e.g. ~/.caper/default.conf.',
-        parents=[parent_init])
+        'A SPECIFIED(-c)/DEFAULT CONF FILE. e.g. ~/.caper/default.conf.',
+        parents=[parent_all, parent_init],
+    )
     p_run = subparser.add_parser(
-        'run', help='Run a single workflow without server',
-        parents=[parent_all, parent_submit, parent_run, parent_host, parent_backend])
+        'run',
+        help='Run a single workflow without server',
+        parents=[parent_all, parent_submit, parent_run, parent_runner, parent_backend],
+    )
     p_server = subparser.add_parser(
-        'server', help='Run a Cromwell server',
-        parents=[parent_all, parent_server_client, parent_server, parent_host,
-                 parent_backend])
+        'server',
+        help='Run a Cromwell server',
+        parents=[
+            parent_all,
+            parent_server_client,
+            parent_server,
+            parent_runner,
+            parent_backend,
+        ],
+    )
     p_submit = subparser.add_parser(
-        'submit', help='Submit a workflow to a Cromwell server',
-        parents=[parent_all, parent_server_client, parent_submit,
-                 parent_backend])
+        'submit',
+        help='Submit a workflow to a Cromwell server',
+        parents=[
+            parent_all,
+            parent_server_client,
+            parent_client,
+            parent_submit,
+            parent_backend,
+        ],
+    )
     p_abort = subparser.add_parser(
-        'abort', help='Abort running/pending workflows on a Cromwell server',
-        parents=[parent_all, parent_server_client, parent_search_wf])
+        'abort',
+        help='Abort running/pending workflows on a Cromwell server',
+        parents=[parent_all, parent_server_client, parent_client, parent_search_wf],
+    )
     p_unhold = subparser.add_parser(
-        'unhold', help='Release hold of workflows on a Cromwell server',
-        parents=[parent_all, parent_server_client, parent_search_wf])
+        'unhold',
+        help='Release hold of workflows on a Cromwell server',
+        parents=[parent_all, parent_server_client, parent_client, parent_search_wf],
+    )
     p_list = subparser.add_parser(
-        'list', help='List running/pending workflows on a Cromwell server',
-        parents=[parent_all, parent_server_client, parent_search_wf,
-                 parent_list])
+        'list',
+        help='List running/pending workflows on a Cromwell server',
+        parents=[
+            parent_all,
+            parent_server_client,
+            parent_client,
+            parent_search_wf,
+            parent_list,
+        ],
+    )
     p_metadata = subparser.add_parser(
         'metadata',
         help='Retrieve metadata JSON for workflows from a Cromwell server',
-        parents=[parent_all, parent_server_client, parent_search_wf])
+        parents=[parent_all, parent_server_client, parent_client, parent_search_wf],
+    )
     p_troubleshoot = subparser.add_parser(
         'troubleshoot',
         help='Troubleshoot workflow problems from metadata JSON file or '
-             'workflow IDs',
-        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf])
+        'workflow IDs',
+        parents=[
+            parent_all,
+            parent_server_client,
+            parent_client,
+            parent_search_wf,
+            parent_troubleshoot,
+        ],
+    )
     p_debug = subparser.add_parser(
         'debug',
         help='Identical to "troubleshoot"',
-        parents=[parent_all, parent_troubleshoot, parent_server_client, parent_search_wf])
+        parents=[
+            parent_all,
+            parent_server_client,
+            parent_client,
+            parent_search_wf,
+            parent_troubleshoot,
+        ],
+    )
 
-    for p in [p_init, p_run, p_server, p_submit, p_abort, p_unhold, p_list,
-              p_metadata, p_troubleshoot, p_debug]:
-        p.set_defaults(**defaults)
+    if conf_file is None:
+        # partially parse args to get conf file from cmd line
+        known_args, _ = parent_all.parse_known_args()
+        conf_file = known_args.conf
+    conf_file = os.path.expanduser(conf_file)
 
-    if len(sys.argv[1:]) == 0:
-        parser.print_help()
-        parser.exit()
-    # parse all args
-    args = parser.parse_args(remaining_argv)
+    subparsers = [
+        p_init,
+        p_run,
+        p_server,
+        p_submit,
+        p_abort,
+        p_unhold,
+        p_list,
+        p_metadata,
+        p_troubleshoot,
+        p_debug,
+    ]
+    if os.path.exists(conf_file):
+        conf_dict = update_parsers_defaults_with_conf(
+            parsers=subparsers,
+            conf_file=conf_file,
+            conf_key_map=CAPER_1_0_0_PARAM_KEY_NAME_CHANGE,
+        )
+    else:
+        conf_dict = None
 
-    # convert to dict
-    args_d = vars(args)
-
-    # string to boolean
-    for k in [
-        'dry_run',
-        'no_server_heartbeat',
-        'disable_call_caching',
-        'soft_glob_output',
-        'hold',
-        'no_deepcopy',
-        'ignore_womtool',
-        'no_build_singularity',
-        'use_gsutil_for_s3',
-        'hide_subworkflow',
-        'debug',
-        'show_completed_task']:
-        v = args_d.get(k)
-        if v is not None and isinstance(v, str):
-            args_d[k] = bool(strtobool(v))
-
-    # string to int
-    for k in [
-        'db_timeout',
-        'max_retries',
-        'max_concurrent_tasks',
-        'max_concurrent_workflows',
-        'mysql_db_port',
-        'postgresql_db_port',
-        'server_heartbeat_timeout',
-        'port']:
-        v = args_d.get(k)
-        if v is not None and isinstance(v, str):
-            args_d[k] = int(v)
-
-    return args_d
+    return parser, conf_dict

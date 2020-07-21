@@ -1,20 +1,70 @@
-> **CRITICAL**: Caper has been updated to use [Autouri](https://github.com/ENCODE-DCC/autouri) instead of its own localization module. If you are upgrading from old Caper < 0.8. Upgrade Caper with the following commands. If it doesn't work remove Caper `pip uninstall caper` and clean-install it `pip install caper`.
-```bash
-$ pip install caper --upgrade
-```
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![CircleCI](https://circleci.com/gh/ENCODE-DCC/caper.svg?style=svg)](https://circleci.com/gh/ENCODE-DCC/caper)
 
-> **IMPORTANT**: If you use `--use-gsutil-for-s3` then you need to update your `gsutil`. This flag allows a direct transfer between `gs://` and `s3://`. This requires `gsutil` >= 4.47. See this [issue](https://github.com/GoogleCloudPlatform/gsutil/issues/935) for details.
+# Major changes for Caper 1.0.
+
+If you are upgrading Caper from previous versions:
+  - Edit your `~/.caper/default.conf` to remove `cromwell=` and `womtool=` from it then Caper will automatically download Cromwell/Womtool version 51, which support new Google Cloud Life Sciences API (v2beta). You can also use `caper init [YOUR_BACKEND]` to locally install Cromwell/Womtool JARs.
+
+> **CRITICAL**: Due to change in Caper 1.0 (Cromwell `47` to `51`), metadata database (`--db`) generated before 1.0 will not work with >= 1.0. See details below.
+
+Upgraded Cromwell from 47 to 51.
+  - Metadata DB generated with Caper<1.0 will not work with Caper>=1.0.
+    - See [this note](https://github.com/broadinstitute/cromwell/releases/tag/49) to find DB migration instruction.
+  - We recommend to use Cromwell-51 with Caper>=1.0 since it's fully test with Cromwell-51.
+
+Changed hashing strategy for all local backends (`local`, `slurm`, `sge`, `pbs`).
+  - Default hashing strategy: `file` (based on md5sum, which is expensive) to `path+modtime`.
+  - Changing hashing strategy and using the same metadata DB will result in cache-miss.
+
+Changed duplication strategy for all local backends (`local`, `slurm`, `sge`, `pbs`).
+  - Default file duplication strategy: `hard-link` to `soft-link`.
+    - For filesystems (e.g. beeGFS) that do not allow hard-linking.
+      - Caper<1.0 hard-linked input files even with `--soft-glob-output`.
+      - For Caper>=1.0, you still need to use `--soft-glob-output` for such filesystems.
+
+Google Cloud Platform backend (`gcp`):
+  - Cau use a service account instead of an application default (end user's auth.).
+    - Added `--gcp-service-account-key-json`.
+    - Make sure that such service account has enough permission (roles) to resources on Google Cloud Platform project (`--gcp-prj`). See [details](docs/conf_gcp.md#how-to-run-caper-with-a-service-account).
+  - Can use Google Cloud Life Sciences API (v2beta) instead of deprecating Google Cloud Genomics API (v2alpha1).
+    - Added `--use-google-cloud-life-sciences`.
+    - For `caper server/run`, you need to specify a region `--gcp-region` to use Life Sciences API. Check [supported regions](https://cloud.google.com/life-sciences/docs/concepts/locations). `--gcp-zones` will be ignored.
+    - Make sure to enable `Google Cloud Life Sciences API` on Google Cloud Platform console (APIs & Services -> `+` button on top).
+    - Also if you use a service account then add a role `Life Sciences Admin` to your service account.
+    - We will deprecate old `Genomics API` support. `Life Sciences API` will become a new default after next 2-3 releases.
+  - Added [`memory-retry`](https://cromwell.readthedocs.io/en/stable/backends/Google/) to Caper. This is for `gcp` backend only.
+    - Retries (controlled by `--max-retries`) on an instance with increased memory if workflow fails due to OOM (out-of-memory) error.
+    - Comma-separated keys to catch OOM: `--gcp-prj-memory-retry-error-keys`.
+    - Multiplier for every retrial due to OOM: `--gcp-prj-memory-retry-multiplier`.
+
+Change of parameter names. Backward compatible.
+  - `--out-dir` -> `--local-out-dir`
+  - `--out-gcs-bucket` -> `--gcp-out-dir`
+  - `--out-s3-bucket` -> `--aws-out-dir`
+  - `--tmp-dir` -> `--local-loc-dir`
+  - `--tmp-gcs-bucket` -> `--gcp-loc-dir`
+  - `--tmp-s3-bucket` -> `--aws-loc-dir`
+
+Added parameters
+  - `--use-google-cloud-life-sciences` and `--gcp-region`: Use Life Sciences API (Cromwell's v2beta scheme).
+  - `--gcp-service-account-key-json`: Use a service account for auth on GCP (instead of application default).
+  - `--gcp-prj-memory-retry-error-keys`: Comma-separated keys to catch OOM error on GCP.
+  - `--gcp-prj-memory-retry-multiplier`: Multiplier for every retrial due to OOM error on GCP.
+  - `--cromwell-stdout`: Redirect Cromwell STDOUT/STDERR to file.
+
+Improved Python interface.
+  - Old Caper<1.0 was originally designed for CLI.
+  - New Caper>=1.0 is designed for Python interface first and then CLI is based on such Python interface.
+  - Can retrieve `metadata.json` embedded with subworkflows' metadata JSON.
+
+Better logging and troubleshooting.
+  - Defaults to write Cromwell STDOUT/STDERR to `cromwell.out` (controlled by `--cromwell-stdout`).
+
+
+> **IMPORTANT**: `--use-gsutil-for-s3` requires `gsutil` installed on your system. This flag allows a direct transfer between `gs://` and `s3://`. This requires `gsutil` >= 4.47. See this [issue](https://github.com/GoogleCloudPlatform/gsutil/issues/935) for details. `gsutil` is based on Python 2.
 ```bash
 $ pip install gsutil --upgrade
 ```
-
-**IMPORATNT**: A new flag `--soft-glob-output` is added to use soft-linking for globbing outputs. Use it for `caper server/run` (not for `caper submit`) on a filesystem that does not allow hard-linking: e.g. beeGFS.
-
-**IMPORATNT**: Caper defaults back to **NOT** use a file-based metadata DB, which means no call-caching (re-using outputs from previous workflows) by default.
-
-**IMPORATNT**: Even if you still want to use a file-based DB (`--db file` and `--file-db [DB_PATH]`), metadata DB generated from Caper<0.6 (with Cromwell-42) is not compatible with metadata DB generated from Caper>=0.6 (with Cromwell-47). Refer to [this doc](https://github.com/broadinstitute/cromwell/releases/tag/43) for such migration.
-
-See [this](#metadata-database) for details about metadata DB. Define a DB type with `db=` in your conf `~/.caper/default.conf` to use a metadata DB.
 
 # Caper
 
@@ -32,7 +82,7 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 	$ java -version
 	```
 
-2) Make sure that you have `python3`(> 3.4.1) installed on your system. Use `pip` to install Caper.
+2) Make sure that you have `python >= 3.6` installed on your system. Use `pip` to install Caper. If you use a pipeline with its own Conda environment then activate the environment first. i.e. installing Caper inside the environment.
 
 	```bash
 	$ pip install caper
@@ -57,43 +107,43 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 	export PATH=$PATH:~/.local/bin
 	```
 
-5) Choose a platform from the following table and initialize Caper. This will create a default Caper configuration file `~/.caper/default.conf`, which have only required parameters for each platform. There are special platforms for Stanford Sherlock/SCG users. This will also install Cromwell/Womtool JARs on `~/.caper`. Downloading those files can take up to 10 minutes. Once they are installed, Caper can completely work offline with local data files.
+5) Choose a backend from the following table and initialize Caper. This will create a default Caper configuration file `~/.caper/default.conf`, which have only required parameters for each backend. There are special options (`sherlock` and `scg`) for Stanford Sherlock/SCG users. `caper init` will also install Cromwell/Womtool JARs on `~/.caper/`. Downloading those files can take up to 10 minutes. Once they are installed, Caper can completely work offline with local data files.
 
 	```bash
-	$ caper init [PLATFORM]
+	$ caper init [BACKEND]
 	```
 
-	**Platform**|**Description**
+	**Backend**|**Description**
 	:--------|:-----
-	sherlock | Stanford Sherlock cluster (SLURM)
-	scg | Stanford SCG cluster (SLURM)
-	gcp | Google Cloud Platform
-	aws | Amazon Web Service
-	local | General local computer
-	sge | HPC with Sun GridEngine cluster engine
-	pbs | HPC with PBS cluster engine
-	slurm | HPC with SLURM cluster engine
+  local | General local computer.
+  slurm | HPC with SLURM cluster engine.
+  sge | HPC with Sun GridEngine cluster engine.
+  pbs | HPC with PBS cluster engine.
+	gcp | Google Cloud Platform.
+	aws | Amazon Web Service.
+  sherlock | Stanford Sherlock (based on `slurm` backend).
+  scg | Stanford SCG (based on `slurm` backend).
 
-6) Edit `~/.caper/default.conf` according to your chosen platform. Find instruction for each item in the following table.
-	> **IMPORTANT**: ONCE YOU HAVE INITIALIZED THE CONFIGURATION FILE `~/.caper/default.conf` WITH YOUR CHOSEN PLATFORM, THEN IT WILL HAVE ONLY REQUIRED PARAMETERS FOR THE CHOSEN PLATFORM. DO NOT LEAVE ANY PARAMETERS UNDEFINED OR CAPER WILL NOT WORK CORRECTLY.
+6) Edit `~/.caper/default.conf`. Find instruction for each parameter in the following table.
+	> **IMPORTANT**: DO NOT LEAVE ANY PARAMETERS UNDEFINED OR CAPER WILL NOT WORK CORRECTLY.
 
 	**Parameter**|**Description**
 	:--------|:-----
-	tmp-dir | **IMPORTANT**: A directory to store all cached files for inter-storage file transfer. DO NOT USE `/tmp`.
+	local-loc-dir | **IMPORTANT**: DO NOT USE `/tmp`. This is a working directory to store all important intermediate files for Caper. This directory is also used to store big cached files for localization of remote files. e.g. to run pipelines locally with remote files (`gs://`, `s3://`, `http://`, ...) copies of such files are stored here.
 	slurm-partition | SLURM partition. Define only if required by a cluster. You must define it for Stanford Sherlock.
 	slurm-account | SLURM partition. Define only if required by a cluster. You must define it for Stanford SCG.
 	sge-pe | Parallel environment of SGE. Find one with `$ qconf -spl` or ask you admin to add one if not exists.
 	aws-batch-arn | ARN for AWS Batch.
 	aws-region | AWS region (e.g. us-west-1)
-	out-s3-bucket | Output bucket path for AWS. This should start with `s3://`.
+	aws-out-dir | Output bucket path for AWS. This should start with `s3://`.
 	gcp-prj | Google Cloud Platform Project
-	out-gcs-bucket | Output bucket path for Google Cloud Platform. This should start with `gs://`.
+	gcp-out-dir | Output bucket path for Google Cloud Platform. This should start with `gs://`.
 
 7) To use Caper on Google Cloud Platform (GCP), [configure for GCP](docs/conf_gcp.md). To use Caper on Amazon Web Service (AWS), [configure for AWS](docs/conf_aws.md).
 
 ## Output directory
 
-> **IMPORTANT**: Unless you are running Caper on cloud platforms (`aws`, `gcp`) and `--out-dir` is not explicitly defined, all outputs will be written to a current working directory where you run `caper run` or `caper server`.
+> **IMPORTANT**: Unless you are running Caper on cloud platforms (`aws`, `gcp`) and `--local-out-dir` is not explicitly defined, all outputs will be written to a current working directory where you run `caper run` or `caper server`.
 
 Therefore, change directory first and run Caper there.
 
@@ -105,7 +155,7 @@ $ cd [OUTPUT_DIR]
 
 If you want to use your Conda environment for Caper, then activate your Conda environment right before running/submitting `caper run` or `caper server`.
 ```bash
-$ conda activate [PIPELINE_CONDA_ENV] 
+$ conda activate [PIPELINE_CONDA_ENV]
 $ caper run ...
 $ sbatch ... --wrap "caper run ..."
 ```
@@ -178,7 +228,7 @@ Create a small leader instance on your GCP project/AWS region. Follow above inst
 
 > **IMPORTANT**: It's **STRONGLY** recommended to attach/mount a persistent disk/EBS volume with enough space to it. Caper's call-caching file DB grows quickly to reach 10 GB, which is a default size for most small instances.
 
-Also, make sure that `tmp-dir` in `~/.caper/default.conf` points to a directory on a large disk. All intermediate files and big cached files for inter-storage transfer will be stored there.
+Also, make sure that `local-loc-dir` in `~/.caper/default.conf` points to a directory on a large disk. All intermediate files and big cached files for inter-storage transfer will be stored there.
 
 Mount a persistent disk and change directory into it. A **BIG** DB file to enable Cromwell's call-caching (re-using previous failed workflow's outputs) will be generated on this current working directory.
 ```bash
@@ -195,7 +245,7 @@ Run a server on a screen. Detach from the screen (`Ctrl+A` and then `d`).
 $ caper server
 ```
 
-Submit a workflow to the server. All pipeline outputs will be written to `out-gcs-bucket` (for GCP) or `out-s3-bucket` (for AWS) in defined `~/.caper/default.conf`.
+Submit a workflow to the server. All pipeline outputs will be written to `gcp-out-dir` (for GCP) or `aws-out-dir` (for AWS) in defined `~/.caper/default.conf`.
 ```bash
 $ caper submit [WDL] -i [INPUT_JSON]
 ```
@@ -220,11 +270,13 @@ If Caper's built-in backends don't work as expected on your clusters (e.g. due t
 
 Find this `backend.conf` first by dry-running `caper run [WDL] --dry-run ...`. For example of a `slurm` backend:
 ```
-$ caper run toy.wdl --dry-run --backend slurm
-[Caper] Validating WDL/input JSON with womtool...
-Picked up _JAVA_OPTIONS: -Xms256M -Xmx4024M -XX:ParallelGCThreads=1
-Success!
-[Caper] cmd:  ['java', '-Xmx3G', '-XX:ParallelGCThreads=1', '-DLOG_LEVEL=INFO', '-DLOG_MODE=standard', '-jar', '-Dconfig.file=/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/backend.conf', '/users/leepc12/.caper/cromwell_jar/cromwell-47.jar', 'run', '/mnt/data2/scratch/leepc12/test_caper_refac/toy.wdl', '-i', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/inputs.json', '-o', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/workflow_opts.json', '-l', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/labels.json', '-m', '/mnt/data/scratch/leepc12/caper_out/.caper_tmp/toy/20200309_151256_331283/metadata.json']
+$ caper run main.wdl --dry-run
+2020-07-07 11:18:13,196|caper.caper_runner|INFO| Adding encode-dcc-1016 to env var GOOGLE_CLOUD_PROJECT
+2020-07-07 11:18:13,197|caper.caper_base|INFO| Creating a timestamped temporary directory. /mnt/data/scratch/leepc12/test_caper_tmp/main/20200707_111813_197082
+2020-07-07 11:18:13,197|caper.caper_runner|INFO| Localizing files on work_dir. /mnt/data/scratch/leepc12/test_caper_tmp/main/20200707_111813_197082
+2020-07-07 11:18:13,829|caper.cromwell|INFO| Validating WDL/inputs/imports with Womtool...
+2020-07-07 11:18:16,034|caper.cromwell|INFO| Womtool validation passed.
+2020-07-07 11:18:16,035|caper.caper_runner|INFO| launching run: wdl=/mnt/data2/scratch/leepc12/test_wdl1_sub/main.wdl, inputs=None, backend_conf=/mnt/data/scratch/leepc12/test_caper_tmp/main/20200707_111813_197082/backend.conf
 ```
 
 Look for a file defined with a Java parameter `-Dconfig.file` and find a backend of interest (`slurm` in this example) in the file.
@@ -237,39 +289,87 @@ backend {
   ...
 
     slurm {
-      actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
       config {
         default-runtime-attributes {
           time = 24
         }
         concurrent-job-limit = 1000
         script-epilogue = "sleep 10 && sync"
+        filesystems {
+          local {
+            localization = [
+              "soft-link"
+              "hard-link"
+              "copy"
+            ]
+            caching {
+              check-sibling-md5 = true
+              duplication-strategy = [
+                "soft-link"
+                "hard-link"
+                "copy"
+              ]
+              hashing-strategy = "path+modtime"
+            }
+          }
+        }
+        run-in-background = true
+        runtime-attributes = """String? docker
+String? docker_user
+Int cpu = 1
+Int? gpu
+Int? time
+Int? memory_mb
+String? slurm_partition
+String? slurm_account
+String? slurm_extra_param
+String? singularity
+String? singularity_bindpath
+String? singularity_cachedir
+"""
+        submit = """if [ -z \"$SINGULARITY_BINDPATH\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \
+if [ -z \"$SINGULARITY_CACHEDIR\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;
+
+ITER=0
+until [ $ITER -ge 3 ]; do
+    sbatch \
+        --export=ALL \
+        -J ${job_name} \
+        -D ${cwd} \
+        -o ${out} \
+        -e ${err} \
+        ${'-t ' + time*60} \
+        -n 1 \
+        --ntasks-per-node=1 \
+        ${'--cpus-per-task=' + cpu} \
+        ${true="--mem=" false="" defined(memory_mb)}${memory_mb} \
+        ${'-p ' + slurm_partition} \
+        ${'--account ' + slurm_account} \
+        ${'--gres gpu:' + gpu} \
+        ${slurm_extra_param} \
+        --wrap "${if !defined(singularity) then '/bin/bash ' + script
+                  else
+                    'singularity exec --cleanenv ' +
+                    '--home ' + cwd + ' ' +
+                    (if defined(gpu) then '--nv ' else '') +
+                    singularity + ' /bin/bash ' + script}" \
+        && break
+    ITER=$[$ITER+1]
+    sleep 30
+done
+"""
         root = "/mnt/data/scratch/leepc12/caper_out"
-        runtime-attributes = """
-        String? docker
-        String? docker_user
-        Int cpu = 1
-        Int? gpu
-        Int? time
-        Int? memory_mb
-        String? slurm_partition
-        String? slurm_account
-        String? slurm_extra_param
-        String? singularity
-        String? singularity_bindpath
-        String? singularity_cachedir
-    """
-        submit = """ITER=0; until [ $ITER -ge 3 ]; do
-        sbatch         --export=ALL         -J ${job_name}         -D ${cwd}         -o ${out}         -e ${err}         ${"-t " + time*60}         -n 1         --ntasks-per-node=1         ${true="--cpus-per-task=" false="" defined(cpu)}${cpu}         ${true="--mem=" false="" defined(memory_mb)}${memory_mb}         ${"-p " + slurm_partition}         ${"--account " + slurm_account}         ${true="--gres gpu:" false="" defined(gpu)}${gpu}         ${slurm_extra_param}         --wrap "${if defined(singularity) then '' else             '/bin/bash ${script} #'}             if [ -z \"$SINGULARITY_BINDPATH\" ]; then             export SINGULARITY_BINDPATH=${singularity_bindpath}; fi;             if [ -z \"$SINGULARITY_CACHEDIR\" ]; then             export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;             singularity exec --cleanenv --home ${cwd}             ${if defined(gpu) then '--nv' else ''}             ${singularity} /bin/bash ${script}" && break
-    ITER=$[$ITER+1]; sleep 30; done
-    """
-        kill = "scancel ${job_id}"
         exit-code-timeout-seconds = 360
-        check-alive = "for ITER in 1 2 3; do CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id}); if [ -z \"$CHK_ALIVE\" ]; then if [ \"$ITER\" == 3 ]; then /bin/bash -c 'exit 1'; else sleep 30; fi; else echo $CHK_ALIVE; break; fi; done"
+        check-alive = """for ITER in 1 2 3; do
+    CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id})
+    if [ -z "$CHK_ALIVE" ]; then if [ "$ITER" == 3 ]; then /bin/bash -c 'exit 1'; else sleep 30; fi; else echo $CHK_ALIVE; break; fi
+done
+"""
+        kill = "scancel ${job_id}"
         job-id-regex = "Submitted batch job (\\d+).*"
       }
+      actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
     }
-
   ...
 
 }
@@ -325,7 +425,7 @@ Caper server writes a heartbeat file (specified by `--server-heartbeat-file`) on
 Example heartbeat file:
 ```bash
 $ cat ~/.caper/default_server_heartbeat
-kadru.stanford.edu:8000
+your.hostname.com:8000
 ```
 
 This heartbeat file is useful when users don't want to find IP(hostname)/PORT of a running `caper server` especially when they `qsub`bed or `sbatch`ed `caper server` on their clusters. For such cases, IP (hostname of node/instance) of the server is later determined after the cluster engine starts the submitted `caper server` job and it's inconvenient for the users to find the IP (hostname) of the running server manually with `qstat` or `squeue` and add it back to Caper's configuration file `~/.caper/default.conf`.
@@ -365,8 +465,6 @@ In order to use call-caching, choose one of the following metadata database type
 2) `postgresql` (experimental): We don't provide a method to run PostgreSQL server and initialize it correctly for Crowmell. See [this](https://cromwell.readthedocs.io/en/stable/Configuring/) for details.
 
 3) `file` (**UNSTABLE**, not recommended): This is Cromwell's built-in [HyperSQL DB file mode](#file-database). Caper<0.6 defaulted to use it but a file DB turns out to be very unstable and get corrupted easily.
-
-	> **IMPORTANT**: File DBs generated from Caper>=0.6 and Caper<0.6 are not compatible with each other. See [release note of Cromwell-43](https://github.com/broadinstitute/cromwell/releases/tag/43) for details and how to migrate if required.
 
 ## MySQL database
 
@@ -449,7 +547,7 @@ mysql-db-port=3306
 
 	Example conflict in `CONTAINER_NAME`. Try with `mysql_cromwell2`.
 	```
-	ERROR: A daemon process is already running with this name: mysql_cromwell	
+	ERROR: A daemon process is already running with this name: mysql_cromwell
 	ABORT: Aborting with RETVAL=255
 	```
 
@@ -458,6 +556,45 @@ mysql-db-port=3306
 	$ singularity instance list  # find your MySQL singularity container
 	$ singularity instance stop [CONTAINER_NAME]
 	```
+
+## PostgreSQL database
+
+Add the followings to Caper's conf file `~/.caper/default.conf`. You may need to change the port number if it conflicts.
+```
+db=postgresql
+postgresql-db-port=5432
+```
+
+You do not need superuser privilege to make your own database once you have PostgreSQL installed on your system. Ask your admin to install it.
+
+Make sure to match `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` with Caper's parameters `--postgresql-db-port`, `--postgresql-db-name`, `--postgresql-db-user`, and `--postgresql-db-password`. You can also define them in  `~/.caper/default.conf`.
+
+```bash
+# make sure to match those variables with corresponding Caper's parameters.
+$ DB_PORT=5432
+$ DB_NAME=cromwell
+$ DB_USER=cromwell
+$ DB_PASSWORD=cromwell
+
+# initialize PostgreSQL server with a specific data path
+# actual data will be stored on directory $DB_FILE_PATH
+$ DB_FILE_PATH=my_postgres
+$ initdb -D $DB_FILE_PATH -U $USER
+
+# start PostgreSQL server with a specific port
+$ DB_LOG_FILE=pg.log
+$ pg_ctl -D $DB_FILE_PATH -o "-F -p $DB_PORT" -l $DB_LOG_FILE start
+
+# create DB for Cromwell
+$ createdb $DB_NAME
+
+# add extension for Cromwell
+$ psql -d $DB_NAME -c "create extension lo;"
+
+# make a role (user)
+$ psql -d $DB_NAME -c "create role $DB_USER with superuser login password $DB_PASSWORD"
+```
+
 
 ## File database
 
