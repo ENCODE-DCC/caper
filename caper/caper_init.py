@@ -1,43 +1,53 @@
-"""Functions for caper init subcommand
-
-Author:
-    Jin Lee (leepc12@gmail.com) at ENCODE-DCC
-"""
-
 import os
-import sys
-from autouri import AutoURI, AbsPath
-from .caper_backend import BACKENDS, BACKENDS_WITH_ALIASES
-from .caper_backend import BACKEND_GCP, BACKEND_AWS, BACKEND_LOCAL
-from .caper_backend import BACKEND_SLURM, BACKEND_SGE, BACKEND_PBS
-from .caper_backend import BACKEND_ALIAS_LOCAL
-from .caper_backend import BACKEND_ALIAS_GOOGLE, BACKEND_ALIAS_AMAZON
-from .caper_backend import BACKEND_ALIAS_SHERLOCK, BACKEND_ALIAS_SCG
 
+from .cromwell import Cromwell
+from .cromwell_backend import (
+    BACKEND_ALIAS_LOCAL,
+    BACKEND_AWS,
+    BACKEND_GCP,
+    BACKEND_LOCAL,
+    BACKEND_PBS,
+    BACKEND_SGE,
+    BACKEND_SLURM,
+)
 
-DEFAULT_CROMWELL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/cromwell-47.jar'
-DEFAULT_WOMTOOL_JAR = 'https://github.com/broadinstitute/cromwell/releases/download/47/womtool-47.jar'
-DEFAULT_CROMWELL_JAR_INSTALL_DIR = '~/.caper/cromwell_jar'
-DEFAULT_WOMTOOL_JAR_INSTALL_DIR = '~/.caper/womtool_jar'
-DEFAULT_CONF_CONTENTS_LOCAL = """backend=local
+BACKEND_ALIAS_SHERLOCK = 'sherlock'
+BACKEND_ALIAS_SCG = 'scg'
 
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
+CONF_CONTENTS_LOCAL_HASH_STRAT = """
+# Hashing strategy for call-caching (3 choices)
+# This parameter is for local (local/slurm/sge/pbs) backend only.
+# This is important for call-caching,
+# which means re-using outputs from previous/failed workflows.
+# Cache will miss if different strategy is used.
+# "file" method has been default for all old versions of Caper<1.0.
+# "path+modtime" is a new default for Caper>=1.0,
+#   file: use md5sum hash (slow).
+#   path: use path.
+#   path+modtime: use path and modification time.
+local-hash-strat=path+modtime
 """
-DEFAULT_CONF_CONTENTS_SHERLOCK = """backend=slurm
-slurm-partition=
 
-# DO NOT use /tmp here
-# You can use $OAK or $SCRATCH storages here.
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
+CONF_CONTENTS_TMP_DIR = """
+# Local directory for localized files and Cromwell's intermediate files
+# If not defined, Caper will make .caper_tmp/ on local-out-dir or CWD.
+# /tmp is not recommended here since Caper store all localized data files
+# on this directory (e.g. input FASTQs defined as URLs in input JSON).
+local-loc-dir=
+"""
+
+DEFAULT_CONF_CONTENTS_LOCAL = (
+    """
+backend=local
+"""
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
+
+DEFAULT_CONF_CONTENTS_SHERLOCK = (
+    """
+backend=slurm
+slurm-partition=
 
 # IMPORTANT warning for Stanford Sherlock cluster
 # ====================================================================
@@ -48,111 +58,104 @@ tmp-dir=
 # It's STILL OKAY to read input data from and write outputs to $SCRATCH or $OAK.
 # ====================================================================
 """
-DEFAULT_CONF_CONTENTS_SCG = """backend=slurm
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
+
+DEFAULT_CONF_CONTENTS_SCG = (
+    """
+backend=slurm
 slurm-account=
 
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
 """
-DEFAULT_CONF_CONTENTS_SLURM = """backend=slurm
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
+
+DEFAULT_CONF_CONTENTS_SLURM = (
+    """
+backend=slurm
 
 # define one of the followings (or both) according to your
 # cluster's SLURM configuration.
 slurm-partition=
 slurm-account=
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
 """
-DEFAULT_CONF_CONTENTS_SGE = """backend=sge
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
+
+DEFAULT_CONF_CONTENTS_SGE = (
+    """
+backend=sge
 sge-pe=
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
 """
-DEFAULT_CONF_CONTENTS_PBS = """backend=pbs
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
 
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
+DEFAULT_CONF_CONTENTS_PBS = (
+    """
+backend=pbs
 """
-DEFAULT_CONF_CONTENTS_AWS = """backend=aws
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_TMP_DIR
+)
+
+DEFAULT_CONF_CONTENTS_AWS = (
+    """
+backend=aws
 aws-batch-arn=
 aws-region=
-out-s3-bucket=
-
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
+aws-out-dir=
 """
-DEFAULT_CONF_CONTENTS_GCP = """backend=gcp
-gcp-prj=
-out-gcs-bucket=
+    + CONF_CONTENTS_TMP_DIR
+)
 
-# call-cached outputs will be duplicated by making a copy or reference
-#  reference: refer to old output file in metadata.json file.
-#  copy: make a copy
+DEFAULT_CONF_CONTENTS_GCP = (
+    """
+backend=gcp
+gcp-prj=
+gcp-out-dir=
+
+# Call-cached outputs will be duplicated by making a copy or reference
+#   reference: refer to old output file in metadata.json file.
+#   copy (not recommended): make a copy for a new workflow.
 gcp-call-caching-dup-strat=
 
-# DO NOT use /tmp here
-# Caper stores all important temp files and cached big data files here
-# If not defined, Caper will make .caper_tmp/ on your local output directory
-# which is defined by out-dir, --out-dir or $CWD
-# Use a local absolute path here
-tmp-dir=
+# Use Google Cloud Life Sciences API instead of Genomics API (deprecating).
+# Make sure to enable Google Cloud Life Sciences API on your Google Cloud Console
+use-google-cloud-life-sciences=false
+
+# gcp-region is required for Life Sciences API only.
+# Region is different from zone. Zone is more specific.
+# Do not define zone here. Check supported regions:
+#   https://cloud.google.com/life-sciences/docs/concepts/locations
+# e.g. us-central1
+gcp-region=
+
+# Comma-separated zones for Genomics API (deprecating).
+# This is ignored if use-google-cloud-life-sciences.
+# e.g. us-west1-a,us-west1-b,us-west1-c
+gcp-zones=
+
+# Increase instance's memory when retrying upon OOM (out of memory) error.
+gcp-memory-retry-multiplier=1.2
+
+# Number of retrials. This parameter also applies to non-OOM failures.
+max-retries=1
 """
+    + CONF_CONTENTS_TMP_DIR
+)
 
 
-def install_cromwell_jar(uri):
-    """Download cromwell-X.jar
+def init_caper_conf(conf_file, backend):
+    """Initialize conf file for a given backend.
+    There are two special backend aliases for two Stanford clusters.
+    These clusters are based on SLURM.
+    Also, download/install Cromwell/Womtool JARs, whose
+    default URL and install dir are defined in class Cromwell.
     """
-    u = AutoURI(uri)
-    if isinstance(u, AbsPath):
-        return u.uri
-    print('Downloading Cromwell JAR... {f}'.format(f=uri), file=sys.stderr)
-    path = os.path.join(
-        os.path.expanduser(DEFAULT_CROMWELL_JAR_INSTALL_DIR),
-        os.path.basename(uri))
-    return u.cp(path)
-
-
-def install_womtool_jar(uri):
-    """Download womtool-X.jar
-    """
-    u = AutoURI(uri)
-    if isinstance(u, AbsPath):
-        return u.uri
-    print('Downloading Womtool JAR... {f}'.format(f=uri), file=sys.stderr)
-    path = os.path.join(
-        os.path.expanduser(DEFAULT_WOMTOOL_JAR_INSTALL_DIR),
-        os.path.basename(uri))
-    return u.cp(path)
-
-
-def init_caper_conf(args):
-    """Initialize conf file for a given platform.
-    Also, download/install Cromwell/Womtool JARs.
-    """
-    backend = args.get('platform')
-    assert(backend in BACKENDS_WITH_ALIASES)
     if backend in (BACKEND_LOCAL, BACKEND_ALIAS_LOCAL):
         contents = DEFAULT_CONF_CONTENTS_LOCAL
     elif backend == BACKEND_ALIAS_SHERLOCK:
@@ -165,19 +168,18 @@ def init_caper_conf(args):
         contents = DEFAULT_CONF_CONTENTS_SGE
     elif backend == BACKEND_PBS:
         contents = DEFAULT_CONF_CONTENTS_PBS
-    elif backend in (BACKEND_GCP, BACKEND_ALIAS_GOOGLE):
+    elif backend in BACKEND_GCP:
         contents = DEFAULT_CONF_CONTENTS_GCP
-    elif backend in (BACKEND_AWS, BACKEND_ALIAS_AMAZON):
+    elif backend in BACKEND_AWS:
         contents = DEFAULT_CONF_CONTENTS_AWS
     else:
-        raise Exception('Unsupported platform/backend/alias.')
+        raise ValueError('Unsupported backend {p}'.format(p=backend))
 
-    conf_file = os.path.expanduser(args.get('conf'))
+    conf_file = os.path.expanduser(conf_file)
+    cromwell = Cromwell()
     with open(conf_file, 'w') as fp:
         fp.write(contents + '\n')
-        fp.write('{key}={val}\n'.format(
-            key='cromwell',
-            val=install_cromwell_jar(DEFAULT_CROMWELL_JAR)))
-        fp.write('{key}={val}\n'.format(
-            key='womtool',
-            val=install_womtool_jar(DEFAULT_WOMTOOL_JAR)))
+        fp.write(
+            '{key}={val}\n'.format(key='cromwell', val=cromwell.install_cromwell())
+        )
+        fp.write('{key}={val}\n'.format(key='womtool', val=cromwell.install_womtool()))

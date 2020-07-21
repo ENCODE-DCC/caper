@@ -10,6 +10,7 @@
     * Google Cloud Storage (DO NOT click on "Create credentials")
     * Google Cloud Storage JSON API
     * Genomics API
+    * **Google Cloud Life Sciences API** (for Cromwell's new API, i.e. `--use-google-cloud-life-sciences`)
 
 7. Install [Google Cloud Platform SDK](https://cloud.google.com/sdk/downloads) and authenticate through it. You will be asked to enter verification keys. Get keys from the URLs they provide.
     ```bash
@@ -30,3 +31,14 @@
 # Setting up a Caper server instance
 
 You will find [this](./conf_encode_workshop_2019.md) useful to set up your own Caper server on Google Cloud Platform.
+
+# How to run Caper with a service account
+
+On your Google Cloud Console, create a service account (`IAM & Admin` -> `Service Accounts`) with the following roles. You can add roles later in `IAM & Admin` -> `IAM`.
+    * Service Account User
+    * Compute Admin
+    * Genomics Admin
+    * **Cloud Life Sciences Admin** (for Cromwell's new API, i.e. `--use-google-cloud-life-sciences`)
+    * Storage Admin (or set it up for an individual bucket)
+
+Create a secret key JSON file for your service account. Make sure that your service account has enough permission for provionsing VM instances and write permission on output/work Google Cloud Storage buckets (`--gcp-out-dir` and `--gcp-work-dir`).

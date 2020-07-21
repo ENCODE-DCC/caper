@@ -22,11 +22,11 @@ if [ ! -d "$1" ]; then
   echo "[DB_DIR] ($1) doesn't exists."
   exit 1
 fi
-DB_DIR=$(cd $(dirname $1) && pwd -P)/$(basename $1)
+DB_DIR=$(cd "$(dirname "$1")" && pwd -P)/$(basename "$1")
 
-# check if PORT taken
+# check if PORT is taken
 if [ $# -gt 1 ]; then PORT=$2; else PORT=3306; fi
-if [ ! -z "$(netstat -tulpn 2>/dev/null | grep LISTEN | grep \:${PORT})" ]; then
+if netstat -tulpn 2>/dev/null | grep LISTEN | grep ":${PORT}" | grep -q ^; then
   echo "[PORT] (${PORT}) already taken."
   exit 1
 fi
@@ -44,20 +44,20 @@ RAND_STR=$(date | md5sum | awk '{print $1}')
 TMP_INIT_DIR=${HOME}/.run_mysql_server_docker/${RAND_STR}
 TMP_INIT_FILE=${TMP_INIT_DIR}/init_cromwell_user.sql
 
-rm -rf ${TMP_INIT_DIR}
-mkdir -p ${TMP_INIT_DIR}
-echo ${INIT_SQL} > ${TMP_INIT_FILE}
+rm -rf "${TMP_INIT_DIR}"
+mkdir -p "${TMP_INIT_DIR}"
+echo "${INIT_SQL}" > "${TMP_INIT_FILE}"
 
 echo "SECURITY WARNING: Your MySQL DB username/password can be exposed in \
 ${TMP_INIT_FILE}"
 
-chown ${UID} -R ${DB_DIR}
+chown ${UID} -R "${DB_DIR}"
 docker run -d --rm --user ${UID} \
---name ${CONTAINER_NAME} \
--v ${DB_DIR}:/var/lib/mysql \
--v ${TMP_INIT_DIR}:/docker-entrypoint-initdb.d \
--e MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD} \
--e MYSQL_DATABASE=${MYSQL_DB_NAME} \
---publish ${PORT}:3306 mysql:5.7
+--name "${CONTAINER_NAME}" \
+-v "${DB_DIR}":/var/lib/mysql \
+-v "${TMP_INIT_DIR}":/docker-entrypoint-initdb.d \
+-e MYSQL_ROOT_PASSWORD="${MYSQL_PASSWORD}" \
+-e MYSQL_DATABASE="${MYSQL_DB_NAME}" \
+--publish "${PORT}":3306 mysql:5.7
 
 echo "All done."
