@@ -309,7 +309,7 @@ def subcmd_server(caper_runner, args, nonblocking=False):
                         'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
                     )
 
-        except KeyboardInterrupt:
+        except Exception:
             logger.error(USER_INTERRUPT_WARNING)
             if thread:
                 thread.stop()
@@ -350,7 +350,7 @@ def subcmd_run(caper_runner, args):
                         'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
                     )
 
-        except KeyboardInterrupt:
+        except Exception:
             logger.error(USER_INTERRUPT_WARNING)
             if thread:
                 thread.stop()
