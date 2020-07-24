@@ -10,13 +10,19 @@ Make sure that `gcloud` (Google Cloud SDK CLI) is installed on your system.
 
 Enable the following APIs on your Google Cloud console.
 * Compute Engine API
-* Google Cloud Storage (DO NOT click on "Create credentials")
-* Google Cloud Storage JSON API
+* Cloud Storage (DO NOT click on "Create credentials")
+* Cloud Storage JSON API
 * Life Sciences API
 
-Prepare a service account with enough permission to Google Compute Engine and Google Cloud Storage. Generate a secret key JSON from it and keep it locally on your computer.
+Prepare a service account with enough permission to Compute Engine, Cloud Storage, Life Sciences API and Service Account User. Generate a secret key JSON from it and keep it locally on your computer.
 
 >**WARNING**: Such secret JSON file is a master key for important resources on your project. Keep it secure at your own risk. This file will be used for Caper so that it will be trasnferred to the created instance at `/opt/caper/service_account_key.json` visible to all users on the instance.
+
+## Troubleshooting errors
+
+If you see permission errors check if the above roles are correctly configured for your service account.
+
+If you see PAPI errors and Google's HTTP endpoint deprecation warning. Remove Life Sciences API role from your service account and add it back.
 
 ## How to create an instance
 
@@ -27,7 +33,7 @@ $ ./create_instance.sh
 
 However, this script is designed to work well with default arguments. Try with positional arguments only first and see if it works.
 ```bash
-$ ./create_instance.sh [INSTANCE_NAME] [PROJECT_NAME] [GCP_SERVICE_ACCOUNT_KEY_JSON_FILE] [GCP_OUT_DIR]
+$ ./create_instance.sh [INSTANCE_NAME] [PROJECT_ID] [GCP_SERVICE_ACCOUNT_KEY_JSON_FILE] [GCP_OUT_DIR]
 ```
 
 Allow several minutes for the instance to finish up installing Caper and dependencies.
@@ -38,7 +44,7 @@ Once the instance is created. It is recommended to make a new screen so that `ca
 ```bash
 $ sudo su
 $ screen -RD caper_server
-# on the screen
+# in the screen
 $ cd /opt/caper
 $ caper server
 ```
@@ -47,16 +53,28 @@ To stop a Caper server, open the screen with the same command line used for crea
 ```bash
 $ sudo su
 $ screen -RD caper_server
-# hit CTRL+C just one time
+# in the screen, hit CTRL+C just one time
 ```
 
 To change any parameters for Caper server/client, edit `/opt/caper/default.conf`. This file is shard among all users including `root`.
 
-## How to submit a workflow (IMPORTANT!)
+## How to submit a workflow
 
 Check if `caper list` works without any network errors.
 ```bash
 $ caper list
 ```
 
-Caper will localize big data files (URLs and URIs) on a GCS bucket directory `--gcp-loc-dir`, which defaults to `[GCP_OUT_DIR]/.caper_tmp/` if not defined. e.g. your FASTQs and reference genome data defined in an input JSON.
+Submit a workflow.
+```bash
+$ caper submit [WDL] -i input.json ...
+```
+
+Caper will localize big data files on a GCS bucket directory `--gcp-loc-dir`, which defaults to `[GCP_OUT_DIR]/.caper_tmp/` if not defined. e.g. your FASTQs and reference genome data defined in an input JSON.
+
+
+## Example
+
+```bash
+$ ./create_instance.sh xxxxxxxxxxxxx-caper-server xxxxxxxxxxxxx ~/.ssh/xxxxxxxxxxxxx-caper-server.json gs://xxxxxxxxxxxxx/caper_out --gcp-loc-dir gs://xxxxxxxxxxxxx/caper_tmp_dir --boot-disk-size 500GB
+```

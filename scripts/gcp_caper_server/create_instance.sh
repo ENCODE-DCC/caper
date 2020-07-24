@@ -10,7 +10,7 @@ if [[ $# -lt 1 ]]; then
   echo
   echo "Positional arguments:"
   echo "  [INSTANCE_NAME]: New instance's name."
-  echo "  [GCP_PRJ]: Name of your project on Google Cloud Platform. --gcp-prj in Caper."
+  echo "  [GCP_PRJ]: Your project's ID on Google Cloud Platform. --gcp-prj in Caper."
   echo "  [GCP_SERVICE_ACCOUNT_KEY_JSON_FILE]: Service account's secret key JSON file. --gcp-service-account-key-json in Caper."
   echo "  [GCP_OUT_DIR]: gs:// bucket dir path for outputs. --gcp-out-dir in Caper."
   echo
@@ -27,7 +27,8 @@ if [[ $# -lt 1 ]]; then
   echo "  -z, --zone: Zone. Check available zones: gcloud compute zones list. us-central1-a by default."
   echo "  -m, --machine-type: Machine type. Check available machine-types: gcloud compute machine-types list. n1-standard-4 by default."
   echo "  -b, --boot-disk-size: Boot disk size. Use a suffix for unit. e.g. GB and MB. 100GB by default."
-  echo "  -i, --image: Image. Check available images: gcloud compute images list. ubuntu-1804-bionic-v20200716 by default."
+  echo "  --boot-disk-type: Boot disk type. pd-standard (Standard persistent disk) by default."
+  echo "  --image: Image. Check available images: gcloud compute images list. ubuntu-1804-bionic-v20200716 by default."
   echo "  --image-project: Image project. ubuntu-os-cloud by default."
   echo "  --startup-script: Startup script CONTENTS (NOT A FILE). These command lines should sudo-install Java, PostgreSQL, Python3 and pip3. DO NOT INSTALL CAPER HERE. some apt-get command lines by default."
   echo
@@ -93,7 +94,12 @@ case $key in
     shift
     shift
     ;;
-  -i|--image)
+  --boot-disk-type)
+    BOOT_DISK_TYPE="$2"
+    shift
+    shift
+    ;;
+  --image)
     IMAGE="$2"
     shift
     shift
@@ -167,6 +173,9 @@ fi
 if [[ -z "$BOOT_DISK_SIZE" ]]; then
   BOOT_DISK_SIZE=100GB
 fi
+if [[ -z "$BOOT_DISK_TYPE" ]]; then
+  BOOT_DISK_TYPE=pd-standard
+fi
 if [[ -z "$IMAGE" ]]; then
   IMAGE=ubuntu-1804-bionic-v20200716
 fi
@@ -181,6 +190,10 @@ sudo apt-get -y install python3 python3-pip default-jre postgresql postgresql-co
 fi
 
 # validate all args.
+if [[ -z "$GCP_PRJ" ]]; then
+  echo "[GCP_PRJ] is not valid."
+  exit 1
+fi
 if [[ "$GCP_OUT_DIR" != gs://* ]]; then
   echo "[GCP_OUT_DIR] should be a GCS bucket path starting with gs://"
   exit 1
@@ -249,10 +262,9 @@ sudo ln -s $GLOBAL_CAPER_CONF_FILE $ROOT_CAPER_CONF_DIR
 
 ### google auth shared for all users
 sudo touch $GCP_AUTH_SH
-echo \"export GOOGLE_APPLICATION_DEFAULT=$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE\" >> $GCP_AUTH_SH
-echo \"export GOOGLE_CLOUD_PROJECT=$GCP_PRJ\" >> $GCP_AUTH_SH
+echo \"gcloud auth activate-service-account --key-file=$REMOTE_KEY_FILE\" >> $GCP_AUTH_SH
 echo \"mkdir -p ~/.caper\" >> $GCP_AUTH_SH
-echo \"ln -s /opt/caper/default.conf ~/.caper/ | true\" >> $GCP_AUTH_SH
+echo \"ln -s /opt/caper/default.conf ~/.caper/ 2> /dev/null | true\" >> $GCP_AUTH_SH
 
 $STARTUP_SCRIPT
 """
@@ -270,15 +282,15 @@ sudo python3 -m pip install --upgrade pip
 sudo pip install caper croo
 """
 
-echo "$(date): Configuring Google Cloud's environment variables for auth..."
-export GOOGLE_APPLICATION_DEFAULT="$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE"
-export GOOGLE_CLOUD_PROJECT="$GCP_PRJ"
+echo "$(date): Google auth with service account key file."
+gcloud auth activate-service-account --key-file="$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE"
+#export GOOGLE_APPLICATION_CREDENTIALS="$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE"
 
-echo "$STARTUP_SCRIPT" > x
 echo "$(date): Creating an instance..."
-gcloud compute instances create \
+gcloud --project "$GCP_PRJ" compute instances create \
   "$INSTANCE_NAME" \
   --boot-disk-size="$BOOT_DISK_SIZE" \
+  --boot-disk-type="$BOOT_DISK_TYPE" \
   --machine-type="$MACHINE_TYPE" \
   --zone="$ZONE" \
   --image="$IMAGE" \
@@ -287,11 +299,11 @@ gcloud compute instances create \
   $GCLOUD_EXTRA_PARAM
 echo "$(date): Created an instance successfully."
 
-echo "$(date): Waiting for 10 seconds for the instance to spin up..."
-sleep 10
+echo "$(date): Waiting for 30 seconds for the instance to spin up..."
+sleep 30
 
-echo "$(date): Transferring service account key file to instance..."
-gcloud compute scp \
+echo "$(date): Transferring service account key file to instance (if this fails, manually transfer key file to $REMOTE_KEY_FILE)..."
+gcloud --project "$GCP_PRJ" compute scp \
   "$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE" root@"$INSTANCE_NAME":"$REMOTE_KEY_FILE" \
   --zone="$ZONE"
 echo "$(date): Transferred a key file to instance successfully."
