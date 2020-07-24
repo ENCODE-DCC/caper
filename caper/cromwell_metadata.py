@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 
 from autouri import AutoURI
 
@@ -82,7 +83,7 @@ class CromwellMetadata:
         """
         if 'workflowRoot' in self._metadata:
             root = self._metadata['workflowRoot']
-            metadata_file = '/'.join([root, basename])
+            metadata_file = os.path.join(root, basename)
             AutoURI(metadata_file).write(json.dumps(self._metadata, indent=4) + '\n')
             logger.info('Wrote metadata file. {f}'.format(f=metadata_file))
         else:
