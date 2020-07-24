@@ -32,7 +32,49 @@ def test_mutually_exclusive_params(tmp_path):
     cmd = ['run', str(tmp_path / 'main.wdl'), '--docker', '--singularity']
     with pytest.raises(ValueError):
         cli_main(cmd)
+
+    cmd = [
+        'run',
+        str(tmp_path / 'main.wdl'),
+        '--docker',
+        'ubuntu:latest',
+        '--singularity',
+    ]
+    with pytest.raises(ValueError):
+        cli_main(cmd)
+
+    cmd = [
+        'run',
+        str(tmp_path / 'main.wdl'),
+        '--docker',
+        '--singularity',
+        'docker://ubuntu:latest',
+    ]
+    with pytest.raises(ValueError):
+        cli_main(cmd)
+
+    cmd = [
+        'run',
+        str(tmp_path / 'main.wdl'),
+        '--docker',
+        'ubuntu:latest',
+        '--singularity',
+        'docker://ubuntu:latest',
+    ]
+    with pytest.raises(ValueError):
+        cli_main(cmd)
+
     cmd = ['run', str(tmp_path / 'main.wdl'), '--docker', '--soft-glob-output']
+    with pytest.raises(ValueError):
+        cli_main(cmd)
+
+    cmd = [
+        'run',
+        str(tmp_path / 'main.wdl'),
+        '--docker',
+        'ubuntu:latest',
+        '--soft-glob-output',
+    ]
     with pytest.raises(ValueError):
         cli_main(cmd)
 
