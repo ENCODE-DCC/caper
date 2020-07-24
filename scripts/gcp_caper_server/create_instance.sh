@@ -104,7 +104,7 @@ case $key in
     shift
     ;;
   --startup-script)
-    STARTUP_SCRIPT="${2/#\~/$HOME}"
+    STARTUP_SCRIPT="$2"
     shift
     shift
     ;;
@@ -174,7 +174,7 @@ if [[ -z "$IMAGE_PROJECT" ]]; then
   IMAGE_PROJECT=ubuntu-os-cloud
 fi
 if [[ -z "$STARTUP_SCRIPT" ]]; then
-  STARTUP_SCRIPT="""#!/bin/bash
+  STARTUP_SCRIPT="""
 sudo apt-get update
 sudo apt-get -y install python3 python3-pip default-jre postgresql postgresql-contrib
 """
@@ -206,7 +206,7 @@ GLOBAL_CAPER_CONF_FILE="$CAPER_CONF_DIR/default.conf"
 REMOTE_KEY_FILE="$CAPER_CONF_DIR/service_account_key.json"
 
 # prepend more init commands to the startup-script
-STARTUP_SCRIPT="""
+STARTUP_SCRIPT="""#!/bin/bash
 ### make caper's work directory
 sudo mkdir -p $CAPER_CONF_DIR
 sudo chmod +r $CAPER_CONF_DIR
@@ -274,6 +274,7 @@ echo "$(date): Configuring Google Cloud's environment variables for auth..."
 export GOOGLE_APPLICATION_DEFAULT="$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE"
 export GOOGLE_CLOUD_PROJECT="$GCP_PRJ"
 
+echo "$STARTUP_SCRIPT" > x
 echo "$(date): Creating an instance..."
 gcloud compute instances create \
   "$INSTANCE_NAME" \
@@ -283,7 +284,7 @@ gcloud compute instances create \
   --image="$IMAGE" \
   --image-project="$IMAGE_PROJECT" \
   --metadata startup-script="$STARTUP_SCRIPT" \
-  "$GCLOUD_EXTRA_PARAM"
+  $GCLOUD_EXTRA_PARAM
 echo "$(date): Created an instance successfully."
 
 echo "$(date): Waiting for 10 seconds for the instance to spin up..."
