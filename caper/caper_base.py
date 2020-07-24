@@ -92,7 +92,7 @@ class CaperBase:
                         'gcp_service_account_key_json. '
                         'Using application default credentials? '.format(env=env_name)
                     )
-            logger.info(
+            logger.debug(
                 'Adding GCP service account key JSON {key} to '
                 'env var {env}'.format(key=gcp_service_account_key_json, env=env_name)
             )
