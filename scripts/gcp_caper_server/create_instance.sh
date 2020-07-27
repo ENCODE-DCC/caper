@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
   echo "Automated shell script to create Caper server instance with PostgreSQL on Google Cloud."
@@ -111,11 +111,6 @@ case $key in
     ;;
   --startup-script)
     STARTUP_SCRIPT="$2"
-    shift
-    shift
-    ;;
-  -e|--extra-param)
-    GCLOUD_EXTRA_PARAM="$2"
     shift
     shift
     ;;
@@ -295,8 +290,7 @@ gcloud --project "$GCP_PRJ" compute instances create \
   --zone="$ZONE" \
   --image="$IMAGE" \
   --image-project="$IMAGE_PROJECT" \
-  --metadata startup-script="$STARTUP_SCRIPT" \
-  $GCLOUD_EXTRA_PARAM
+  --metadata startup-script="$STARTUP_SCRIPT"
 echo "$(date): Created an instance successfully."
 
 echo "$(date): Waiting for 30 seconds for the instance to spin up..."
