@@ -42,88 +42,88 @@ fi
 # parse opt args first.
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
-key="$1"
-case $key in
-  -l|--gcp-loc-dir)
-    GCP_LOC_DIR="$2"
-    shift
-    shift
-    ;;
-  --gcp-region)
-    GCP_REGION="$2"
-    shift
-    shift
-    ;;
-  --postgresql-db-ip)
-    POSTGRESQL_DB_IP="$2"
-    shift
-    shift
-    ;;
-  --postgresql-db-port)
-    POSTGRESQL_DB_PORT="$2"
-    shift
-    shift
-    ;;
-  --postgresql-db-user)
-    POSTGRESQL_DB_USER="$2"
-    shift
-    shift
-    ;;
-  --postgresql-db-password)
-    POSTGRESQL_DB_PASSWORD="$2"
-    shift
-    shift
-    ;;
-  --postgresql-db-name)
-    POSTGRESQL_DB_NAME="$2"
-    shift
-    shift
-    ;;
-  -z|--zone)
-    ZONE="$2"
-    shift
-    shift
-    ;;
-  -m|--machine-type)
-    MACHINE_TYPE="$2"
-    shift
-    shift
-    ;;
-  -b|--boot-disk-size)
-    BOOT_DISK_SIZE="$2"
-    shift
-    shift
-    ;;
-  --boot-disk-type)
-    BOOT_DISK_TYPE="$2"
-    shift
-    shift
-    ;;
-  --image)
-    IMAGE="$2"
-    shift
-    shift
-    ;;
-  --image-project)
-    IMAGE_PROJECT="$2"
-    shift
-    shift
-    ;;
-  --startup-script)
-    STARTUP_SCRIPT="$2"
-    shift
-    shift
-    ;;
-  -*)
-    echo "Wrong parameter: $1."
-    shift
-    exit 1
-    ;;
-  *)
-    POSITIONAL+=("$1")
-    shift
-    ;;
-esac
+  key="$1"
+  case $key in
+    -l|--gcp-loc-dir)
+      GCP_LOC_DIR="$2"
+      shift
+      shift
+      ;;
+    --gcp-region)
+      GCP_REGION="$2"
+      shift
+      shift
+      ;;
+    --postgresql-db-ip)
+      POSTGRESQL_DB_IP="$2"
+      shift
+      shift
+      ;;
+    --postgresql-db-port)
+      POSTGRESQL_DB_PORT="$2"
+      shift
+      shift
+      ;;
+    --postgresql-db-user)
+      POSTGRESQL_DB_USER="$2"
+      shift
+      shift
+      ;;
+    --postgresql-db-password)
+      POSTGRESQL_DB_PASSWORD="$2"
+      shift
+      shift
+      ;;
+    --postgresql-db-name)
+      POSTGRESQL_DB_NAME="$2"
+      shift
+      shift
+      ;;
+    -z|--zone)
+      ZONE="$2"
+      shift
+      shift
+      ;;
+    -m|--machine-type)
+      MACHINE_TYPE="$2"
+      shift
+      shift
+      ;;
+    -b|--boot-disk-size)
+      BOOT_DISK_SIZE="$2"
+      shift
+      shift
+      ;;
+    --boot-disk-type)
+      BOOT_DISK_TYPE="$2"
+      shift
+      shift
+      ;;
+    --image)
+      IMAGE="$2"
+      shift
+      shift
+      ;;
+    --image-project)
+      IMAGE_PROJECT="$2"
+      shift
+      shift
+      ;;
+    --startup-script)
+      STARTUP_SCRIPT="$2"
+      shift
+      shift
+      ;;
+    -*)
+      echo "Wrong parameter: $1."
+      shift
+      exit 1
+      ;;
+    *)
+      POSITIONAL+=("$1")
+      shift
+      ;;
+  esac
 done
 
 # restore pos args.
@@ -279,7 +279,6 @@ sudo pip install caper croo
 
 echo "$(date): Google auth with service account key file."
 gcloud auth activate-service-account --key-file="$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE"
-#export GOOGLE_APPLICATION_CREDENTIALS="$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE"
 
 echo "$(date): Creating an instance..."
 gcloud --project "$GCP_PRJ" compute instances create \
