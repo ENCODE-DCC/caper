@@ -292,8 +292,10 @@ gcloud --project "$GCP_PRJ" compute instances create \
   --metadata startup-script="$STARTUP_SCRIPT"
 echo "$(date): Created an instance successfully."
 
-echo "$(date): Waiting for 30 seconds for the instance to spin up..."
-sleep 30
+while [[ $(gcloud --project "$GCP_PRJ" compute instances describe "${INSTANCE_NAME}" --zone "${ZONE}" --format="value(status)") -ne "RUNNING" ]]; do
+    echo "$(date): Waiting for 30 seconds for the instance to spin up..."
+    sleep 30
+done
 
 echo "$(date): Transferring service account key file to instance (if this fails, manually transfer key file to $REMOTE_KEY_FILE)..."
 gcloud --project "$GCP_PRJ" compute scp \
