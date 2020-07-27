@@ -8,13 +8,13 @@ Google Cloud Life Sciences API is a new API replacing the old deprecating Genomi
 
 Make sure that `gcloud` (Google Cloud SDK CLI) is installed on your system.
 
-Enable the following APIs on your Google Cloud console.
+Go to [APIs & Services](https://console.cloud.google.com/apis/dashboard) on your project and enable the following APIs on your Google Cloud console.
 * Compute Engine API
-* Cloud Storage (DO NOT click on "Create credentials")
+* Cloud Storage: DO NOT click on `Create credentials`.
 * Cloud Storage JSON API
-* Life Sciences API
+* Google Cloud Life Sciences API
 
-Prepare a service account with enough permission to Compute Engine, Cloud Storage, Life Sciences API and Service Account User. Generate a secret key JSON from it and keep it locally on your computer.
+Go to [Service accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) on your project and create a new service account with enough permission to Compute Engine, Cloud Storage, Life Sciences API and **Service Account User** (VERY IMPORTANT). Generate a secret key JSON from it and keep it locally on your computer.
 
 >**WARNING**: Such secret JSON file is a master key for important resources on your project. Keep it secure at your own risk. This file will be used for Caper so that it will be trasnferred to the created instance at `/opt/caper/service_account_key.json` visible to all users on the instance.
 
@@ -56,7 +56,7 @@ $ screen -RD caper_server
 # in the screen, hit CTRL+C just one time
 ```
 
-To change any parameters for Caper server/client, edit `/opt/caper/default.conf`. This file is shard among all users including `root`.
+To change any parameters for Caper server/client, edit `/opt/caper/default.conf`. This file is shared among all users including `root`.
 
 ## How to submit a workflow
 
