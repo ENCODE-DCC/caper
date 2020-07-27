@@ -28,12 +28,12 @@ If you see PAPI errors and Google's HTTP endpoint deprecation warning. Remove Li
 
 Run without arguments to see detailed help. Some optional arguments are very important depending on your region/zone. e.g. `--gcp-region` (for Life Sciences API) and `--zone` (for instance creation). These regional parameters default to US central region/zones.
 ```bash
-$ ./create_instance.sh
+$ bash create_instance.sh
 ```
 
 However, this script is designed to work well with default arguments. Try with positional arguments only first and see if it works.
 ```bash
-$ ./create_instance.sh [INSTANCE_NAME] [PROJECT_ID] [GCP_SERVICE_ACCOUNT_KEY_JSON_FILE] [GCP_OUT_DIR]
+$ bash create_instance.sh [INSTANCE_NAME] [PROJECT_ID] [GCP_SERVICE_ACCOUNT_KEY_JSON_FILE] [GCP_OUT_DIR]
 ```
 
 Allow several minutes for the instance to finish up installing Caper and dependencies.
