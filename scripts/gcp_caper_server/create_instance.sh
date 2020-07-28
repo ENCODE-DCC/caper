@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
 
 if [[ $# -lt 1 ]]; then
   echo "Automated shell script to create Caper server instance with PostgreSQL on Google Cloud."
@@ -293,14 +293,16 @@ gcloud --project "$GCP_PRJ" compute instances create \
 echo "$(date): Created an instance successfully."
 
 while [[ $(gcloud --project "$GCP_PRJ" compute instances describe "${INSTANCE_NAME}" --zone "${ZONE}" --format="value(status)") -ne "RUNNING" ]]; do
-    echo "$(date): Waiting for 30 seconds for the instance to spin up..."
-    sleep 30
+    echo "$(date): Waiting for 20 seconds for the instance to spin up..."
+    sleep 20
 done
 
-echo "$(date): Transferring service account key file to instance (if this fails, manually transfer key file to $REMOTE_KEY_FILE)..."
-gcloud --project "$GCP_PRJ" compute scp \
-  "$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE" root@"$INSTANCE_NAME":"$REMOTE_KEY_FILE" \
-  --zone="$ZONE"
+echo "$(date): If key file transfer fails for several times then manually transfer it to $REMOTE_KEY_FILE on the instance."
+echo "$(date): Transferring service account key file to instance..."
+until gcloud --project "$GCP_PRJ" compute scp "$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE" root@"$INSTANCE_NAME":"$REMOTE_KEY_FILE" --zone="$ZONE"; do
+  echo "$(date): Key file transfer failed. Retrying in 20 seconds..."
+  sleep 20
+done
 echo "$(date): Transferred a key file to instance successfully."
 
 echo "$(date): Allow several minutes for the instance to finish up installing Caper and dependencies."
