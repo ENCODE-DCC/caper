@@ -25,14 +25,21 @@ def test_wrong_subcmd():
         cli_main(cmd)
 
 
-def test_mutually_exclusive_params(tmp_path):
+@pytest.mark.parametrize(
+    'cmd',
+    [
+        ['--docker', '--singularity'],
+        ['--docker', 'ubuntu:latest', '--singularity'],
+        ['--docker', '--singularity', 'docker://ubuntu:latest'],
+        ['--docker', 'ubuntu:latest', '--singularity', 'docker://ubuntu:latest'],
+        ['--docker', '--soft-glob-output'],
+        ['--docker', 'ubuntu:latest', '--soft-glob-output'],
+    ],
+)
+def test_mutually_exclusive_params(tmp_path, cmd):
     make_directory_with_wdls(str(tmp_path))
 
-    # mutually exclusive params
-    cmd = ['run', str(tmp_path / 'main.wdl'), '--docker', '--singularity']
-    with pytest.raises(ValueError):
-        cli_main(cmd)
-    cmd = ['run', str(tmp_path / 'main.wdl'), '--docker', '--soft-glob-output']
+    cmd = ['run', str(tmp_path / 'main.wdl')] + cmd
     with pytest.raises(ValueError):
         cli_main(cmd)
 

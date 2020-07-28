@@ -5,12 +5,13 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='caper',
-    version='1.0.0',
+    version='1.1.0',
     python_requires='>=3.6',
     scripts=[
         'bin/caper',
         'bin/run_mysql_server_docker.sh',
         'bin/run_mysql_server_singularity.sh',
+        'scripts/gcp_caper_server/create_instance.sh',
     ],
     author='Jin Lee',
     author_email='leepc12@gmail.com',

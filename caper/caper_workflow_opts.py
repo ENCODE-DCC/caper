@@ -181,7 +181,7 @@ class CaperWorkflowOpts:
                     )
                 )
             else:
-                raise ValueError(
+                logger.warning(
                     'Docker image not found in WDL. wdl={wdl}'.format(wdl=wdl)
                 )
         if docker:

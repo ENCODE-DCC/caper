@@ -224,7 +224,7 @@ class CaperRunner(CaperBase):
                         'Env var {env} does not match with '
                         'gcp_prj {prj}.'.format(env=env_name, prj=gcp_prj)
                     )
-            logger.info(
+            logger.debug(
                 'Adding {prj} to env var {env}'.format(prj=gcp_prj, env=env_name)
             )
             os.environ[env_name] = gcp_prj

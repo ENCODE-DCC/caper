@@ -75,7 +75,7 @@ def check_flags(args):
     singularity_flag = False
     docker_flag = False
 
-    if hasattr(args, 'singularity') and args.singularity:
+    if hasattr(args, 'singularity') and args.singularity is not None:
         singularity_flag = True
         if args.singularity.endswith(('.wdl', '.cwl')):
             raise ValueError(
@@ -84,7 +84,7 @@ def check_flags(args):
                 'singularity={p}'.format(p=args.singularity)
             )
 
-    if hasattr(args, 'docker') and args.docker:
+    if hasattr(args, 'docker') and args.docker is not None:
         docker_flag = True
         if args.docker.endswith(('.wdl', '.cwl')):
             raise ValueError(
@@ -309,7 +309,7 @@ def subcmd_server(caper_runner, args, nonblocking=False):
                         'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
                     )
 
-        except KeyboardInterrupt:
+        except Exception:
             logger.error(USER_INTERRUPT_WARNING)
             if thread:
                 thread.stop()
@@ -350,7 +350,7 @@ def subcmd_run(caper_runner, args):
                         'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
                     )
 
-        except KeyboardInterrupt:
+        except Exception:
             logger.error(USER_INTERRUPT_WARNING)
             if thread:
                 thread.stop()
@@ -489,7 +489,6 @@ def main(args=None, nonblocking_server=False):
     print_version(parser, known_args)
 
     parsed_args = parser.parse_args(args)
-
     init_logging(parsed_args)
     init_autouri(parsed_args)
     check_dirs(parsed_args)
