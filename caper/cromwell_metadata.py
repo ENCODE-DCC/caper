@@ -29,21 +29,19 @@ class CromwellMetadata:
 
     @property
     def workflow_id(self):
-        return self._metadata['id']
+        return self._metadata.get('id')
 
     @property
     def workflow_status(self):
-        return self._metadata['status']
+        return self._metadata.get('status')
 
     @property
     def failures(self):
-        if 'failures' in self._metadata:
-            return self._metadata['failures']
+        return self._metadata.get('failures')
 
     @property
     def calls(self):
-        if 'calls' in self._metadata:
-            return self._metadata['calls']
+        return self._metadata.get('calls')
 
     def recurse_calls(self, fn_call, parent_call_names=tuple()):
         """Recurse on tasks in metadata.
