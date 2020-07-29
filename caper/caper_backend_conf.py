@@ -253,14 +253,16 @@ class CaperBackendConf:
 
         # cloud backends
         if gcp_prj and gcp_out_dir:
-            if gcp_service_account_key_json and not os.path.exists(
-                gcp_service_account_key_json
-            ):
-                raise FileNotFoundError(
-                    'gcp_service_account_key_json does not exist. f={f}'.format(
-                        f=gcp_service_account_key_json
-                    )
+            if gcp_service_account_key_json:
+                gcp_service_account_key_json = os.path.expanduser(
+                    gcp_service_account_key_json
                 )
+                if not os.path.exists(gcp_service_account_key_json):
+                    raise FileNotFoundError(
+                        'gcp_service_account_key_json does not exist. f={f}'.format(
+                            f=gcp_service_account_key_json
+                        )
+                    )
 
             merge_dict(
                 self._template,
