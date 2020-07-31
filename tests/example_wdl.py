@@ -60,6 +60,7 @@ MAIN_WDL = dedent(
     task t1 {
         command {
             echo 1 > out.txt
+            sleep 10
         }
         output {
             File out = 'out.txt'

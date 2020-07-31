@@ -279,12 +279,14 @@ class CromwellMetadata:
             nonlocal result
             nonlocal excluded_cols
             monitoring_log = call.get('monitoringLog')
+            stat_methods = ('mean', 'std', 'max', 'min', 'last')
 
             if monitoring_log:
                 dataframe = pd.read_csv(
                     io.StringIO(GCSURI(monitoring_log).read()), delimiter='\t'
                 )
                 rt_attrs = call.get('runtimeAttributes')
+
                 data = {
                     'task_name': call_name,
                     'shard_idx': call.get('shardIndex'),
@@ -295,23 +297,22 @@ class CromwellMetadata:
                         'disk': parse_cromwell_disks(rt_attrs.get('disks')),
                         'mem': parse_cromwell_memory(rt_attrs.get('memory')),
                     },
-                    'stats': {'last': {}, 'mean': {}, 'std': {}, 'max': {}, 'min': {}},
+                    'stats': {s: {} for s in stat_methods},
                     'input_file_size': {},
                 }
-                if not dataframe.empty:
-                    last_idx = dataframe.tail(1).index.item()
                 for i, col_name in enumerate(dataframe.columns):
                     if i in excluded_cols:
                         continue
-                    for stat_method in ('mean', 'std', 'max', 'min'):
-                        data['stats'][stat_method][col_name] = (
-                            None
-                            if dataframe.empty
-                            else getattr(dataframe[col_name], stat_method)()
-                        )
-                    data['stats']['last'][col_name] = (
-                        None if dataframe.empty else dataframe[col_name][last_idx]
-                    )
+                    for stat_method in stat_methods:
+                        if dataframe.empty:
+                            val = None
+                        elif stat_method == 'last':
+                            last_idx = dataframe.tail(1).index.item()
+                            val = dataframe[col_name][last_idx]
+                        else:
+                            val = getattr(dataframe[col_name], stat_method)()
+                        data['stats'][stat_method][col_name] = val
+
                 for input_name, input_file in call['inputs'].items():
                     if GCSURI(input_file).is_valid:
                         data['input_file_size'][input_name] = GCSURI(input_file).size

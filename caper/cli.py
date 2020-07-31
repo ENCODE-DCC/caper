@@ -442,7 +442,20 @@ def subcmd_metadata(caper_client, args):
     print(json.dumps(m[0], indent=4))
 
 
-def get_single_cromwell_metadata_obj(caper_client, args):
+def get_single_cromwell_metadata_obj(caper_client, args, subcmd):
+    if not args.wf_id_or_label:
+        raise ValueError(
+            'Define at least one metadata JSON file or '
+            'a search query for workflow ID/string label '
+            'if there is a running Caper server.'
+        )
+    elif len(args.wf_id_or_label) > 1:
+        raise ValueError(
+            'Multiple files/queries are not allowed for {subcmd}. '
+            'Define one metadata JSON file or a search query '
+            'for workflow ID/string label.'.format(subcmd=subcmd)
+        )
+
     metadata_file = AutoURI(get_abspath(args.wf_id_or_label[0]))
 
     if metadata_file.exists:
@@ -461,13 +474,7 @@ def get_single_cromwell_metadata_obj(caper_client, args):
 
 
 def subcmd_troubleshoot(caper_client, args):
-    if len(args.wf_id_or_label) > 1:
-        raise ValueError(
-            'Multiple queries are not allowed for troubleshoot. '
-            'Use workflow_id or metadata JSON file path.'
-        )
-
-    cm = get_single_cromwell_metadata_obj(caper_client, args)
+    cm = get_single_cromwell_metadata_obj(caper_client, args, 'troubleshoot/debug')
     cm.troubleshoot(
         fileobj=sys.stdout,
         show_completed_task=args.show_completed_task,
@@ -476,13 +483,12 @@ def subcmd_troubleshoot(caper_client, args):
 
 
 def subcmd_gcp_monitor(caper_client, args):
-    if len(args.wf_id_or_label) > 1:
-        raise ValueError(
-            'Multiple queries are not allowed for gcp_profile. '
-            'Use workflow_id or metadata JSON file path.'
-        )
+    """Prints out monitoring result either in a TSV format or in a JSON one.
 
-    cm = get_single_cromwell_metadata_obj(caper_client, args)
+    TSV will be a flattened JSON but header (1st row) for input_file_size
+    will be fixed at one col since its length can be different for each task.
+    """
+    cm = get_single_cromwell_metadata_obj(caper_client, args, 'gcp_profile')
     workflow_data = cm.gcp_monitor()
 
     if workflow_data:
@@ -490,13 +496,13 @@ def subcmd_gcp_monitor(caper_client, args):
             print(json.dumps(workflow_data, indent=4))
             return
 
-        # print header
+        # print header, look at first data to create a header
         first_data = workflow_data[0]
         first_data.pop('input_file_size')
-        # flatten with dot notation
         flattened_key_tuples = flatten_dict(first_data).keys()
+        # dot notation for key names in a flattened JSON
         header = list(['.'.join(tup) for tup in flattened_key_tuples])
-        header += ['input_file_sizes']
+        header += ['input_file_size']
         print('\t'.join(header))
 
         # print contents
