@@ -53,6 +53,7 @@ def test_create_file(tmp_path):
 
     backend = 'my_backend'
     max_retries = 999
+    gcp_monitoring_script = 'gs://dummy/gcp_monitoring_script.sh'
     basename = 'my_basename.json'
 
     f = co.create_file(
@@ -66,6 +67,7 @@ def test_create_file(tmp_path):
         no_build_singularity=False,
         backend=backend,
         max_retries=max_retries,
+        gcp_monitoring_script=gcp_monitoring_script,
         basename=basename,
     )
 
@@ -85,6 +87,7 @@ def test_create_file(tmp_path):
 
     assert d['backend'] == 'world'
     assert dra['maxRetries'] == max_retries
+    assert dra['monitoring_script'] == gcp_monitoring_script
     assert os.path.basename(f) == basename
     assert os.path.dirname(f) == str(tmp_path)
 

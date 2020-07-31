@@ -19,6 +19,7 @@ from .cromwell_backend import (
     CromwellBackendDatabase,
 )
 from .cromwell_metadata import CromwellMetadata
+from .dict_tool import flatten_dict
 from .server_heartbeat import ServerHeartbeat
 
 logger = logging.getLogger(__name__)
@@ -267,6 +268,8 @@ def client(args):
             subcmd_metadata(c, args)
         elif args.action in ('troubleshoot', 'debug'):
             subcmd_troubleshoot(c, args)
+        elif args.action == 'gcp_monitor':
+            subcmd_gcp_monitor(c, args)
         else:
             raise ValueError('Unsupported client action {act}'.format(act=args.action))
 
@@ -335,6 +338,7 @@ def subcmd_run(caper_runner, args):
                 no_build_singularity=args.no_build_singularity,
                 custom_backend_conf=get_abspath(args.backend_file),
                 max_retries=args.max_retries,
+                gcp_monitoring_script=args.gcp_monitoring_script,
                 ignore_womtool=args.ignore_womtool,
                 no_deepcopy=args.no_deepcopy,
                 fileobj_stdout=f,
@@ -370,6 +374,7 @@ def subcmd_submit(caper_client, args):
         singularity_cachedir=args.singularity_cachedir,
         no_build_singularity=args.no_build_singularity,
         max_retries=args.max_retries,
+        gcp_monitoring_script=args.gcp_monitoring_script,
         ignore_womtool=args.ignore_womtool,
         no_deepcopy=args.no_deepcopy,
         hold=args.hold,
@@ -437,14 +442,7 @@ def subcmd_metadata(caper_client, args):
     print(json.dumps(m[0], indent=4))
 
 
-def subcmd_troubleshoot(caper_client, args):
-    if len(args.wf_id_or_label) > 1:
-        raise ValueError(
-            'Multiple queries are not allowed for troubleshoot. '
-            'Use workflow_id or metadata JSON file path.'
-        )
-
-    # check if it's a file
+def get_single_cromwell_metadata_obj(caper_client, args):
     metadata_file = AutoURI(get_abspath(args.wf_id_or_label[0]))
 
     if metadata_file.exists:
@@ -459,13 +457,51 @@ def subcmd_troubleshoot(caper_client, args):
             raise ValueError('Found no workflow matching with search query.')
         metadata = m[0]
 
-    # start troubleshooting
-    cm = CromwellMetadata(metadata)
+    return CromwellMetadata(metadata)
+
+
+def subcmd_troubleshoot(caper_client, args):
+    if len(args.wf_id_or_label) > 1:
+        raise ValueError(
+            'Multiple queries are not allowed for troubleshoot. '
+            'Use workflow_id or metadata JSON file path.'
+        )
+
+    cm = get_single_cromwell_metadata_obj(caper_client, args)
     cm.troubleshoot(
         fileobj=sys.stdout,
         show_completed_task=args.show_completed_task,
         show_stdout=args.show_stdout,
     )
+
+
+def subcmd_gcp_monitor(caper_client, args):
+    if len(args.wf_id_or_label) > 1:
+        raise ValueError(
+            'Multiple queries are not allowed for gcp_profile. '
+            'Use workflow_id or metadata JSON file path.'
+        )
+
+    cm = get_single_cromwell_metadata_obj(caper_client, args)
+    workflow_data = cm.gcp_monitor()
+
+    if workflow_data:
+        if args.json_format:
+            print(json.dumps(workflow_data, indent=4))
+            return
+
+        # print header
+        first_data = workflow_data[0]
+        first_data.pop('input_file_size')
+        # flatten with dot notation
+        flattened_key_tuples = flatten_dict(first_data).keys()
+        header = list(['.'.join(tup) for tup in flattened_key_tuples])
+        header += ['input_file_sizes']
+        print('\t'.join(header))
+
+        # print contents
+        for task_data in workflow_data:
+            print('\t'.join([str(v) for _, v in flatten_dict(task_data).items()]))
 
 
 def main(args=None, nonblocking_server=False):

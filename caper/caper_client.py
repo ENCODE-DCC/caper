@@ -222,6 +222,7 @@ class CaperClientSubmit(CaperClient):
         singularity_cachedir=Singularity.DEFAULT_SINGULARITY_CACHEDIR,
         no_build_singularity=False,
         max_retries=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
+        gcp_monitoring_script=CaperWorkflowOpts.DEFAULT_GCP_MONITORING_SCRIPT,
         ignore_womtool=False,
         no_deepcopy=False,
         hold=False,
@@ -333,6 +334,7 @@ class CaperClientSubmit(CaperClient):
             singularity_cachedir=singularity_cachedir,
             no_build_singularity=no_build_singularity,
             max_retries=max_retries,
+            gcp_monitoring_script=gcp_monitoring_script,
         )
 
         labels = self._caper_labels.create_file(
