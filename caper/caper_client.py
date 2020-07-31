@@ -301,6 +301,9 @@ class CaperClientSubmit(CaperClient):
         if not wdl_file.exists:
             raise FileNotFoundError('WDL does not exists. {wdl}'.format(wdl=wdl))
 
+        if str_label is None and inputs:
+            str_label = AutoURI(inputs).basename_wo_ext
+
         if work_dir is None:
             work_dir = self.create_timestamped_work_dir(prefix=wdl_file.basename_wo_ext)
 
