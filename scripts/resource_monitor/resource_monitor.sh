@@ -4,7 +4,7 @@
 
 INTERVAL=$1
 if [[ -z "$INTERVAL" ]]; then
-  INTERVAL=10
+  INTERVAL=20
 fi
 
 printf 'time\tmem\tdisk\tcpu_pct\n'
