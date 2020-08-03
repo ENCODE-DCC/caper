@@ -22,6 +22,16 @@ DEFAULT_OUT_DIR = '.'
 DEFAULT_CROMWELL_STDOUT = './cromwell.out'
 
 
+def get_defaults(conf_file=None):
+    """Wrapper for `get_parser_and_defaults()`.
+    Use this function to get default values updated with `conf_file`.
+
+    Returns updated defaults only.
+    """
+    _, conf_dict = get_parser_and_defaults(conf_file=conf_file)
+    return conf_dict
+
+
 def get_parser_and_defaults(conf_file=None):
     """Creates a main parser and make a subparser for each subcommand.
     There are many parent parsers defined here.
