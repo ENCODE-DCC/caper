@@ -87,9 +87,24 @@ def test_create_file(tmp_path):
 
     assert d['backend'] == 'world'
     assert dra['maxRetries'] == max_retries
-    assert d['monitoring_script'] == gcp_monitoring_script
+    # this should be ignored for non-gcp backends
+    assert 'monitoring_script' not in d
     assert os.path.basename(f) == basename
     assert os.path.dirname(f) == str(tmp_path)
+
+    # test for gcp backend
+    f = co.create_file(
+        directory=str(tmp_path),
+        wdl=str(wdl),
+        backend='gcp',
+        docker='ubuntu:latest',
+        max_retries=max_retries,
+        gcp_monitoring_script=gcp_monitoring_script,
+        basename=basename,
+    )
+    with open(f) as fp:
+        d = json.loads(fp.read())
+    assert d['monitoring_script'] == gcp_monitoring_script
 
 
 def test_create_file_with_google_cloud_life_sciences(tmp_path):
