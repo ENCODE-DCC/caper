@@ -165,11 +165,11 @@ def test_run_gcp_with_life_sciences_api(
         assert instance_mem >= 1024 * 1024 * 1024
         assert instance_disk >= 10 * 1024 * 1024 * 1024
 
-        max_cpu_percent = data['stats']['max']['cpu_percent']
+        max_cpu_percent = data['stats']['max']['cpu_pct']
         max_mem = data['stats']['max']['mem']
         max_disk = data['stats']['max']['disk']
         if max_cpu_percent or data['task_name'] == 'main.t1':
-            assert max_cpu_percent <= 100
+            assert max_cpu_percent <= 100.0
         if max_mem or data['task_name'] == 'main.t1':
             assert max_mem <= instance_mem
         if max_disk or data['task_name'] == 'main.t1':

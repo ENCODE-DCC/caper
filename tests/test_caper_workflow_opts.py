@@ -87,7 +87,7 @@ def test_create_file(tmp_path):
 
     assert d['backend'] == 'world'
     assert dra['maxRetries'] == max_retries
-    assert dra['monitoring_script'] == gcp_monitoring_script
+    assert d['monitoring_script'] == gcp_monitoring_script
     assert os.path.basename(f) == basename
     assert os.path.dirname(f) == str(tmp_path)
 
