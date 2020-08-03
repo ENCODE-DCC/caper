@@ -394,40 +394,47 @@ def subcmd_unhold(caper_client, args):
 def subcmd_list(caper_client, args):
     workflows = caper_client.list(args.wf_id_or_label)
 
-    formats = args.format.split(',')
-    print('\t'.join(formats))
-    if workflows is None:
-        return
-    for w in workflows:
-        row = []
-        workflow_id = w.get('id')
-        parent_workflow_id = w.get('parentWorkflowId')
+    try:
+        formats = args.format.split(',')
+        print('\t'.join(formats))
+        if workflows is None:
+            return
+        for w in workflows:
+            row = []
+            workflow_id = w.get('id')
+            parent_workflow_id = w.get('parentWorkflowId')
 
-        if args.hide_subworkflow and parent_workflow_id:
-            continue
-        if args.hide_result_before is not None:
-            if w.get('submission') and w.get('submission') <= args.hide_result_before:
+            if args.hide_subworkflow and parent_workflow_id:
                 continue
-        for f in formats:
-            if f == 'workflow_id':
-                row.append(str(workflow_id))
-            elif f == 'str_label':
-                if 'labels' in w and CaperLabels.KEY_CAPER_STR_LABEL in w['labels']:
-                    lbl = w['labels'][CaperLabels.KEY_CAPER_STR_LABEL]
+            if args.hide_result_before is not None:
+                if (
+                    w.get('submission')
+                    and w.get('submission') <= args.hide_result_before
+                ):
+                    continue
+            for f in formats:
+                if f == 'workflow_id':
+                    row.append(str(workflow_id))
+                elif f == 'str_label':
+                    if 'labels' in w and CaperLabels.KEY_CAPER_STR_LABEL in w['labels']:
+                        lbl = w['labels'][CaperLabels.KEY_CAPER_STR_LABEL]
+                    else:
+                        lbl = None
+                    row.append(str(lbl))
+                elif f == 'user':
+                    if 'labels' in w and CaperLabels.KEY_CAPER_USER in w['labels']:
+                        lbl = w['labels'][CaperLabels.KEY_CAPER_USER]
+                    else:
+                        lbl = None
+                    row.append(str(lbl))
+                elif f == 'parent':
+                    row.append(str(parent_workflow_id))
                 else:
-                    lbl = None
-                row.append(str(lbl))
-            elif f == 'user':
-                if 'labels' in w and CaperLabels.KEY_CAPER_USER in w['labels']:
-                    lbl = w['labels'][CaperLabels.KEY_CAPER_USER]
-                else:
-                    lbl = None
-                row.append(str(lbl))
-            elif f == 'parent':
-                row.append(str(parent_workflow_id))
-            else:
-                row.append(str(w.get(f)))
-        print('\t'.join(row))
+                    row.append(str(w.get(f)))
+            print('\t'.join(row))
+
+    except BrokenPipeError:
+        logger.debug('Ignored BrokenPipeError.')
 
 
 def subcmd_metadata(caper_client, args):
