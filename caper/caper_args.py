@@ -26,6 +26,10 @@ def get_defaults(conf_file=None):
     """Wrapper for `get_parser_and_defaults()`.
     Use this function to get default values updated with `conf_file`.
 
+    Args:
+        conf_file:
+            `DEFAULT_CAPER_CONF` will be used if it is None.
+
     Returns updated defaults only.
     """
     _, conf_dict = get_parser_and_defaults(conf_file=conf_file)
@@ -46,6 +50,7 @@ def get_parser_and_defaults(conf_file=None):
         conf_file:
             If defined, this will be used instead of partially parsing command line
             arguments to find conf_file (-c).
+            `DEFAULT_CAPER_CONF` will be used if it is None.
     Returns:
         parser:
             ArgumentParser object with all arguments defined for each sub-
