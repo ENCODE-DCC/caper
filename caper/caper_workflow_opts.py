@@ -3,7 +3,7 @@ import json
 import logging
 import os
 
-from autouri import AutoURI
+from autouri import GCSURI, AutoURI
 
 from .caper_wdl_parser import CaperWDLParser
 from .cromwell_backend import BACKEND_AWS, BACKEND_GCP
@@ -17,6 +17,9 @@ class CaperWorkflowOpts:
     DEFAULT_RUNTIME_ATTRIBUTES = 'default_runtime_attributes'
     BASENAME_WORKFLOW_OPTS_JSON = 'workflow_opts.json'
     DEFAULT_MAX_RETRIES = 1
+    DEFAULT_GCP_MONITORING_SCRIPT = (
+        'gs://caper-data/scripts/resource_monitor/resource_monitor.sh'
+    )
 
     def __init__(
         self,
@@ -110,6 +113,7 @@ class CaperWorkflowOpts:
         singularity_cachedir=None,
         no_build_singularity=False,
         max_retries=DEFAULT_MAX_RETRIES,
+        gcp_monitoring_script=DEFAULT_GCP_MONITORING_SCRIPT,
         basename=BASENAME_WORKFLOW_OPTS_JSON,
     ):
         """Creates Cromwell's workflow options JSON file.
@@ -157,6 +161,9 @@ class CaperWorkflowOpts:
                 lead to corruption of the image file.
             max_retries:
                 Maximum number of retirals for each task. 1 means 1 retrial.
+            gcp_monitoring_script:
+                Monitoring script for GCP backend only.
+                Useful to monitor resources on an instance.
             basename:
                 Basename for a temporary workflow options JSON file.
         """
@@ -217,6 +224,15 @@ class CaperWorkflowOpts:
 
         if max_retries is not None:
             dra['maxRetries'] = max_retries
+
+        if gcp_monitoring_script and backend == BACKEND_GCP:
+            if not GCSURI(gcp_monitoring_script).is_valid:
+                raise ValueError(
+                    'gcp_monitoring_script is not a valid URI. {uri}'.format(
+                        uri=gcp_monitoring_script
+                    )
+                )
+            template['monitoring_script'] = gcp_monitoring_script
 
         if custom_options:
             s = AutoURI(custom_options).read()

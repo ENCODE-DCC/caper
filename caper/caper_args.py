@@ -22,6 +22,20 @@ DEFAULT_OUT_DIR = '.'
 DEFAULT_CROMWELL_STDOUT = './cromwell.out'
 
 
+def get_defaults(conf_file=None):
+    """Wrapper for `get_parser_and_defaults()`.
+    Use this function to get default values updated with `conf_file`.
+
+    Args:
+        conf_file:
+            `DEFAULT_CAPER_CONF` will be used if it is None.
+
+    Returns updated defaults only.
+    """
+    _, conf_dict = get_parser_and_defaults(conf_file=conf_file)
+    return conf_dict
+
+
 def get_parser_and_defaults(conf_file=None):
     """Creates a main parser and make a subparser for each subcommand.
     There are many parent parsers defined here.
@@ -36,6 +50,7 @@ def get_parser_and_defaults(conf_file=None):
         conf_file:
             If defined, this will be used instead of partially parsing command line
             arguments to find conf_file (-c).
+            `DEFAULT_CAPER_CONF` will be used if it is None.
     Returns:
         parser:
             ArgumentParser object with all arguments defined for each sub-
@@ -420,6 +435,20 @@ def get_parser_and_defaults(conf_file=None):
         help='Number of retries for failing tasks. '
         'equivalent to "maxRetries" in workflow options JSON file.',
     )
+    parent_submit.add_argument(
+        '--gcp-monitoring-script',
+        default=CaperWorkflowOpts.DEFAULT_GCP_MONITORING_SCRIPT,
+        help='Monitoring script for gcp backend only. '
+        'Caper defaults to use its own monitoring script which works fine '
+        'with subcommand gcp_profile. '
+        'To make your script work with gcp_profile, '
+        'make this script generate a TSV with a header in the first row. '
+        'The first column of such TSV will be ignored since it is usually timestamp. '
+        'Check monitoring_script in '
+        'https://cromwell.readthedocs.io/en/stable/wf_options/Google/'
+        '#google-pipelines-api-workflow-options '
+        'for details.',
+    )
     group_dep = parent_submit.add_argument_group(
         title='dependency resolver for all backends',
         description='Cloud-based backends (gc and aws) will only use Docker '
@@ -590,6 +619,15 @@ def get_parser_and_defaults(conf_file=None):
         '--show-stdout', action='store_true', help='Show STDOUT for failed tasks.'
     )
 
+    # gcp_monitor
+    parent_gcp_monitor = argparse.ArgumentParser(add_help=False)
+    parent_gcp_monitor.add_argument(
+        '--json-format',
+        action='store_true',
+        help='Prints gcp_monitor output in a JSON format. '
+        'JSON will be more detailed then a tab-delimited one. ',
+    )
+
     # all subcommands
     p_init = subparser.add_parser(
         'init',
@@ -673,6 +711,17 @@ def get_parser_and_defaults(conf_file=None):
             parent_troubleshoot,
         ],
     )
+    p_gcp_monitor = subparser.add_parser(
+        'gcp_monitor',
+        help='Monitor tasks for gcp backend only.',
+        parents=[
+            parent_all,
+            parent_server_client,
+            parent_client,
+            parent_search_wf,
+            parent_gcp_monitor,
+        ],
+    )
 
     if conf_file is None:
         # partially parse args to get conf file from cmd line
@@ -691,6 +740,7 @@ def get_parser_and_defaults(conf_file=None):
         p_metadata,
         p_troubleshoot,
         p_debug,
+        p_gcp_monitor,
     ]
     if os.path.exists(conf_file):
         conf_dict = update_parsers_defaults_with_conf(

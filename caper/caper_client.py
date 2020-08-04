@@ -222,6 +222,7 @@ class CaperClientSubmit(CaperClient):
         singularity_cachedir=Singularity.DEFAULT_SINGULARITY_CACHEDIR,
         no_build_singularity=False,
         max_retries=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
+        gcp_monitoring_script=CaperWorkflowOpts.DEFAULT_GCP_MONITORING_SCRIPT,
         ignore_womtool=False,
         no_deepcopy=False,
         hold=False,
@@ -300,6 +301,9 @@ class CaperClientSubmit(CaperClient):
         if not wdl_file.exists:
             raise FileNotFoundError('WDL does not exists. {wdl}'.format(wdl=wdl))
 
+        if str_label is None and inputs:
+            str_label = AutoURI(inputs).basename_wo_ext
+
         if work_dir is None:
             work_dir = self.create_timestamped_work_dir(prefix=wdl_file.basename_wo_ext)
 
@@ -333,6 +337,7 @@ class CaperClientSubmit(CaperClient):
             singularity_cachedir=singularity_cachedir,
             no_build_singularity=no_build_singularity,
             max_retries=max_retries,
+            gcp_monitoring_script=gcp_monitoring_script,
         )
 
         labels = self._caper_labels.create_file(

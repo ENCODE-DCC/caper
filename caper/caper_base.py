@@ -84,6 +84,9 @@ class CaperBase:
                 updated with this.
         """
         if gcp_service_account_key_json:
+            gcp_service_account_key_json = os.path.expanduser(
+                gcp_service_account_key_json
+            )
             if env_name in os.environ:
                 auth_file = os.environ[env_name]
                 if not os.path.samefile(auth_file, gcp_service_account_key_json):

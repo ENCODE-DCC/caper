@@ -246,6 +246,7 @@ class CaperRunner(CaperBase):
         no_build_singularity=False,
         custom_backend_conf=None,
         max_retries=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
+        gcp_monitoring_script=CaperWorkflowOpts.DEFAULT_GCP_MONITORING_SCRIPT,
         ignore_womtool=False,
         no_deepcopy=False,
         fileobj_stdout=None,
@@ -404,6 +405,7 @@ class CaperRunner(CaperBase):
             singularity_cachedir=singularity_cachedir,
             backend=backend,
             max_retries=max_retries,
+            gcp_monitoring_script=gcp_monitoring_script,
         )
 
         labels = self._caper_labels.create_file(

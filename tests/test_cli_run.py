@@ -14,6 +14,7 @@ import os
 import pytest
 
 from caper.cli import main as cli_main
+from caper.cromwell_metadata import CromwellMetadata
 from caper.wdl_parser import WDLParser
 
 from .example_wdl import make_directory_with_wdls
@@ -148,3 +149,28 @@ def test_run_gcp_with_life_sciences_api(
     m_dict = json.loads(metadata.read_text())
 
     assert m_dict['status'] == 'Succeeded'
+
+    # test CromwellMetadata.gcp_monitor() here
+    # since it's for gcp only and this function is one of the two
+    # test functions ran on a gcp backend.
+    # task main.t1 has sleep 10 so that monitoring_script has time to
+    # write monitoring data to `monitoringLog` file
+    cm = CromwellMetadata(m_dict)
+    monitor_data = cm.gcp_monitor()
+    for data in monitor_data:
+        instance_cpu = data['instance']['cpu']
+        instance_mem = data['instance']['mem']
+        instance_disk = data['instance']['disk']
+        assert instance_cpu >= 1
+        assert instance_mem >= 1024 * 1024 * 1024
+        assert instance_disk >= 10 * 1024 * 1024 * 1024
+
+        max_cpu_percent = data['stats']['max']['cpu_pct']
+        max_mem = data['stats']['max']['mem']
+        max_disk = data['stats']['max']['disk']
+        if max_cpu_percent or data['task_name'] == 'main.t1':
+            assert max_cpu_percent <= 100.0
+        if max_mem or data['task_name'] == 'main.t1':
+            assert max_mem <= instance_mem
+        if max_disk or data['task_name'] == 'main.t1':
+            assert max_disk <= instance_disk
