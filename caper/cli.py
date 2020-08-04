@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import csv
 import json
 import logging
 import os
@@ -30,6 +31,7 @@ DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
 REGEX_DELIMITER_GCP_PARAMS = r',| '
+PRINT_ROW_DELIMITER = '\t'
 
 
 def get_abspath(path):
@@ -395,8 +397,11 @@ def subcmd_list(caper_client, args):
     workflows = caper_client.list(args.wf_id_or_label)
 
     try:
+        writer = csv.writer(sys.stdout, delimiter=PRINT_ROW_DELIMITER)
+
         formats = args.format.split(',')
-        print('\t'.join(formats))
+        writer.writerow(formats)
+
         if workflows is None:
             return
         for w in workflows:
@@ -431,7 +436,7 @@ def subcmd_list(caper_client, args):
                     row.append(str(parent_workflow_id))
                 else:
                     row.append(str(w.get(f)))
-            print('\t'.join(row))
+            writer.writerow(row)
 
     except BrokenPipeError:
         logger.debug('Ignored BrokenPipeError.')
@@ -494,6 +499,11 @@ def subcmd_gcp_monitor(caper_client, args):
 
     TSV will be a flattened JSON but header (1st row) for input_file_size
     will be fixed at one col since its length can be different for each task.
+
+    For TSV, `input_file_size` has dynamic length according to number of input files of a task.
+    The header for `input_file_size` will be just a 1-column label to indicate that
+    columns for `input_file_size` starts from there.
+    Use a JSON format instead to get more detailed information.
     """
     cm = get_single_cromwell_metadata_obj(caper_client, args, 'gcp_profile')
     workflow_data = cm.gcp_monitor()
@@ -503,18 +513,17 @@ def subcmd_gcp_monitor(caper_client, args):
             print(json.dumps(workflow_data, indent=4))
             return
 
-        # print header, look at first data to create a header
+        writer = csv.writer(sys.stdout, delimiter=PRINT_ROW_DELIMITER)
+
         first_data = workflow_data[0]
         first_data.pop('input_file_size')
         flattened_key_tuples = flatten_dict(first_data).keys()
-        # dot notation for key names in a flattened JSON
         header = list(['.'.join(tup) for tup in flattened_key_tuples])
         header += ['input_file_size']
-        print('\t'.join(header))
 
-        # print contents
+        writer.writerow(header)
         for task_data in workflow_data:
-            print('\t'.join([str(v) for _, v in flatten_dict(task_data).items()]))
+            writer.writerow([str(v) for _, v in flatten_dict(task_data).items()])
 
 
 def main(args=None, nonblocking_server=False):
