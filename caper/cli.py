@@ -272,6 +272,8 @@ def client(args):
             subcmd_troubleshoot(c, args)
         elif args.action == 'gcp_monitor':
             subcmd_gcp_monitor(c, args)
+        elif args.action == 'cleanup':
+            subcmd_cleanup(c, args)
         else:
             raise ValueError('Unsupported client action {act}'.format(act=args.action))
 
@@ -477,7 +479,7 @@ def get_single_cromwell_metadata_obj(caper_client, args, subcmd):
             wf_ids_or_labels=args.wf_id_or_label, embed_subworkflow=True
         )
         if len(m) > 1:
-            raise ValueError('Found multiple workflow matching with search query.')
+            raise ValueError('Found multiple workflows matching with search query.')
         elif len(m) == 0:
             raise ValueError('Found no workflow matching with search query.')
         metadata = m[0]
@@ -524,6 +526,18 @@ def subcmd_gcp_monitor(caper_client, args):
         writer.writerow(header)
         for task_data in workflow_data:
             writer.writerow([str(v) for _, v in flatten_dict(task_data).items()])
+
+
+def subcmd_cleanup(caper_client, args):
+    """Cleanup outputs of a workflow.
+    """
+    cm = get_single_cromwell_metadata_obj(caper_client, args, 'cleanup')
+    cm.cleanup(dry_run=not args.delete, num_threads=args.num_threads)
+    if not args.delete:
+        logger.warning(
+            'Use --delete to DELETE ALL OUTPUTS of this workflow. '
+            'This action is NOT REVERSIBLE. Use this at your own risk.'
+        )
 
 
 def main(args=None, nonblocking_server=False):

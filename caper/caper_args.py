@@ -1,6 +1,8 @@
 import argparse
 import os
 
+from autouri import URIBase
+
 from .arg_tool import update_parsers_defaults_with_conf
 from .backward_compatibility import CAPER_1_0_0_PARAM_KEY_NAME_CHANGE
 from .caper_workflow_opts import CaperWorkflowOpts
@@ -627,6 +629,20 @@ def get_parser_and_defaults(conf_file=None):
         help='Prints gcp_monitor output in a JSON format. '
         'JSON will be more detailed then a tab-delimited one. ',
     )
+    # cleanup
+    parent_cleanup = argparse.ArgumentParser(add_help=False)
+    parent_cleanup.add_argument(
+        '--delete',
+        action='store_true',
+        help='DELETE OUTPUTS. caper cleanup runs in a dry-run mode by default. ',
+    )
+    parent_cleanup.add_argument(
+        '--num-threads',
+        default=URIBase.DEFAULT_NUM_THREADS,
+        type=int,
+        help='Number of threads for cleaning up workflow\'s outputs. '
+        'This is used for cloud backends only.',
+    )
 
     # all subcommands
     p_init = subparser.add_parser(
@@ -722,6 +738,17 @@ def get_parser_and_defaults(conf_file=None):
             parent_gcp_monitor,
         ],
     )
+    p_cleanup = subparser.add_parser(
+        'cleanup',
+        help='Cleanup outputs of workflows.',
+        parents=[
+            parent_all,
+            parent_server_client,
+            parent_client,
+            parent_search_wf,
+            parent_cleanup,
+        ],
+    )
 
     if conf_file is None:
         # partially parse args to get conf file from cmd line
@@ -741,6 +768,7 @@ def get_parser_and_defaults(conf_file=None):
         p_troubleshoot,
         p_debug,
         p_gcp_monitor,
+        p_cleanup,
     ]
     if os.path.exists(conf_file):
         conf_dict = update_parsers_defaults_with_conf(

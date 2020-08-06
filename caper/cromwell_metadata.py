@@ -7,7 +7,7 @@ import re
 import humanfriendly
 import numpy as np
 import pandas as pd
-from autouri import GCSURI, AutoURI
+from autouri import GCSURI, AutoURI, URIBase
 
 logger = logging.getLogger(__name__)
 
@@ -344,3 +344,24 @@ class CromwellMetadata:
         # a bit hacky way to recursively convert numpy type into python type
         json_str = json.dumps(result, default=convert_type_np_to_py)
         return json.loads(json_str)
+
+    def cleanup(self, dry_run=False, num_threads=URIBase.DEFAULT_NUM_THREADS):
+        """Cleans up workflow's root output directory.
+
+        Args:
+            dry_run:
+                Dry-run mode.
+            num_threads:
+                For outputs on cloud buckets only.
+                Number of threads for deleting individual outputs on cloud buckets in parallel.
+                Generates one client per thread. This works like `gsutil -m rm -rf`.
+        """
+        root = self._metadata.get('workflowRoot')
+        if root is None:
+            logger.error(
+                'workflowRoot not found in metadata JSON. '
+                'Cannot proceed to cleanup outputs.'
+            )
+            return
+
+        AutoURI(root).rmdir(dry_run=dry_run, num_threads=num_threads)
