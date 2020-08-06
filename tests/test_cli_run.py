@@ -100,7 +100,7 @@ def test_run(tmp_path, cromwell, womtool, debug_caper):
     cm.cleanup(dry_run=True)
     assert os.path.exists(root_out_dir)
 
-    cm.cleanup()
+    cm.cleanup(dry_run=False)
     assert not os.path.exists(root_out_dir)
 
 
@@ -197,8 +197,8 @@ def test_run_gcp_with_life_sciences_api(
     assert GCSURI(remote_metadata_json_file).exists
 
     # dry-run should not delete anything
-    cm.cleanup(dry_run=False)
+    cm.cleanup(dry_run=True)
     assert GCSURI(remote_metadata_json_file).exists
 
-    cm.cleanup(dry_run=True)
+    cm.cleanup(dry_run=False)
     assert not GCSURI(remote_metadata_json_file).exists
