@@ -7,7 +7,7 @@ import re
 import humanfriendly
 import numpy as np
 import pandas as pd
-from autouri import GCSURI, AutoURI, URIBase
+from autouri import GCSURI, AbsPath, AutoURI, URIBase
 
 logger = logging.getLogger(__name__)
 
@@ -364,4 +364,8 @@ class CromwellMetadata:
             )
             return
 
-        AutoURI(root).rmdir(dry_run=dry_run, num_threads=num_threads)
+        if AbsPath(root).is_valid:
+            # num_threads is not available for AbsPath().rmdir()
+            AbsPath(root).rmdir(dry_run=dry_run)
+        else:
+            AutoURI(root).rmdir(dry_run=dry_run, num_threads=num_threads)
