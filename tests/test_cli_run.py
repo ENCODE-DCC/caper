@@ -12,6 +12,7 @@ import json
 import os
 
 import pytest
+from autouri import GCSURI
 
 from caper.cli import main as cli_main
 from caper.cromwell_metadata import CromwellMetadata
@@ -88,6 +89,19 @@ def test_run(tmp_path, cromwell, womtool, debug_caper):
     assert (tmp_path / 'file_db_prefix.lobs').exists()
     assert (tmp_path / 'metadata.json').exists()
     assert (tmp_path / 'cromwell_stdout.o').exists()
+
+    # test cleanup() on local storage
+    cm = CromwellMetadata(str(tmp_path / 'metadata.json'))
+    # check if metadata JSON and workflowRoot dir exists
+    root_out_dir = cm.data['workflowRoot']
+    assert os.path.exists(root_out_dir) and os.path.isdir(root_out_dir)
+
+    # dry-run should not delete anything
+    cm.cleanup(dry_run=True)
+    assert os.path.exists(root_out_dir)
+
+    cm.cleanup(dry_run=False)
+    assert not os.path.exists(root_out_dir)
 
 
 @pytest.mark.google_cloud
@@ -174,3 +188,17 @@ def test_run_gcp_with_life_sciences_api(
             assert max_mem <= instance_mem
         if max_disk or data['task_name'] == 'main.t1':
             assert max_disk <= instance_disk
+
+    # test cleanup on gcp backend (gs://)
+    root_out_dir = cm.data['workflowRoot']
+
+    # remote metadata JSON file on workflow's root output dir.
+    remote_metadata_json_file = os.path.join(root_out_dir, 'metadata.json')
+    assert GCSURI(remote_metadata_json_file).exists
+
+    # dry-run should not delete anything
+    cm.cleanup(dry_run=True)
+    assert GCSURI(remote_metadata_json_file).exists
+
+    cm.cleanup(dry_run=False)
+    assert not GCSURI(remote_metadata_json_file).exists
