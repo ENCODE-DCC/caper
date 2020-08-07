@@ -346,7 +346,7 @@ class CromwellMetadata:
                         val = getattr(dataframe[col_name], stat_method)()
                     data['stats'][stat_method][col_name] = val
 
-            for input_name, input_value in call['inputs'].items():
+            for input_name, input_value in sorted(call['inputs'].items()):
                 file_sizes_dict = data['input_file_sizes']
 
                 def add_to_input_files_if_valid(file):
