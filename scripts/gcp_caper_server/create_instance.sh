@@ -231,6 +231,7 @@ sudo chmod +r $CAPER_CONF_DIR
 ### make caper's out/localization directory
 sudo mkdir -p $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
 sudo chmod 777 -R $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
+sudo setfacl -d -m u::rwX,g::rwX,o::rwX $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
 
 ### make caper conf file
 cat <<EOF > $GLOBAL_CAPER_CONF_FILE
