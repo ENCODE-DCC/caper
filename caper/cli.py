@@ -596,5 +596,3 @@ def main(args=None, nonblocking_server=False):
 
 if __name__ == '__main__':
     main()
-
-d = {'1': {'2': [1, 2, 3, 4]}}
