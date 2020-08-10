@@ -622,7 +622,7 @@ See [this](scripts/gcp_caper_server/README.md) for details.
 See [details](DETAILS.md).
 
 
-## Monitoring resources on Google Cloud
+## Profiling/monitoring resources on Google Cloud
 
 A workflow ran with Caper>=1.2.0 on `gcp` backend has a monitoring log (`monitoring.log`) by default on each task's execution directory. This log file includes useful resources data on an instance like used memory, used disk space and total cpu percentage.
 

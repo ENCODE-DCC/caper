@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import copy
 import csv
 import json
 import logging
@@ -499,13 +500,14 @@ def subcmd_troubleshoot(caper_client, args):
 def subcmd_gcp_monitor(caper_client, args):
     """Prints out monitoring result either in a TSV format or in a JSON one.
 
-    TSV will be a flattened JSON but header (1st row) for input_file_size
-    will be fixed at one col since its length can be different for each task.
+    TSV format:
+        TSV will be a flattened JSON with dot notation.
+        The last column in the header is `input_file_name_size_pairs`.
+        As its name implies, contents for this last columns are dynamic in length.
 
-    For TSV, `input_file_size` has dynamic length according to number of input files of a task.
-    The header for `input_file_size` will be just a 1-column label to indicate that
-    columns for `input_file_size` starts from there.
-    Use a JSON format instead to get more detailed information.
+    JSON format:
+        See description at CromwellMetadata.gcp_monitor.__doc__.
+        Use a JSON format instead to get more detailed information.
     """
     cm = get_single_cromwell_metadata_obj(caper_client, args, 'gcp_profile')
     workflow_data = cm.gcp_monitor()
@@ -517,15 +519,30 @@ def subcmd_gcp_monitor(caper_client, args):
 
         writer = csv.writer(sys.stdout, delimiter=PRINT_ROW_DELIMITER)
 
-        first_data = workflow_data[0]
-        first_data.pop('input_file_size')
+        first_data = copy.deepcopy(workflow_data[0])
+        first_data.pop('input_file_sizes')
+
+        # extract header from first data
         flattened_key_tuples = flatten_dict(first_data).keys()
         header = list(['.'.join(tup) for tup in flattened_key_tuples])
-        header += ['input_file_size']
-
+        header += ['input_file_name_size_pairs']
         writer.writerow(header)
+
         for task_data in workflow_data:
-            writer.writerow([str(v) for _, v in flatten_dict(task_data).items()])
+            input_file_sizes = task_data.pop('input_file_sizes')
+            row = [str(v) for _, v in flatten_dict(task_data).items()]
+
+            # append `input_file_sizes` data which couldn't be cleanly
+            # flattened by flatten_dict()
+            for key, file_sizes in input_file_sizes.items():
+                for i, file_size in enumerate(file_sizes):
+                    if len(file_sizes) == 1:
+                        row.append(key)
+                    else:
+                        row.append(key + '[{idx}]'.format(idx=i))
+                    row.append(str(file_size))
+
+            writer.writerow(row)
 
 
 def subcmd_cleanup(caper_client, args):
@@ -563,6 +580,7 @@ def main(args=None, nonblocking_server=False):
     parsed_args = parser.parse_args(args)
     init_logging(parsed_args)
     init_autouri(parsed_args)
+
     check_dirs(parsed_args)
     check_db_path(parsed_args)
     check_backend(parsed_args)

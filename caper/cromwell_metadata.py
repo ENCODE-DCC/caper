@@ -3,11 +3,14 @@ import json
 import logging
 import os
 import re
+from collections import defaultdict
 
 import humanfriendly
 import numpy as np
 import pandas as pd
 from autouri import GCSURI, AbsPath, AutoURI, URIBase
+
+from .dict_tool import recurse_dict_value
 
 logger = logging.getLogger(__name__)
 
@@ -276,9 +279,16 @@ class CromwellMetadata:
                             ...
                         },
                     },
-                    'input_file_size': {
-                        INPUT1: SIZE_OF_INPUT1,
-                        INPUT2: SIZE_OF_INPUT2,
+                    'input_file_sizes': {
+                        INPUT1: [
+                            SIZE_OF_FILE1_IN_INPUT1,
+                            SIZE_OF_FILE2_IN_INPUT1,
+                            ...
+                        ],
+                        INPUT2: [
+                            SIZE_OF_FILE1_IN_INPUT2,
+                            ...
+                        ],
                         ...
                     },
                 },
@@ -286,11 +296,13 @@ class CromwellMetadata:
             ]
         """
         result = []
+        file_size_cache = {}
 
         def gcp_monitor_call(call_name, call, parent_call_names):
             nonlocal result
             nonlocal excluded_cols
             nonlocal stat_methods
+            nonlocal file_size_cache
 
             monitoring_log = call.get('monitoringLog')
             if monitoring_log is None:
@@ -319,7 +331,7 @@ class CromwellMetadata:
                     'mem': parse_cromwell_memory(rt_attrs.get('memory')),
                 },
                 'stats': {s: {} for s in stat_methods},
-                'input_file_size': {},
+                'input_file_sizes': defaultdict(list),
             }
             for i, col_name in enumerate(dataframe.columns):
                 if i in excluded_cols:
@@ -334,9 +346,23 @@ class CromwellMetadata:
                         val = getattr(dataframe[col_name], stat_method)()
                     data['stats'][stat_method][col_name] = val
 
-            for input_name, input_file in call['inputs'].items():
-                if GCSURI(input_file).is_valid:
-                    data['input_file_size'][input_name] = GCSURI(input_file).size
+            for input_name, input_value in sorted(call['inputs'].items()):
+                file_sizes_dict = data['input_file_sizes']
+
+                def add_to_input_files_if_valid(file):
+                    nonlocal file_size_cache
+                    nonlocal file_sizes_dict
+                    nonlocal input_name
+
+                    if GCSURI(file).is_valid:
+                        file_size = file_size_cache.get(file)
+                        if file_size is None:
+                            file_size = GCSURI(file).size
+                            file_size_cache[file] = file_size
+                        file_sizes_dict[input_name].append(file_size)
+
+                recurse_dict_value(input_value, add_to_input_files_if_valid)
+
             result.append(data)
 
         self.recurse_calls(gcp_monitor_call)

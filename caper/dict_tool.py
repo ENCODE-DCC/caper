@@ -52,6 +52,18 @@ def flatten_dict(d, parent_key=()):
     return type(d)(items)
 
 
+def recurse_dict_value(d, fnc):
+    if isinstance(d, dict):
+        for k, v in d.items():
+            recurse_dict_value(v, fnc)
+
+    elif isinstance(d, (list, tuple)):
+        for v in d:
+            recurse_dict_value(v, fnc)
+    else:
+        fnc(d)
+
+
 def unflatten_dict(d_flat):
     """Unflattens single-level-tuple-keyed dict into dict
     """
