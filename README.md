@@ -620,3 +620,14 @@ See [this](scripts/gcp_caper_server/README.md) for details.
 # DETAILS
 
 See [details](DETAILS.md).
+
+
+## Profiling/monitoring resources on Google Cloud
+
+A workflow ran with Caper>=1.2.0 on `gcp` backend has a monitoring log (`monitoring.log`) by default on each task's execution directory. This log file includes useful resources data on an instance like used memory, used disk space and total cpu percentage.
+
+`caper gcp_monitor` recursively parses such monitoring log files and show statistics of them in a tab-separated table. `caper gcp_monitor` can take `metadata.json` file URI or a workflow ID if there is a running `caper server`. `--json-format` is optional to print out detailed outputs in a JSON format.
+
+```bash
+$ caper gcp_monitor METADATA_JSON_FILE_OR_WORKFLOW_ID --json-format
+```

@@ -30,6 +30,7 @@ if [[ $# -lt 1 ]]; then
   echo "  --boot-disk-type: Boot disk type. pd-standard (Standard persistent disk) by default."
   echo "  --image: Image. Check available images: gcloud compute images list. ubuntu-1804-bionic-v20200716 by default."
   echo "  --image-project: Image project. ubuntu-os-cloud by default."
+  echo "  --tags: Tags to apply to the new instance. caper-server by default."
   echo "  --startup-script: Startup script CONTENTS (NOT A FILE). These command lines should sudo-install Java, PostgreSQL, Python3 and pip3. DO NOT INSTALL CAPER HERE. some apt-get command lines by default."
   echo
 
@@ -109,6 +110,11 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --tags)
+      TAGS="$2"
+      shift
+      shift
+      ;;
     --startup-script)
       STARTUP_SCRIPT="$2"
       shift
@@ -177,6 +183,9 @@ fi
 if [[ -z "$IMAGE_PROJECT" ]]; then
   IMAGE_PROJECT=ubuntu-os-cloud
 fi
+if [[ -z "$TAGS" ]]; then
+  TAGS=caper-server
+fi
 if [[ -z "$STARTUP_SCRIPT" ]]; then
   STARTUP_SCRIPT="""
 sudo apt-get update
@@ -222,6 +231,7 @@ sudo chmod +r $CAPER_CONF_DIR
 ### make caper's out/localization directory
 sudo mkdir -p $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
 sudo chmod 777 -R $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
+sudo setfacl -d -m u::rwX,g::rwX,o::rwX $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
 
 ### make caper conf file
 cat <<EOF > $GLOBAL_CAPER_CONF_FILE
@@ -289,6 +299,7 @@ gcloud --project "$GCP_PRJ" compute instances create \
   --zone="$ZONE" \
   --image="$IMAGE" \
   --image-project="$IMAGE_PROJECT" \
+  --tags="$TAGS" \
   --metadata startup-script="$STARTUP_SCRIPT"
 echo "$(date): Created an instance successfully."
 

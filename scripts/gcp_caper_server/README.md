@@ -14,7 +14,13 @@ Go to [APIs & Services](https://console.cloud.google.com/apis/dashboard) on your
 * Cloud Storage JSON API
 * Google Cloud Life Sciences API
 
-Go to [Service accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) on your project and create a new service account with enough permission to Compute Engine, Cloud Storage, Life Sciences API and **Service Account User** (VERY IMPORTANT). Generate a secret key JSON from it and keep it locally on your computer.
+Go to [Service accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) on your project and create a new service account with the following roles:
+* Compute Admin
+* Storage Admin: You can skip this and individually configure permission on each bucket on the project.
+* Cloud Life Sciences Admin
+* **Service Account User** (VERY IMPORTANT).
+
+Generate a secret key JSON from the service account and keep it locally on your computer.
 
 >**WARNING**: Such secret JSON file is a master key for important resources on your project. Keep it secure at your own risk. This file will be used for Caper so that it will be trasnferred to the created instance at `/opt/caper/service_account_key.json` visible to all users on the instance.
 
@@ -40,13 +46,13 @@ Allow several minutes for the instance to finish up installing Caper and depende
 
 ## How to run/stop/restart Caper server
 
-Once the instance is created. It is recommended to make a new screen so that `caper server` runs inside it without interruption. On the screen, change directory to Caper directory and run `caper server`. You can monitor Cromwell's log on `/opt/caper/cromwell.out`.
+Once the instance is created. It is recommended to make a new screen so that `caper server` runs inside it without interruption. On the screen, change directory to Caper directory and run `caper server`. You can monitor Cromwell's log on `/opt/caper/cromwell.out`. Caper's log will be written to `e.log`.
 ```bash
 $ sudo su
 $ screen -RD caper_server
 # in the screen
 $ cd /opt/caper
-$ caper server
+$ caper server 1> o.log 2> e.log
 ```
 
 To stop a Caper server, open the screen with the same command line used for creating one. Then press CTRL+C just one time. **DO NOT TYPE IT MULTIPLE TIMES**. This will prevent a graceful shutdown of Cromwell, which can corrupt a metadata DB.
@@ -71,10 +77,3 @@ $ caper submit [WDL] -i input.json ...
 ```
 
 Caper will localize big data files on a GCS bucket directory `--gcp-loc-dir`, which defaults to `[GCP_OUT_DIR]/.caper_tmp/` if not defined. e.g. your FASTQs and reference genome data defined in an input JSON.
-
-
-## Example
-
-```bash
-$ ./create_instance.sh xxxxxxxxxxxxx-caper-server xxxxxxxxxxxxx ~/.ssh/xxxxxxxxxxxxx-caper-server.json gs://xxxxxxxxxxxxx/caper_out --gcp-loc-dir gs://xxxxxxxxxxxxx/caper_tmp_dir --boot-disk-size 500GB
-```

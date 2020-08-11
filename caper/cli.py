@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import copy
+import csv
 import json
 import logging
 import os
@@ -19,6 +21,7 @@ from .cromwell_backend import (
     CromwellBackendDatabase,
 )
 from .cromwell_metadata import CromwellMetadata
+from .dict_tool import flatten_dict
 from .server_heartbeat import ServerHeartbeat
 
 logger = logging.getLogger(__name__)
@@ -29,6 +32,7 @@ DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
 REGEX_DELIMITER_GCP_PARAMS = r',| '
+PRINT_ROW_DELIMITER = '\t'
 
 
 def get_abspath(path):
@@ -267,6 +271,10 @@ def client(args):
             subcmd_metadata(c, args)
         elif args.action in ('troubleshoot', 'debug'):
             subcmd_troubleshoot(c, args)
+        elif args.action == 'gcp_monitor':
+            subcmd_gcp_monitor(c, args)
+        elif args.action == 'cleanup':
+            subcmd_cleanup(c, args)
         else:
             raise ValueError('Unsupported client action {act}'.format(act=args.action))
 
@@ -335,6 +343,7 @@ def subcmd_run(caper_runner, args):
                 no_build_singularity=args.no_build_singularity,
                 custom_backend_conf=get_abspath(args.backend_file),
                 max_retries=args.max_retries,
+                gcp_monitoring_script=args.gcp_monitoring_script,
                 ignore_womtool=args.ignore_womtool,
                 no_deepcopy=args.no_deepcopy,
                 fileobj_stdout=f,
@@ -370,6 +379,7 @@ def subcmd_submit(caper_client, args):
         singularity_cachedir=args.singularity_cachedir,
         no_build_singularity=args.no_build_singularity,
         max_retries=args.max_retries,
+        gcp_monitoring_script=args.gcp_monitoring_script,
         ignore_womtool=args.ignore_womtool,
         no_deepcopy=args.no_deepcopy,
         hold=args.hold,
@@ -389,40 +399,50 @@ def subcmd_unhold(caper_client, args):
 def subcmd_list(caper_client, args):
     workflows = caper_client.list(args.wf_id_or_label)
 
-    formats = args.format.split(',')
-    print('\t'.join(formats))
-    if workflows is None:
-        return
-    for w in workflows:
-        row = []
-        workflow_id = w.get('id')
-        parent_workflow_id = w.get('parentWorkflowId')
+    try:
+        writer = csv.writer(sys.stdout, delimiter=PRINT_ROW_DELIMITER)
 
-        if args.hide_subworkflow and parent_workflow_id:
-            continue
-        if args.hide_result_before is not None:
-            if w.get('submission') and w.get('submission') <= args.hide_result_before:
+        formats = args.format.split(',')
+        writer.writerow(formats)
+
+        if workflows is None:
+            return
+        for w in workflows:
+            row = []
+            workflow_id = w.get('id')
+            parent_workflow_id = w.get('parentWorkflowId')
+
+            if args.hide_subworkflow and parent_workflow_id:
                 continue
-        for f in formats:
-            if f == 'workflow_id':
-                row.append(str(workflow_id))
-            elif f == 'str_label':
-                if 'labels' in w and CaperLabels.KEY_CAPER_STR_LABEL in w['labels']:
-                    lbl = w['labels'][CaperLabels.KEY_CAPER_STR_LABEL]
+            if args.hide_result_before is not None:
+                if (
+                    w.get('submission')
+                    and w.get('submission') <= args.hide_result_before
+                ):
+                    continue
+            for f in formats:
+                if f == 'workflow_id':
+                    row.append(str(workflow_id))
+                elif f == 'str_label':
+                    if 'labels' in w and CaperLabels.KEY_CAPER_STR_LABEL in w['labels']:
+                        lbl = w['labels'][CaperLabels.KEY_CAPER_STR_LABEL]
+                    else:
+                        lbl = None
+                    row.append(str(lbl))
+                elif f == 'user':
+                    if 'labels' in w and CaperLabels.KEY_CAPER_USER in w['labels']:
+                        lbl = w['labels'][CaperLabels.KEY_CAPER_USER]
+                    else:
+                        lbl = None
+                    row.append(str(lbl))
+                elif f == 'parent':
+                    row.append(str(parent_workflow_id))
                 else:
-                    lbl = None
-                row.append(str(lbl))
-            elif f == 'user':
-                if 'labels' in w and CaperLabels.KEY_CAPER_USER in w['labels']:
-                    lbl = w['labels'][CaperLabels.KEY_CAPER_USER]
-                else:
-                    lbl = None
-                row.append(str(lbl))
-            elif f == 'parent':
-                row.append(str(parent_workflow_id))
-            else:
-                row.append(str(w.get(f)))
-        print('\t'.join(row))
+                    row.append(str(w.get(f)))
+            writer.writerow(row)
+
+    except BrokenPipeError:
+        logger.debug('Ignored BrokenPipeError.')
 
 
 def subcmd_metadata(caper_client, args):
@@ -437,14 +457,20 @@ def subcmd_metadata(caper_client, args):
     print(json.dumps(m[0], indent=4))
 
 
-def subcmd_troubleshoot(caper_client, args):
-    if len(args.wf_id_or_label) > 1:
+def get_single_cromwell_metadata_obj(caper_client, args, subcmd):
+    if not args.wf_id_or_label:
         raise ValueError(
-            'Multiple queries are not allowed for troubleshoot. '
-            'Use workflow_id or metadata JSON file path.'
+            'Define at least one metadata JSON file or '
+            'a search query for workflow ID/string label '
+            'if there is a running Caper server.'
+        )
+    elif len(args.wf_id_or_label) > 1:
+        raise ValueError(
+            'Multiple files/queries are not allowed for {subcmd}. '
+            'Define one metadata JSON file or a search query '
+            'for workflow ID/string label.'.format(subcmd=subcmd)
         )
 
-    # check if it's a file
     metadata_file = AutoURI(get_abspath(args.wf_id_or_label[0]))
 
     if metadata_file.exists:
@@ -454,18 +480,81 @@ def subcmd_troubleshoot(caper_client, args):
             wf_ids_or_labels=args.wf_id_or_label, embed_subworkflow=True
         )
         if len(m) > 1:
-            raise ValueError('Found multiple workflow matching with search query.')
+            raise ValueError('Found multiple workflows matching with search query.')
         elif len(m) == 0:
             raise ValueError('Found no workflow matching with search query.')
         metadata = m[0]
 
-    # start troubleshooting
-    cm = CromwellMetadata(metadata)
+    return CromwellMetadata(metadata)
+
+
+def subcmd_troubleshoot(caper_client, args):
+    cm = get_single_cromwell_metadata_obj(caper_client, args, 'troubleshoot/debug')
     cm.troubleshoot(
         fileobj=sys.stdout,
         show_completed_task=args.show_completed_task,
         show_stdout=args.show_stdout,
     )
+
+
+def subcmd_gcp_monitor(caper_client, args):
+    """Prints out monitoring result either in a TSV format or in a JSON one.
+
+    TSV format:
+        TSV will be a flattened JSON with dot notation.
+        The last column in the header is `input_file_name_size_pairs`.
+        As its name implies, contents for this last columns are dynamic in length.
+
+    JSON format:
+        See description at CromwellMetadata.gcp_monitor.__doc__.
+        Use a JSON format instead to get more detailed information.
+    """
+    cm = get_single_cromwell_metadata_obj(caper_client, args, 'gcp_profile')
+    workflow_data = cm.gcp_monitor()
+
+    if workflow_data:
+        if args.json_format:
+            print(json.dumps(workflow_data, indent=4))
+            return
+
+        writer = csv.writer(sys.stdout, delimiter=PRINT_ROW_DELIMITER)
+
+        first_data = copy.deepcopy(workflow_data[0])
+        first_data.pop('input_file_sizes')
+
+        # extract header from first data
+        flattened_key_tuples = flatten_dict(first_data).keys()
+        header = list(['.'.join(tup) for tup in flattened_key_tuples])
+        header += ['input_file_name_size_pairs']
+        writer.writerow(header)
+
+        for task_data in workflow_data:
+            input_file_sizes = task_data.pop('input_file_sizes')
+            row = [str(v) for _, v in flatten_dict(task_data).items()]
+
+            # append `input_file_sizes` data which couldn't be cleanly
+            # flattened by flatten_dict()
+            for key, file_sizes in input_file_sizes.items():
+                for i, file_size in enumerate(file_sizes):
+                    if len(file_sizes) == 1:
+                        row.append(key)
+                    else:
+                        row.append(key + '[{idx}]'.format(idx=i))
+                    row.append(str(file_size))
+
+            writer.writerow(row)
+
+
+def subcmd_cleanup(caper_client, args):
+    """Cleanup outputs of a workflow.
+    """
+    cm = get_single_cromwell_metadata_obj(caper_client, args, 'cleanup')
+    cm.cleanup(dry_run=not args.delete, num_threads=args.num_threads)
+    if not args.delete:
+        logger.warning(
+            'Use --delete to DELETE ALL OUTPUTS of this workflow. '
+            'This action is NOT REVERSIBLE. Use this at your own risk.'
+        )
 
 
 def main(args=None, nonblocking_server=False):
@@ -491,6 +580,7 @@ def main(args=None, nonblocking_server=False):
     parsed_args = parser.parse_args(args)
     init_logging(parsed_args)
     init_autouri(parsed_args)
+
     check_dirs(parsed_args)
     check_db_path(parsed_args)
     check_backend(parsed_args)
