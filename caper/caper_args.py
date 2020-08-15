@@ -15,6 +15,7 @@ from .cromwell_backend import (
     CromwellBackendLocal,
 )
 from .cromwell_rest_api import CromwellRestAPI
+from .resource_analysis import ResourceAnalysis
 from .server_heartbeat import ServerHeartbeat
 from .singularity import Singularity
 
@@ -626,9 +627,39 @@ def get_parser_and_defaults(conf_file=None):
     parent_gcp_monitor.add_argument(
         '--json-format',
         action='store_true',
-        help='Prints gcp_monitor output in a JSON format. '
-        'JSON will be more detailed then a tab-delimited one. ',
+        help='Prints out outputs in a JSON format.',
     )
+
+    # gcp_res_analysis
+    parent_gcp_res_analysis = argparse.ArgumentParser(add_help=False)
+    parent_gcp_res_analysis.add_argument(
+        '--in-file-vars-def-tsv',
+        help='TSV file to define the following information. '
+        'col-1: task\'s name, col-2: comma-separated input file var names. '
+        'For tasks not defined in this TSV file, all input vars will be included '
+        'in the analysis.',
+    )
+    parent_gcp_res_analysis.add_argument(
+        '--reduce-in-file-vars',
+        choices=['sum', 'min', 'max', 'none'],
+        default='sum',
+        help='Reduce input file size matrix (X matrix in a multiple linear regression). '
+        'To solve y=Ax (least squares), this will reduce multiple linear regression '
+        'into a single linear regression problem, '
+        'which requires less number of datasets, which is 2 per task. '
+        'Choose \'none\' to keep all input vars without reduction in the analysis. '
+        'Otherwise, make sure that number of datasets (per task) '
+        '> number of input file vars in a task in a workflow.',
+    )
+    parent_gcp_res_analysis.add_argument(
+        '--target-resources',
+        nargs='+',
+        default=list(ResourceAnalysis.DEFAULT_TARGET_RESOURCES),
+        help='Keys for resources in a JSON gcp_monitor outputs. '
+        'See help for gcp_monitor to find available resources. '
+        'e.g. stats.max.disk, stats.mean.cpu_pct.',
+    )
+
     # cleanup
     parent_cleanup = argparse.ArgumentParser(add_help=False)
     parent_cleanup.add_argument(
@@ -738,6 +769,18 @@ def get_parser_and_defaults(conf_file=None):
             parent_gcp_monitor,
         ],
     )
+    p_gcp_res_analysis = subparser.add_parser(
+        'gcp_res_analysis',
+        help='Resource analysis on monitoring data collected by gcp_monitor. '
+        'This is for gcp backend only.',
+        parents=[
+            parent_all,
+            parent_server_client,
+            parent_client,
+            parent_search_wf,
+            parent_gcp_res_analysis,
+        ],
+    )
     p_cleanup = subparser.add_parser(
         'cleanup',
         help='Cleanup outputs of workflows.',
@@ -768,6 +811,7 @@ def get_parser_and_defaults(conf_file=None):
         p_troubleshoot,
         p_debug,
         p_gcp_monitor,
+        p_gcp_res_analysis,
         p_cleanup,
     ]
     if os.path.exists(conf_file):
