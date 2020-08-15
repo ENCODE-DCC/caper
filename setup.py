@@ -34,5 +34,6 @@ setuptools.setup(
         'humanfriendly',
         'numpy',
         'pandas',
+        'scikit-learn',
     ],
 )
