@@ -33,14 +33,10 @@ def merge_dict(a, b):
     return a
 
 
-def flatten_dict(d, reducer=None, parent_key=()):
+def flatten_dict(d, parent_key=()):
     """Flattens dict into single-level-tuple-keyed dict with
         {(tuple of keys of parents and self): value}
 
-    Args:
-        reducer:
-            Character to join keys in a tuple.
-            If None, returns with key as a tuple.
     Returns:
         dict of {
             (key_lvl1, key_lvl2, key_lvl3, ...): value
@@ -53,16 +49,7 @@ def flatten_dict(d, reducer=None, parent_key=()):
             items.extend(flatten_dict(v, parent_key=new_key).items())
         else:
             items.append((new_key, v))
-    if reducer:
-        return {reducer.join(k): v for k, v in type(d)(items).items()}
-    else:
-        return type(d)(items)
-
-
-def flatten_dict_with_dot(d):
-    """Flattens dict with dot notation.
-    """
-    return {'.'.join(k): v for k, v in flatten_dict(d).items()}
+    return type(d)(items)
 
 
 def recurse_dict_value(d, fnc):

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import copy
 import csv
-import io
 import json
 import logging
 import os
@@ -23,7 +22,6 @@ from .cromwell_backend import (
 )
 from .cromwell_metadata import CromwellMetadata
 from .dict_tool import flatten_dict
-from .resource_analysis import ResourceAnalysis
 from .server_heartbeat import ServerHeartbeat
 
 logger = logging.getLogger(__name__)
@@ -275,8 +273,6 @@ def client(args):
             subcmd_troubleshoot(c, args)
         elif args.action == 'gcp_monitor':
             subcmd_gcp_monitor(c, args)
-        elif args.action == 'gcp_res_analysis':
-            subcmd_gcp_res_analysis(c, args)
         elif args.action == 'cleanup':
             subcmd_cleanup(c, args)
         else:
@@ -480,59 +476,16 @@ def get_single_cromwell_metadata_obj(caper_client, args, subcmd):
     if metadata_file.exists:
         metadata = json.loads(metadata_file.read())
     else:
-        metadata_objs = caper_client.metadata(
+        m = caper_client.metadata(
             wf_ids_or_labels=args.wf_id_or_label, embed_subworkflow=True
         )
-        if len(metadata_objs) > 1:
+        if len(m) > 1:
             raise ValueError('Found multiple workflows matching with search query.')
-        elif len(metadata_objs) == 0:
+        elif len(m) == 0:
             raise ValueError('Found no workflow matching with search query.')
-        metadata = metadata_objs[0]
+        metadata = m[0]
 
     return CromwellMetadata(metadata)
-
-
-def split_list_into_file_and_non_file(lst):
-    """Returns tuple of (list of existing files, list of non-file strings)
-    """
-    list_of_files = []
-    list_of_non_files = []
-
-    for maybe_file in lst:
-        if AutoURI(get_abspath(maybe_file)).exists:
-            list_of_files.append(maybe_file)
-        else:
-            list_of_non_files.append(maybe_file)
-
-    return list_of_files, list_of_non_files
-
-
-def get_multi_cromwell_metadata_objs(caper_client, args):
-    if not args.wf_id_or_label:
-        raise ValueError(
-            'Define at least one metadata JSON file or '
-            'a search query for workflow ID/string label '
-            'if there is a running Caper server.'
-        )
-
-    list_of_files, list_of_non_files = split_list_into_file_and_non_file(
-        args.wf_id_or_label
-    )
-
-    all_metadata = []
-    for file in list_of_files:
-        metadata = json.loads(AutoURI(get_abspath(file)).read())
-        all_metadata.append(metadata)
-
-    all_metadata.extend(
-        caper_client.metadata(
-            wf_ids_or_labels=list_of_non_files, embed_subworkflow=True
-        )
-    )
-
-    if not all_metadata:
-        raise ValueError('Found no metadata/workflow matching with search query.')
-    return [CromwellMetadata(m) for m in all_metadata]
 
 
 def subcmd_troubleshoot(caper_client, args):
@@ -556,26 +509,28 @@ def subcmd_gcp_monitor(caper_client, args):
         See description at CromwellMetadata.gcp_monitor.__doc__.
         Use a JSON format instead to get more detailed information.
     """
-    all_metadata = get_multi_cromwell_metadata_objs(caper_client, args)
-    writer = csv.writer(sys.stdout, delimiter=PRINT_ROW_DELIMITER)
+    cm = get_single_cromwell_metadata_obj(caper_client, args, 'gcp_profile')
+    workflow_data = cm.gcp_monitor()
 
-    result = []
-    for metadata in all_metadata:
-        result.extend(metadata.gcp_monitor())
+    if workflow_data:
+        if args.json_format:
+            print(json.dumps(workflow_data, indent=4))
+            return
 
-    if args.json_format:
-        print(json.dumps(result, indent=4))
-    else:
-        # input_file_sizes is dynamic in length so exclude and then put it back
-        first_data = copy.deepcopy(result[0])
+        writer = csv.writer(sys.stdout, delimiter=PRINT_ROW_DELIMITER)
+
+        first_data = copy.deepcopy(workflow_data[0])
         first_data.pop('input_file_sizes')
-        header = list(flatten_dict(first_data, reducer='.').keys())
-        header += ['input_file_var_size_pairs']
+
+        # extract header from first data
+        flattened_key_tuples = flatten_dict(first_data).keys()
+        header = list(['.'.join(tup) for tup in flattened_key_tuples])
+        header += ['input_file_name_size_pairs']
         writer.writerow(header)
 
-        for task_data in result:
+        for task_data in workflow_data:
             input_file_sizes = task_data.pop('input_file_sizes')
-            row = [str(v) for v in flatten_dict(task_data).values()]
+            row = [str(v) for _, v in flatten_dict(task_data).items()]
 
             # append `input_file_sizes` data which couldn't be cleanly
             # flattened by flatten_dict()
@@ -588,49 +543,6 @@ def subcmd_gcp_monitor(caper_client, args):
                     row.append(str(file_size))
 
             writer.writerow(row)
-
-
-def read_tsv(tsv_file):
-    tsv_contents = AutoURI(get_abspath(tsv_file)).read()
-    reader = csv.reader(io.StringIO(tsv_contents), delimiter='\t')
-    return [row for row in reader if row]
-
-
-def subcmd_gcp_res_analysis(caper_client, args):
-    """Solves linear regression problem to find coeffs and intercept
-    to help optimizing resources for a task based on task's input file size.
-
-    Prints out found coeffs and intercept along with raw dataset (x, y).
-        - x: input file sizes for a task
-        - y: resources (max_mem, max_disk) taken for a task
-    """
-    all_metadata = get_multi_cromwell_metadata_objs(caper_client, args)
-
-    in_file_vars = None
-    if args.in_file_vars_def_tsv:
-        in_file_vars = {
-            task: var_names.split(',')
-            for task, var_names in read_tsv(args.in_file_vars_def_tsv)
-        }
-
-    if args.reduce_in_file_vars == 'sum':
-        reduce_in_file_vars = sum
-    elif args.reduce_in_file_vars == 'min':
-        reduce_in_file_vars = min
-    elif args.reduce_in_file_vars == 'max':
-        reduce_in_file_vars = max
-    elif args.reduce_in_file_vars == 'none':
-        reduce_in_file_vars = None
-    else:
-        raise ValueError('Not supported reduce method.')
-
-    res_analysis = ResourceAnalysis(all_metadata)
-    result = res_analysis.analyze(
-        in_file_vars=in_file_vars,
-        reduce_in_file_vars=reduce_in_file_vars,
-        target_resources=args.target_resources,
-    )
-    print(json.dumps(result, indent=4))
 
 
 def subcmd_cleanup(caper_client, args):
