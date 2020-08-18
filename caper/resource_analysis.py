@@ -3,9 +3,6 @@ import json
 import logging
 from collections import defaultdict
 
-import numpy as np
-from sklearn import linear_model
-
 from .cromwell_metadata import CromwellMetadata, convert_type_np_to_py
 from .dict_tool import flatten_dict
 
@@ -22,6 +19,8 @@ def solve_linear_problem(x, y):
     Returns:
         Tuple of (coeffs, intercept).
     """
+    from sklearn import linear_model
+
     model = linear_model.LinearRegression().fit(x, y)
     return list(model.coef_), model.intercept_
 
@@ -185,6 +184,8 @@ class ResourceAnalysis:
         Returns:
             Analysis result.
         """
+        import numpy as np
+
         result = {}
 
         in_file_vars_found = set()

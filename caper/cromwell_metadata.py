@@ -6,8 +6,6 @@ import re
 from collections import defaultdict
 
 import humanfriendly
-import numpy as np
-import pandas as pd
 from autouri import GCSURI, AbsPath, AutoURI, URIBase
 
 from .dict_tool import recurse_dict_value
@@ -34,6 +32,8 @@ def parse_cromwell_memory(s):
 def convert_type_np_to_py(o):
     """Convert numpy type to Python type.
     """
+    import numpy as np
+
     if isinstance(o, np.generic):
         return o.item()
     raise TypeError
@@ -303,6 +303,8 @@ class CromwellMetadata:
                 ...
             ]
         """
+        import pandas as pd
+
         result = []
         file_size_cache = {}
         workflow_id = self.workflow_id
