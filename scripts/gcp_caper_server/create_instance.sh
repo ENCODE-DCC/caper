@@ -292,6 +292,10 @@ sudo pip install caper croo
 echo "$(date): Google auth with service account key file."
 gcloud auth activate-service-account --key-file="$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE"
 
+
+echo "$(date): Making a temporary startup script..."
+echo "$STARTUP_SCRIPT" > tmp_startup_script.sh
+
 echo "$(date): Creating an instance..."
 gcloud --project "$GCP_PRJ" compute instances create \
   "$INSTANCE_NAME" \
@@ -302,8 +306,11 @@ gcloud --project "$GCP_PRJ" compute instances create \
   --image="$IMAGE" \
   --image-project="$IMAGE_PROJECT" \
   --tags="$TAGS" \
-  --metadata startup-script="$STARTUP_SCRIPT"
+  --metadata-from-file startup-script=tmp_startup_script.sh
 echo "$(date): Created an instance successfully."
+
+echo "$(date): Deleting the temporary startup script..."
+rm -f tmp_startup_script.sh
 
 while [[ $(gcloud --project "$GCP_PRJ" compute instances describe "${INSTANCE_NAME}" --zone "${ZONE}" --format="value(status)") -ne "RUNNING" ]]; do
     echo "$(date): Waiting for 20 seconds for the instance to spin up..."
