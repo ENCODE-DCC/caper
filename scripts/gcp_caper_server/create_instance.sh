@@ -318,14 +318,19 @@ while [[ $(gcloud --project "$GCP_PRJ" compute instances describe "${INSTANCE_NA
 done
 
 echo "$(date): If key file transfer fails for several times then manually transfer it to $REMOTE_KEY_FILE on the instance."
-echo "$(date): Transferring service account key file to instance..."
+echo "$(date): Transferring service account key file to the instance..."
 until gcloud --project "$GCP_PRJ" compute scp "$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE" root@"$INSTANCE_NAME":"$REMOTE_KEY_FILE" --zone="$ZONE"; do
   echo "$(date): Key file transfer failed. Retrying in 20 seconds..."
   sleep 20
 done
 echo "$(date): Transferred a key file to instance successfully."
 
-echo "$(date): Allow several minutes for the instance to finish up installing Caper and dependencies."
+echo "$(date): Waiting for the instance finishing up installing Caper..."
+until gcloud --project "$GCP_PRJ" compute ssh --zone="$ZONE" root@"$INSTANCE_NAME" --command="caper -v"; do
+  echo "$(date): Caper has not been installed yet. Retrying in 20 seconds..."
+  sleep 20
+done
+echo "$(date): Finished installing Caper on the instance. Ready to run Caper server."
 echo "$(date): Use the following command line to SSH to the instance."
 echo
-echo "gcloud beta compute ssh --zone \"$ZONE\" \"$INSTANCE_NAME\" --project \"$GCP_PRJ\""
+echo "gcloud beta compute ssh --zone $ZONE $INSTANCE_NAME --project $GCP_PRJ"
