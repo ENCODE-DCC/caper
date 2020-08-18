@@ -633,11 +633,12 @@ def get_parser_and_defaults(conf_file=None):
     # gcp_res_analysis
     parent_gcp_res_analysis = argparse.ArgumentParser(add_help=False)
     parent_gcp_res_analysis.add_argument(
-        '--in-file-vars-def-tsv',
-        help='TSV file to define the following information. '
-        'col-1: task\'s name, col-2: comma-separated input file var names. '
-        'For tasks not defined in this TSV file, all input vars will be included '
-        'in the analysis.',
+        '--in-file-vars-def-json',
+        help='JSON file to define the following information. '
+        'key: task\'s name, wild-cards (*, ?) are allowed. '
+        'value: list of input file var names. '
+        'e.g. "atac.align*": ["fastqs_R1", "fastqs_R2"]. '
+        'If this file is defined, then tasks not defined in this JSON file will be ignored.',
     )
     parent_gcp_res_analysis.add_argument(
         '--reduce-in-file-vars',

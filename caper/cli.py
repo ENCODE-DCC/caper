@@ -596,6 +596,11 @@ def read_tsv(tsv_file):
     return [row for row in reader if row]
 
 
+def read_json(json_file):
+    json_contents = AutoURI(get_abspath(json_file)).read()
+    return json.loads(json_contents)
+
+
 def subcmd_gcp_res_analysis(caper_client, args):
     """Solves linear regression problem to find coeffs and intercept
     to help optimizing resources for a task based on task's input file size.
@@ -607,11 +612,8 @@ def subcmd_gcp_res_analysis(caper_client, args):
     all_metadata = get_multi_cromwell_metadata_objs(caper_client, args)
 
     in_file_vars = None
-    if args.in_file_vars_def_tsv:
-        in_file_vars = {
-            task: var_names.split(',')
-            for task, var_names in read_tsv(args.in_file_vars_def_tsv)
-        }
+    if args.in_file_vars_def_json:
+        in_file_vars = read_json(args.in_file_vars_def_json)
 
     if args.reduce_in_file_vars == 'sum':
         reduce_in_file_vars = sum
