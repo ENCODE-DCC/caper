@@ -35,5 +35,6 @@ setuptools.setup(
         'numpy',
         'pandas',
         'scikit-learn',
+        'matplotlib',
     ],
 )

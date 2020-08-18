@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import copy
 import csv
-import io
 import json
 import logging
 import os
@@ -23,7 +22,7 @@ from .cromwell_backend import (
 )
 from .cromwell_metadata import CromwellMetadata
 from .dict_tool import flatten_dict
-from .resource_analysis import ResourceAnalysis
+from .resource_analysis import LinearResourceAnalysis
 from .server_heartbeat import ServerHeartbeat
 
 logger = logging.getLogger(__name__)
@@ -590,15 +589,25 @@ def subcmd_gcp_monitor(caper_client, args):
             writer.writerow(row)
 
 
-def read_tsv(tsv_file):
-    tsv_contents = AutoURI(get_abspath(tsv_file)).read()
-    reader = csv.reader(io.StringIO(tsv_contents), delimiter='\t')
-    return [row for row in reader if row]
-
-
 def read_json(json_file):
-    json_contents = AutoURI(get_abspath(json_file)).read()
-    return json.loads(json_contents)
+    if json_file:
+        json_contents = AutoURI(get_abspath(json_file)).read()
+        return json.loads(json_contents)
+
+
+def get_reduce_fn(fn_name):
+    """Only 3 reduction functions are supported.
+    """
+    if fn_name == 'sum':
+        return sum
+    elif fn_name == 'min':
+        return min
+    elif fn_name == 'max':
+        return max
+    elif fn_name == 'none':
+        return None
+    else:
+        raise ValueError('Not supported reduce function. {fn}'.format(fn=fn_name))
 
 
 def subcmd_gcp_res_analysis(caper_client, args):
@@ -611,26 +620,12 @@ def subcmd_gcp_res_analysis(caper_client, args):
     """
     all_metadata = get_multi_cromwell_metadata_objs(caper_client, args)
 
-    in_file_vars = None
-    if args.in_file_vars_def_json:
-        in_file_vars = read_json(args.in_file_vars_def_json)
-
-    if args.reduce_in_file_vars == 'sum':
-        reduce_in_file_vars = sum
-    elif args.reduce_in_file_vars == 'min':
-        reduce_in_file_vars = min
-    elif args.reduce_in_file_vars == 'max':
-        reduce_in_file_vars = max
-    elif args.reduce_in_file_vars == 'none':
-        reduce_in_file_vars = None
-    else:
-        raise ValueError('Not supported reduce method.')
-
-    res_analysis = ResourceAnalysis(all_metadata)
+    res_analysis = LinearResourceAnalysis(all_metadata)
     result = res_analysis.analyze(
-        in_file_vars=in_file_vars,
-        reduce_in_file_vars=reduce_in_file_vars,
+        in_file_vars=read_json(args.in_file_vars_def_json),
+        reduce_in_file_vars=get_reduce_fn(args.reduce_in_file_vars),
         target_resources=args.target_resources,
+        plot_pdf=get_abspath(args.plot_pdf),
     )
     print(json.dumps(result, indent=4))
 

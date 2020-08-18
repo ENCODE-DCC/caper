@@ -1,6 +1,7 @@
 import fnmatch
 import json
 import logging
+from abc import ABC, abstractmethod
 from collections import defaultdict
 
 from .cromwell_metadata import CromwellMetadata, convert_type_np_to_py
@@ -9,23 +10,7 @@ from .dict_tool import flatten_dict
 logger = logging.getLogger(__name__)
 
 
-def solve_linear_problem(x, y):
-    """Solve y = A(X) by using linear regression.
-    Args:
-        x:
-            X Matrix.
-        y:
-            y vector.
-    Returns:
-        Tuple of (coeffs, intercept).
-    """
-    from sklearn import linear_model
-
-    model = linear_model.LinearRegression().fit(x, y)
-    return list(model.coef_), model.intercept_
-
-
-class ResourceAnalysis:
+class ResourceAnalysis(ABC):
     """
     Class constants:
         DEFAULT_REDUCE_IN_FILE_VARS:
@@ -37,7 +22,6 @@ class ResourceAnalysis:
 
     DEFAULT_REDUCE_IN_FILE_VARS = sum
     DEFAULT_TARGET_RESOURCES = ('stats.max.mem', 'stats.max.disk')
-    DEFAULT_SOLVER = solve_linear_problem
 
     def __init__(self, metadata_jsons):
         """Solves y = f(x) in a statistical way where
@@ -76,7 +60,7 @@ class ResourceAnalysis:
         in_file_vars=None,
         reduce_in_file_vars=DEFAULT_REDUCE_IN_FILE_VARS,
         target_resources=DEFAULT_TARGET_RESOURCES,
-        solver=DEFAULT_SOLVER,
+        plot_pdf=None,
     ):
         """Find and analyze all tasks.
 
@@ -89,17 +73,23 @@ class ResourceAnalysis:
                 See ResourceAnalysis.analyze_per_task.__doc__ for details.
             target_resources:
                 Keys (in dot notation) to make vector y.
-            solver:
-                Currently `linear` (linear regression) only.
+            plot_pdf:
+                Local file name for a PDF plot.
         Returns:
             Results in a dict form: {
                 TASK_NAME: {
                     'x': X_DATA,
                     'y': Y_DATA,
-                    'coeffs': RESULT_FROM_SOLVER_FOR_EACH_COL_IN_Y
+                    'coeffs': ANALYSIS_RESULT
                 }
             }
         """
+        plot_pp = None
+        if plot_pdf:
+            from matplotlib.backends.backend_pdf import PdfPages
+
+            plot_pp = PdfPages(plot_pdf)
+
         result = {}
 
         if in_file_vars:
@@ -113,8 +103,11 @@ class ResourceAnalysis:
                 in_file_vars=in_file_vars[task_name],
                 reduce_in_file_vars=reduce_in_file_vars,
                 target_resources=target_resources,
-                solver=solver,
+                plot_pp=plot_pp,
             )
+
+        if plot_pdf:
+            plot_pp.close()
 
         return result
 
@@ -124,11 +117,11 @@ class ResourceAnalysis:
         in_file_vars=None,
         reduce_in_file_vars=DEFAULT_REDUCE_IN_FILE_VARS,
         target_resources=DEFAULT_TARGET_RESOURCES,
-        solver=DEFAULT_SOLVER,
+        plot_pp=None,
     ):
         """Does resource analysis on a task.
-        To use a general solver for y = f(x), convert task's raw resouce data
-        into (x_matrix, y_vector) form.
+        To use a general solver for y = f(x),
+        convert task's raw resouce data into (x_matrix, y_vector) form.
 
         Input file sizes are converted into one single matrix.
         Such x_matrix should look like:
@@ -178,11 +171,16 @@ class ResourceAnalysis:
                 Keys (in dot notation) to make vector y. e.g. ('stats.max.mem', 'stats.max.disk').
                 See CromwellMetadata.gcp_monitor.__doc__ to find available keys.
                 One vector y for each key, which means one solving for each key.
-            solver:
-                Solver takes in x matrix and y vec and returns coeffs.
+            plot_pp:
+                Matplotlib's PDF backend PdfPages to write plots on multiple pages
+                (task per page).
 
         Returns:
-            Analysis result.
+            coeffs:
+                Analysis result.
+                e.g. (coeffs, intercept) for linear regression.
+            Plot object:
+                Matplotlib plot object.
         """
         import numpy as np
 
@@ -192,6 +190,7 @@ class ResourceAnalysis:
         x_data = defaultdict(list)
         y_data = defaultdict(list)
 
+        logger.info('Analyzing task={task}'.format(task=task_name))
         # first look at task's optional/empty input file vars across all workflows
         # e.g. SE (single-ended) pipeline runs does not have fastqs_R2
         # but we want to mix both SE/PE (paired-ended) data.
@@ -249,20 +248,13 @@ class ResourceAnalysis:
 
         result = {'x': x_data, 'y': y_data, 'coeffs': {}}
         for res_metric, y_vec in y_data.items():
-            try:
-                result['coeffs'][res_metric] = solver(x_matrix, y_vec)
-            except (TypeError, ValueError):
-                logger.error(
-                    'Failed to solve due to type/dim mismatch. '
-                    'Too few data or invalid resource monitoring script? '
-                    'task: {task}, resource_metric: {res_metric}, '
-                    'x_matrix: {x_matrix}, y_vec={y_vec}'.format(
-                        task=task_name,
-                        res_metric=res_metric,
-                        x_matrix=x_matrix,
-                        y_vec=y_vec,
-                    )
-                )
+            result['coeffs'][res_metric] = self._solve(
+                x_matrix=x_matrix,
+                y_vec=y_vec,
+                plot_y_label=res_metric,
+                plot_title=task_name,
+                plot_pp=plot_pp,
+            )
 
         # a bit hacky way to recursively convert numpy type into python type
         json_str = json.dumps(result, default=convert_type_np_to_py)
@@ -272,3 +264,73 @@ class ResourceAnalysis:
         """Get all task names.
         """
         return list(set([task['task_name'] for task in self._tasks]))
+
+    @abstractmethod
+    def _solve(self, x_matrix, y_vec, plot_y_label=None, plot_title=None, plot_pp=None):
+        raise NotImplementedError
+
+
+class LinearResourceAnalysis(ResourceAnalysis):
+    def _solve(self, x_matrix, y_vec, plot_y_label=None, plot_title=None, plot_pp=None):
+        """Solve y = A(X) with linear regression.
+        Also make a scatter plot (for one-dimensional x_matrix only).
+        Use `reduce_in_file_vars` in ResourceAnalysis.analyze()
+        to reduce a matrix into a vector.
+
+        Args:
+            x_matrix:
+                X Matrix.
+            y_vec:
+                y vector.
+            plot_y_label:
+                y label for plot.
+            plot_title:
+                Plot title.
+            plot_pp:
+                Matplotlib's PDF backend PdfPages object.
+        Returns:
+            Tuple of (coeffs, intercept).
+        """
+        import numpy as np
+        from sklearn import linear_model
+
+        x_matrix = np.array(x_matrix)
+
+        try:
+            model = linear_model.LinearRegression().fit(x_matrix, y_vec)
+            coeffs, intercept = model.coef_, model.intercept_
+
+        except (TypeError, ValueError):
+            logger.error(
+                'Failed to solve due to type/dim mismatch. '
+                'Too few data or invalid resource monitoring script? '
+                'title: {title}, y_label: {y_label}, '
+                'y_vec={y_vec}, x_matrix: {x_matrix}'.format(
+                    title=plot_title,
+                    y_label=plot_y_label,
+                    y_vec=y_vec,
+                    x_matrix=x_matrix,
+                )
+            )
+            return
+
+        if plot_pp:
+            if x_matrix.shape[1] > 1:
+                logger.warning(
+                    'Cannot make a 2D scatter plot. dim(x_matrix) > 1. '
+                    'Multi-dimensional analysis without reducing x matrix?'
+                )
+            else:
+                import matplotlib.pyplot as plt
+
+                x_vec = x_matrix[:, 0]
+                # scatter plot with a fitting line
+                plt.scatter(x_vec, y_vec, s=np.pi * 3, color=(0, 0, 0), alpha=0.5)
+                plt.plot(x_vec, coeffs * x_vec + intercept)
+                plt.title(plot_title)
+                plt.xlabel('input_file_size')
+                plt.ylabel(plot_y_label)
+                plt.savefig(plot_pp, format='pdf')
+                plt.clf()
+
+        return list(coeffs), intercept

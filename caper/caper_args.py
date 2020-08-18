@@ -660,6 +660,9 @@ def get_parser_and_defaults(conf_file=None):
         'See help for gcp_monitor to find available resources. '
         'e.g. stats.max.disk, stats.mean.cpu_pct.',
     )
+    parent_gcp_res_analysis.add_argument(
+        '--plot-pdf', help='Local path for a scatter plot PDF file'
+    )
 
     # cleanup
     parent_cleanup = argparse.ArgumentParser(add_help=False)
