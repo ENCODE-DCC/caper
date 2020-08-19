@@ -31,7 +31,7 @@ if [[ $# -lt 1 ]]; then
   echo "  --image: Image. Check available images: gcloud compute images list. ubuntu-1804-bionic-v20200716 by default."
   echo "  --image-project: Image project. ubuntu-os-cloud by default."
   echo "  --tags: Tags to apply to the new instance. caper-server by default."
-  echo "  --startup-script: Startup script CONTENTS (NOT A FILE). These command lines should sudo-install Java, PostgreSQL, Python3 and pip3. DO NOT INSTALL CAPER HERE. some apt-get command lines by default."
+  echo "  --startup-script: Startup script CONTENTS (NOT A FILE). These command lines should sudo-install screen, Java, PostgreSQL, Python3 and pip3. DO NOT INSTALL CAPER HERE. some apt-get command lines by default."
   echo
 
   if [[ $# -lt 4 ]]; then
@@ -189,7 +189,7 @@ fi
 if [[ -z "$STARTUP_SCRIPT" ]]; then
   STARTUP_SCRIPT="""
 sudo apt-get update
-sudo apt-get -y install python3 python3-pip default-jre postgresql postgresql-contrib
+sudo apt-get -y install screen python3 python3-pip default-jre postgresql postgresql-contrib
 """
 fi
 
@@ -327,10 +327,20 @@ echo "$(date): Transferred a key file to instance successfully."
 
 echo "$(date): Waiting for the instance finishing up installing Caper..."
 until gcloud --project "$GCP_PRJ" compute ssh --zone="$ZONE" root@"$INSTANCE_NAME" --command="caper -v"; do
-  echo "$(date): Caper has not been installed yet. Retrying in 20 seconds..."
-  sleep 20
+  echo "$(date): Caper has not been installed yet. Retrying in 40 seconds..."
+  sleep 40
 done
 echo "$(date): Finished installing Caper on the instance. Ready to run Caper server."
+
+echo "$(date): Spinning up Caper server..."
+gcloud --project "$GCP_PRJ" compute ssh --zone="$ZONE" root@"$INSTANCE_NAME" --command="cd $CAPER_CONF_DIR && screen -dmS caper_server bash -c \"caper server > caper_server.log 2>&1\""
+sleep 60
+until gcloud --project "$GCP_PRJ" compute ssh --zone="$ZONE" root@"$INSTANCE_NAME" --command="caper list"; do
+  echo "$(date): Caper server has not been started yet. Retrying in 60 seconds..."
+  sleep 60
+done
+echo "$(date): Caper server is up and ready to take submissions. You can find Caper server's log file at $CAPER_CONF_DIR/caper_server.log. Cromwell's STDERR will be written to cromwell.out."
+
 echo "$(date): Use the following command line to SSH to the instance."
 echo
 echo "gcloud beta compute ssh --zone $ZONE $INSTANCE_NAME --project $GCP_PRJ"
