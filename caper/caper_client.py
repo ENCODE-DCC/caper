@@ -318,7 +318,7 @@ class CaperClientSubmit(CaperClient):
             # check if such loc_dir is defined.
             if self.get_loc_dir(backend) is None:
                 raise ValueError(
-                    'work_dir is not defined for your backend. {b}'.format(b=backend)
+                    'loc_dir is not defined for your backend. {b}'.format(b=backend)
                 )
 
             maybe_remote_file = self.localize_on_backend_if_modified(
