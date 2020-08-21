@@ -191,6 +191,7 @@ def runner(args, nonblocking_server=False):
         postgresql_db_name=args.postgresql_db_name,
         gcp_prj=args.gcp_prj,
         use_google_cloud_life_sciences=args.use_google_cloud_life_sciences,
+        gcp_region=args.gcp_region,
         gcp_zones=args.gcp_zones,
         gcp_call_caching_dup_strat=args.gcp_call_caching_dup_strat,
         gcp_out_dir=args.gcp_out_dir,
