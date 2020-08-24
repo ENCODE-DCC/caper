@@ -236,7 +236,8 @@ class ResourceAnalysis(ABC):
 
         if reduce_in_file_vars:
             key = '{reduce_name}({vars})'.format(
-                reduce_name=reduce_in_file_vars.__name__, vars=','.join(x_data.keys())
+                reduce_name=reduce_in_file_vars.__name__,
+                vars=','.join(sorted(x_data.keys())),
             )
             # transpose to reduce(sum by default) file sizes
             # over all in_file_vars
