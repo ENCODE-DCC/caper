@@ -634,34 +634,41 @@ def get_parser_and_defaults(conf_file=None):
     parent_gcp_res_analysis = argparse.ArgumentParser(add_help=False)
     parent_gcp_res_analysis.add_argument(
         '--in-file-vars-def-json',
-        help='JSON file to define the following information. '
-        'key: task\'s name, wild-cards (*, ?) are allowed. '
-        'value: list of input file var names. '
+        help='JSON file to define task name and input file variabless '
+        'to be included in resource analysis. '
+        'Key: task name, wild-cards (*, ?) are allowed. '
+        'Value: list of input file var names. '
         'e.g. "atac.align*": ["fastqs_R1", "fastqs_R2"]. '
-        'If this file is defined, then tasks not defined in this JSON file will be ignored.',
+        'Once this file is defined, tasks not included in it will be ignored.',
     )
     parent_gcp_res_analysis.add_argument(
         '--reduce-in-file-vars',
         choices=['sum', 'min', 'max', 'none'],
         default='sum',
-        help='Reduce input file size matrix (X matrix in a multiple linear regression). '
+        help='To simplify the problem, reduce input file size matrix '
+        '(X matrix in a multiple linear regression). '
         'To solve y=Ax (least squares), this will reduce multiple linear regression '
         'into a single linear regression problem, '
-        'which requires less number of datasets, which is 2 per task. '
+        'which requires less number of datasets (at least 2 per task). '
         'Choose \'none\' to keep all input vars without reduction in the analysis. '
-        'Otherwise, make sure that number of datasets (per task) '
-        '> number of input file vars in a task in a workflow.',
+        '2D Scatter plot (--plot-pdf) will not available for analysis without reduction. '
+        'If \'none\' then make sure that number of datasets (per task) '
+        '> number of input file variabless in a task.',
     )
     parent_gcp_res_analysis.add_argument(
         '--target-resources',
         nargs='+',
         default=list(ResourceAnalysis.DEFAULT_TARGET_RESOURCES),
-        help='Keys for resources in a JSON gcp_monitor outputs. '
+        help='Keys for resources in a JSON gcp_monitor outputs, '
+        'which forms y vector for a linear problem. '
+        'Analysis will be done separately for each key. '
         'See help for gcp_monitor to find available resources. '
         'e.g. stats.max.disk, stats.mean.cpu_pct.',
     )
     parent_gcp_res_analysis.add_argument(
-        '--plot-pdf', help='Local path for a scatter plot PDF file'
+        '--plot-pdf',
+        help='Local path for a 2D scatter plot PDF file. '
+        'Scatter plot will not be available if --reduce-in-file-vars is none.',
     )
 
     # cleanup
