@@ -67,7 +67,8 @@ class ResourceAnalysis(ABC):
         Args:
             in_file_vars:
                 Dict { TASK_NAME: [IN_FILE_VAR1, ...] }.
-                See ResourceAnalysis.analyze_per_task.__doc__ for details
+                If not None, only tasks defined in it will be analyzed.
+                See ResourceAnalysis.analyze_per_task.__doc__ for details.
             reduce_in_file_vars:
                 Python function (e.g. sum, max) to reduce x matrix into a vector.
                 See ResourceAnalysis.analyze_per_task.__doc__ for details.
@@ -100,7 +101,7 @@ class ResourceAnalysis(ABC):
         for task_name in all_tasks:
             result[task_name] = self.analyze_task(
                 task_name,
-                in_file_vars=in_file_vars[task_name],
+                in_file_vars=in_file_vars[task_name] if in_file_vars else None,
                 reduce_in_file_vars=reduce_in_file_vars,
                 target_resources=target_resources,
                 plot_pp=plot_pp,
