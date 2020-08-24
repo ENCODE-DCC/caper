@@ -639,8 +639,8 @@ $ caper gcp_res_analysis METADATA_JSON_FILE_OR_WORKFLOW_ID ... --plot-pdf [PLOT_
 
 Define task's input file variables to limit analysis on specific tasks and input variables. Use `--in-file-vars-def-json` to define it.
  Example JSON files can be found at the following URLs:
-- ENCODE ATAC-seq pipeline: https://storage.googleapis.com/caper-data/gcp_res_analysis/in_file_vars_json/atac.json
-- ENCODE ChIP-seq pipeline: https://storage.googleapis.com/caper-data/gcp_res_analysis/in_file_vars_json/chip.json
+- ENCODE ATAC-seq pipeline: [Result JSON](https://storage.googleapis.com/caper-data/gcp_res_analysis/in_file_vars_json/atac.json)
+- ENCODE ChIP-seq pipeline: [Result JSON](https://storage.googleapis.com/caper-data/gcp_res_analysis/in_file_vars_json/chip.json)
 
 Example plots:
-- ENCODE ATAC-seq pipeline:
+- ENCODE ATAC-seq pipeline: [Plot PDF](https://storage.googleapis.com/caper-data/gcp_res_analysis/example_plot/atac.pdf)
