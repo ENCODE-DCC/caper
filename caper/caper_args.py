@@ -645,15 +645,17 @@ def get_parser_and_defaults(conf_file=None):
         '--reduce-in-file-vars',
         choices=['sum', 'min', 'max', 'none'],
         default='sum',
-        help='To simplify the problem, reduce input file size matrix '
-        '(X matrix in a multiple linear regression). '
-        'To solve y=Ax (least squares), this will reduce multiple linear regression '
-        'into a single linear regression problem, '
-        'which requires less number of datasets (at least 2 per task). '
-        'Choose \'none\' to keep all input vars without reduction in the analysis. '
+        help='To simplify the problem y=AX where '
+        'X is a matrix of input file sizes. Reduce x into a vector. '
+        'e.g. summing all rows for each column. '
+        'This will convert a multiple linear regression into a single linear regression. '
+        'This is useful since single linear regression requires much less data '
+        '(at least 2 for each task). '
+        'Choose \'none\' to keep all input file variables '
+        'without reduction in the analysis. '
         '2D Scatter plot (--plot-pdf) will not available for analysis without reduction. '
         'If \'none\' then make sure that number of datasets (per task) '
-        '> number of input file variabless in a task.',
+        '> number of input file variables in a task.',
     )
     parent_gcp_res_analysis.add_argument(
         '--target-resources',
@@ -786,7 +788,9 @@ def get_parser_and_defaults(conf_file=None):
     p_gcp_res_analysis = subparser.add_parser(
         'gcp_res_analysis',
         help='Resource analysis on monitoring data collected on '
-        'instances run on Google Cloud Compute. '
+        'instances run on Google Cloud Compute. For each task, '
+        'linearly solve y=AX where X is a matrix of input file sizes '
+        'and y is a vector of resources taken. '
         'Use this for any workflows run with Caper>=1.2.0 on gcp backend. '
         'This is for gcp backend only.',
         parents=[
