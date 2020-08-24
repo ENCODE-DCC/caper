@@ -771,7 +771,10 @@ def get_parser_and_defaults(conf_file=None):
     )
     p_gcp_monitor = subparser.add_parser(
         'gcp_monitor',
-        help='Monitor tasks for gcp backend only.',
+        help='Tabulate task\'s resource data collected on '
+        'instances run on Google Cloud Compute. '
+        'Use this for any workflows run with Caper>=1.2.0 on gcp backend. '
+        'This is for gcp backend only.',
         parents=[
             parent_all,
             parent_server_client,
@@ -782,7 +785,9 @@ def get_parser_and_defaults(conf_file=None):
     )
     p_gcp_res_analysis = subparser.add_parser(
         'gcp_res_analysis',
-        help='Resource analysis on monitoring data collected by gcp_monitor. '
+        help='Resource analysis on monitoring data collected on '
+        'instances run on Google Cloud Compute. '
+        'Use this for any workflows run with Caper>=1.2.0 on gcp backend. '
         'This is for gcp backend only.',
         parents=[
             parent_all,
