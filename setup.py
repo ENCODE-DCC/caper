@@ -29,7 +29,7 @@ setuptools.setup(
         'pyhocon>=0.3.53',
         'requests',
         'pyopenssl',
-        'autouri>=0.2.0',
+        'autouri>=0.2.1',
         'miniwdl',
         'humanfriendly',
         'numpy',
