@@ -524,11 +524,12 @@ def get_multi_cromwell_metadata_objs(caper_client, args):
         metadata = json.loads(AutoURI(get_abspath(file)).read())
         all_metadata.append(metadata)
 
-    all_metadata.extend(
-        caper_client.metadata(
-            wf_ids_or_labels=list_of_non_files, embed_subworkflow=True
+    if list_of_non_files:
+        all_metadata.extend(
+            caper_client.metadata(
+                wf_ids_or_labels=list_of_non_files, embed_subworkflow=True
+            )
         )
-    )
 
     if not all_metadata:
         raise ValueError('Found no metadata/workflow matching with search query.')
