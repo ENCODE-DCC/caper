@@ -10,7 +10,7 @@ import sys
 from autouri import GCSURI, AutoURI
 
 from . import __version__ as version
-from .caper_args import get_parser_and_defaults
+from .caper_args import ResourceAnalysisReductionMethod, get_parser_and_defaults
 from .caper_client import CaperClient, CaperClientSubmit
 from .caper_init import init_caper_conf
 from .caper_labels import CaperLabels
@@ -593,21 +593,6 @@ def read_json(json_file):
         return json.loads(json_contents)
 
 
-def get_reduce_fn(fn_name):
-    """Only 3 reduction functions are supported.
-    """
-    if fn_name == 'sum':
-        return sum
-    elif fn_name == 'min':
-        return min
-    elif fn_name == 'max':
-        return max
-    elif fn_name == 'none':
-        return None
-    else:
-        raise ValueError('Not supported reduce function. {fn}'.format(fn=fn_name))
-
-
 def subcmd_gcp_res_analysis(caper_client, args):
     """Solves linear regression problem to find coeffs and intercept
     to help optimizing resources for a task based on task's input file size.
@@ -621,7 +606,9 @@ def subcmd_gcp_res_analysis(caper_client, args):
     res_analysis = LinearResourceAnalysis(all_metadata)
     result = res_analysis.analyze(
         in_file_vars=read_json(args.in_file_vars_def_json),
-        reduce_in_file_vars=get_reduce_fn(args.reduce_in_file_vars),
+        reduce_in_file_vars=getattr(
+            ResourceAnalysisReductionMethod, args.reduce_in_file_vars
+        ).value,
         target_resources=args.target_resources,
         plot_pdf=get_abspath(args.plot_pdf),
     )

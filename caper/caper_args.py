@@ -1,5 +1,6 @@
 import argparse
 import os
+from enum import Enum
 
 from autouri import URIBase
 
@@ -23,6 +24,13 @@ DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_LIST_FORMAT = 'id,status,name,str_label,user,parent,submission'
 DEFAULT_OUT_DIR = '.'
 DEFAULT_CROMWELL_STDOUT = './cromwell.out'
+
+
+class ResourceAnalysisReductionMethod(Enum):
+    sum = sum
+    max = max
+    min = min
+    none = None
 
 
 def get_defaults(conf_file=None):
@@ -643,17 +651,17 @@ def get_parser_and_defaults(conf_file=None):
     )
     parent_gcp_res_analysis.add_argument(
         '--reduce-in-file-vars',
-        choices=['sum', 'min', 'max', 'none'],
-        default='sum',
+        choices=[method.name for method in list(ResourceAnalysisReductionMethod)],
+        default=ResourceAnalysisReductionMethod.sum.name,
         help='Reduce X matrix (resource data) into a vector. '
         'e.g. summing up all input file sizes. '
         'Reducing X will convert a multiple linear regression into a single linear regression. '
         'This is useful since single linear regression requires much less data '
         '(at least 2 for each task). '
-        'Choose \'none\' to keep all input file variables '
+        'Choose NONE to keep all input file variables '
         'without reduction in the analysis. '
         '2D Scatter plot (--plot-pdf) will not available for analysis without reduction. '
-        'If \'none\' then make sure that number of datasets (per task) '
+        'If NONE then make sure that number of datasets (per task) '
         '> number of input file variables in a task.',
     )
     parent_gcp_res_analysis.add_argument(
