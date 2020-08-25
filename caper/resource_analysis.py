@@ -4,8 +4,8 @@ import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
-import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import pyplot
 from matplotlib.backends.backend_pdf import PdfPages
 from sklearn import linear_model
 
@@ -325,12 +325,12 @@ class LinearResourceAnalysis(ResourceAnalysis):
             else:
                 x_vec = x_matrix[:, 0]
                 # scatter plot with a fitting line
-                plt.scatter(x_vec, y_vec, s=np.pi * 3, color=(0, 0, 0), alpha=0.5)
-                plt.plot(x_vec, model.coef_ * x_vec + model.intercept_)
-                plt.title(plot_title)
-                plt.xlabel('input_file_size')
-                plt.ylabel(plot_y_label)
-                plt.savefig(plot_pp, format='pdf')
-                plt.clf()
+                pyplot.scatter(x_vec, y_vec, s=np.pi * 3, color=(0, 0, 0), alpha=0.5)
+                pyplot.plot(x_vec, model.coef_ * x_vec + model.intercept_)
+                pyplot.title(plot_title)
+                pyplot.xlabel('input_file_size')
+                pyplot.ylabel(plot_y_label)
+                pyplot.savefig(plot_pp, format='pdf')
+                pyplot.clf()
 
         return list(model.coef_), model.intercept_
