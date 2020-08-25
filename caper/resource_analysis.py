@@ -300,11 +300,10 @@ class LinearResourceAnalysis(ResourceAnalysis):
 
         try:
             model = linear_model.LinearRegression().fit(x_matrix, y_vec)
-            coeffs, intercept = model.coef_, model.intercept_
 
-        except (TypeError, ValueError):
+        except ValueError:
             logger.error(
-                'Failed to solve due to type/dim mismatch. '
+                'Failed to solve due to type/dim mismatch? '
                 'Too few data or invalid resource monitoring script? '
                 'title: {title}, y_label: {y_label}, '
                 'y_vec={y_vec}, x_matrix: {x_matrix}'.format(
@@ -312,7 +311,8 @@ class LinearResourceAnalysis(ResourceAnalysis):
                     y_label=plot_y_label,
                     y_vec=y_vec,
                     x_matrix=x_matrix,
-                )
+                ),
+                exc_info=True,
             )
             return
 
@@ -326,11 +326,11 @@ class LinearResourceAnalysis(ResourceAnalysis):
                 x_vec = x_matrix[:, 0]
                 # scatter plot with a fitting line
                 plt.scatter(x_vec, y_vec, s=np.pi * 3, color=(0, 0, 0), alpha=0.5)
-                plt.plot(x_vec, coeffs * x_vec + intercept)
+                plt.plot(x_vec, model.coef_ * x_vec + model.intercept_)
                 plt.title(plot_title)
                 plt.xlabel('input_file_size')
                 plt.ylabel(plot_y_label)
                 plt.savefig(plot_pp, format='pdf')
                 plt.clf()
 
-        return list(coeffs), intercept
+        return list(model.coef_), model.intercept_
