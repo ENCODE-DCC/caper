@@ -59,12 +59,6 @@ def flatten_dict(d, reducer=None, parent_key=()):
         return type(d)(items)
 
 
-def flatten_dict_with_dot(d):
-    """Flattens dict with dot notation.
-    """
-    return {'.'.join(k): v for k, v in flatten_dict(d).items()}
-
-
 def recurse_dict_value(d, fnc):
     if isinstance(d, dict):
         for k, v in d.items():
