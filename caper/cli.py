@@ -495,16 +495,16 @@ def get_single_cromwell_metadata_obj(caper_client, args, subcmd):
 def split_list_into_file_and_non_file(lst):
     """Returns tuple of (list of existing files, list of non-file strings)
     """
-    list_of_files = []
-    list_of_non_files = []
+    files = []
+    non_files = []
 
     for maybe_file in lst:
         if AutoURI(get_abspath(maybe_file)).exists:
-            list_of_files.append(maybe_file)
+            files.append(maybe_file)
         else:
-            list_of_non_files.append(maybe_file)
+            non_files.append(maybe_file)
 
-    return list_of_files, list_of_non_files
+    return files, non_files
 
 
 def get_multi_cromwell_metadata_objs(caper_client, args):
@@ -515,20 +515,16 @@ def get_multi_cromwell_metadata_objs(caper_client, args):
             'if there is a running Caper server.'
         )
 
-    list_of_files, list_of_non_files = split_list_into_file_and_non_file(
-        args.wf_id_or_label
-    )
+    files, non_files = split_list_into_file_and_non_file(args.wf_id_or_label)
 
     all_metadata = []
-    for file in list_of_files:
+    for file in files:
         metadata = json.loads(AutoURI(get_abspath(file)).read())
         all_metadata.append(metadata)
 
-    if list_of_non_files:
+    if non_files:
         all_metadata.extend(
-            caper_client.metadata(
-                wf_ids_or_labels=list_of_non_files, embed_subworkflow=True
-            )
+            caper_client.metadata(wf_ids_or_labels=non_files, embed_subworkflow=True)
         )
 
     if not all_metadata:
