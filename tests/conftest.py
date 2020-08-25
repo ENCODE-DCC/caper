@@ -18,11 +18,6 @@ def pytest_addoption(parser):
         '(read access for everyone is enough for testing).',
     )
     parser.addoption(
-        '--gcp-res-analysis-metadata',
-        default='gs://caper-data/gcp_resource_analysis/out/atac/e5eab444-cb6c-414a-a090-2c12417be542/metadata.json',
-        help='GCS path of metadata.json file to test gcp_res_analysis.',
-    )
-    parser.addoption(
         '--cromwell',
         default=Cromwell.DEFAULT_CROMWELL,
         help='URI for Cromwell JAR. Local path is recommended.',
@@ -81,5 +76,5 @@ def debug_caper(request):
 
 
 @pytest.fixture(scope='session')
-def gcp_res_analysis_metadata(request):
-    return request.config.getoption('--gcp-res-analysis-metadata')
+def gcp_res_analysis_metadata():
+    return 'gs://caper-data/gcp_resource_analysis/out/atac/e5eab444-cb6c-414a-a090-2c12417be542/metadata.json'
