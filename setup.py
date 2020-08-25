@@ -32,9 +32,9 @@ setuptools.setup(
         'autouri>=0.2.1',
         'miniwdl',
         'humanfriendly',
-        'numpy',
-        'pandas',
-        'scikit-learn',
-        'matplotlib',
+        'numpy>=1.8.2',
+        'pandas>=1.0',
+        'scikit-learn>=0.19.2',
+        'matplotlib>=1.5',
     ],
 )
