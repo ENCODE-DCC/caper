@@ -28,13 +28,22 @@ class ResourceAnalysis(ABC):
     DEFAULT_REDUCE_IN_FILE_VARS = sum
     DEFAULT_TARGET_RESOURCES = ('stats.max.mem', 'stats.max.disk')
 
-    def __init__(self, metadata_jsons):
-        """Solves y = f(x) in a statistical way where
-        x is a vector of input file sizes (e.g. size_each([bam, bowtie2_index_tar, ...]))
+    def __init__(self):
+        """Solves y = f(X) in a statistical way where
+        X is a matrix vector of input file sizes (e.g. size_each([bam, bowtie2_index_tar, ...]))
         y is a vector of resources (e.g. [max_mem, max_disk, ...])
+        """
+        self._task_resources = []
 
-        self._tasks is extended (across all workflows) list of resource monitoring
-        result from gcp_monitor():
+    @property
+    def task_resources(self):
+        return self._task_resources
+
+    def collect_resource_data(self, metadata_jsons):
+        """Collect resource data from parsing metadata JSON files.
+
+        self._task_resources is an extended (across all workflows) list of resource monitoring
+        result from CromwellMetadata.gcp_monitor():
         [
             {
                 'task_name': TASK1,
@@ -47,14 +56,15 @@ class ResourceAnalysis(ABC):
                 ...
             }
         ]
+
         Args:
             metadata_jsons:
                 List of metadata JSON file URIs or metadata JSONs
                 or CromwellMetadata objects.
         """
-        self._tasks = []
+        self._task_resources = []
         for metadata_json in metadata_jsons:
-            self._tasks.extend(CromwellMetadata(metadata_json).gcp_monitor())
+            self._task_resources.extend(CromwellMetadata(metadata_json).gcp_monitor())
 
     def analyze(
         self,
@@ -64,6 +74,7 @@ class ResourceAnalysis(ABC):
         plot_pdf=None,
     ):
         """Find and analyze all tasks.
+        Run `self.collect_resource_data()` first to collect resource data before analysis.
 
         Args:
             in_file_vars:
@@ -95,7 +106,7 @@ class ResourceAnalysis(ABC):
         if in_file_vars:
             all_tasks = in_file_vars.keys()
         else:
-            all_tasks = self._get_all_task_names()
+            all_tasks = list(set([task['task_name'] for task in self.task_resources]))
 
         for task_name in all_tasks:
             result[task_name] = self.analyze_task(
@@ -120,6 +131,9 @@ class ResourceAnalysis(ABC):
         plot_pp=None,
     ):
         """Does resource analysis on a task.
+        Run `self.collect_resource_data()` first to collect resource data before analysis.
+        Then you can such collected data for each task.
+
         To use a general solver for y = f(x),
         convert task's raw resouce data into (x_matrix, y_vector) form.
 
@@ -194,7 +208,7 @@ class ResourceAnalysis(ABC):
         # but we want to mix both SE/PE (paired-ended) data.
         # so need to look at all workflows to check if optional/empty var is
         # actully a file var.
-        for task in self._tasks:
+        for task in self.task_resources:
             if not fnmatch.fnmatchcase(task['task_name'], task_name):
                 continue
 
@@ -205,7 +219,7 @@ class ResourceAnalysis(ABC):
                 if in_file_size:
                     in_file_vars_found.add(in_file_var)
 
-        for task in self._tasks:
+        for task in self.task_resources:
             if not fnmatch.fnmatchcase(task['task_name'], task_name):
                 continue
 
@@ -258,11 +272,6 @@ class ResourceAnalysis(ABC):
         # a bit hacky way to recursively convert numpy type into python type
         json_str = json.dumps(result, default=convert_type_np_to_py)
         return json.loads(json_str)
-
-    def _get_all_task_names(self):
-        """Get all task names.
-        """
-        return list(set([task['task_name'] for task in self._tasks]))
 
     @abstractmethod
     def _solve(self, x_matrix, y_vec, plot_y_label=None, plot_title=None, plot_pp=None):

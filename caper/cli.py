@@ -603,7 +603,9 @@ def subcmd_gcp_res_analysis(caper_client, args):
     """
     all_metadata = get_multi_cromwell_metadata_objs(caper_client, args)
 
-    res_analysis = LinearResourceAnalysis(all_metadata)
+    res_analysis = LinearResourceAnalysis()
+    res_analysis.collect_resource_data(all_metadata)
+
     result = res_analysis.analyze(
         in_file_vars=read_json(args.in_file_vars_def_json),
         reduce_in_file_vars=getattr(
