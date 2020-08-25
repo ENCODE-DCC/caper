@@ -645,10 +645,9 @@ def get_parser_and_defaults(conf_file=None):
         '--reduce-in-file-vars',
         choices=['sum', 'min', 'max', 'none'],
         default='sum',
-        help='To simplify the problem y=AX where '
-        'X is a matrix of input file sizes. Reduce x into a vector. '
-        'e.g. summing all rows for each column. '
-        'This will convert a multiple linear regression into a single linear regression. '
+        help='Reduce X matrix (resource data) into a vector. '
+        'e.g. summing up all input file sizes. '
+        'Reducing X will convert a multiple linear regression into a single linear regression. '
         'This is useful since single linear regression requires much less data '
         '(at least 2 for each task). '
         'Choose \'none\' to keep all input file variables '
@@ -663,7 +662,7 @@ def get_parser_and_defaults(conf_file=None):
         default=list(ResourceAnalysis.DEFAULT_TARGET_RESOURCES),
         help='Keys for resources in a JSON gcp_monitor outputs, '
         'which forms y vector for a linear problem. '
-        'Analysis will be done separately for each key. '
+        'Analysis will be done separately for each key (resource metric). '
         'See help for gcp_monitor to find available resources. '
         'e.g. stats.max.disk, stats.mean.cpu_pct.',
     )
@@ -787,12 +786,21 @@ def get_parser_and_defaults(conf_file=None):
     )
     p_gcp_res_analysis = subparser.add_parser(
         'gcp_res_analysis',
-        help='Resource analysis on monitoring data collected on '
-        'instances run on Google Cloud Compute. For each task, '
-        'linearly solve y=AX where X is a matrix of input file sizes '
-        'and y is a vector of resources taken. '
+        help='Linear resource analysis on monitoring data collected on '
+        'instances run on Google Cloud Compute. This is for gcp backend only. '
         'Use this for any workflows run with Caper>=1.2.0 on gcp backend. '
-        'This is for gcp backend only.',
+        'Calculates coefficients/intercept for task\'s required resources '
+        'based on input file size of a task. '
+        'For each task it solves a linear regression problem of y=Xc + i1 + e where '
+        'X is a matrix (m by n) of input file sizes and '
+        'c is a coefficient vector (n by 1) and '
+        'i is intercept and 1 is ones vector. '
+        'y is a vector (m by 1) of resource taken and '
+        'e is residual to be minimized. '
+        'm is number of dataset and n is number of input file variables. '
+        'Each resource metric will be solved separately. '
+        'Refer to --target-resources for details about available resource metrics. '
+        'Output will be a tuple of coefficient vector and intercept. ',
         parents=[
             parent_all,
             parent_server_client,
