@@ -186,15 +186,13 @@ class ResourceAnalysis(ABC):
                 See CromwellMetadata.gcp_monitor.__doc__ to find available keys.
                 One vector y for each key, which means one solving for each key.
             plot_pp:
-                Matplotlib's PDF backend PdfPages to write plots on multiple pages
-                (task per page).
+                Matplotlib's PDF backend PdfPages object to write plots on multiple pages.
+                (task/resource per page).
 
         Returns:
             coeffs:
                 Analysis result.
                 e.g. (coeffs, intercept) for linear regression.
-            Plot object:
-                Matplotlib plot object.
         """
         result = {}
 
@@ -208,9 +206,11 @@ class ResourceAnalysis(ABC):
         # but we want to mix both SE/PE (paired-ended) data.
         # so need to look at all workflows to check if optional/empty var is
         # actully a file var.
+        matched_task_resources = []
         for task in self.task_resources:
             if not fnmatch.fnmatchcase(task['task_name'], task_name):
                 continue
+            matched_task_resources.append(task)
 
             for in_file_var, in_file_size in task['input_file_sizes'].items():
                 if in_file_vars and in_file_var not in in_file_vars:
@@ -219,10 +219,7 @@ class ResourceAnalysis(ABC):
                 if in_file_size:
                     in_file_vars_found.add(in_file_var)
 
-        for task in self.task_resources:
-            if not fnmatch.fnmatchcase(task['task_name'], task_name):
-                continue
-
+        for task in matched_task_resources:
             # gather y_data
             found_y_data = False
             for res_metric, res_val in flatten_dict(task, reducer='.').items():
