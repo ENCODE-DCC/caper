@@ -54,11 +54,7 @@ class ResourceAnalysis(ABC):
         """
         self._tasks = []
         for metadata_json in metadata_jsons:
-            if isinstance(metadata_json, CromwellMetadata):
-                cm = metadata_json
-            else:
-                cm = CromwellMetadata(metadata_json)
-            self._tasks.extend(cm.gcp_monitor())
+            self._tasks.extend(CromwellMetadata(metadata_json).gcp_monitor())
 
     def analyze(
         self,
