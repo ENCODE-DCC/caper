@@ -4,6 +4,11 @@ import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.backends.backend_pdf import PdfPages
+from sklearn import linear_model
+
 from .cromwell_metadata import CromwellMetadata, convert_type_np_to_py
 from .dict_tool import flatten_dict
 
@@ -87,8 +92,6 @@ class ResourceAnalysis(ABC):
         """
         plot_pp = None
         if plot_pdf:
-            from matplotlib.backends.backend_pdf import PdfPages
-
             plot_pp = PdfPages(plot_pdf)
 
         result = {}
@@ -183,8 +186,6 @@ class ResourceAnalysis(ABC):
             Plot object:
                 Matplotlib plot object.
         """
-        import numpy as np
-
         result = {}
 
         in_file_vars_found = set()
@@ -293,9 +294,6 @@ class LinearResourceAnalysis(ResourceAnalysis):
         Returns:
             Tuple of (coeffs, intercept).
         """
-        import numpy as np
-        from sklearn import linear_model
-
         x_matrix = np.array(x_matrix)
 
         try:
@@ -323,8 +321,6 @@ class LinearResourceAnalysis(ResourceAnalysis):
                     'Multi-dimensional analysis without reducing x matrix?'
                 )
             else:
-                import matplotlib.pyplot as plt
-
                 x_vec = x_matrix[:, 0]
                 # scatter plot with a fitting line
                 plt.scatter(x_vec, y_vec, s=np.pi * 3, color=(0, 0, 0), alpha=0.5)
