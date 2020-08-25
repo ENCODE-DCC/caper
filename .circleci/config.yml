@@ -42,7 +42,7 @@ install_singularity: &install_singularity
 install_py3_packages: &install_py3_packages
   name: Install Python packages
   command: |
-    sudo pip3 install pyOpenSSL pytest requests dateparser filelock autouri miniwdl pyhocon numpy pandas scikit-learn
+    sudo pip3 install pyOpenSSL pytest requests dateparser filelock autouri miniwdl pyhocon numpy pandas scikit-learn matplotlib
     sudo pip3 install --upgrade pyasn1-modules
 
 
