@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class CaperClient(CaperBase):
     def __init__(
         self,
-        local_loc_dir,
+        local_loc_dir=None,
         gcp_loc_dir=None,
         aws_loc_dir=None,
         gcp_service_account_key_json=None,
@@ -133,7 +133,7 @@ class CaperClient(CaperBase):
 class CaperClientSubmit(CaperClient):
     def __init__(
         self,
-        local_loc_dir,
+        local_loc_dir=None,
         gcp_loc_dir=None,
         aws_loc_dir=None,
         gcp_service_account_key_json=None,

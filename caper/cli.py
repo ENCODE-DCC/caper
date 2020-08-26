@@ -28,7 +28,6 @@ from .server_heartbeat import ServerHeartbeat
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_TMP_DIR_NAME = '.caper_tmp'
 DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
@@ -116,20 +115,28 @@ def check_dirs(args):
     if hasattr(args, 'local_out_dir'):
         args.local_out_dir = get_abspath(args.local_out_dir)
         if not args.local_loc_dir:
-            args.local_loc_dir = os.path.join(args.local_out_dir, DEFAULT_TMP_DIR_NAME)
+            args.local_loc_dir = os.path.join(
+                args.local_out_dir, CaperRunner.DEFAULT_LOC_DIR_NAME
+            )
     else:
         if not args.local_loc_dir:
-            args.local_loc_dir = os.path.join(os.getcwd(), DEFAULT_TMP_DIR_NAME)
+            args.local_loc_dir = os.path.join(
+                os.getcwd(), CaperRunner.DEFAULT_LOC_DIR_NAME
+            )
 
     args.local_loc_dir = get_abspath(args.local_loc_dir)
 
     if hasattr(args, 'gcp_out_dir'):
         if args.gcp_out_dir and not args.gcp_loc_dir:
-            args.gcp_loc_dir = os.path.join(args.gcp_out_dir, DEFAULT_TMP_DIR_NAME)
+            args.gcp_loc_dir = os.path.join(
+                args.gcp_out_dir, CaperRunner.DEFAULT_LOC_DIR_NAME
+            )
 
     if hasattr(args, 'aws_out_dir'):
         if args.aws_out_dir and not args.aws_loc_dir:
-            args.aws_loc_dir = os.path.join(args.aws_out_dir, DEFAULT_TMP_DIR_NAME)
+            args.aws_loc_dir = os.path.join(
+                args.aws_out_dir, CaperRunner.DEFAULT_LOC_DIR_NAME
+            )
 
 
 def check_db_path(args):

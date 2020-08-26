@@ -11,10 +11,11 @@ logger = logging.getLogger(__name__)
 
 class CaperBase:
     ENV_GOOGLE_APPLICATION_CREDENTIALS = 'GOOGLE_APPLICATION_CREDENTIALS'
+    DEFAULT_LOC_DIR_NAME = '.caper_tmp'
 
     def __init__(
         self,
-        local_loc_dir,
+        local_loc_dir=None,
         gcp_loc_dir=None,
         aws_loc_dir=None,
         gcp_service_account_key_json=None,
@@ -47,6 +48,9 @@ class CaperBase:
                 Google Cloud service account for authentication.
                 This service account should have enough permission to storage.
         """
+        if local_loc_dir is None:
+            local_loc_dir = os.path.join(os.getcwd(), CaperBase.DEFAULT_LOC_DIR_NAME)
+
         if not AbsPath(local_loc_dir).is_valid:
             raise ValueError(
                 'local_loc_dir should be a valid local abspath. {f}'.format(
