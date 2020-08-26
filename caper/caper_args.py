@@ -309,6 +309,7 @@ def get_parser_and_defaults(conf_file=None):
     )
     group_gc.add_argument(
         '--gcp-memory-retry-multiplier',
+        default=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         help='If an error caught by --gcp-memory-retry-error-keys occurs, '
         'then increase memory by this '
         'for retrials controlled by --max-retries. '
