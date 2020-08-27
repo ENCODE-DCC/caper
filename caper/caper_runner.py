@@ -59,6 +59,7 @@ class CaperRunner(CaperBase):
         gcp_out_dir=None,
         gcp_memory_retry_error_keys=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS,
         gcp_memory_retry_multiplier=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
+        gcp_memory_retry_returncodes=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_RETURNCODES,
         gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
@@ -118,6 +119,7 @@ class CaperRunner(CaperBase):
             gcp_out_dir:
             gcp_memory_retry_error_keys:
             gcp_memory_retry_multiplier:
+            gcp_memory_retry_returncodes:
             aws_batch_arn:
             aws_region:
             aws_out_dir:
@@ -179,6 +181,7 @@ class CaperRunner(CaperBase):
             gcp_out_dir=gcp_out_dir,
             gcp_memory_retry_error_keys=gcp_memory_retry_error_keys,
             gcp_memory_retry_multiplier=gcp_memory_retry_multiplier,
+            gcp_memory_retry_returncodes=gcp_memory_retry_returncodes,
             gcp_call_caching_dup_strat=gcp_call_caching_dup_strat,
             gcp_service_account_key_json=gcp_service_account_key_json,
             use_google_cloud_life_sciences=use_google_cloud_life_sciences,

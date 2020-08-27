@@ -254,7 +254,8 @@ class CromwellBackendGCP(CromwellBackendBase):
 
     DEFAULT_GCP_CALL_CACHING_DUP_STRAT = CALL_CACHING_DUP_STRAT_REFERENCE
     DEFAULT_MEMORY_RETRY_KEYS = ['OutOfMemoryError', 'Killed']
-    DEFAULT_MEMORY_RETRY_MULTIPLIER = 1.2
+    DEFAULT_MEMORY_RETRY_MULTIPLIER = 1.5
+    DEFAULT_MEMORY_RETRY_RETURNCODES = [137]
 
     def __init__(
         self,
@@ -262,6 +263,7 @@ class CromwellBackendGCP(CromwellBackendBase):
         gcp_out_dir,
         gcp_memory_retry_error_keys=DEFAULT_MEMORY_RETRY_KEYS,
         gcp_memory_retry_multiplier=DEFAULT_MEMORY_RETRY_MULTIPLIER,
+        gcp_memory_retry_returncodes=DEFAULT_MEMORY_RETRY_RETURNCODES,
         call_caching_dup_strat=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
@@ -284,6 +286,16 @@ class CromwellBackendGCP(CromwellBackendBase):
                 Ignored if use_google_cloud_life_sciences.
             gcp_memory_retry_error_keys:
                 List of error strings to catch out-of-memory error.
+                To disable memory-retry make this None.
+            gcp_memory_retry_multiplier:
+                Multiplier for instance's memory for next memory-retry.
+            gcp_memory_retry_returncodes:
+                List of integer return codes for memory-retry.
+                This should be valid return codes from an OOM killer only.
+                Any failed tasks with these return codes will be marked as Success
+                and the workflow will continue even after such task's failure.
+                e.g. if it is defined as [1, 127] then tasks failed with rc 1, 127
+                will be marked as Success and workflow will continue.
         """
         super().__init__(
             backend_name=BACKEND_GCP, max_concurrent_tasks=max_concurrent_tasks
@@ -312,10 +324,15 @@ class CromwellBackendGCP(CromwellBackendBase):
                 {'name': 'application-default', 'scheme': 'application_default'}
             ]
 
-        config['memory-retry'] = {
-            'error-keys': gcp_memory_retry_error_keys,
-            'multiplier': gcp_memory_retry_multiplier,
-        }
+        if gcp_memory_retry_error_keys:
+            config['memory-retry'] = {
+                'error-keys': gcp_memory_retry_error_keys,
+                'multiplier': gcp_memory_retry_multiplier,
+            }
+            self.default_runtime_attributes[
+                'continueOnReturnCode'
+            ] = gcp_memory_retry_returncodes
+
         if use_google_cloud_life_sciences:
             self.backend['actor-factory'] = CromwellBackendGCP.ACTOR_FACTORY_V2BETA
             genomics['endpoint-url'] = CromwellBackendGCP.GENOMICS_ENDPOINT_V2BETA

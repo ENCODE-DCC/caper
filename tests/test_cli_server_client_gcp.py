@@ -46,6 +46,7 @@ def test_server_client(
     cmd += ['--gcp-out-dir', out_gcs_bucket]
     cmd += ['--gcp-memory-retry-error-keys', 'OutOfMemory,Killed']
     cmd += ['--gcp-memory-retry-multiplier', '1.3']
+    cmd += ['--gcp-memory-retry-returncodes', '1,137']
     cmd += ['--gcp-loc-dir', tmp_gcs_bucket]
     cmd += ['--cromwell-stdout', str(tmp_path / 'cromwell_stdout.o')]
     cmd += ['--db', 'in-memory']

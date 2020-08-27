@@ -316,6 +316,14 @@ def get_parser_and_defaults(conf_file=None):
         'See https://cromwell.readthedocs.io/en/stable/backends/Google/ '
         'for details.',
     )
+    group_gc.add_argument(
+        '--gcp-memory-retry-returncodes',
+        default=','.join(
+            [str(rc) for rc in CromwellBackendGCP.DEFAULT_MEMORY_RETRY_RETURNCODES]
+        ),
+        help='Comma-separated return codes for memory-retry. '
+        'This should be valid return codes from an OOM killer. e.g 137. ',
+    )
     group_gc_all.add_argument(
         '--use-google-cloud-life-sciences',
         action='store_true',

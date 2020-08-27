@@ -168,6 +168,14 @@ def runner(args, nonblocking_server=False):
         args.gcp_memory_retry_error_keys = re.split(
             REGEX_DELIMITER_GCP_PARAMS, args.gcp_memory_retry_error_keys
         )
+    if args.gcp_memory_retry_returncodes:
+        # split comma-separated string into ints
+        args.gcp_memory_retry_returncodes = re.split(
+            REGEX_DELIMITER_GCP_PARAMS, args.gcp_memory_retry_returncodes
+        )
+        args.gcp_memory_retry_returncodes = list(
+            map(int, args.gcp_memory_retry_returncodes)
+        )
 
     c = CaperRunner(
         local_loc_dir=args.local_loc_dir,
@@ -204,6 +212,7 @@ def runner(args, nonblocking_server=False):
         gcp_out_dir=args.gcp_out_dir,
         gcp_memory_retry_error_keys=args.gcp_memory_retry_error_keys,
         gcp_memory_retry_multiplier=args.gcp_memory_retry_multiplier,
+        gcp_memory_retry_returncodes=args.gcp_memory_retry_returncodes,
         aws_batch_arn=args.aws_batch_arn,
         aws_region=args.aws_region,
         aws_out_dir=args.aws_out_dir,
@@ -371,7 +380,7 @@ def subcmd_run(caper_runner, args):
                     )
 
         except Exception:
-            logger.error(USER_INTERRUPT_WARNING)
+            logger.error(USER_INTERRUPT_WARNING, exc_info=True)
             if thread:
                 thread.stop()
 
