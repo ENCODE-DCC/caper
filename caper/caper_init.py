@@ -140,7 +140,7 @@ gcp-region=
 gcp-zones=
 
 # Increase instance's memory when retrying upon OOM (out of memory) error.
-gcp-memory-retry-multiplier=1.2
+gcp-memory-retry-multiplier=1.5
 
 # Number of retrials. This parameter also applies to non-OOM failures.
 max-retries=1

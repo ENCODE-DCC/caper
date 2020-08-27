@@ -188,7 +188,8 @@ We highly recommend to use a default configuration file described in the section
 	use-google-cloud-life-sciences|--use-google-cloud-life-sciences|Use Google Cloud Life Sciences API instead of (deprecated) Genomics API
 	gcp-memory-retry-error-keys|--gcp-memory-retry-error-keys|If an error caught by these comma-separated keys occurs then increase instance's memory by --gcp-memory-retry-multiplier and retry (controlled by --max-retries).
 	gcp-memory-retry-multiplier|--gcp-memory-retry-multiplier|Multiplier for memory-retry.
-	gcp-zones|--gcp-zones|Comma-delimited Google Cloud Platform zones to provision worker instances (e.g. us-central1-c,us-west1-b)
+	gcp-memory-retry-returncodes|--gcp-memory-retry-returncodes|Comma-separated return codes for memory-retry. These should be valid return code from an OOM killer. e.g. 137.
+	gcp-zones|--gcp-zones|Comma-delimited Google Cloud Platform zones to provision worker instances (e.g. us-central1-c,us-west1-b). Not used if `use-google-cloud-life-sciences` flag is on.
 	gcp-out-dir, out-gcs-bucket|--gcp-out-dir, --out-gcs-bucket|Output `gs://` directory for GC backend
 	gcp-loc-dir, tmp-gcs-bucket|--gcp-loc-dir, --tmp-gcs-bucket|Tmp. directory for localization on GC backend
 
