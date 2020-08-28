@@ -253,9 +253,9 @@ class CromwellBackendGCP(CromwellBackendBase):
     CALL_CACHING_DUP_STRAT_COPY = 'copy'
 
     DEFAULT_GCP_CALL_CACHING_DUP_STRAT = CALL_CACHING_DUP_STRAT_REFERENCE
-    DEFAULT_MEMORY_RETRY_KEYS = ['OutOfMemoryError', 'Killed']
+    DEFAULT_MEMORY_RETRY_KEYS = ['OutOfMemoryError', '[0-9]+[ \\t]Killed[ \\t]']
     DEFAULT_MEMORY_RETRY_MULTIPLIER = 1.5
-    DEFAULT_MEMORY_RETRY_RETURNCODES = [137]
+    DEFAULT_MEMORY_RETRY_RETURNCODES = [0, 137]
 
     def __init__(
         self,
@@ -285,8 +285,9 @@ class CromwellBackendGCP(CromwellBackendBase):
                 List of zones for Genomics API.
                 Ignored if use_google_cloud_life_sciences.
             gcp_memory_retry_error_keys:
-                List of error strings to catch out-of-memory error.
-                To disable memory-retry make this None.
+                List of extended reguler expression strings to catch out-of-memory error.
+                Cromwell internally uses `grep -E` to parse it.
+                To disable memory-retry make this None or empty.
             gcp_memory_retry_multiplier:
                 Multiplier for instance's memory for next memory-retry.
             gcp_memory_retry_returncodes:
@@ -294,7 +295,7 @@ class CromwellBackendGCP(CromwellBackendBase):
                 This should be valid return codes from an OOM killer only.
                 Any failed tasks with these return codes will be marked as Success
                 and the workflow will continue even after such task's failure.
-                e.g. if it is defined as [1, 127] then tasks failed with rc 1, 127
+                e.g. if it is defined as [0, 1, 127] then tasks failed with rc 1, 127
                 will be marked as Success and workflow will continue.
         """
         super().__init__(
@@ -329,6 +330,9 @@ class CromwellBackendGCP(CromwellBackendBase):
                 'error-keys': gcp_memory_retry_error_keys,
                 'multiplier': gcp_memory_retry_multiplier,
             }
+            if 0 not in gcp_memory_retry_returncodes:
+                gcp_memory_retry_returncodes.append(0)
+
             self.default_runtime_attributes[
                 'continueOnReturnCode'
             ] = gcp_memory_retry_returncodes
