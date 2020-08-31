@@ -330,7 +330,9 @@ class CromwellBackendGCP(CromwellBackendBase):
                 {'name': 'application-default', 'scheme': 'application_default'}
             ]
 
-        if gcp_memory_retry_error_keys:
+        # Temporarily disabled until memory-retry issue is fixed on Cromwell's side:
+        #   https://github.com/broadinstitute/cromwell/issues/5815
+        if gcp_memory_retry_error_keys and False:
             config['memory-retry'] = {
                 'error-keys': gcp_memory_retry_error_keys,
                 'multiplier': gcp_memory_retry_multiplier,

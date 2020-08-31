@@ -49,6 +49,10 @@ def test_gcp_memory_retry(
 ):
     """Test run with Google Cloud Life Sciences API
     """
+    # Temporarily disabled until memory-retry issue is fixed on Cromwell's side:
+    #   https://github.com/broadinstitute/cromwell/issues/5815
+    return
+
     out_gcs_bucket = os.path.join(gcs_root, 'caper_out', ci_prefix)
     tmp_gcs_bucket = os.path.join(gcs_root, 'caper_tmp')
 
