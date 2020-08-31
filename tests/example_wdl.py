@@ -155,6 +155,95 @@ SUB_SUB_WDL = dedent(
 )
 
 
+MEM_RETRY_WDL = dedent(
+    """\
+    version 1.0
+
+    workflow mem_retry {
+        call fail_oom { input:
+            stderr_msg = ""
+        }
+        # Killed without PID. not valid OOM STDERR
+        call fail_127 { input:
+            stderr_msg = "         Killed                  | shuf -n 142076305"
+        }
+        # Killed with Java OOM error. valid OOM STDERR
+        call fail_127 as fail_127_oom_stderr { input:
+            stderr_msg = "  java.long.OutOfMemoryError: Hello world"
+        }
+        # Killed but with !. not valid OOM STDERR.
+        call success { input:
+            stderr_msg = "Killed!."
+        }
+        # Killed with PID. valid OOM STDERR.
+        # (bash SIGKILL message format)
+        call success as success_oom_stderr { input:
+            stderr_msg = "        35 Killed                  | shuf -n 142076305"
+        }
+        # Killed with "Killed" only. valid OOM STDERR.
+        # (sh SIGKILL message format)
+        # should be retried with mem x 1.5
+        call success as success_oom_stderr2 { input:
+            stderr_msg = "Killed"
+        }
+    }
+
+    task fail_oom {
+        input {
+            String stderr_msg
+        }
+
+        command {
+            set -e
+            echo "${stderr_msg}" 1>&2
+
+            # This one-liner triggers 137 (SIGKILL due to OOM)
+            # https://askubuntu.com/a/823798
+            tail /dev/zero
+        }
+        runtime {
+            cpu: 1
+            memory: "2 GB"
+        }
+    }
+
+    task fail_127 {
+        input {
+            String stderr_msg
+        }
+
+        command {
+            set -e
+            echo "${stderr_msg}" 1>&2
+
+            # Wrong command line to trigger 127
+            lasdfkjlkasdfjlkasdfjlkjasdfkljasdf
+        }
+        runtime {
+            cpu: 1
+            memory: "2 GB"
+        }
+    }
+
+    task success {
+        input {
+            String stderr_msg
+        }
+
+        command {
+            set -e
+            echo "${stderr_msg}" 1>&2
+        }
+        runtime {
+            cpu: 1
+            memory: "2 GB"
+        }
+    }
+
+"""
+)
+
+
 def make_directory_with_wdls(directory, no_sub_wdl=False):
     """
     Run Cromwell with WDLs:
