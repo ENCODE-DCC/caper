@@ -1,5 +1,11 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![CircleCI](https://circleci.com/gh/ENCODE-DCC/caper.svg?style=svg)](https://circleci.com/gh/ENCODE-DCC/caper)
 
+> **IMPORTANT**: All `gcp-memory-retry` parameters are disabled in Caper 1.3.0. They will be re-enabled after https://github.com/broadinstitute/cromwell/issues/5815 is resolved.
+List of disabled parameters:
+- `gcp-memory-retry-error-keys`
+- `gcp-memory-retry-multiplier`
+- `gcp-memory-retry-returncodes`
+
 # Major changes for Caper 1.0.
 
 If you are upgrading Caper from previous versions:
