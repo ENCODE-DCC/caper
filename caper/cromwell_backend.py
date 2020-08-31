@@ -253,7 +253,11 @@ class CromwellBackendGCP(CromwellBackendBase):
     CALL_CACHING_DUP_STRAT_COPY = 'copy'
 
     DEFAULT_GCP_CALL_CACHING_DUP_STRAT = CALL_CACHING_DUP_STRAT_REFERENCE
-    DEFAULT_MEMORY_RETRY_KEYS = ['OutOfMemoryError', '[0-9]+[ \\t]Killed[ \\t]']
+    DEFAULT_MEMORY_RETRY_KEYS = [
+        'OutOfMemoryError',
+        '[0-9]+[ \\t]Killed[ \\t]',
+        '^Killed$',
+    ]
     DEFAULT_MEMORY_RETRY_MULTIPLIER = 1.5
     DEFAULT_MEMORY_RETRY_RETURNCODES = [0, 137]
 
@@ -288,6 +292,7 @@ class CromwellBackendGCP(CromwellBackendBase):
                 List of extended reguler expression strings to catch out-of-memory error.
                 Cromwell internally uses `grep -E` to parse it.
                 To disable memory-retry make this None or empty.
+                Default error keys work with `bash` (Cromwell's default) and `sh`.
             gcp_memory_retry_multiplier:
                 Multiplier for instance's memory for next memory-retry.
             gcp_memory_retry_returncodes:

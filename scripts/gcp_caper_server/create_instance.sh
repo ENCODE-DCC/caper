@@ -327,7 +327,7 @@ echo "$(date): Transferred a key file to instance successfully."
 
 echo "$(date): Waiting for the instance finishing up installing Caper..."
 until gcloud --project "$GCP_PRJ" compute ssh --zone="$ZONE" root@"$INSTANCE_NAME" --command="caper -v"; do
-  echo "$(date): Caper has not been installed yet. Retrying in 40 seconds..."
+  echo "$(date): Caper has not been installed yet. Retrying in 40 seconds... But this can also take several minutes..."
   sleep 40
 done
 echo "$(date): Finished installing Caper on the instance. Ready to run Caper server."
