@@ -176,9 +176,12 @@ def init_caper_conf(conf_file, backend):
         raise ValueError('Unsupported backend {p}'.format(p=backend))
 
     conf_file = os.path.expanduser(conf_file)
-    cromwell = Cromwell()
+    os.makedirs(os.path.dirname(conf_file), exist_ok=True)
+
     with open(conf_file, 'w') as fp:
         fp.write(contents + '\n')
+
+        cromwell = Cromwell()
         fp.write(
             '{key}={val}\n'.format(key='cromwell', val=cromwell.install_cromwell())
         )

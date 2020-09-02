@@ -629,5 +629,18 @@ A workflow ran with Caper>=1.2.0 on `gcp` backend has a monitoring log (`monitor
 `caper gcp_monitor` recursively parses such monitoring log files and show statistics of them in a tab-separated table. `caper gcp_monitor` can take `metadata.json` file URI or a workflow ID if there is a running `caper server`. `--json-format` is optional to print out detailed outputs in a JSON format.
 
 ```bash
-$ caper gcp_monitor METADATA_JSON_FILE_OR_WORKFLOW_ID --json-format
+$ caper gcp_monitor METADATA_JSON_FILE_OR_WORKFLOW_ID ... --json-format
 ```
+
+For further analysis on resource data, use `caper gcp_res_analysis`. `--plot-pdf` is optional to make a multipage PDF file with scatter plots.
+```bash
+$ caper gcp_res_analysis METADATA_JSON_FILE_OR_WORKFLOW_ID ... --plot-pdf [PLOT_PDF_PATH]
+```
+
+Define task's input file variables to limit analysis on specific tasks and input variables. Use `--in-file-vars-def-json` to define it.
+ Example JSON files can be found at the following URLs:
+- ENCODE ATAC-seq pipeline: [Result JSON](https://storage.googleapis.com/caper-data/gcp_resource_analysis/in_file_vars_json/atac.json)
+- ENCODE ChIP-seq pipeline: [Result JSON](https://storage.googleapis.com/caper-data/gcp_resource_analysis/in_file_vars_json/chip.json)
+
+Example plots:
+- ENCODE ATAC-seq pipeline: [Plot PDF](https://storage.googleapis.com/caper-data/gcp_resource_analysis/example_plot/atac.pdf)

@@ -30,9 +30,9 @@ class CaperRunner(CaperBase):
 
     def __init__(
         self,
-        local_loc_dir,
-        local_out_dir,
         default_backend,
+        local_loc_dir=None,
+        local_out_dir=None,
         gcp_loc_dir=None,
         aws_loc_dir=None,
         cromwell=Cromwell.DEFAULT_CROMWELL,
@@ -150,6 +150,9 @@ class CaperRunner(CaperBase):
         self._set_env_gcp_prj(gcp_prj)
 
         self._cromwell = Cromwell(cromwell=cromwell, womtool=womtool)
+
+        if local_out_dir is None:
+            local_out_dir = os.getcwd()
 
         self._caper_backend_conf = CaperBackendConf(
             default_backend=default_backend,

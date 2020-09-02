@@ -73,3 +73,8 @@ def gcp_service_account_key_json(request):
 @pytest.fixture(scope='session')
 def debug_caper(request):
     return request.config.getoption('--debug-caper')
+
+
+@pytest.fixture(scope='session')
+def gcp_res_analysis_metadata():
+    return 'gs://caper-data/gcp_resource_analysis/out/atac/e5eab444-cb6c-414a-a090-2c12417be542/metadata.json'

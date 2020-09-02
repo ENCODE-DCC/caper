@@ -48,6 +48,8 @@ class CromwellMetadata:
         """
         if isinstance(metadata, dict):
             self._metadata = metadata
+        elif isinstance(metadata, CromwellMetadata):
+            self._metadata = metadata._metadata
         else:
             s = AutoURI(metadata).read()
             self._metadata = json.loads(s)
@@ -207,7 +209,10 @@ class CromwellMetadata:
         self.recurse_calls(troubleshoot_call)
 
     def gcp_monitor(
-        self, excluded_cols=(0,), stat_methods=DEFAULT_GCP_MONITOR_STAT_METHODS
+        self,
+        task_name=None,
+        excluded_cols=(0,),
+        stat_methods=DEFAULT_GCP_MONITOR_STAT_METHODS,
     ):
         """Recursively parse task(call)'s `monitoringLog`
         (`monitoring.log` in task's execution directory)
@@ -220,6 +225,8 @@ class CromwellMetadata:
         them with task's input file sizes.
 
         Args:
+            task_name:
+                If defined, limit analysis to this task only.
             excluded_cols:
                 List of 0-based indices of excluded columns. There will be no mean/max/min
                 calculation for these excluded columns.
@@ -243,6 +250,7 @@ class CromwellMetadata:
             Result format:
             [
                 {
+                    'workflow_id': WORKFLOW_ID,
                     'task_name': TASK_NAME,
                     'status': TASK_STATUS,
                     'shard_idx': SHARD_INDEX,
@@ -297,12 +305,18 @@ class CromwellMetadata:
         """
         result = []
         file_size_cache = {}
+        workflow_id = self.workflow_id
 
         def gcp_monitor_call(call_name, call, parent_call_names):
             nonlocal result
             nonlocal excluded_cols
             nonlocal stat_methods
             nonlocal file_size_cache
+            nonlocal workflow_id
+            nonlocal task_name
+
+            if task_name and task_name != call_name:
+                return
 
             monitoring_log = call.get('monitoringLog')
             if monitoring_log is None:
@@ -321,6 +335,7 @@ class CromwellMetadata:
             rt_attrs = call.get('runtimeAttributes')
 
             data = {
+                'workflow_id': workflow_id,
                 'task_name': call_name,
                 'shard_idx': call.get('shardIndex'),
                 'status': call.get('executionStatus'),

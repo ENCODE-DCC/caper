@@ -1,5 +1,6 @@
 import argparse
 import os
+from enum import Enum
 
 from autouri import URIBase
 
@@ -15,6 +16,7 @@ from .cromwell_backend import (
     CromwellBackendLocal,
 )
 from .cromwell_rest_api import CromwellRestAPI
+from .resource_analysis import ResourceAnalysis
 from .server_heartbeat import ServerHeartbeat
 from .singularity import Singularity
 
@@ -22,6 +24,13 @@ DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_LIST_FORMAT = 'id,status,name,str_label,user,parent,submission'
 DEFAULT_OUT_DIR = '.'
 DEFAULT_CROMWELL_STDOUT = './cromwell.out'
+
+
+class ResourceAnalysisReductionMethod(Enum):
+    sum = sum
+    max = max
+    min = min
+    none = None
 
 
 def get_defaults(conf_file=None):
@@ -300,6 +309,7 @@ def get_parser_and_defaults(conf_file=None):
     )
     group_gc.add_argument(
         '--gcp-memory-retry-multiplier',
+        default=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         help='If an error caught by --gcp-memory-retry-error-keys occurs, '
         'then increase memory by this '
         'for retrials controlled by --max-retries. '
@@ -626,9 +636,51 @@ def get_parser_and_defaults(conf_file=None):
     parent_gcp_monitor.add_argument(
         '--json-format',
         action='store_true',
-        help='Prints gcp_monitor output in a JSON format. '
-        'JSON will be more detailed then a tab-delimited one. ',
+        help='Prints out outputs in a JSON format.',
     )
+
+    # gcp_res_analysis
+    parent_gcp_res_analysis = argparse.ArgumentParser(add_help=False)
+    parent_gcp_res_analysis.add_argument(
+        '--in-file-vars-def-json',
+        help='JSON file to define task name and input file variabless '
+        'to be included in resource analysis. '
+        'Key: task name, wild-cards (*, ?) are allowed. '
+        'Value: list of input file var names. '
+        'e.g. "atac.align*": ["fastqs_R1", "fastqs_R2"]. '
+        'Once this file is defined, tasks not included in it will be ignored.',
+    )
+    parent_gcp_res_analysis.add_argument(
+        '--reduce-in-file-vars',
+        choices=[method.name for method in list(ResourceAnalysisReductionMethod)],
+        default=ResourceAnalysisReductionMethod.sum.name,
+        help='Reduce X matrix (resource data) into a vector. '
+        'e.g. summing up all input file sizes. '
+        'Reducing X will convert a multiple linear regression into a single linear regression. '
+        'This is useful since single linear regression requires much less data '
+        '(at least 2 for each task). '
+        'Choose NONE to keep all input file variables '
+        'without reduction in the analysis. '
+        '2D Scatter plot (--plot-pdf) will not available for analysis without reduction. '
+        'If NONE then make sure that number of datasets (per task) '
+        '> number of input file variables in a task.',
+    )
+    parent_gcp_res_analysis.add_argument(
+        '--target-resources',
+        nargs='+',
+        default=list(ResourceAnalysis.DEFAULT_TARGET_RESOURCES),
+        help='Keys for resources in a JSON gcp_monitor outputs, '
+        'which forms y vector for a linear problem. '
+        'Analysis will be done separately for each key (resource metric). '
+        'See help for gcp_monitor to find available resources. '
+        'e.g. stats.max.disk, stats.mean.cpu_pct.',
+    )
+    parent_gcp_res_analysis.add_argument(
+        '--plot-pdf',
+        help='Local path for a 2D scatter plot PDF file. '
+        'Scatter plot will not be available if --reduce-in-file-vars is none.',
+    )
+
     # cleanup
     parent_cleanup = argparse.ArgumentParser(add_help=False)
     parent_cleanup.add_argument(
@@ -729,13 +781,41 @@ def get_parser_and_defaults(conf_file=None):
     )
     p_gcp_monitor = subparser.add_parser(
         'gcp_monitor',
-        help='Monitor tasks for gcp backend only.',
+        help='Tabulate task\'s resource data collected on '
+        'instances run on Google Cloud Compute. '
+        'Use this for any workflows run with Caper>=1.2.0 on gcp backend. '
+        'This is for gcp backend only.',
         parents=[
             parent_all,
             parent_server_client,
             parent_client,
             parent_search_wf,
             parent_gcp_monitor,
+        ],
+    )
+    p_gcp_res_analysis = subparser.add_parser(
+        'gcp_res_analysis',
+        help='Linear resource analysis on monitoring data collected on '
+        'instances run on Google Cloud Compute. This is for gcp backend only. '
+        'Use this for any workflows run with Caper>=1.2.0 on gcp backend. '
+        'Calculates coefficients/intercept for task\'s required resources '
+        'based on input file size of a task. '
+        'For each task it solves a linear regression problem of y=Xc + i1 + e where '
+        'X is a matrix (m by n) of input file sizes and '
+        'c is a coefficient vector (n by 1) and '
+        'i is intercept and 1 is ones vector. '
+        'y is a vector (m by 1) of resource taken and '
+        'e is residual to be minimized. '
+        'm is number of dataset and n is number of input file variables. '
+        'Each resource metric will be solved separately. '
+        'Refer to --target-resources for details about available resource metrics. '
+        'Output will be a tuple of coefficient vector and intercept. ',
+        parents=[
+            parent_all,
+            parent_server_client,
+            parent_client,
+            parent_search_wf,
+            parent_gcp_res_analysis,
         ],
     )
     p_cleanup = subparser.add_parser(
@@ -768,6 +848,7 @@ def get_parser_and_defaults(conf_file=None):
         p_troubleshoot,
         p_debug,
         p_gcp_monitor,
+        p_gcp_res_analysis,
         p_cleanup,
     ]
     if os.path.exists(conf_file):
