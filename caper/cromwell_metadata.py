@@ -49,7 +49,7 @@ class CromwellMetadata:
         if isinstance(metadata, dict):
             self._metadata = metadata
         elif isinstance(metadata, CromwellMetadata):
-            self = metadata
+            self._metadata = metadata._metadata
         else:
             s = AutoURI(metadata).read()
             self._metadata = json.loads(s)
