@@ -183,13 +183,18 @@ class CaperWorkflowOpts:
             docker = wdl_parser.caper_docker
             if docker:
                 logger.info(
-                    'Docker image found in WDL. wdl={wdl}, d={d}'.format(
+                    'Ddocker image found in WDL. wdl={wdl}, d={d}'.format(
                         wdl=wdl, d=docker
                     )
                 )
             else:
                 logger.warning(
-                    'Docker image not found in WDL. wdl={wdl}'.format(wdl=wdl)
+                    'Docker image not found in WDL, which means that '
+                    'docker is not defined either as comment (#CAPER docker) or '
+                    'in workflow\'s meta section (under key caper_docker) in WDL. '
+                    'If your WDL already has docker defined '
+                    'in each task\'s runtime '
+                    'then it should be okay. wdl={wdl}'.format(wdl=wdl)
                 )
         if docker:
             dra['docker'] = docker
