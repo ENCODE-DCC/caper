@@ -30,7 +30,12 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
-USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
+USER_INTERRUPT_WARNING = (
+    '\n\n'
+    '*** DO NOT CTRL+C MULTIPLE TIMES! ***\n'
+    '*** OR CAPER WILL NOT BE ABLE TO STOP CROMWELL AND RUNNING WORKFLOWS/TASKS ***'
+    '\n\n'
+)
 REGEX_DELIMITER_GCP_PARAMS = r',| '
 PRINT_ROW_DELIMITER = '\t'
 
@@ -327,9 +332,10 @@ def subcmd_server(caper_runner, args, nonblocking=False):
                     logger.error(
                         'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
                     )
+        except KeyboardInterrupt:
+            logger.error(USER_INTERRUPT_WARNING, exc_info=True)
 
-        except Exception:
-            logger.error(USER_INTERRUPT_WARNING)
+        finally:
             if thread:
                 thread.stop()
 
@@ -370,8 +376,10 @@ def subcmd_run(caper_runner, args):
                         'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
                     )
 
-        except Exception:
-            logger.error(USER_INTERRUPT_WARNING)
+        except KeyboardInterrupt:
+            logger.error(USER_INTERRUPT_WARNING, exc_info=True)
+
+        finally:
             if thread:
                 thread.stop()
 

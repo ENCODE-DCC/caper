@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 class NBSubprocThread(Thread):
     DEFAULT_POLL_INTERVAL_SEC = 0.01
+    DEFAULT_SUBPROCESS_NAME = 'Subprocess'
 
     def __init__(
         self,
@@ -20,6 +21,7 @@ class NBSubprocThread(Thread):
         on_finish=None,
         poll_interval=DEFAULT_POLL_INTERVAL_SEC,
         quiet=False,
+        subprocess_name=DEFAULT_SUBPROCESS_NAME,
     ):
         """Non-blocking STDOUT streaming for subprocess.Popen.
         Note that STDERR is always redirected to STDOUT.
@@ -65,12 +67,15 @@ class NBSubprocThread(Thread):
                 Polling interval in seconds.
             quiet:
                 No logging.
+            subprocess_name:
+                Subprocess name for logging.
         """
         super().__init__(
             target=self._popen, args=(args, cwd, stdin, on_poll, on_stdout, on_finish)
         )
         self._poll_interval = poll_interval
         self._quiet = quiet
+        self._subprocess_name = subprocess_name
 
         self._stdout_list = []
         self._returncode = None
@@ -155,16 +160,10 @@ class NBSubprocThread(Thread):
                     break
                 time.sleep(self._poll_interval)
 
-            if not self._quiet:
-                if self._stop_it:
-                    logger.info(
-                        'Stopped subprocess. prev_status={s}'.format(s=self._status)
-                    )
-
         except CalledProcessError as e:
             self._returncode = e.returncode
             if not self._quiet:
-                logger.error(e)
+                logger.error(e, exc_info=True)
         finally:
             p.terminate()
 
@@ -174,7 +173,17 @@ class NBSubprocThread(Thread):
         if not self._quiet:
             if self._returncode:
                 logger.error(
-                    'Subprocess failed. returncode={rc}'.format(rc=self._returncode)
+                    '{name} failed. returncode={rc}'.format(
+                        name=self._subprocess_name, rc=self._returncode
+                    )
+                )
+            elif self._stop_it:
+                logger.warning(
+                    '{name} stopped. prev_status={status}'.format(
+                        name=self._subprocess_name, status=self._status
+                    )
                 )
             else:
-                logger.info('Subprocess finished successfully.')
+                logger.info(
+                    '{name} finished successfully.'.format(name=self._subprocess_name)
+                )
