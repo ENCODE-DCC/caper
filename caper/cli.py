@@ -311,21 +311,23 @@ def subcmd_server(caper_runner, args, nonblocking=False):
             heartbeat_timeout=args.server_heartbeat_timeout,
         )
 
+    kwargs = {
+        'default_backend': args.backend,
+        'server_port': args.port,
+        'server_heartbeat': sh,
+        'custom_backend_conf': get_abspath(args.backend_file),
+        'embed_subworkflow': True,
+        'java_heap_server': args.java_heap_server,
+        'dry_run': args.dry_run,
+    }
+
+    if nonblocking:
+        return caper_runner.server(fileobj_stdout=sys.stdout, **kwargs)
+
     cromwell_stdout = get_abspath(args.cromwell_stdout)
     with open(cromwell_stdout, 'w') as f:
         try:
-            thread = caper_runner.server(
-                default_backend=args.backend,
-                server_port=args.port,
-                server_heartbeat=sh,
-                custom_backend_conf=get_abspath(args.backend_file),
-                fileobj_stdout=sys.stdout if nonblocking else f,
-                embed_subworkflow=True,
-                java_heap_server=args.java_heap_server,
-                dry_run=args.dry_run,
-            )
-            if nonblocking:
-                return thread
+            thread = caper_runner.server(fileobj_stdout=f, **kwargs)
             if thread:
                 thread.join()
                 if thread.returncode:

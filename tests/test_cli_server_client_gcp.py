@@ -35,6 +35,7 @@ def test_server_client(
 
     out_gcs_bucket = os.path.join(gcs_root, 'caper_out', ci_prefix)
     tmp_gcs_bucket = os.path.join(gcs_root, 'caper_tmp')
+    os.chdir(str(tmp_path))
 
     cmd = ['server']
     cmd += ['--local-loc-dir', str(tmp_path / 'tmp_dir')]
@@ -84,6 +85,7 @@ def test_server_client(
         cmd = ['submit', str(wdl)]
         if gcp_service_account_key_json:
             cmd += ['--gcp-service-account-key-json', gcp_service_account_key_json]
+        cmd += ['--port', str(server_port)]
         cmd += ['--inputs', str(inputs)]
         cmd += ['--imports', str(imports)]
         cmd += ['--gcp-zones', 'us-west1-a,us-west1-b']
@@ -109,6 +111,7 @@ def test_server_client(
 
         # unhold it
         cmd = ['unhold', workflow_id]
+        cmd += ['--port', str(server_port)]
         cli_main(cmd)
 
         time.sleep(5)
