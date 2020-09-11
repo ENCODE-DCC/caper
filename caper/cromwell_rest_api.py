@@ -9,6 +9,30 @@ from .cromwell_metadata import CromwellMetadata
 logger = logging.getLogger(__name__)
 
 
+def request_error_handler(func):
+    """Re-raise ConnectionError with help message.
+    Re-raise from None to hide nested tracebacks.
+    """
+
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except requests.exceptions.ConnectionError as err:
+            message = (
+                '{err}\n\n'
+                'Failed to connect to Cromwell server. '
+                'Check if Caper server is running. '
+                'Also check if hostname and port are correct. '
+                'method={method}, '
+                'url={url}'.format(
+                    err=err, method=err.request.method, url=err.request.url
+                )
+            )
+            raise requests.exceptions.ConnectionError(message) from None
+
+    return wrapper
+
+
 class CromwellRestAPI:
     QUERY_URL = 'http://{hostname}:{port}'
     ENDPOINT_BACKEND = '/api/workflows/v1/backends'
@@ -273,6 +297,7 @@ class CromwellRestAPI:
         else:
             self._auth = None
 
+    @request_error_handler
     def __request_get(self, endpoint, params=None):
         """GET request
 
@@ -283,22 +308,13 @@ class CromwellRestAPI:
             CromwellRestAPI.QUERY_URL.format(hostname=self._hostname, port=self._port)
             + endpoint
         )
-        try:
-            resp = requests.get(
-                url,
-                auth=self._auth,
-                params=params,
-                headers={'accept': 'application/json'},
-            )
-            resp.raise_for_status()
-        except requests.exceptions.RequestException:
-            raise Exception(
-                'Failed to connect to Cromwell server. req=GET, url={url}'.format(
-                    url=url
-                )
-            ) from None
+        resp = requests.get(
+            url, auth=self._auth, params=params, headers={'accept': 'application/json'}
+        )
+        resp.raise_for_status()
         return resp.json()
 
+    @request_error_handler
     def __request_post(self, endpoint, manifest=None):
         """POST request
 
@@ -309,22 +325,13 @@ class CromwellRestAPI:
             CromwellRestAPI.QUERY_URL.format(hostname=self._hostname, port=self._port)
             + endpoint
         )
-        try:
-            resp = requests.post(
-                url,
-                files=manifest,
-                auth=self._auth,
-                headers={'accept': 'application/json'},
-            )
-            resp.raise_for_status()
-        except requests.exceptions.RequestException:
-            raise Exception(
-                'Failed to connect to Cromwell server. req=POST, url={url}'.format(
-                    url=url
-                )
-            ) from None
+        resp = requests.post(
+            url, files=manifest, auth=self._auth, headers={'accept': 'application/json'}
+        )
+        resp.raise_for_status()
         return resp.json()
 
+    @request_error_handler
     def __request_patch(self, endpoint, data):
         """POST request
 
@@ -335,21 +342,11 @@ class CromwellRestAPI:
             CromwellRestAPI.QUERY_URL.format(hostname=self._hostname, port=self._port)
             + endpoint
         )
-        try:
-            resp = requests.patch(
-                url,
-                data=data,
-                auth=self._auth,
-                headers={
-                    'accept': 'application/json',
-                    'content-type': 'application/json',
-                },
-            )
-            resp.raise_for_status()
-        except requests.exceptions.RequestException:
-            raise Exception(
-                'Failed to connect to Cromwell server. req=PATCH, url={url}'.format(
-                    url=url
-                )
-            ) from None
+        resp = requests.patch(
+            url,
+            data=data,
+            auth=self._auth,
+            headers={'accept': 'application/json', 'content-type': 'application/json'},
+        )
+        resp.raise_for_status()
         return resp.json()
