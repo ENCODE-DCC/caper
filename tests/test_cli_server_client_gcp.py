@@ -35,7 +35,6 @@ def test_server_client(
 
     out_gcs_bucket = os.path.join(gcs_root, 'caper_out', ci_prefix)
     tmp_gcs_bucket = os.path.join(gcs_root, 'caper_tmp')
-    os.chdir(str(tmp_path))
 
     cmd = ['server']
     cmd += ['--local-loc-dir', str(tmp_path / 'tmp_dir')]
