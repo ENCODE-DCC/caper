@@ -311,7 +311,7 @@ def subcmd_server(caper_runner, args, nonblocking=False):
             heartbeat_timeout=args.server_heartbeat_timeout,
         )
 
-    kwargs = {
+    args_from_cli = {
         'default_backend': args.backend,
         'server_port': args.port,
         'server_heartbeat': sh,
@@ -322,12 +322,12 @@ def subcmd_server(caper_runner, args, nonblocking=False):
     }
 
     if nonblocking:
-        return caper_runner.server(fileobj_stdout=sys.stdout, **kwargs)
+        return caper_runner.server(fileobj_stdout=sys.stdout, **args_from_cli)
 
     cromwell_stdout = get_abspath(args.cromwell_stdout)
     with open(cromwell_stdout, 'w') as f:
         try:
-            thread = caper_runner.server(fileobj_stdout=f, **kwargs)
+            thread = caper_runner.server(fileobj_stdout=f, **args_from_cli)
             if thread:
                 thread.join()
                 if thread.returncode:
