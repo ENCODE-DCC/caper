@@ -9,7 +9,7 @@ from .cromwell_metadata import CromwellMetadata
 logger = logging.getLogger(__name__)
 
 
-def request_error_handler(func):
+def requests_error_handler(func):
     """Re-raise ConnectionError with help message.
     Re-raise from None to hide nested tracebacks.
     """
@@ -297,7 +297,7 @@ class CromwellRestAPI:
         else:
             self._auth = None
 
-    @request_error_handler
+    @requests_error_handler
     def __request_get(self, endpoint, params=None):
         """GET request
 
@@ -314,7 +314,7 @@ class CromwellRestAPI:
         resp.raise_for_status()
         return resp.json()
 
-    @request_error_handler
+    @requests_error_handler
     def __request_post(self, endpoint, manifest=None):
         """POST request
 
@@ -331,7 +331,7 @@ class CromwellRestAPI:
         resp.raise_for_status()
         return resp.json()
 
-    @request_error_handler
+    @requests_error_handler
     def __request_patch(self, endpoint, data):
         """POST request
 
