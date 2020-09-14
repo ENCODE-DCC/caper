@@ -189,12 +189,12 @@ class CaperWorkflowOpts:
                 )
             else:
                 logger.warning(
-                    'Docker image not found in WDL\'s metadata, which means that '
-                    'docker is not defined either as comment (#CAPER docker) or '
-                    'in workflow\'s meta section (under key caper_docker) in WDL. '
-                    'If your WDL already has docker defined '
-                    'in each task\'s runtime '
-                    'then it should be okay. wdl={wdl}'.format(wdl=wdl)
+                    "Docker image not found in WDL's metadata, which means that "
+                    "docker is not defined either as comment (#CAPER docker) or "
+                    "in workflow's meta section (under key caper_docker) in WDL. "
+                    "If your WDL already has docker defined "
+                    "in each task's runtime "
+                    "then it should be okay. wdl={wdl}".format(wdl=wdl)
                 )
         if docker:
             dra['docker'] = docker
