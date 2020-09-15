@@ -183,13 +183,18 @@ class CaperWorkflowOpts:
             docker = wdl_parser.caper_docker
             if docker:
                 logger.info(
-                    'Docker image found in WDL. wdl={wdl}, d={d}'.format(
+                    'Docker image found in WDL\'s metadata. wdl={wdl}, d={d}'.format(
                         wdl=wdl, d=docker
                     )
                 )
             else:
                 logger.warning(
-                    'Docker image not found in WDL. wdl={wdl}'.format(wdl=wdl)
+                    "Docker image not found in WDL's metadata, which means that "
+                    "docker is not defined either as comment (#CAPER docker) or "
+                    "in workflow's meta section (under key caper_docker) in WDL. "
+                    "If your WDL already has docker defined "
+                    "in each task's runtime "
+                    "then it should be okay. wdl={wdl}".format(wdl=wdl)
                 )
         if docker:
             dra['docker'] = docker
@@ -203,7 +208,7 @@ class CaperWorkflowOpts:
             singularity = wdl_parser.caper_singularity
             if singularity:
                 logger.info(
-                    'Singularity image found in WDL. wdl={wdl}, s={s}'.format(
+                    'Singularity image found in WDL\'s metadata. wdl={wdl}, s={s}'.format(
                         wdl=wdl, s=singularity
                     )
                 )

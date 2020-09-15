@@ -84,6 +84,7 @@ def test_server_client(
         cmd = ['submit', str(wdl)]
         if gcp_service_account_key_json:
             cmd += ['--gcp-service-account-key-json', gcp_service_account_key_json]
+        cmd += ['--port', str(server_port)]
         cmd += ['--inputs', str(inputs)]
         cmd += ['--imports', str(imports)]
         cmd += ['--gcp-zones', 'us-west1-a,us-west1-b']
@@ -109,6 +110,7 @@ def test_server_client(
 
         # unhold it
         cmd = ['unhold', workflow_id]
+        cmd += ['--port', str(server_port)]
         cli_main(cmd)
 
         time.sleep(5)

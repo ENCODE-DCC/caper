@@ -1,3 +1,4 @@
+import json
 import logging
 from collections import UserDict
 from copy import deepcopy
@@ -305,6 +306,10 @@ class CromwellBackendGCP(CromwellBackendBase):
                     'json-file': gcp_service_account_key_json,
                 }
             ]
+            # parse service account key JSON to get client_email.
+            with open(gcp_service_account_key_json) as fp:
+                key_json = json.loads(fp.read())
+            genomics['compute-service-account'] = key_json['client_email']
         else:
             genomics['auth'] = 'application-default'
             filesystems['gcs']['auth'] = 'application-default'

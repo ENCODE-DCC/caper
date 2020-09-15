@@ -306,7 +306,13 @@ class Cromwell:
                     # to make it a return value of the thread after it is done (joined)
                     return metadata_dict
 
-        th = NBSubprocThread(cmd, cwd=cwd, on_stdout=on_stdout, on_finish=on_finish)
+        th = NBSubprocThread(
+            cmd,
+            cwd=cwd,
+            on_stdout=on_stdout,
+            on_finish=on_finish,
+            subprocess_name='Cromwell',
+        )
         th.start()
 
         return th
@@ -451,7 +457,13 @@ class Cromwell:
             if server_heartbeat:
                 server_heartbeat.stop()
 
-        th = NBSubprocThread(cmd, cwd=cwd, on_stdout=on_stdout, on_finish=on_finish)
+        th = NBSubprocThread(
+            cmd,
+            cwd=cwd,
+            on_stdout=on_stdout,
+            on_finish=on_finish,
+            subprocess_name='Cromwell',
+        )
         th.start()
 
         return th

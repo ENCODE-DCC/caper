@@ -30,7 +30,12 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
-USER_INTERRUPT_WARNING = '\n********** DO NOT CTRL+C MULTIPLE TIMES **********\n'
+USER_INTERRUPT_WARNING = (
+    '\n\n'
+    '*** DO NOT CTRL+C MULTIPLE TIMES! ***\n'
+    '*** OR CAPER WILL NOT BE ABLE TO STOP CROMWELL AND RUNNING WORKFLOWS/TASKS ***'
+    '\n\n'
+)
 REGEX_DELIMITER_GCP_PARAMS = r',| '
 PRINT_ROW_DELIMITER = '\t'
 
@@ -306,30 +311,33 @@ def subcmd_server(caper_runner, args, nonblocking=False):
             heartbeat_timeout=args.server_heartbeat_timeout,
         )
 
+    args_from_cli = {
+        'default_backend': args.backend,
+        'server_port': args.port,
+        'server_heartbeat': sh,
+        'custom_backend_conf': get_abspath(args.backend_file),
+        'embed_subworkflow': True,
+        'java_heap_server': args.java_heap_server,
+        'dry_run': args.dry_run,
+    }
+
+    if nonblocking:
+        return caper_runner.server(fileobj_stdout=sys.stdout, **args_from_cli)
+
     cromwell_stdout = get_abspath(args.cromwell_stdout)
     with open(cromwell_stdout, 'w') as f:
         try:
-            thread = caper_runner.server(
-                default_backend=args.backend,
-                server_port=args.port,
-                server_heartbeat=sh,
-                custom_backend_conf=get_abspath(args.backend_file),
-                fileobj_stdout=sys.stdout if nonblocking else f,
-                embed_subworkflow=True,
-                java_heap_server=args.java_heap_server,
-                dry_run=args.dry_run,
-            )
-            if nonblocking:
-                return thread
+            thread = caper_runner.server(fileobj_stdout=f, **args_from_cli)
             if thread:
                 thread.join()
                 if thread.returncode:
                     logger.error(
                         'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
                     )
+        except KeyboardInterrupt:
+            logger.error(USER_INTERRUPT_WARNING, exc_info=True)
 
-        except Exception:
-            logger.error(USER_INTERRUPT_WARNING)
+        finally:
             if thread:
                 thread.stop()
 
@@ -370,8 +378,10 @@ def subcmd_run(caper_runner, args):
                         'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
                     )
 
-        except Exception:
-            logger.error(USER_INTERRUPT_WARNING)
+        except KeyboardInterrupt:
+            logger.error(USER_INTERRUPT_WARNING, exc_info=True)
+
+        finally:
             if thread:
                 thread.stop()
 
