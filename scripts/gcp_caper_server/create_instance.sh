@@ -269,7 +269,7 @@ sudo ln -s $GLOBAL_CAPER_CONF_FILE $ROOT_CAPER_CONF_DIR
 
 ### google auth shared for all users
 sudo touch $GCP_AUTH_SH
-echo \"gcloud auth activate-service-account --key-file=$REMOTE_KEY_FILE\" >> $GCP_AUTH_SH
+echo \"gcloud auth activate-service-account --key-file=$REMOTE_KEY_FILE\" > $GCP_AUTH_SH
 echo \"mkdir -p ~/.caper\" >> $GCP_AUTH_SH
 echo \"ln -s /opt/caper/default.conf ~/.caper/ 2> /dev/null | true\" >> $GCP_AUTH_SH
 
