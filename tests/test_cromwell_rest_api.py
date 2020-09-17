@@ -85,7 +85,7 @@ def test_all(tmp_path, cromwell, womtool):
             on_hold=True,
         )
         workflow_id = r['id']
-        time.sleep(5)
+        time.sleep(10)
         # find by label (not by workflow id)
         workflow_by_id = cra.find(workflow_ids=[workflow_id])[0]
         workflow_by_label = cra.find(labels=[('caper-str-label', test_label)])[0]
@@ -121,7 +121,7 @@ def test_all(tmp_path, cromwell, womtool):
         while not is_workflow_done:
             time.sleep(1)
             print('polling: ', workflow_id, is_workflow_done)
-            if time.time() - t_start > 60:
+            if time.time() - t_start > 120:
                 raise TimeoutError('Timed out waiting for workflow being done.')
 
         metadata = cra.get_metadata([workflow_id], embed_subworkflow=True)[0]

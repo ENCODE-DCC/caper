@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='caper',
-    version='1.3.1',
+    version='1.3.2',
     python_requires='>=3.6',
     scripts=[
         'bin/caper',
@@ -29,7 +29,7 @@ setuptools.setup(
         'pyhocon>=0.3.53',
         'requests',
         'pyopenssl',
-        'autouri>=0.2.1',
+        'autouri>=0.2.2',
         'miniwdl',
         'humanfriendly',
         'numpy>=1.8.2',

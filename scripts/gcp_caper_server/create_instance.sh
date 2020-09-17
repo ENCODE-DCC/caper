@@ -178,7 +178,7 @@ if [[ -z "$BOOT_DISK_TYPE" ]]; then
   BOOT_DISK_TYPE=pd-standard
 fi
 if [[ -z "$IMAGE" ]]; then
-  IMAGE=ubuntu-1804-bionic-v20200716
+  IMAGE=ubuntu-1804-bionic-v20200908
 fi
 if [[ -z "$IMAGE_PROJECT" ]]; then
   IMAGE_PROJECT=ubuntu-os-cloud
@@ -226,14 +226,13 @@ REMOTE_KEY_FILE="$CAPER_CONF_DIR/service_account_key.json"
 STARTUP_SCRIPT="""#!/bin/bash
 ### make caper's work directory
 sudo mkdir -p $CAPER_CONF_DIR
-sudo chmod +r $CAPER_CONF_DIR
+sudo chmod 777 -R $CAPER_CONF_DIR
+sudo setfacl -d -m u::rwX $CAPER_CONF_DIR
+sudo setfacl -d -m g::rwX $CAPER_CONF_DIR
+sudo setfacl -d -m o::rwX $CAPER_CONF_DIR
 
 ### make caper's out/localization directory
 sudo mkdir -p $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
-sudo chmod 777 -R $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
-sudo setfacl -d -m u::rwX $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
-sudo setfacl -d -m g::rwX $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
-sudo setfacl -d -m o::rwX $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
 
 ### make caper conf file
 cat <<EOF > $GLOBAL_CAPER_CONF_FILE
@@ -269,9 +268,10 @@ sudo ln -s $GLOBAL_CAPER_CONF_FILE $ROOT_CAPER_CONF_DIR
 
 ### google auth shared for all users
 sudo touch $GCP_AUTH_SH
-echo \"gcloud auth activate-service-account --key-file=$REMOTE_KEY_FILE\" >> $GCP_AUTH_SH
+echo \"gcloud auth activate-service-account --key-file=$REMOTE_KEY_FILE\" > $GCP_AUTH_SH
 echo \"mkdir -p ~/.caper\" >> $GCP_AUTH_SH
 echo \"ln -s /opt/caper/default.conf ~/.caper/ 2> /dev/null | true\" >> $GCP_AUTH_SH
+echo \"export GOOGLE_APPLICATION_CREDENTIALS=$REMOTE_KEY_FILE\" >> $GCP_AUTH_SH
 
 $STARTUP_SCRIPT
 """
@@ -291,7 +291,7 @@ sudo pip install caper croo
 
 echo "$(date): Google auth with service account key file."
 gcloud auth activate-service-account --key-file="$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE"
-
+export GOOGLE_APPLICATION_CREDENTIALS="$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE"
 
 echo "$(date): Making a temporary startup script..."
 echo "$STARTUP_SCRIPT" > tmp_startup_script.sh
