@@ -722,7 +722,7 @@ class CromwellBackendPBS(CromwellBackendLocal):
                     -N ${job_name} \\
                     -o ${out} \\
                     -e ${err} \\
-                    ${true="-lselect=1:ncpus=" false="" defined(cpu)}${cpu}${true=":mem=" false="" defined(memory_mb)}${memory_mb}${true="mb" false="" defined(memory_mb)} \\
+                    ${true="-lnodes=1:ppn=" false="" defined(cpu)}${cpu}${true=":mem=" false="" defined(memory_mb)}${memory_mb}${true="mb" false="" defined(memory_mb)} \\
                     ${'-lwalltime=' + time + ':0:0'} \\
                     ${'-lngpus=' + gpu} \\
                     ${'-q ' + pbs_queue} \\
