@@ -27,7 +27,7 @@ setuptools.setup(
     ],
     install_requires=[
         'pyhocon>=0.3.53',
-        'requests',
+        'requests>=2.20',
         'pyopenssl',
         'autouri>=0.2.2',
         'miniwdl',
