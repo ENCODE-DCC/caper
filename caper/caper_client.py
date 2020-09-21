@@ -95,7 +95,7 @@ class CaperClient(CaperBase):
                 List of workflows IDs or string labels (Caper's string label)
                 Wild cards (*, ?) are allowed.
             exclude_subworkflow:
-                Exclude ssubworkflows
+                Exclude subworkflows
         Returns:
             List of workflows found. Each workflow object will be in a form of
             Cromwell's metadata JSON file but with limited amount of information.
