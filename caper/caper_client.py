@@ -87,14 +87,15 @@ class CaperClient(CaperBase):
         logger.info('unhold: {r}'.format(r=r))
         return r
 
-    def list(self, wf_ids_or_labels=None):
+    def list(self, wf_ids_or_labels=None, exclude_subworkflow=False):
         """Retrieves list of running/pending workflows from a Cromwell server
 
         Args:
             wf_ids_or_labels:
                 List of workflows IDs or string labels (Caper's string label)
                 Wild cards (*, ?) are allowed.
-
+            exclude_subworkflow:
+                Exclude ssubworkflows
         Returns:
             List of workflows found. Each workflow object will be in a form of
             Cromwell's metadata JSON file but with limited amount of information.
@@ -107,7 +108,9 @@ class CaperClient(CaperBase):
             workflow_ids = ['*']
             labels = [(CaperLabels.KEY_CAPER_STR_LABEL, '*')]
 
-        return self._cromwell_rest_api.find(workflow_ids, labels)
+        return self._cromwell_rest_api.find(
+            workflow_ids, labels, exclude_subworkflow=exclude_subworkflow
+        )
 
     def metadata(self, wf_ids_or_labels, embed_subworkflow=False):
         """Retrieves metadata for workflows from a Cromwell server.
