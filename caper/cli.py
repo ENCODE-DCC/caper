@@ -418,7 +418,9 @@ def subcmd_unhold(caper_client, args):
 
 
 def subcmd_list(caper_client, args):
-    workflows = caper_client.list(args.wf_id_or_label)
+    workflows = caper_client.list(
+        args.wf_id_or_label, exclude_subworkflow=args.hide_subworkflow
+    )
 
     try:
         writer = csv.writer(sys.stdout, delimiter=PRINT_ROW_DELIMITER)
@@ -433,8 +435,6 @@ def subcmd_list(caper_client, args):
             workflow_id = w.get('id')
             parent_workflow_id = w.get('parentWorkflowId')
 
-            if args.hide_subworkflow and parent_workflow_id:
-                continue
             if args.hide_result_before is not None:
                 if (
                     w.get('submission')
