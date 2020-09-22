@@ -42,7 +42,6 @@ class CromwellRestAPI:
     ENDPOINT_SUBMIT = '/api/workflows/v1'
     ENDPOINT_ABORT = '/api/workflows/v1/{wf_id}/abort'
     ENDPOINT_RELEASE_HOLD = '/api/workflows/v1/{wf_id}/releaseHold'
-    PARAMS_WORKFLOWS = {'additionalQueryResultFields': 'labels'}
     DEFAULT_HOSTNAME = 'localhost'
     DEFAULT_PORT = 8000
 
@@ -170,24 +169,16 @@ class CromwellRestAPI:
             return
         result = []
         for w in workflows:
+            params = {}
+            if embed_subworkflow:
+                params['expandSubWorkflows'] = True
+
             m = self.__request_get(
-                CromwellRestAPI.ENDPOINT_METADATA.format(wf_id=w['id'])
+                CromwellRestAPI.ENDPOINT_METADATA.format(wf_id=w['id']), params=params
             )
             cm = CromwellMetadata(m)
-            if embed_subworkflow:
-                cm.recurse_calls(
-                    lambda call_name, call, parent_call_names: self.__embed_subworkflow(
-                        call_name, call, parent_call_names
-                    )
-                )
             result.append(cm.metadata)
         return result
-
-    def __embed_subworkflow(self, call_name, call, parent_call_names):
-        if 'subWorkflowId' in call:
-            call['subWorkflowMetadata'] = self.get_metadata(
-                workflow_ids=[call['subWorkflowId']], embed_subworkflow=True
-            )[0]
 
     def get_labels(self, workflow_id):
         """Get labels JSON for a specified workflow
@@ -228,7 +219,7 @@ class CromwellRestAPI:
         logger.debug('update_labels: {r}'.format(r=r))
         return r
 
-    def find(self, workflow_ids=None, labels=None, embed_subworkflow=False):
+    def find(self, workflow_ids=None, labels=None, exclude_subworkflow=False):
         """Find workflows by matching workflow IDs, label (key, value) tuples.
         Wildcards (? and *) are allowed for string workflow IDs and values in
         a tuple label. Search criterion is (workflow_ids OR labels).
@@ -240,17 +231,19 @@ class CromwellRestAPI:
             labels:
                 List of (key, val) tuples: [(key: val), (key2: val2), ...].
                 OR search for multiple tuples
-            embed_subworkflow:
-                Embed subworkflows in main workflow's metadata dict.
-
+            exclude_subworkflow:
+                Exclude subworkflows.
         Returns:
             List of matched workflow JSONs
         """
-        r = self.__request_get(
-            CromwellRestAPI.ENDPOINT_WORKFLOWS, params=CromwellRestAPI.PARAMS_WORKFLOWS
-        )
+        params = {
+            'additionalQueryResultFields': 'labels',
+            'includeSubworkflows': not exclude_subworkflow,
+        }
+        r = self.__request_get(CromwellRestAPI.ENDPOINT_WORKFLOWS, params=params)
         if r is None:
             return
+
         workflows = r['results']
         if workflows is None:
             return
@@ -283,8 +276,6 @@ class CromwellRestAPI:
             if 'id' not in w:
                 continue
             if w['id'] in matched:
-                if embed_subworkflow:
-                    self.__embed_subworkflow(w)
                 result.append(w)
         logger.debug('find: {r}'.format(r=result))
         return result
