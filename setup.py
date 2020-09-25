@@ -30,7 +30,7 @@ setuptools.setup(
         'requests>=2.20',
         'pyopenssl',
         'autouri>=0.2.2',
-        'miniwdl',
+        'miniwdl>=0.7.0',
         'humanfriendly',
         'numpy>=1.8.2',
         'pandas>=1.0',
