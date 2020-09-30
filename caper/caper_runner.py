@@ -516,6 +516,7 @@ class CaperRunner(CaperBase):
             server_heartbeat=server_heartbeat,
             fileobj_stdout=fileobj_stdout,
             embed_subworkflow=embed_subworkflow,
+            java_heap_cromwell_server=java_heap_server,
             dry_run=dry_run,
         )
         return th
