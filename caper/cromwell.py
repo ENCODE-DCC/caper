@@ -326,6 +326,7 @@ class Cromwell:
         fileobj_stdout=None,
         embed_subworkflow=False,
         java_heap_cromwell_server=DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
+        auto_update_metadata=True,
         on_server_start=None,
         on_status_change=None,
         cwd=None,
@@ -365,6 +366,8 @@ class Cromwell:
                 This is to mimic behavior of Cromwell run mode's -m parameter.
             java_heap_cromwell_server:
                 Java heap (java -Xmx) for Cromwell server mode.
+            auto_update_metadata:
+                Automatic retrieval/writing of metadata.json upon workflow/task's status change.
             on_server_start:
                 On server start.
             on_status_change:
@@ -427,7 +430,7 @@ class Cromwell:
             server_port=server_port,
             is_server=True,
             embed_subworkflow=embed_subworkflow,
-            auto_update_metadata=True,
+            auto_update_metadata=auto_update_metadata,
             on_server_start=on_server_start,
             on_status_change=on_status_change,
         )

@@ -452,6 +452,7 @@ class CaperRunner(CaperBase):
         fileobj_stdout=None,
         embed_subworkflow=False,
         java_heap_server=Cromwell.DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
+        auto_update_metadata=True,
         work_dir=None,
         dry_run=False,
     ):
@@ -487,6 +488,8 @@ class CaperRunner(CaperBase):
                 This is to mimic behavior of Cromwell run mode's -m parameter.
             java_heap_server:
                 Java heap (java -Xmx) for Cromwell server mode.
+            auto_update_metadata:
+                Automatic retrieval/writing of metadata.json upon workflow/task's status change.
             work_dir:
                 Local temporary directory to store all temporary files.
                 Temporary files mean intermediate files used for running Cromwell.
@@ -517,6 +520,7 @@ class CaperRunner(CaperBase):
             fileobj_stdout=fileobj_stdout,
             embed_subworkflow=embed_subworkflow,
             java_heap_cromwell_server=java_heap_server,
+            auto_update_metadata=auto_update_metadata,
             dry_run=dry_run,
         )
         return th

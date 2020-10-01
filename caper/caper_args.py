@@ -533,6 +533,11 @@ def get_parser_and_defaults(conf_file=None):
         default=Cromwell.DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
         help='Cromwell Java heap size for "server" mode (java -Xmx)',
     )
+    parent_server.add_argument(
+        '--disable-auto-update-metadata',
+        action='store_true',
+        help='Disable automatic retrieval/update/writing of metadata.json upon workflow/task status change.',
+    )
 
     # run
     parent_run = argparse.ArgumentParser(add_help=False)

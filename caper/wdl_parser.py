@@ -34,16 +34,6 @@ class WDLParser:
         return self._wdl_contents
 
     @property
-    def workflow_meta(self):
-        if self._wdl_doc:
-            return self._wdl_doc.workflow.meta
-
-    @property
-    def workflow_parameter_meta(self):
-        if self._wdl_doc:
-            return self._wdl_doc.workflow.parameter_meta
-
-    @property
     def imports(self):
         """Miniwdl (0.3.7) has a bug for URL imports.
         Keep using reg-ex to find imports until it's fixed.
