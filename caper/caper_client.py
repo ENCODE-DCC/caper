@@ -7,7 +7,7 @@ from .caper_labels import CaperLabels
 from .caper_wdl_parser import CaperWDLParser
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
-from .cromwell_rest_api import CromwellRestAPI
+from .cromwell_rest_api import CromwellRestAPI, has_wildcard, is_valid_uuid
 from .singularity import Singularity
 
 logger = logging.getLogger(__name__)
@@ -65,10 +65,9 @@ class CaperClient(CaperBase):
                 List of workflows IDs or string labels (Caper's string label)
                 Wild cards (*, ?) are allowed.
         """
-        r = self._cromwell_rest_api.abort(
-            wf_ids_or_labels,
-            [(CaperLabels.KEY_CAPER_STR_LABEL, v) for v in wf_ids_or_labels],
-        )
+        workflow_ids, labels = self._split_workflow_ids_and_labels(wf_ids_or_labels)
+
+        r = self._cromwell_rest_api.abort(workflow_ids, labels)
         logger.info('abort: {r}'.format(r=r))
         return r
 
@@ -80,14 +79,13 @@ class CaperClient(CaperBase):
                 List of workflows IDs or string labels (Caper's string label)
                 Wild cards (*, ?) are allowed.
         """
-        r = self._cromwell_rest_api.release_hold(
-            wf_ids_or_labels,
-            [(CaperLabels.KEY_CAPER_STR_LABEL, v) for v in wf_ids_or_labels],
-        )
+        workflow_ids, labels = self._split_workflow_ids_and_labels(wf_ids_or_labels)
+
+        r = self._cromwell_rest_api.release_hold(workflow_ids, labels)
         logger.info('unhold: {r}'.format(r=r))
         return r
 
-    def list(self, wf_ids_or_labels=None, exclude_subworkflow=False):
+    def list(self, wf_ids_or_labels=None, exclude_subworkflow=True):
         """Retrieves list of running/pending workflows from a Cromwell server
 
         Args:
@@ -102,11 +100,9 @@ class CaperClient(CaperBase):
             e.g. workflow ID, status, labels.
         """
         if wf_ids_or_labels:
-            workflow_ids = wf_ids_or_labels
-            labels = [(CaperLabels.KEY_CAPER_STR_LABEL, v) for v in wf_ids_or_labels]
+            workflow_ids, labels = self._split_workflow_ids_and_labels(wf_ids_or_labels)
         else:
-            workflow_ids = ['*']
-            labels = [(CaperLabels.KEY_CAPER_STR_LABEL, '*')]
+            workflow_ids, labels = ['*'], None
 
         return self._cromwell_rest_api.find(
             workflow_ids, labels, exclude_subworkflow=exclude_subworkflow
@@ -126,11 +122,23 @@ class CaperClient(CaperBase):
         Returns:
             List of metadata JSONs of matched worflows.
         """
+        workflow_ids, labels = self._split_workflow_ids_and_labels(wf_ids_or_labels)
+
         return self._cromwell_rest_api.get_metadata(
-            wf_ids_or_labels,
-            [(CaperLabels.KEY_CAPER_STR_LABEL, v) for v in wf_ids_or_labels],
-            embed_subworkflow=embed_subworkflow,
+            workflow_ids, labels, embed_subworkflow=embed_subworkflow
         )
+
+    def _split_workflow_ids_and_labels(self, workflow_ids_or_labels):
+        workflow_ids = []
+        labels = []
+
+        if workflow_ids_or_labels:
+            for query in workflow_ids_or_labels:
+                workflow_ids.append(query)
+                if has_wildcard(query) or not is_valid_uuid(query):
+                    labels.append((CaperLabels.KEY_CAPER_STR_LABEL, query))
+
+        return workflow_ids, labels
 
 
 class CaperClientSubmit(CaperClient):

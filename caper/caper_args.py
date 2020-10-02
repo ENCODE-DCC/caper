@@ -620,9 +620,11 @@ def get_parser_and_defaults(conf_file=None):
         'e.g. 2019-06-13, 2019-06-13T10:07',
     )
     parent_list.add_argument(
-        '--hide-subworkflow',
+        '--show-subworkflow',
         action='store_true',
-        help='Hide subworkflows from "caper list".',
+        help='Show subworkflows in "caper list". '
+        'WARNING: If there are too many subworkflows, '
+        'this can result in crash of Caper/Cromwell server ',
     )
 
     # troubleshoot/debug

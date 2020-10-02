@@ -420,7 +420,7 @@ def subcmd_unhold(caper_client, args):
 
 def subcmd_list(caper_client, args):
     workflows = caper_client.list(
-        args.wf_id_or_label, exclude_subworkflow=args.hide_subworkflow
+        args.wf_id_or_label, exclude_subworkflow=not args.show_subworkflow
     )
 
     try:
