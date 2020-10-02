@@ -36,5 +36,6 @@ setuptools.setup(
         'pandas>=1.0',
         'scikit-learn>=0.19.2',
         'matplotlib>=1.5',
+        'six>=1.13.0',
     ],
 )
