@@ -1,12 +1,51 @@
 import sys
 import time
 
+import pytest
+
 from caper.caper_labels import CaperLabels
 from caper.cromwell import Cromwell
-from caper.cromwell_rest_api import CromwellRestAPI
+from caper.cromwell_rest_api import CromwellRestAPI, has_wildcard, is_valid_uuid
 from caper.wdl_parser import WDLParser
 
 from .example_wdl import make_directory_with_wdls
+
+
+@pytest.mark.parametrize(
+    'test_input,expected',
+    [
+        ('asldkhjlkasdf289jisdl;sladkjasdflksd', False),
+        ('cromwell-f9c26f2e-f550-4748-a650-5d0d4cab9f3a', False),
+        ('f9c26f2e-f550-4748-a650-5d0d4c', False),
+        ('f9c26f2e-f550-4748-a650-5d0d4cab9f3a', True),
+        ('F9C26f2e-F550-4748-A650-5D0D4cab9f3a', False),
+        ('f9c26f2e', False),
+        ([], False),
+        (tuple(), False),
+        (None, False),
+    ],
+)
+def test_is_valid_uuid(test_input, expected):
+    assert is_valid_uuid(test_input) == expected
+
+
+@pytest.mark.parametrize(
+    'test_input,expected',
+    [
+        ('?????', True),
+        (('lskadfj', 'sdkfjaslf'), False),
+        ('*', True),
+        ('?', True),
+        (':', False),
+        (('*', '?'), True),
+        (('_', '-', 'asdfjkljklasdfjklasdf'), False),
+        ([], False),
+        (tuple(), False),
+        (None, False),
+    ],
+)
+def test_has_wildcard(test_input, expected):
+    assert has_wildcard(test_input) == expected
 
 
 def test_all(tmp_path, cromwell, womtool):
@@ -86,12 +125,23 @@ def test_all(tmp_path, cromwell, womtool):
         )
         workflow_id = r['id']
         time.sleep(10)
-        # find by label (not by workflow id)
+        # find by workflow ID
         workflow_by_id = cra.find(workflow_ids=[workflow_id])[0]
+        # find by label
         workflow_by_label = cra.find(labels=[('caper-str-label', test_label)])[0]
+        # find by workflow ID with wildcard *
+        workflow_by_id_with_wildcard = cra.find(workflow_ids=[workflow_id[:-10] + '*'])[
+            0
+        ]
+        # find by label with wildcard ?
+        workflow_by_label_with_wildcard = cra.find(
+            labels=[('caper-str-label', test_label[:-1] + '?')]
+        )[0]
 
         assert workflow_by_label['id'] == workflow_id
         assert workflow_by_id['id'] == workflow_id
+        assert workflow_by_id_with_wildcard['id'] == workflow_id
+        assert workflow_by_label_with_wildcard['id'] == workflow_id
         assert workflow_by_id['status'] == 'On Hold'
 
         cra.release_hold([workflow_id])
