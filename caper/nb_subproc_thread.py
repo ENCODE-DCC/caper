@@ -160,15 +160,13 @@ class NBSubprocThread(Thread):
                     break
                 time.sleep(self._poll_interval)
 
-        except CalledProcessError as e:
-            self._returncode = e.returncode
+        except Exception as e:
+            if isinstance(e, CalledProcessError):
+                self._returncode = e.returncode
+            elif not self._returncode:
+                self._returncode = p.poll()
             if not self._quiet:
                 logger.error(e, exc_info=True)
-
-        except Exception:
-            if not self._returncode:
-                self._returncode = p.poll()
-            raise
 
         finally:
             try:
