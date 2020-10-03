@@ -4,6 +4,7 @@ import logging
 from uuid import UUID
 
 import requests
+from requests.exceptions import ConnectionError, HTTPError
 
 from .cromwell_metadata import CromwellMetadata
 
@@ -12,13 +13,26 @@ logger = logging.getLogger(__name__)
 
 def requests_error_handler(func):
     """Re-raise ConnectionError with help message.
-    Re-raise from None to hide nested tracebacks.
+    Continue on HTTP 404 error (server is on but workflow doesn't exist).
+    Otherwise, re-raise from None to hide nested tracebacks.
     """
 
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except requests.exceptions.ConnectionError as err:
+
+        except HTTPError as err:
+            if err.response.status_code == 404:
+                logger.error("Workflow doesn't seem to exist.")
+                return
+
+            message = (
+                '{err}\n\n'
+                'Cromwell server is on but got an HTTP error other than 404. '
+            )
+            raise HTTPError(message) from None
+
+        except ConnectionError as err:
             message = (
                 '{err}\n\n'
                 'Failed to connect to Cromwell server. '
@@ -29,7 +43,7 @@ def requests_error_handler(func):
                     err=err, method=err.request.method, url=err.request.url
                 )
             )
-            raise requests.exceptions.ConnectionError(message) from None
+            raise ConnectionError(message) from None
 
     return wrapper
 
@@ -235,8 +249,9 @@ class CromwellRestAPI:
                 CromwellRestAPI.ENDPOINT_METADATA.format(wf_id=workflow_id),
                 params=params,
             )
-            cm = CromwellMetadata(m)
-            result.append(cm.metadata)
+            if m:
+                cm = CromwellMetadata(m)
+                result.append(cm.metadata)
         return result
 
     def get_labels(self, workflow_id):
