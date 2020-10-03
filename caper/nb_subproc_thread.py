@@ -168,6 +168,7 @@ class NBSubprocThread(Thread):
         except Exception:
             if not self._returncode:
                 self._returncode = p.poll()
+            raise
 
         finally:
             try:
