@@ -471,10 +471,10 @@ def subcmd_metadata(caper_client, args):
     m = caper_client.metadata(
         wf_ids_or_labels=args.wf_id_or_label, embed_subworkflow=True
     )
-    if len(m) > 1:
-        raise ValueError('Found multiple workflow matching with search query.')
-    elif len(m) == 0:
+    if not m:
         raise ValueError('Found no workflow matching with search query.')
+    elif len(m) > 1:
+        raise ValueError('Found multiple workflow matching with search query.')
 
     print(json.dumps(m[0], indent=4))
 
