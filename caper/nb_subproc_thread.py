@@ -164,7 +164,20 @@ class NBSubprocThread(Thread):
             self._returncode = e.returncode
             if not self._quiet:
                 logger.error(e, exc_info=True)
+
+        except Exception:
+            if not self._returncode:
+                self._returncode = p.poll()
+
         finally:
+            try:
+                stdout = q.get_nowait().decode()
+                if stdout:
+                    self._stdout_list.append(stdout)
+                    if on_stdout:
+                        self._status = on_stdout(stdout)
+            except Empty:
+                pass
             p.terminate()
 
         if on_finish:
