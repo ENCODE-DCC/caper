@@ -76,10 +76,12 @@ def test_nb_subproc_thread_stopped(tmp_path):
 
 
 def test_nb_subproc_thread_nonzero_rc(tmp_path):
-    th = NBSubprocThread(args=['cat', 'asdfasf'], on_stdout=on_stdout)
-    th.start()
-    th.join()
-    print(th.returncode, th.stdout)
-    assert th.returncode == 1
-    # check if stderr is redirected to stdout and it's captured
-    assert 'asdfasf' in th.stdout
+    for i in range(100):
+        test_str = 'asdfasf {i} zxcv'.format(i=i)
+        th = NBSubprocThread(args=['cat', test_str], on_stdout=on_stdout)
+        th.start()
+        th.join()
+        print(i, th.returncode, th.stdout)
+        assert th.returncode == 1
+        # check if stderr is redirected to stdout and it's captured
+        assert test_str in th.stdout
