@@ -332,7 +332,6 @@ class CaperRunner(CaperBase):
                 Input JSON file itself will still be localized.
             fileobj_stdout:
                 File-like object to write Cromwell's STDOUT.
-                Note that STDERR is redirected to STDOUT.
             fileobj_troubleshoot:
                 File-like object to write auto-troubleshooting after workflow is done.
             work_dir:
@@ -478,7 +477,6 @@ class CaperRunner(CaperBase):
                 Backend config file (HOCON) to override Caper's auto-generated backend config.
             fileobj_stdout:
                 File-like object to write Cromwell's STDOUT.
-                Note that STDERR is redirected to STDOUT.
             embed_subworkflow:
                 Caper stores/updates metadata.JSON file on
                 each workflow's root directory whenever there is status change

@@ -136,20 +136,21 @@ class Cromwell:
 
             logger.info('Validating WDL/inputs/imports with Womtool...')
 
-            stdout = ''
+            stderr = ''
 
-            def on_stdout(s):
-                nonlocal stdout
-                stdout += s
+            def on_stderr(s):
+                nonlocal stderr
+                stderr += s
 
-            th = NBSubprocThread(cmd, cwd=tmp_d, on_stdout=on_stdout, quiet=True)
+            th = NBSubprocThread(cmd, cwd=tmp_d, on_stderr=on_stderr, quiet=True)
             th.start()
             th.join()
 
             if th.returncode:
                 logger.error(
-                    'RC={rc}\nSTDOUT/STDERR={stdout}\n'
-                    'Womtool validation failed.'.format(rc=th.returncode, stdout=stdout)
+                    'RC={rc}\nSTDERR={stderr}\nWomtool validation failed.'.format(
+                        rc=th.returncode, stderr=stderr
+                    )
                 )
                 return False
             else:
@@ -201,7 +202,6 @@ class Cromwell:
                 backend will be used.
             fileobj_stdout:
                 File-like object to print Cromwell's STDOUT.
-                STDERR is redirected to STDOUT.
             fileobj_troubleshoot:
                 File-like object to write auto-troubleshooting result after
                 workflow is done.
@@ -356,7 +356,6 @@ class Cromwell:
                 backend will be used.
             fileobj_stdout:
                 File object to write Cromwell's STDOUT on.
-                STDERR is redirected to STDOUT.
             embed_subworkflow:
                 This class basically stores/updates metadata.JSON file on
                 each workflow's root directory whenever there is status change

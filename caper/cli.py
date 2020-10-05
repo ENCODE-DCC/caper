@@ -301,7 +301,7 @@ def subcmd_server(caper_runner, args, nonblocking=False):
         nonblocking:
             Make this function return a Thread object
             instead of blocking (Thread.join()).
-            Also writes Cromwell's STDOUT on sys.stdout
+            Also writes Cromwell's STDOUT to sys.stdout
             instead of a file (args.cromwell_stdout).
     """
     sh = None
@@ -331,16 +331,14 @@ def subcmd_server(caper_runner, args, nonblocking=False):
             thread = caper_runner.server(fileobj_stdout=f, **args_from_cli)
             if thread:
                 thread.join()
-                if thread.returncode:
-                    logger.error(
-                        'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
-                    )
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING, exc_info=True)
 
         finally:
             if thread:
-                thread.stop()
+                thread.stop(wait=True)
+                if thread.returncode:
+                    logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
 
 
 def subcmd_run(caper_runner, args):
@@ -374,17 +372,15 @@ def subcmd_run(caper_runner, args):
             )
             if thread:
                 thread.join()
-                if thread.returncode:
-                    logger.error(
-                        'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
-                    )
 
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING, exc_info=True)
 
         finally:
             if thread:
-                thread.stop()
+                thread.stop(wait=True)
+                if thread.returncode:
+                    logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
 
 
 def subcmd_submit(caper_client, args):

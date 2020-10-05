@@ -136,7 +136,7 @@ class CromwellMetadata:
             fileobj:
                 File-like object to write troubleshooting messages to.
             show_completed_task:
-                Show STDERR (or STDOUT) of completed tasks.
+                Show STDERR/STDOUT of completed tasks.
             show_stdout:
                 Show failed task's STDOUT along with STDERR.
         """
