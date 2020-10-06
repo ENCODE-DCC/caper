@@ -64,18 +64,23 @@ def is_valid_uuid(workflow_id, version=4):
     return True
 
 
-def has_wildcard(str_or_array):
-    """Check if string or any element in list/tuple has a wildcard.
+def has_wildcard(workflow_id_or_label):
+    """Check if string or any element in list/tuple has
+    a wildcard (? or *).
+
+    Args:
+        workflow_id_or_label:
+            Workflow ID (str), IDs, label (str) or labels.
     """
-    if str_or_array is None:
+    if workflow_id_or_label is None:
         return False
-    if isinstance(str_or_array, (list, tuple)):
-        for val in str_or_array:
+    if isinstance(workflow_id_or_label, (list, tuple)):
+        for val in workflow_id_or_label:
             if has_wildcard(val):
                 return True
         return False
     else:
-        return '?' in str_or_array or '*' in str_or_array
+        return '?' in workflow_id_or_label or '*' in workflow_id_or_label
 
 
 class CromwellRestAPI:
