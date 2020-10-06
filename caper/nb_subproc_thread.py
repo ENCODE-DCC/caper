@@ -14,6 +14,7 @@ def is_fileobj_open(fileobj):
 class NBSubprocThread(Thread):
     DEFAULT_POLL_INTERVAL_SEC = 0.01
     DEFAULT_SUBPROCESS_NAME = 'Subprocess'
+    DEFAULT_STOP_SIGNAL = SIGTERM
 
     def __init__(
         self,
@@ -92,6 +93,7 @@ class NBSubprocThread(Thread):
         self._stderr_list = []
         self._returncode = None
         self._stop_it = False
+        self._stop_signal = None
         self._status = None
         self._returnvalue = None
 
@@ -127,7 +129,7 @@ class NBSubprocThread(Thread):
         """
         return self._returnvalue
 
-    def stop(self, wait=False):
+    def stop(self, stop_signal=DEFAULT_STOP_SIGNAL, wait=False):
         """Subprocess will be teminated after next polling.
 
         Args:
@@ -135,6 +137,7 @@ class NBSubprocThread(Thread):
                 Wait for a valid returncode (which is not None).
         """
         self._stop_it = True
+        self._stop_signal = stop_signal
         if wait:
             logger.info(
                 '{name} stopped but waiting for graceful shutdown...'.format(
@@ -163,7 +166,7 @@ class NBSubprocThread(Thread):
                 self._stdout_list.append(text)
                 if on_stdout:
                     ret_on_stdout = on_stdout(text)
-                    if ret_on_stdout:
+                    if ret_on_stdout is not None:
                         self._status = ret_on_stdout
 
         def read_stderr(stderr_bytes):
@@ -172,7 +175,7 @@ class NBSubprocThread(Thread):
                 self._stderr_list.append(text)
                 if on_stderr:
                     ret_on_stderr = on_stderr(text)
-                    if ret_on_stderr:
+                    if ret_on_stderr is not None:
                         self._status = ret_on_stderr
 
         def read_from_stdout_obj(stdout):
@@ -201,13 +204,13 @@ class NBSubprocThread(Thread):
             while True:
                 if on_poll:
                     ret_on_poll = on_poll()
-                    if ret_on_poll:
+                    if ret_on_poll is not None:
                         self._status = ret_on_poll
                 if p.poll() is not None:
                     self._returncode = p.poll()
                     break
-                if self._stop_it:
-                    p.send_signal(SIGTERM)
+                if self._stop_it and self._stop_signal:
+                    p.send_signal(self._stop_signal)
                     break
                 time.sleep(self._poll_interval)
 
@@ -223,7 +226,7 @@ class NBSubprocThread(Thread):
 
         if on_finish:
             ret_on_finish = on_finish()
-            if ret_on_finish:
+            if ret_on_finish is not None:
                 self._returnvalue = ret_on_finish
 
         if not self._quiet:
