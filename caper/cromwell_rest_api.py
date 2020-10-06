@@ -71,7 +71,7 @@ def has_wildcard(str_or_array):
         return False
     if isinstance(str_or_array, (list, tuple)):
         for val in str_or_array:
-            if '?' in val or '*' in val:
+            if has_wildcard(val):
                 return True
         return False
     else:
