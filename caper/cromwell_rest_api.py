@@ -70,7 +70,8 @@ def has_wildcard(workflow_id_or_label):
 
     Args:
         workflow_id_or_label:
-            Workflow ID (str), IDs, label (str) or labels.
+            Workflow ID (str) or label (str).
+            Or array (list, tuple) of them.
     """
     if workflow_id_or_label is None:
         return False
