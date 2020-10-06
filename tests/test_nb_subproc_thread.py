@@ -1,5 +1,7 @@
 import time
 
+import pytest
+
 from caper.nb_subproc_thread import NBSubprocThread
 
 SH_CONTENTS = """#!/bin/bash
@@ -88,29 +90,15 @@ def test_nb_subproc_thread_stopped(tmp_path):
     assert 'hello kitty 4' not in th.stderr
 
 
-def test_nb_subproc_thread_nonzero_rc(tmp_path):
-    for i in range(100):
-        test_str = 'asdfasf-{i}-zxcv'.format(i=i)
+@pytest.mark.parametrize('test_app,expected_rc', [('cat', 1), ('ls', 2), ('java', 1)])
+def test_nb_subproc_thread_nonzero_rc(tmp_path, test_app, expected_rc):
+    test_str = 'asdfasf-10190212-zxcv'
 
-        th = NBSubprocThread(
-            args=['cat', test_str], on_stdout=on_stdout, on_stderr=on_stderr
-        )
-        th.start()
-        th.join()
-        assert th.returncode == 1
-        assert test_str in th.stderr
-        assert th.stdout == ''
-
-        th = NBSubprocThread(args=['ls', test_str], on_stderr=on_stderr)
-        th.start()
-        th.join()
-        assert th.returncode == 2
-        assert test_str in th.stderr
-        assert th.stdout == ''
-
-        th = NBSubprocThread(args=['java', test_str], on_stderr=on_stderr)
-        th.start()
-        th.join()
-        assert th.returncode == 1
-        assert test_str in th.stderr
-        assert th.stdout == ''
+    th = NBSubprocThread(
+        args=[test_app, test_str], on_stdout=on_stdout, on_stderr=on_stderr
+    )
+    th.start()
+    th.join()
+    assert th.returncode == expected_rc
+    assert test_str in th.stderr
+    assert th.stdout == ''
