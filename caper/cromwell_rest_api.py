@@ -54,7 +54,7 @@ def is_valid_uuid(workflow_id, version=4):
     """
     if not isinstance(workflow_id, str):
         return False
-    if workflow_id.lower() != workflow_id:
+    if not workflow_id.islower():
         return False
 
     try:
