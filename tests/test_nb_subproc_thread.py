@@ -1,3 +1,4 @@
+import os
 import time
 
 import pytest
@@ -90,9 +91,21 @@ def test_nb_subproc_thread_stopped(tmp_path):
     assert 'hello kitty 4' not in th.stderr
 
 
+def test_nb_subproc_thread_nonzero_rc():
+    for rc in range(10):
+        th = NBSubprocThread(
+            args=['bash', '-c', '"exit {rc}"'.format(rc=rc)], on_stderr=on_stderr
+        )
+        th.start()
+        th.join()
+        assert th.returncode == rc
+
+
 @pytest.mark.parametrize('test_app,expected_rc', [('cat', 1), ('ls', 2), ('java', 1)])
-def test_nb_subproc_thread_nonzero_rc(tmp_path, test_app, expected_rc):
+def test_nb_subproc_thread_nonzero_rc_for_real_apps(test_app, expected_rc):
     test_str = 'asdfasf-10190212-zxcv'
+    if os.path.exists(test_str):
+        raise ValueError('Test string should not be an existing file.')
 
     th = NBSubprocThread(
         args=[test_app, test_str], on_stdout=on_stdout, on_stderr=on_stderr
