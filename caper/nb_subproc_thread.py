@@ -144,8 +144,10 @@ class NBSubprocThread(Thread):
                     name=self._subprocess_name
                 )
             )
-            while self._returncode is None:
-                pass
+            while True:
+                if self._returncode is not None:
+                    return
+                time.sleep(self._poll_interval)
 
     def _popen(
         self,
