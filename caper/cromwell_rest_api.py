@@ -29,7 +29,7 @@ def requests_error_handler(func):
             message = (
                 '{err}\n\n'
                 'Cromwell server is on but got an HTTP error other than 404. '
-            )
+            ).format(err=err)
             raise HTTPError(message) from None
 
         except ConnectionError as err:
