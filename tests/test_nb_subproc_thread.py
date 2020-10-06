@@ -94,7 +94,7 @@ def test_nb_subproc_thread_stopped(tmp_path):
 def test_nb_subproc_thread_nonzero_rc():
     for rc in range(10):
         th = NBSubprocThread(
-            args=['bash', '-c', '"exit {rc}"'.format(rc=rc)], on_stderr=on_stderr
+            args=['bash', '-c', 'exit {rc}'.format(rc=rc)], on_stderr=on_stderr
         )
         th.start()
         th.join()
