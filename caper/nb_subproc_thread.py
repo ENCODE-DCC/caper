@@ -1,9 +1,14 @@
 import logging
 import time
+from signal import SIGTERM
 from subprocess import PIPE, Popen
 from threading import Thread
 
 logger = logging.getLogger(__name__)
+
+
+def is_fileobj_open(fileobj):
+    return fileobj and not getattr(fileobj, 'closed', False)
 
 
 class NBSubprocThread(Thread):
@@ -154,27 +159,31 @@ class NBSubprocThread(Thread):
 
         def read_stdout(stdout_bytes):
             text = stdout_bytes.decode()
-            self._stdout_list.append(text)
-            if on_stdout:
-                ret_on_stdout = on_stdout(text)
-                if ret_on_stdout:
-                    self._status = ret_on_stdout
+            if text:
+                self._stdout_list.append(text)
+                if on_stdout:
+                    ret_on_stdout = on_stdout(text)
+                    if ret_on_stdout:
+                        self._status = ret_on_stdout
 
         def read_stderr(stderr_bytes):
             text = stderr_bytes.decode()
-            self._stderr_list.append(text)
-            if on_stderr:
-                ret_on_stderr = on_stderr(text)
-                if ret_on_stderr:
-                    self._status = ret_on_stderr
+            if text:
+                self._stderr_list.append(text)
+                if on_stderr:
+                    ret_on_stderr = on_stderr(text)
+                    if ret_on_stderr:
+                        self._status = ret_on_stderr
 
         def read_from_stdout_obj(stdout):
-            for line in iter(stdout.readline, b''):
-                read_stdout(line)
+            if is_fileobj_open(stdout):
+                for line in iter(stdout.readline, b''):
+                    read_stdout(line)
 
         def read_from_stderr_obj(stderr):
-            for line in iter(stderr.readline, b''):
-                read_stderr(line)
+            if is_fileobj_open(stderr):
+                for line in iter(stderr.readline, b''):
+                    read_stderr(line)
 
         self._stop_it = False
 
@@ -198,6 +207,7 @@ class NBSubprocThread(Thread):
                     self._returncode = p.poll()
                     break
                 if self._stop_it:
+                    p.send_signal(SIGTERM)
                     break
                 time.sleep(self._poll_interval)
 

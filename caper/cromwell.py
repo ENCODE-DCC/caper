@@ -9,7 +9,7 @@ from autouri import AbsPath, AutoURI
 
 from .cromwell_metadata import CromwellMetadata
 from .cromwell_workflow_monitor import CromwellWorkflowMonitor
-from .nb_subproc_thread import NBSubprocThread
+from .nb_subproc_thread import NBSubprocThread, is_fileobj_open
 
 logger = logging.getLogger(__name__)
 
@@ -282,7 +282,7 @@ class Cromwell:
             nonlocal wm
             nonlocal fileobj_stdout
 
-            if fileobj_stdout and not getattr(fileobj_stdout, 'closed', False):
+            if is_fileobj_open(fileobj_stdout):
                 fileobj_stdout.write(stdout)
                 fileobj_stdout.flush()
             wm.update(stdout)
@@ -443,7 +443,7 @@ class Cromwell:
             nonlocal wm
             nonlocal server_heartbeat
 
-            if fileobj_stdout and not getattr(fileobj_stdout, 'closed', False):
+            if is_fileobj_open(fileobj_stdout):
                 fileobj_stdout.write(stdout)
                 fileobj_stdout.flush()
 

@@ -80,11 +80,10 @@ def test_nb_subproc_thread_stopped(tmp_path):
     th.start()
     time.sleep(2)
     assert th.is_alive()
-    th.stop()
-    th.join()
+    th.stop(wait=True)
     assert not th.is_alive()
-    # rc is None if terminated
-    assert th.returncode is None
+    # rc should be is None if terminated
+    assert th.returncode is not None
     # subprocess is terminated until it reaches kitty 4 (4 sec > 2 sec).
     assert 'hello kitty 4' not in th.stderr
 
