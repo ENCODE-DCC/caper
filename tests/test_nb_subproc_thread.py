@@ -98,25 +98,19 @@ def test_nb_subproc_thread_nonzero_rc(tmp_path):
         th.start()
         th.join()
         assert th.returncode == 1
-        assert 'cat: {s}: No such file or directory\n'.format(s=test_str) in th.stderr
+        assert test_str in th.stderr
         assert th.stdout == ''
 
         th = NBSubprocThread(args=['ls', test_str], on_stderr=on_stderr)
         th.start()
         th.join()
         assert th.returncode == 2
-        assert (
-            "ls: cannot access '{s}': No such file or directory\n".format(s=test_str)
-            in th.stderr
-        )
+        assert test_str in th.stderr
         assert th.stdout == ''
 
         th = NBSubprocThread(args=['java', test_str], on_stderr=on_stderr)
         th.start()
         th.join()
         assert th.returncode == 1
-        assert (
-            'Error: Could not find or load main class {s}\n'.format(s=test_str)
-            in th.stderr
-        )
+        assert test_str in th.stderr
         assert th.stdout == ''
