@@ -47,7 +47,6 @@ class WDLParser:
     def imports(self):
         """Miniwdl (0.3.7) has a bug for URL imports.
         Keep using reg-ex to find imports until it's fixed.
-
         Returns:
             List of URIs of imported subworkflows.
         """
@@ -61,11 +60,9 @@ class WDLParser:
         """Recursively find/zip imported subworkflow WDLs
         This will zip sub-WDLs with relative paths only.
         i.e. URIs are ignored.
-
         For this (main) workflow, any URI is allowed.
         However, only subworkflows with relative path will be zipped
         since there is no way to make directory structure to zip them.
-
         Returns:
             Zipped imports file.
             None if no subworkflows recursively found in WDL.
@@ -92,7 +89,6 @@ class WDLParser:
 
     def _find_val_of_matched_lines(self, regex, no_strip=False):
         """Find value of the first line matching regex.
-
         Args:
             regex:
                 Regular expression. This should have only one ().
@@ -112,20 +108,17 @@ class WDLParser:
         self, root_zip_dir, root_wdl_dir, imported_as_url=False, depth=0
     ):
         """Recurse imported sub-WDLs in main-WDL.
-
         Unlike Cromwell, Womtool does not take imports.zip while validating WDLs.
         All sub-WDLs should be in a correct directory structure relative to the
         root WDL.
         For Womtool, we should make a temporary directory and unpack imports.zip there and
         need to make a copy of root WDL on it. Then run Womtool to validate them.
         This function is to make such imports.zip.
-
         Sub-WDLs imported as relative path simply inherit parent's directory.
         Sub-WDLs imported as URL does not inherit parent's directory but root
         WDL's directory.
         Sub-WDLs imported as absolute path are not allowed. This can work with "caper run"
         but not with "caper submit" (or Cromwell submit).
-
         Args:
             depth: Recursion depth
         Returns:

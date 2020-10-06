@@ -301,7 +301,7 @@ def subcmd_server(caper_runner, args, nonblocking=False):
         nonblocking:
             Make this function return a Thread object
             instead of blocking (Thread.join()).
-            Also writes Cromwell's STDOUT on sys.stdout
+            Also writes Cromwell's STDOUT to sys.stdout
             instead of a file (args.cromwell_stdout).
     """
     sh = None
@@ -317,6 +317,7 @@ def subcmd_server(caper_runner, args, nonblocking=False):
         'server_heartbeat': sh,
         'custom_backend_conf': get_abspath(args.backend_file),
         'embed_subworkflow': True,
+        'auto_update_metadata': not args.disable_auto_update_metadata,
         'java_heap_server': args.java_heap_server,
         'dry_run': args.dry_run,
     }
@@ -330,16 +331,14 @@ def subcmd_server(caper_runner, args, nonblocking=False):
             thread = caper_runner.server(fileobj_stdout=f, **args_from_cli)
             if thread:
                 thread.join()
-                if thread.returncode:
-                    logger.error(
-                        'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
-                    )
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING, exc_info=True)
 
         finally:
             if thread:
-                thread.stop()
+                thread.stop(wait=True)
+                if thread.returncode:
+                    logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
 
 
 def subcmd_run(caper_runner, args):
@@ -373,17 +372,15 @@ def subcmd_run(caper_runner, args):
             )
             if thread:
                 thread.join()
-                if thread.returncode:
-                    logger.error(
-                        'Check stdout/stderr in {file}'.format(file=cromwell_stdout)
-                    )
 
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING, exc_info=True)
 
         finally:
             if thread:
-                thread.stop()
+                thread.stop(wait=True)
+                if thread.returncode:
+                    logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
 
 
 def subcmd_submit(caper_client, args):
@@ -419,7 +416,7 @@ def subcmd_unhold(caper_client, args):
 
 def subcmd_list(caper_client, args):
     workflows = caper_client.list(
-        args.wf_id_or_label, exclude_subworkflow=args.hide_subworkflow
+        args.wf_id_or_label, exclude_subworkflow=not args.show_subworkflow
     )
 
     try:
@@ -470,10 +467,10 @@ def subcmd_metadata(caper_client, args):
     m = caper_client.metadata(
         wf_ids_or_labels=args.wf_id_or_label, embed_subworkflow=True
     )
-    if len(m) > 1:
-        raise ValueError('Found multiple workflow matching with search query.')
-    elif len(m) == 0:
+    if not m:
         raise ValueError('Found no workflow matching with search query.')
+    elif len(m) > 1:
+        raise ValueError('Found multiple workflow matching with search query.')
 
     print(json.dumps(m[0], indent=4))
 

@@ -50,7 +50,7 @@ Added parameters
   - `--gcp-service-account-key-json`: Use a service account for auth on GCP (instead of application default).
   - `--gcp-prj-memory-retry-error-keys`: Comma-separated keys to catch OOM error on GCP.
   - `--gcp-prj-memory-retry-multiplier`: Multiplier for every retrial due to OOM error on GCP.
-  - `--cromwell-stdout`: Redirect Cromwell STDOUT/STDERR to file.
+  - `--cromwell-stdout`: Redirect Cromwell STDOUT to file.
 
 Improved Python interface.
   - Old Caper<1.0 was originally designed for CLI.
@@ -58,7 +58,7 @@ Improved Python interface.
   - Can retrieve `metadata.json` embedded with subworkflows' metadata JSON.
 
 Better logging and troubleshooting.
-  - Defaults to write Cromwell STDOUT/STDERR to `cromwell.out` (controlled by `--cromwell-stdout`).
+  - Defaults to write Cromwell STDOUT to `cromwell.out` (controlled by `--cromwell-stdout`).
 
 
 > **IMPORTANT**: `--use-gsutil-for-s3` requires `gsutil` installed on your system. This flag allows a direct transfer between `gs://` and `s3://`. This requires `gsutil` >= 4.47. See this [issue](https://github.com/GoogleCloudPlatform/gsutil/issues/935) for details. `gsutil` is based on Python 2.

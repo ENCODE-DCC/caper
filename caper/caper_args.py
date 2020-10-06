@@ -142,8 +142,7 @@ def get_parser_and_defaults(conf_file=None):
         '--cromwell-stdout',
         default=DEFAULT_CROMWELL_STDOUT,
         help='Local file to write STDOUT of Cromwell Java process to. '
-        'This is for Cromwell (not for Caper\'s logging system). '
-        'Note that STDERR is redirected to STDOUT.',
+        'This is for Cromwell (not for Caper\'s logging system).',
     )
     group_db = parent_runner.add_argument_group(
         title='General DB settings (for both file DB and MySQL DB)'
@@ -533,6 +532,11 @@ def get_parser_and_defaults(conf_file=None):
         default=Cromwell.DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
         help='Cromwell Java heap size for "server" mode (java -Xmx)',
     )
+    parent_server.add_argument(
+        '--disable-auto-update-metadata',
+        action='store_true',
+        help='Disable automatic retrieval/update/writing of metadata.json upon workflow/task status change.',
+    )
 
     # run
     parent_run = argparse.ArgumentParser(add_help=False)
@@ -615,9 +619,11 @@ def get_parser_and_defaults(conf_file=None):
         'e.g. 2019-06-13, 2019-06-13T10:07',
     )
     parent_list.add_argument(
-        '--hide-subworkflow',
+        '--show-subworkflow',
         action='store_true',
-        help='Hide subworkflows from "caper list".',
+        help='Show subworkflows in "caper list". '
+        'WARNING: If there are too many subworkflows, '
+        'this can result in crash of Caper/Cromwell server ',
     )
 
     # troubleshoot/debug

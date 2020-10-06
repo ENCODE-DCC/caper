@@ -9,7 +9,7 @@ from autouri import AbsPath, AutoURI
 
 from .cromwell_metadata import CromwellMetadata
 from .cromwell_workflow_monitor import CromwellWorkflowMonitor
-from .nb_subproc_thread import NBSubprocThread
+from .nb_subproc_thread import NBSubprocThread, is_fileobj_open
 
 logger = logging.getLogger(__name__)
 
@@ -136,20 +136,21 @@ class Cromwell:
 
             logger.info('Validating WDL/inputs/imports with Womtool...')
 
-            stdout = ''
+            stderr = ''
 
-            def on_stdout(s):
-                nonlocal stdout
-                stdout += s
+            def on_stderr(s):
+                nonlocal stderr
+                stderr += s
 
-            th = NBSubprocThread(cmd, cwd=tmp_d, on_stdout=on_stdout, quiet=True)
+            th = NBSubprocThread(cmd, cwd=tmp_d, on_stderr=on_stderr, quiet=True)
             th.start()
             th.join()
 
             if th.returncode:
                 logger.error(
-                    'RC={rc}\nSTDOUT/STDERR={stdout}\n'
-                    'Womtool validation failed.'.format(rc=th.returncode, stdout=stdout)
+                    'RC={rc}\nSTDERR={stderr}\nWomtool validation failed.'.format(
+                        rc=th.returncode, stderr=stderr
+                    )
                 )
                 return False
             else:
@@ -201,7 +202,6 @@ class Cromwell:
                 backend will be used.
             fileobj_stdout:
                 File-like object to print Cromwell's STDOUT.
-                STDERR is redirected to STDOUT.
             fileobj_troubleshoot:
                 File-like object to write auto-troubleshooting result after
                 workflow is done.
@@ -282,7 +282,7 @@ class Cromwell:
             nonlocal wm
             nonlocal fileobj_stdout
 
-            if fileobj_stdout and not getattr(fileobj_stdout, 'closed', False):
+            if is_fileobj_open(fileobj_stdout):
                 fileobj_stdout.write(stdout)
                 fileobj_stdout.flush()
             wm.update(stdout)
@@ -326,6 +326,7 @@ class Cromwell:
         fileobj_stdout=None,
         embed_subworkflow=False,
         java_heap_cromwell_server=DEFAULT_JAVA_HEAP_CROMWELL_SERVER,
+        auto_update_metadata=True,
         on_server_start=None,
         on_status_change=None,
         cwd=None,
@@ -355,7 +356,6 @@ class Cromwell:
                 backend will be used.
             fileobj_stdout:
                 File object to write Cromwell's STDOUT on.
-                STDERR is redirected to STDOUT.
             embed_subworkflow:
                 This class basically stores/updates metadata.JSON file on
                 each workflow's root directory whenever there is status change
@@ -365,6 +365,8 @@ class Cromwell:
                 This is to mimic behavior of Cromwell run mode's -m parameter.
             java_heap_cromwell_server:
                 Java heap (java -Xmx) for Cromwell server mode.
+            auto_update_metadata:
+                Automatic retrieval/writing of metadata.json upon workflow/task's status change.
             on_server_start:
                 On server start.
             on_status_change:
@@ -427,7 +429,7 @@ class Cromwell:
             server_port=server_port,
             is_server=True,
             embed_subworkflow=embed_subworkflow,
-            auto_update_metadata=True,
+            auto_update_metadata=auto_update_metadata,
             on_server_start=on_server_start,
             on_status_change=on_status_change,
         )
@@ -441,7 +443,7 @@ class Cromwell:
             nonlocal wm
             nonlocal server_heartbeat
 
-            if fileobj_stdout and not getattr(fileobj_stdout, 'closed', False):
+            if is_fileobj_open(fileobj_stdout):
                 fileobj_stdout.write(stdout)
                 fileobj_stdout.flush()
 
