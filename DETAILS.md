@@ -155,7 +155,9 @@ We highly recommend to use a default configuration file described in the section
 	--file-db, -d|File-based metadata DB for Cromwell's built-in HyperSQL database (UNSTABLE)
 	--db-timeout|Milliseconds to wait for DB connection (default: 30000)
 	--java-heap-server|Java heap memory for caper server (default: 10G)
+	--disable-auto-update-metadata| Disable auto update/retrieval/writing of `metadata.json` on workflow's output directory.
 	--java-heap-run|Java heap memory for caper run (default: 3G)
+	--show-subworkflow|Include subworkflow in `caper list` search query. **WARNING**: If there are too many subworkflows, then you will see HTTP 503 error (service unavaiable) or Caper/Cromwell server can crash.
 
 * Choose a default backend. Deepcopy is enabled by default. All data files will be automatically transferred to a target local/remote storage corresponding to a chosen backend. Make sure that you correctly configure temporary directories for source/target storages (`--local-loc-dir`, `--gcp-loc-dir` and `--aws-loc-dir`). To disable this feature use `--no-deepcopy`.
 
@@ -242,7 +244,7 @@ We highly recommend to use a default configuration file described in the section
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
-	cromwell|--cromwell|[cromwell-51.jar](https://github.com/broadinstitute/cromwell/releases/download/51/cromwell-51.jar)|Path or URL for Cromwell JAR file
+	cromwell|--cromwell|[cromwell-52.jar](https://github.com/broadinstitute/cromwell/releases/download/52/cromwell-52.jar)|Path or URL for Cromwell JAR file
 	max-concurrent-tasks|--max-concurrent-tasks|1000|Maximum number of concurrent tasks
 	max-concurrent-workflows|--max-concurrent-workflows|40|Maximum number of concurrent workflows
 	max-retries|--max-retries|1|Maximum number of retries for failing tasks
