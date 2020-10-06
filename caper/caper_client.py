@@ -134,9 +134,12 @@ class CaperClient(CaperBase):
 
         if workflow_ids_or_labels:
             for query in workflow_ids_or_labels:
-                workflow_ids.append(query)
-                if has_wildcard(query) or not is_valid_uuid(query):
+                if is_valid_uuid(query):
+                    workflow_ids.append(query)
+                else:
                     labels.append((CaperLabels.KEY_CAPER_STR_LABEL, query))
+                    if has_wildcard(query):
+                        workflow_ids.append(query)
 
         return workflow_ids, labels
 

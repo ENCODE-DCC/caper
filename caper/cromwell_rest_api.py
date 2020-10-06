@@ -294,109 +294,196 @@ class CromwellRestAPI:
         logger.debug('update_labels: {r}'.format(r=r))
         return r
 
-    def find(self, workflow_ids=None, labels=None, exclude_subworkflow=True):
-        """Find workflows by matching workflow IDs, label (key, value) tuples.
-        Invalid UUID in `workflows_ids` will be ignored with warning.
-        Does OR search for both parameters.
+    def find_with_wildcard(
+        self, workflow_ids=None, labels=None, exclude_subworkflow=True
+    ):
+        """Retrieves all workflows from Cromwell server.
+        And then find matching workflows by ID or labels.
+        Wildcards (? and *) are allowed for both parameters.
+        """
+        result = []
 
-        IMPORTANT:
-            Wildcards (? and *) are allowed for both parameters.
-            If wildcards are given for any item in `workflows_ids` or `labels`
-            then Caper retrieves a full list of all workflows and try to find matched,
-            which can result in HTTP 503 error (Service Unavailable).
+        if not workflow_ids and not labels:
+            return result
+
+        resp = self.__request_get(
+            CromwellRestAPI.ENDPOINT_WORKFLOWS,
+            params={
+                'additionalQueryResultFields': 'labels',
+                'includeSubworkflows': not exclude_subworkflow,
+            },
+        )
+
+        if resp and resp['results']:
+            for workflow in resp['results']:
+                matched = False
+                if 'id' not in workflow:
+                    continue
+                if workflow_ids:
+                    for wf_id in workflow_ids:
+                        if fnmatch.fnmatchcase(workflow['id'], wf_id):
+                            result.append(workflow)
+                            matched = True
+                            break
+                if matched:
+                    continue
+                if labels and 'labels' in workflow:
+                    for k, v in labels:
+                        v_ = workflow['labels'].get(k)
+                        if not v_:
+                            continue
+                        if isinstance(v_, str) and isinstance(v, str):
+                            # matching with wildcards for str values only
+                            if fnmatch.fnmatchcase(v_, v):
+                                result.append(workflow)
+                                break
+                        elif v_ == v:
+                            result.append(workflow)
+                            break
+            logger.debug(
+                'find_with_wildcard: workflow_ids={workflow_ids}, '
+                'labels={labels}, result={result}'.format(
+                    workflow_ids=workflow_ids, labels=labels, result=result
+                )
+            )
+
+        return result
+
+    def find_by_workflow_ids(self, workflow_ids=None, exclude_subworkflow=True):
+        """Finds workflows by exactly matching workflow IDs (UUIDs).
+        Does OR search for a list of workflow IDs.
+        Invalid UUID in `workflows_ids` will be ignored without warning.
+        Wildcards (? and *) are not allowed.
+
         Args:
             workflow_ids:
-                Workflow ID string or list of ID strings.
-                OR search for multiple workflow IDs.
-                Wild cards (? and *) are not allowed.
+                List of workflow ID (UUID) strings.
+                Lower-case only (Cromwell uses lower-case UUIDs).
+        Returns:
+            List of matched workflow JSONs.
+        """
+        if has_wildcard(workflow_ids):
+            raise ValueError(
+                'Wildcards are not allowed in workflow_ids. '
+                'ids={ids}'.format(ids=workflow_ids)
+            )
+
+        result = []
+        if workflow_ids:
+            # exclude invalid workflow UUIDs.
+            workflow_ids = [wf_id for wf_id in workflow_ids if is_valid_uuid(wf_id)]
+            resp = self.__request_get(
+                CromwellRestAPI.ENDPOINT_WORKFLOWS,
+                params={
+                    'additionalQueryResultFields': 'labels',
+                    'includeSubworkflows': not exclude_subworkflow,
+                    'id': workflow_ids,
+                },
+            )
+            if resp and resp['results']:
+                result.extend(resp['results'])
+
+            logger.debug(
+                'find_by_workflow_ids: workflow_ids={workflow_ids}, '
+                'result={result}'.format(workflow_ids=workflow_ids, result=result)
+            )
+
+        return result
+
+    def find_by_labels(self, labels=None, exclude_subworkflow=True):
+        """Finds workflows by exactly matching labels (key, value) tuples.
+        Does OR search for a list of label key/value pairs.
+        Wildcards (? and *) are not allowed.
+
+        Args:
             labels:
-                (key, val) tuple or list of tuples.
-                OR search for multiple tuples.
-                then Caper will costly request for a list of all workflows on the server.
+                List of labels (key/value pairs).
+        Returns:
+            List of matched workflow JSONs.
+        """
+        if has_wildcard(labels):
+            raise ValueError(
+                'Wildcards are not allowed in labels. '
+                'labels={labels}'.format(labels=labels)
+            )
+
+        result = []
+        if labels:
+            # reformat labels with `:` notation. exclude pairs with empty value.
+            labels = [
+                '{key}:{val}'.format(key=key, val=val) for key, val in labels if val
+            ]
+            resp = self.__request_get(
+                CromwellRestAPI.ENDPOINT_WORKFLOWS,
+                params={
+                    'additionalQueryResultFields': 'labels',
+                    'includeSubworkflows': not exclude_subworkflow,
+                    'labelor': labels,
+                },
+            )
+            if resp and resp['results']:
+                result.extend(resp['results'])
+
+            logger.debug(
+                'find_by_labels: labels={labels}, result={result}'.format(
+                    labels=labels, result=result
+                )
+            )
+
+        return result
+
+    def find(self, workflow_ids=None, labels=None, exclude_subworkflow=True):
+        """Wrapper for the following three find functions.
+        - find_with_wildcard
+        - find_by_workflow_ids
+        - find_by_labels
+
+        Find workflows by matching workflow IDs or label (key, value) tuples.
+        Does OR search for both parameters.
+        Wildcards (? and *) in both parameters are allowed but Caper will
+        retrieve a list of all workflows, which can lead to HTTP 503 of
+        Cromwell server if there are many subworkflows and not `exclude_subworkflow`.
+
+        Args:
+            workflow_ids:
+                List of workflow ID (UUID) strings.
+                Lower-case only.
+            labels:
+                List of labels (key/value pairs).
             exclude_subworkflow:
                 Exclude subworkflows.
         Returns:
             List of matched workflow JSONs.
         """
-        wildcard_found = has_wildcard(workflow_ids) or has_wildcard(
-            [v for k, v in labels] if labels else None
+        wildcard_found_in_workflow_ids = has_wildcard(workflow_ids)
+        wildcard_found_in_labels = has_wildcard(
+            [val for key, val in labels] if labels else None
         )
-        params = {
-            'additionalQueryResultFields': 'labels',
-            'includeSubworkflows': not exclude_subworkflow,
-        }
-
-        result = []
-        if not wildcard_found:
-            if workflow_ids:
-                # exclude any invalid workflow UUID
-                workflow_ids = [wf_id for wf_id in workflow_ids if is_valid_uuid(wf_id)]
-            if workflow_ids:
-                resp_by_workflow_ids = self.__request_get(
-                    CromwellRestAPI.ENDPOINT_WORKFLOWS,
-                    params={**params, 'id': workflow_ids},
-                )
-                if resp_by_workflow_ids and resp_by_workflow_ids['results']:
-                    result.extend(resp_by_workflow_ids['results'])
-
-            if labels:
-                resp_by_labels = self.__request_get(
-                    CromwellRestAPI.ENDPOINT_WORKFLOWS,
-                    params={
-                        **params,
-                        'labelor': [
-                            '{key}:{val}'.format(key=key, val=val)
-                            for key, val in labels
-                        ],
-                    },
-                )
-                if resp_by_labels and resp_by_labels['results']:
-                    result.extend(resp_by_labels['results'])
-        else:
-            # if wildcard found, then retrieve information of all workflows
-            # and find matching workflows by ID or labels.
-            resp = self.__request_get(CromwellRestAPI.ENDPOINT_WORKFLOWS, params=params)
-            if resp and resp['results']:
-                matched_workflow_ids = set()
-                for workflow in resp['results']:
-                    if 'id' not in workflow:
-                        continue
-                    if workflow_ids:
-                        for wf_id in workflow_ids:
-                            if fnmatch.fnmatchcase(workflow['id'], wf_id):
-                                matched_workflow_ids.add(workflow['id'])
-                                break
-                    if workflow['id'] in matched_workflow_ids:
-                        continue
-                    if labels and 'labels' in workflow:
-                        labels_ = workflow['labels']
-                        for k, v in labels:
-                            if k in labels_:
-                                v_ = labels_[k]
-                                if isinstance(v_, str) and isinstance(v, str):
-                                    # wildcard allowed for str values
-                                    if fnmatch.fnmatchcase(v_, v):
-                                        matched_workflow_ids.add(workflow['id'])
-                                        break
-                                elif v_ == v:
-                                    matched_workflow_ids.add(workflow['id'])
-                                    break
-
-                for workflow in resp['results']:
-                    if 'id' not in workflow:
-                        continue
-                    if workflow['id'] in matched_workflow_ids:
-                        result.append(workflow)
-        logger.debug(
-            'find: has_wildcard={has_wildcard},'
-            'workflow_ids={workflow_ids}, labels={labels}, '
-            'result={result}'.format(
-                has_wildcard=wildcard_found,
+        if wildcard_found_in_workflow_ids or wildcard_found_in_labels:
+            return self.find_with_wildcard(
                 workflow_ids=workflow_ids,
                 labels=labels,
-                result=result,
+                exclude_subworkflow=exclude_subworkflow,
             )
+
+        result = []
+
+        result_by_labels = self.find_by_labels(
+            labels=labels, exclude_subworkflow=exclude_subworkflow
         )
+        result.extend(result_by_labels)
+
+        workflow_ids_found_by_labels = [workflow['id'] for workflow in result_by_labels]
+        result.extend(
+            [
+                workflow
+                for workflow in self.find_by_workflow_ids(
+                    workflow_ids=workflow_ids, exclude_subworkflow=exclude_subworkflow
+                )
+                if workflow['id'] not in workflow_ids_found_by_labels
+            ]
+        )
+
         return result
 
     def __init_auth(self):
