@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='caper',
-    version='1.4.0',
+    version='1.4.1',
     python_requires='>=3.6',
     scripts=[
         'bin/caper',
