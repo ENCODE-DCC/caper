@@ -635,7 +635,7 @@ def subcmd_cleanup(caper_client, args):
     """Cleanup outputs of a workflow.
     """
     cm = get_single_cromwell_metadata_obj(caper_client, args, 'cleanup')
-    cm.cleanup(dry_run=not args.delete, num_threads=args.num_threads)
+    cm.cleanup(dry_run=not args.delete, num_threads=args.num_threads, no_lock=True)
     if not args.delete:
         logger.warning(
             'Use --delete to DELETE ALL OUTPUTS of this workflow. '
