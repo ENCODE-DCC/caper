@@ -386,7 +386,9 @@ class CromwellMetadata:
         json_str = json.dumps(result, default=convert_type_np_to_py)
         return json.loads(json_str)
 
-    def cleanup(self, dry_run=False, num_threads=URIBase.DEFAULT_NUM_THREADS):
+    def cleanup(
+        self, dry_run=False, num_threads=URIBase.DEFAULT_NUM_THREADS, no_lock=False
+    ):
         """Cleans up workflow's root output directory.
 
         Args:
@@ -396,6 +398,8 @@ class CromwellMetadata:
                 For outputs on cloud buckets only.
                 Number of threads for deleting individual outputs on cloud buckets in parallel.
                 Generates one client per thread. This works like `gsutil -m rm -rf`.
+            no_lock:
+                No file locking.
         """
         root = self._metadata.get('workflowRoot')
         if root is None:
@@ -407,6 +411,8 @@ class CromwellMetadata:
 
         if AbsPath(root).is_valid:
             # num_threads is not available for AbsPath().rmdir()
-            AbsPath(root).rmdir(dry_run=dry_run)
+            AbsPath(root).rmdir(dry_run=dry_run, no_lock=no_lock)
         else:
-            AutoURI(root).rmdir(dry_run=dry_run, num_threads=num_threads)
+            AutoURI(root).rmdir(
+                dry_run=dry_run, no_lock=no_lock, num_threads=num_threads
+            )
