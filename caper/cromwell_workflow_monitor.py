@@ -296,6 +296,13 @@ class CromwellWorkflowMonitor:
         """
         if not self._is_server or not self._auto_update_metadata:
             return
+        if workflow_id in self._subworkflows and self._embed_subworkflow:
+            logger.debug(
+                'Skipped writing metadata JSON file of subworkflow {wf_id}'.format(
+                    wf_id=workflow_id
+                )
+            )
+            return
         for trial in range(CromwellWorkflowMonitor.MAX_RETRY_UPDATE_METADATA + 1):
             try:
                 time.sleep(CromwellWorkflowMonitor.INTERVAL_RETRY_UPDATE_METADATA)
