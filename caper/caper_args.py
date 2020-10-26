@@ -5,10 +5,7 @@ from enum import Enum
 from autouri import URIBase
 
 from .arg_tool import update_parsers_defaults_with_conf
-from .backward_compatibility import (
-    CAPER_1_0_0_PARAM_KEY_NAME_CHANGE,
-    CAPER_1_4_2_PARAM_KEY_NAME_CHANGE,
-)
+from .backward_compatibility import PARAM_KEY_NAME_CHANGE
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
 from .cromwell_backend import (
@@ -862,12 +859,7 @@ def get_parser_and_defaults(conf_file=None):
     ]
     if os.path.exists(conf_file):
         conf_dict = update_parsers_defaults_with_conf(
-            parsers=subparsers,
-            conf_file=conf_file,
-            conf_key_map={
-                **CAPER_1_0_0_PARAM_KEY_NAME_CHANGE,
-                **CAPER_1_4_2_PARAM_KEY_NAME_CHANGE,
-            },
+            parsers=subparsers, conf_file=conf_file, conf_key_map=PARAM_KEY_NAME_CHANGE
         )
     else:
         conf_dict = None
