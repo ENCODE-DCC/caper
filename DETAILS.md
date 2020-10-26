@@ -155,7 +155,7 @@ We highly recommend to use a default configuration file described in the section
 	--file-db, -d|File-based metadata DB for Cromwell's built-in HyperSQL database (UNSTABLE)
 	--db-timeout|Milliseconds to wait for DB connection (default: 30000)
 	--java-heap-server|Java heap memory for caper server (default: 10G)
-	--disable-auto-update-metadata| Disable auto update/retrieval/writing of `metadata.json` on workflow's output directory.
+	--disable-auto-write-metadata| Disable auto update/retrieval/writing of `metadata.json` on workflow's output directory.
 	--java-heap-run|Java heap memory for caper run (default: 3G)
 	--show-subworkflow|Include subworkflow in `caper list` search query. **WARNING**: If there are too many subworkflows, then you will see HTTP 503 error (service unavaiable) or Caper/Cromwell server can crash.
 

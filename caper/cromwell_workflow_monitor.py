@@ -114,7 +114,7 @@ class CromwellWorkflowMonitor:
         server_hostname=DEFAULT_SERVER_HOSTNAME,
         server_port=DEFAULT_SERVER_PORT,
         embed_subworkflow=False,
-        auto_update_metadata=False,
+        auto_write_metadata=False,
         on_status_change=None,
         on_server_start=None,
     ):
@@ -141,7 +141,7 @@ class CromwellWorkflowMonitor:
                 It tries to write/update metadata JSON file on workflow's root.
                 For this metadata JSON file, embed subworkflow's metadata JSON in it.
                 If this is turned off, then metadata JSON will just have subworkflow's ID.
-            auto_update_metadata:
+            auto_write_metadata:
                 This is server-only feature. For any change of workflow's status,
                 automatically updates metadata JSON file on workflow's root directory.
                 metadata JSON is retrieved by communicating with Cromwell server via
@@ -169,7 +169,7 @@ class CromwellWorkflowMonitor:
             self._cromwell_rest_api = None
 
         self._embed_subworkflow = embed_subworkflow
-        self._auto_update_metadata = auto_update_metadata
+        self._auto_write_metadata = auto_write_metadata
         self._on_status_change = on_status_change
         self._on_server_start = on_server_start
 
@@ -294,7 +294,7 @@ class CromwellWorkflowMonitor:
     def _update_metadata(self, workflow_id):
         """Update metadata on Cromwell'e exec root.
         """
-        if not self._is_server or not self._auto_update_metadata:
+        if not self._is_server or not self._auto_write_metadata:
             return
         if workflow_id in self._subworkflows and self._embed_subworkflow:
             logger.debug(
