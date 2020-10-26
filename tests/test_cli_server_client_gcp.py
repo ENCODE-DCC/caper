@@ -123,13 +123,17 @@ def test_server_client(
         while True:
             time.sleep(5)
             m = cra.get_metadata([workflow_id])[0]
-            metadata_json_file = os.path.join(m['workflowRoot'], 'metadata.json')
+            workflow_root = m.get('workflowRoot')
+            if workflow_root:
+                metadata_json_file = os.path.join(workflow_root, 'metadata.json')
+            else:
+                metadata_json_file = None
             print('polling: ', workflow_id, m['status'], metadata_json_file)
 
             if m['status'] in ('Failed', 'Succeeded'):
                 assert AutoURI(metadata_json_file).exists
                 break
-            else:
+            elif metadata_json_file:
                 assert not AutoURI(metadata_json_file).exists
 
             if time.time() - t_start > TIMEOUT_SERVER_RUN_WORKFLOW:
