@@ -62,9 +62,9 @@ class WorkflowStatusTransition:
                                 id=wf_id, status=st2
                             )
                         )
-                        return wf_id, st2
+                        return wf_id, st2, self._auto_write_metadata
                     break
-        return None, None, self._auto_write_metadata
+        return None, None, False
 
 
 class CromwellWorkflowMonitor:
