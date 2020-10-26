@@ -5,6 +5,7 @@ import os
 import time
 
 import pytest
+from autouri import AutoURI
 
 from caper.cli import main as cli_main
 from caper.cromwell_rest_api import CromwellRestAPI
@@ -122,9 +123,15 @@ def test_server_client(
         while True:
             time.sleep(5)
             m = cra.get_metadata([workflow_id])[0]
-            print('polling: ', workflow_id, m['status'])
-            if m['status'] in ('Done', 'Failed', 'Succeeded'):
+            metadata_json_file = os.path.join(m['workflowRoot'], 'metadata.json')
+            print('polling: ', workflow_id, m['status'], metadata_json_file)
+
+            if m['status'] in ('Failed', 'Succeeded'):
+                assert AutoURI(metadata_json_file).exists
                 break
+            else:
+                assert not AutoURI(metadata_json_file).exists
+
             if time.time() - t_start > TIMEOUT_SERVER_RUN_WORKFLOW:
                 raise TimeoutError('Timed out waiting for workflow being done.')
 
