@@ -131,8 +131,8 @@ def test_server_client(
             print('polling: ', workflow_id, m['status'], metadata_json_file)
 
             if m['status'] in ('Failed', 'Succeeded'):
-                assert AutoURI(metadata_json_file).exists
-                break
+                if AutoURI(metadata_json_file).exists:
+                    break
             elif metadata_json_file:
                 assert not AutoURI(metadata_json_file).exists
 
