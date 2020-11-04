@@ -317,7 +317,7 @@ def subcmd_server(caper_runner, args, nonblocking=False):
         'server_heartbeat': sh,
         'custom_backend_conf': get_abspath(args.backend_file),
         'embed_subworkflow': True,
-        'auto_update_metadata': not args.disable_auto_update_metadata,
+        'auto_write_metadata': not args.disable_auto_write_metadata,
         'java_heap_server': args.java_heap_server,
         'dry_run': args.dry_run,
     }
