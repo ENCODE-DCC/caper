@@ -48,7 +48,7 @@ class WorkflowStatusTransition:
                 on workflow's root output directory.
         """
         r = re.findall(self._regex, line)
-        if len(r) > 0:
+        if r:
             wf_id = r[0].strip()
             if wf_id in workflow_status_map:
                 prev_status = workflow_status_map[wf_id]
@@ -207,7 +207,7 @@ class CromwellWorkflowMonitor:
         if not self._is_server_started:
             for line in stderr.split('\n'):
                 r1 = re.findall(CromwellWorkflowMonitor.RE_CROMWELL_SERVER_START, line)
-                if len(r1) > 0:
+                if r1:
                     self._is_server_started = True
                     if self._on_server_start:
                         self._on_server_start()
