@@ -76,17 +76,14 @@ class CromwellWorkflowMonitor:
         WorkflowStatusTransition(
             regex=r'workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) submitted',
             status_transitions=((None, 'Submitted'),),
-            auto_write_metadata=False,
         ),
         WorkflowStatusTransition(
             regex=r'started WorkflowActor-(\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)',
             status_transitions=((None, 'Running'),),
-            auto_write_metadata=False,
         ),
         WorkflowStatusTransition(
             regex=r'Workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) failed',
             status_transitions=((None, 'Failed'),),
-            auto_write_metadata=False,
         ),
         WorkflowStatusTransition(
             regex=r'Abort requested for workflow (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b)\.',
