@@ -139,11 +139,12 @@ class NBSubprocThread(Thread):
         self._stop_it = True
         self._stop_signal = stop_signal
         if wait:
-            logger.info(
-                '{name} stopped but waiting for graceful shutdown...'.format(
-                    name=self._subprocess_name
+            if self._returncode is None:
+                logger.info(
+                    '{name} stopped but waiting for graceful shutdown...'.format(
+                        name=self._subprocess_name
+                    )
                 )
-            )
             while True:
                 if self._returncode is not None:
                     return

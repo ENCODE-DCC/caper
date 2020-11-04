@@ -10,3 +10,10 @@ CAPER_1_0_0_PARAM_KEY_NAME_CHANGE = {
     'tmp_s3_bucket': 'aws_loc_dir',
     'ip': 'hostname',
 }
+
+CAPER_1_4_2_PARAM_KEY_NAME_CHANGE = {'auto_update_metadata': 'auto_write_metadata'}
+
+PARAM_KEY_NAME_CHANGE = {
+    **CAPER_1_0_0_PARAM_KEY_NAME_CHANGE,
+    **CAPER_1_4_2_PARAM_KEY_NAME_CHANGE,
+}
