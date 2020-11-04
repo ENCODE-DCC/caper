@@ -235,7 +235,7 @@ class CromwellWorkflowMonitor:
     def _update_subworkflows(self, stderr):
         for line in stderr.split('\n'):
             r_sub = re.findall(CromwellWorkflowMonitor.RE_SUBWORKFLOW_FOUND, line)
-            if len(r_sub) > 0:
+            if r_sub:
                 subworkflow_id = r_sub[0]
                 if subworkflow_id not in self._subworkflows:
                     logger.info('Subworkflow found: {id}'.format(id=subworkflow_id))
@@ -247,13 +247,13 @@ class CromwellWorkflowMonitor:
         for line in stderr.split('\n'):
             r_common = None
             r_start = re.findall(CromwellWorkflowMonitor.RE_TASK_START, line)
-            if len(r_start) > 0:
+            if r_start:
                 r_common = r_start[0]
                 status = 'Started'
                 job_id = r_common[4]
 
             r_callcached = re.findall(CromwellWorkflowMonitor.RE_TASK_CALL_CACHED, line)
-            if len(r_callcached) > 0:
+            if r_callcached:
                 r_common = r_callcached[0]
                 status = 'CallCached'
                 job_id = None
@@ -261,12 +261,12 @@ class CromwellWorkflowMonitor:
             r_status_change = re.findall(
                 CromwellWorkflowMonitor.RE_TASK_STATUS_CHANGE, line
             )
-            if len(r_status_change) > 0:
+            if r_status_change:
                 r_common = r_status_change[0]
                 status = r_common[5]
                 job_id = None
 
-            if r_common and len(r_common) > 0:
+            if r_common:
                 short_id = r_common[0]
                 workflow_id = self._find_workflow_id_from_short_id(short_id)
                 task_name = r_common[1]
