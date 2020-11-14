@@ -393,6 +393,7 @@ class CromwellBackendAWS(CromwellBackendBase):
         config['root'] = aws_out_dir
 
         self.default_runtime_attributes['queueArn'] = aws_batch_arn
+        self.default_runtime_attributes['scriptBucketName'] = aws_out_dir.replace('s3://', '')
 
 
 class CromwellBackendLocal(CromwellBackendBase):
