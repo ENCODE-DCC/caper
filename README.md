@@ -49,14 +49,14 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 
 	**Backend**|**Description**
 	:--------|:-----
-  local | General local computer.
-  slurm | HPC with SLURM cluster engine.
-  sge | HPC with Sun GridEngine cluster engine.
-  pbs | HPC with PBS cluster engine.
+	local | General local computer.
+	slurm | HPC with SLURM cluster engine.
+	sge | HPC with Sun GridEngine cluster engine.
+	pbs | HPC with PBS cluster engine.
 	gcp | Google Cloud Platform.
 	aws | Amazon Web Service.
-  sherlock | Stanford Sherlock (based on `slurm` backend).
-  scg | Stanford SCG (based on `slurm` backend).
+	sherlock | Stanford Sherlock (based on `slurm` backend).
+	scg | Stanford SCG (based on `slurm` backend).
 
 6) Edit `~/.caper/default.conf`. Find instruction for each parameter in the following table.
 	> **IMPORTANT**: DO NOT LEAVE ANY PARAMETERS UNDEFINED OR CAPER WILL NOT WORK CORRECTLY.
