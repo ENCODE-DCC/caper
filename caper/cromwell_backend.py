@@ -19,6 +19,10 @@ BACKEND_PBS = 'pbs'
 DEFAULT_BACKEND = BACKEND_LOCAL
 
 
+def get_s3_bucket_name(s3_uri):
+    return s3_uri.replace('s3://', '', 1).split('/')[0]
+
+
 class CromwellBackendCommon(UserDict):
     """Basic stanzas for Cromwell backend conf.
     """
@@ -391,7 +395,9 @@ class CromwellBackendAWS(CromwellBackendBase):
                 'Wrong S3 bucket URI for aws_out_dir: {v}'.format(v=aws_out_dir)
             )
         config['root'] = aws_out_dir
-
+        self.default_runtime_attributes['scriptBucketName'] = get_s3_bucket_name(
+            aws_out_dir
+        )
         self.default_runtime_attributes['queueArn'] = aws_batch_arn
 
 

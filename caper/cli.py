@@ -329,16 +329,13 @@ def subcmd_server(caper_runner, args, nonblocking=False):
     with open(cromwell_stdout, 'w') as f:
         try:
             thread = caper_runner.server(fileobj_stdout=f, **args_from_cli)
-            if thread:
-                thread.join()
+            thread.join()
+            thread.stop(wait=True)
+            if thread.returncode:
+                logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
+
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING, exc_info=True)
-
-        finally:
-            if thread:
-                thread.stop(wait=True)
-                if thread.returncode:
-                    logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
 
 
 def subcmd_run(caper_runner, args):
@@ -370,17 +367,13 @@ def subcmd_run(caper_runner, args):
                 java_heap_womtool=args.java_heap_womtool,
                 dry_run=args.dry_run,
             )
-            if thread:
-                thread.join()
+            thread.join()
+            thread.stop(wait=True)
+            if thread.returncode:
+                logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
 
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING, exc_info=True)
-
-        finally:
-            if thread:
-                thread.stop(wait=True)
-                if thread.returncode:
-                    logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
 
 
 def subcmd_submit(caper_client, args):
