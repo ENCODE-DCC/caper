@@ -53,6 +53,7 @@ def test_create_file(tmp_path):
 
     backend = 'my_backend'
     max_retries = 999
+    memory_retry_multiplier = 1.3
     gcp_monitoring_script = 'gs://dummy/gcp_monitoring_script.sh'
     basename = 'my_basename.json'
 
@@ -67,6 +68,7 @@ def test_create_file(tmp_path):
         no_build_singularity=False,
         backend=backend,
         max_retries=max_retries,
+        memory_retry_multiplier=memory_retry_multiplier,
         gcp_monitoring_script=gcp_monitoring_script,
         basename=basename,
     )
@@ -87,6 +89,7 @@ def test_create_file(tmp_path):
 
     assert d['backend'] == 'world'
     assert dra['maxRetries'] == max_retries
+    assert d['memory_retry_multiplier'] == memory_retry_multiplier
     # this should be ignored for non-gcp backends
     assert 'monitoring_script' not in d
     assert os.path.basename(f) == basename

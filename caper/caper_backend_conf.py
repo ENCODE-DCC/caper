@@ -34,6 +34,7 @@ class CaperBackendConf:
         local_out_dir,
         disable_call_caching=False,
         max_concurrent_workflows=CromwellBackendCommon.DEFAULT_MAX_CONCURRENT_WORKFLOWS,
+        memory_retry_error_keys=CromwellBackendCommon.DEFAULT_MEMORY_RETRY_ERROR_KEYS,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
         soft_glob_output=False,
         local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
@@ -52,8 +53,6 @@ class CaperBackendConf:
         file_db=None,
         gcp_prj=None,
         gcp_out_dir=None,
-        gcp_memory_retry_error_keys=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS,
-        gcp_memory_retry_multiplier=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
@@ -84,6 +83,12 @@ class CaperBackendConf:
                 Disable call-caching (re-using outputs from previous workflows/tasks)
             max_concurrent_workflows:
                 Limit for concurrent number of workflows.
+            memory_retry_error_keys:
+                List of error messages to catch failures due to OOM (out of memory error).
+                e.g. ['OutOfMemory', 'Killed']
+                If an error occurs caught by these keys, then instance's memory will
+                be increased for next retrial by memory_retry_error_multiplier defined
+                in workflow options JSON.
             max_concurrent_tasks:
                 Limit for concurrent number of tasks for each workflow.
             soft_glob_output:
@@ -125,14 +130,6 @@ class CaperBackendConf:
                 Google project name.
             gcp_out_dir:
                 Output bucket path for gcp backend. Must start with gs://.
-            gcp_memory_retry_error_keys:
-                List of error messages to catch failures due to OOM (out of memory error).
-                e.g. ['OutOfMemoryError', 'Killed']
-                If an error occurs caught by these keys, then instance's memory will
-                be increased for next retrial by gcp_memory_retry_error_multiplier.
-            gcp_memory_retry_error_multiplier:
-                Multiplier for GCP memory-retry.
-                See description for gcp_memory_retry_error_keys.
             gcp_call_caching_dup_strat:
                 Call-caching duplication strategy.
             gcp_service_account_key_json:
@@ -180,6 +177,7 @@ class CaperBackendConf:
                 default_backend=default_backend,
                 disable_call_caching=disable_call_caching,
                 max_concurrent_workflows=max_concurrent_workflows,
+                memory_retry_error_keys=memory_retry_error_keys,
             ),
         )
 
@@ -270,8 +268,6 @@ class CaperBackendConf:
                     max_concurrent_tasks=max_concurrent_tasks,
                     gcp_prj=gcp_prj,
                     gcp_out_dir=gcp_out_dir,
-                    gcp_memory_retry_error_keys=gcp_memory_retry_error_keys,
-                    gcp_memory_retry_multiplier=gcp_memory_retry_multiplier,
                     call_caching_dup_strat=gcp_call_caching_dup_strat,
                     gcp_service_account_key_json=gcp_service_account_key_json,
                     use_google_cloud_life_sciences=use_google_cloud_life_sciences,

@@ -17,6 +17,7 @@ class CaperWorkflowOpts:
     DEFAULT_RUNTIME_ATTRIBUTES = 'default_runtime_attributes'
     BASENAME_WORKFLOW_OPTS_JSON = 'workflow_opts.json'
     DEFAULT_MAX_RETRIES = 1
+    DEFAULT_MEMORY_RETRY_MULTIPLIER = 1.2
     DEFAULT_GCP_MONITORING_SCRIPT = (
         'gs://caper-data/scripts/resource_monitor/resource_monitor.sh'
     )
@@ -113,6 +114,7 @@ class CaperWorkflowOpts:
         singularity_cachedir=None,
         no_build_singularity=False,
         max_retries=DEFAULT_MAX_RETRIES,
+        memory_retry_multiplier=DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_monitoring_script=DEFAULT_GCP_MONITORING_SCRIPT,
         basename=BASENAME_WORKFLOW_OPTS_JSON,
     ):
@@ -161,6 +163,10 @@ class CaperWorkflowOpts:
                 lead to corruption of the image file.
             max_retries:
                 Maximum number of retirals for each task. 1 means 1 retrial.
+            memory_retry_multiplier:
+                Multiplier for the memory retry feature.
+                See https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory/
+                for details.
             gcp_monitoring_script:
                 Monitoring script for GCP backend only.
                 Useful to monitor resources on an instance.
@@ -229,6 +235,8 @@ class CaperWorkflowOpts:
 
         if max_retries is not None:
             dra['maxRetries'] = max_retries
+        if memory_retry_multiplier is not None:
+            template['memory_retry_multiplier'] = memory_retry_multiplier
 
         if gcp_monitoring_script and backend == BACKEND_GCP:
             if not GCSURI(gcp_monitoring_script).is_valid:

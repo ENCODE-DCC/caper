@@ -49,13 +49,22 @@ class CromwellBackendCommon(UserDict):
     }
 
     DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
+    DEFAULT_MEMORY_RETRY_ERROR_KEYS = ['OutOfMemory', 'Killed']
 
     def __init__(
         self,
         default_backend,
         disable_call_caching=False,
         max_concurrent_workflows=DEFAULT_MAX_CONCURRENT_WORKFLOWS,
+        memory_retry_error_keys=DEFAULT_MEMORY_RETRY_ERROR_KEYS,
     ):
+        """
+        Args:
+            memory_retry_error_keys:
+                List of error strings to catch out-of-memory error
+                See https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory
+                for details.
+        """
         super().__init__(deepcopy(CromwellBackendCommon.TEMPLATE))
 
         if default_backend is None:
@@ -63,6 +72,7 @@ class CromwellBackendCommon(UserDict):
         self['backend']['default'] = default_backend
         self['call-caching']['enabled'] = not disable_call_caching
         self['system']['max-concurrent-workflows'] = max_concurrent_workflows
+        self['system']['memory-retry-error-keys'] = memory_retry_error_keys
 
 
 class CromwellBackendServer(UserDict):
@@ -258,15 +268,11 @@ class CromwellBackendGCP(CromwellBackendBase):
     CALL_CACHING_DUP_STRAT_COPY = 'copy'
 
     DEFAULT_GCP_CALL_CACHING_DUP_STRAT = CALL_CACHING_DUP_STRAT_REFERENCE
-    DEFAULT_MEMORY_RETRY_KEYS = ['OutOfMemoryError', 'Killed']
-    DEFAULT_MEMORY_RETRY_MULTIPLIER = 1.2
 
     def __init__(
         self,
         gcp_prj,
         gcp_out_dir,
-        gcp_memory_retry_error_keys=DEFAULT_MEMORY_RETRY_KEYS,
-        gcp_memory_retry_multiplier=DEFAULT_MEMORY_RETRY_MULTIPLIER,
         call_caching_dup_strat=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
@@ -287,8 +293,6 @@ class CromwellBackendGCP(CromwellBackendBase):
             gcp_zones:
                 List of zones for Genomics API.
                 Ignored if use_google_cloud_life_sciences.
-            gcp_memory_retry_error_keys:
-                List of error strings to catch out-of-memory error.
         """
         super().__init__(
             backend_name=BACKEND_GCP, max_concurrent_tasks=max_concurrent_tasks
@@ -321,10 +325,6 @@ class CromwellBackendGCP(CromwellBackendBase):
                 {'name': 'application-default', 'scheme': 'application_default'}
             ]
 
-        config['memory-retry'] = {
-            'error-keys': gcp_memory_retry_error_keys,
-            'multiplier': gcp_memory_retry_multiplier,
-        }
         if use_google_cloud_life_sciences:
             self.backend['actor-factory'] = CromwellBackendGCP.ACTOR_FACTORY_V2BETA
             genomics['endpoint-url'] = CromwellBackendGCP.GENOMICS_ENDPOINT_V2BETA
