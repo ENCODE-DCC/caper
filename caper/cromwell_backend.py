@@ -410,7 +410,7 @@ class CromwellBackendLocal(CromwellBackendBase):
     TEMPLATE_BACKEND = {
         'actor-factory': 'cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory',
         'config': {
-            'script-epilogue': 'sleep 10 && sync',
+            'script-epilogue': 'sleep 5',
             'filesystems': {
                 'local': {
                     'localization': ['soft-link', 'hard-link', 'copy'],
@@ -697,7 +697,7 @@ class CromwellBackendPBS(CromwellBackendLocal):
     TEMPLATE_BACKEND = {
         'config': {
             'default-runtime-attributes': {'time': 24},
-            'script-epilogue': 'sleep 30 && sync',
+            'script-epilogue': 'sleep 5',
             'runtime-attributes': dedent(
                 """\
                 String? docker
