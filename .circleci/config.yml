@@ -91,8 +91,6 @@ jobs:
                    --gcs-root ${GCS_ROOT} \
                    --gcp-service-account-key-json ${KEY_FILE} \
                    --gcp-prj ${GOOGLE_PROJECT_ID} \
-                   --cromwell ${CROMWELL_JAR} \
-                   --womtool ${WOMTOOL_JAR} \
                    --debug-caper \
                    -vv -s
 
