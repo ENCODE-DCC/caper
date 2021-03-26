@@ -242,7 +242,7 @@ We highly recommend to use a default configuration file described in the section
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
-	cromwell|--cromwell|[cromwell-58.jar](https://github.com/broadinstitute/cromwell/releases/download/58/cromwell-58.jar)|Path or URL for Cromwell JAR file
+	cromwell|--cromwell|[cromwell-59.jar](https://github.com/broadinstitute/cromwell/releases/download/59/cromwell-59.jar)|Path or URL for Cromwell JAR file
 	max-concurrent-tasks|--max-concurrent-tasks|1000|Maximum number of concurrent tasks
 	max-concurrent-workflows|--max-concurrent-workflows|40|Maximum number of concurrent workflows
 	memory-retry-error-keys|--memory-retry-error-keys|If an error caught by these comma-separated keys occurs then increase instance/job's memory by --memory-retry-multiplier and retry (controlled by --max-retries).
@@ -270,7 +270,7 @@ We highly recommend to use a default configuration file described in the section
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
-	womtool|--womtool|[womtool-58.jar](https://github.com/broadinstitute/cromwell/releases/download/58/womtool-58.jar)|Path or URL for Womtool JAR file (to validate WDL/inputs).
+	womtool|--womtool|[womtool-59.jar](https://github.com/broadinstitute/cromwell/releases/download/59/womtool-59.jar)|Path or URL for Womtool JAR file (to validate WDL/inputs).
 	ignore-womtool|--ignore-womtool|False|Skip Womtool validation.
 	java-heap-womtool|--java-heap-womtool|1G|Java heap memory for Womtool.
 
