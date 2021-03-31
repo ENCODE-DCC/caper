@@ -248,7 +248,8 @@ def get_parser_and_defaults(conf_file=None):
     group_cromwell.add_argument(
         '--memory-retry-error-keys',
         default=','.join(CromwellBackendCommon.DEFAULT_MEMORY_RETRY_ERROR_KEYS),
-        help='If an error caught by these comma-separated keys occurs, '
+        help='(CURRENTLY NOT WORKING) '
+        'If an error caught by these comma-separated keys occurs, '
         'then increase memory by --memory-retry-multiplier '
         'for retrials controlled by --max-retries. '
         'See https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory/ '
@@ -440,7 +441,8 @@ def get_parser_and_defaults(conf_file=None):
     parent_submit.add_argument(
         '--memory-retry-multiplier',
         default=CaperWorkflowOpts.DEFAULT_MEMORY_RETRY_MULTIPLIER,
-        help='If an error caught by --memory-retry-error-keys occurs, '
+        help='(CURRENTLY NOT WORKING) '
+        'If an error caught by --memory-retry-error-keys occurs, '
         'then increase memory by this '
         'for retrials controlled by --max-retries. '
         'See https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory/ '

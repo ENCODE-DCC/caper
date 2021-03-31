@@ -72,7 +72,9 @@ class CromwellBackendCommon(UserDict):
         self['backend']['default'] = default_backend
         self['call-caching']['enabled'] = not disable_call_caching
         self['system']['max-concurrent-workflows'] = max_concurrent_workflows
-        self['system']['memory-retry-error-keys'] = memory_retry_error_keys
+        # Cromwell's bug in memory-retry feature.
+        # Disabled until it's fixed on Cromwell's side.
+        # self['system']['memory-retry-error-keys'] = memory_retry_error_keys
 
 
 class CromwellBackendServer(UserDict):

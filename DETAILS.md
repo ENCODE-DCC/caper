@@ -245,7 +245,6 @@ We highly recommend to use a default configuration file described in the section
 	cromwell|--cromwell|[cromwell-59.jar](https://github.com/broadinstitute/cromwell/releases/download/59/cromwell-59.jar)|Path or URL for Cromwell JAR file
 	max-concurrent-tasks|--max-concurrent-tasks|1000|Maximum number of concurrent tasks
 	max-concurrent-workflows|--max-concurrent-workflows|40|Maximum number of concurrent workflows
-	memory-retry-error-keys|--memory-retry-error-keys|If an error caught by these comma-separated keys occurs then increase instance/job's memory by --memory-retry-multiplier and retry (controlled by --max-retries).
 	disable-call-caching|--disable-call-caching| |Disable Cromwell's call-caching (re-using outputs)
 	soft-glob-output|--soft-glob-output||Use soft-linking for globbing outputs for a filesystem that does not allow hard-linking: e.g. beeGFS.
 	backend-file|--backend-file| |Custom Cromwell backend conf file. This will override Caper's built-in backends
@@ -255,7 +254,6 @@ We highly recommend to use a default configuration file described in the section
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
 	max-retries|--max-retries|1|Maximum number of retries for failing tasks
-	memory-retry-multiplier|--memory-retry-multiplier|Multiplier for memory-retry feature.
 
 * Caper server/client parameters.
 

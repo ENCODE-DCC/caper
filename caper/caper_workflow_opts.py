@@ -235,8 +235,10 @@ class CaperWorkflowOpts:
 
         if max_retries is not None:
             dra['maxRetries'] = max_retries
-        if memory_retry_multiplier is not None:
-            template['memory_retry_multiplier'] = memory_retry_multiplier
+        # Cromwell's bug in memory-retry feature.
+        # Disabled until it's fixed on Cromwell's side.
+        # if memory_retry_multiplier is not None:
+        #     template['memory_retry_multiplier'] = memory_retry_multiplier
 
         if gcp_monitoring_script and backend == BACKEND_GCP:
             if not GCSURI(gcp_monitoring_script).is_valid:
