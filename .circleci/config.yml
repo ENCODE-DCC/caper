@@ -75,11 +75,6 @@ jobs:
       - run:
           no_output_timeout: 60m
           command: |
-            wget --no-check-certificate ${CROMWELL}
-            wget --no-check-certificate ${WOMTOOL}
-            CROMWELL_JAR="${PWD}"/$(basename "${CROMWELL}")
-            WOMTOOL_JAR="${PWD}"/$(basename "${WOMTOOL}")
-
             cd tests/
 
             # service account's key file
