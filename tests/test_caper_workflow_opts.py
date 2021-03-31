@@ -89,7 +89,7 @@ def test_create_file(tmp_path):
 
     assert d['backend'] == 'world'
     assert dra['maxRetries'] == max_retries
-    assert d['memory_retry_multiplier'] == memory_retry_multiplier
+    # assert d['memory_retry_multiplier'] == memory_retry_multiplier
     # this should be ignored for non-gcp backends
     assert 'monitoring_script' not in d
     assert os.path.basename(f) == basename
