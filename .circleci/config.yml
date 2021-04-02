@@ -75,11 +75,6 @@ jobs:
       - run:
           no_output_timeout: 60m
           command: |
-            wget --no-check-certificate ${CROMWELL}
-            wget --no-check-certificate ${WOMTOOL}
-            CROMWELL_JAR="${PWD}"/$(basename "${CROMWELL}")
-            WOMTOOL_JAR="${PWD}"/$(basename "${WOMTOOL}")
-
             cd tests/
 
             # service account's key file
@@ -91,8 +86,6 @@ jobs:
                    --gcs-root ${GCS_ROOT} \
                    --gcp-service-account-key-json ${KEY_FILE} \
                    --gcp-prj ${GOOGLE_PROJECT_ID} \
-                   --cromwell ${CROMWELL_JAR} \
-                   --womtool ${WOMTOOL_JAR} \
                    --debug-caper \
                    -vv -s
 

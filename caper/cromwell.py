@@ -33,14 +33,14 @@ class Cromwell:
     """Wraps Cromwell/Womtool.
     """
 
-    DEFAULT_CROMWELL = 'https://github.com/broadinstitute/cromwell/releases/download/52/cromwell-52.jar'
+    DEFAULT_CROMWELL = 'https://github.com/broadinstitute/cromwell/releases/download/59/cromwell-59.jar'
     DEFAULT_WOMTOOL = (
-        'https://github.com/broadinstitute/cromwell/releases/download/52/womtool-52.jar'
+        'https://github.com/broadinstitute/cromwell/releases/download/59/womtool-59.jar'
     )
     DEFAULT_CROMWELL_INSTALL_DIR = '~/.caper/cromwell_jar'
     DEFAULT_WOMTOOL_INSTALL_DIR = '~/.caper/womtool_jar'
     DEFAULT_JAVA_HEAP_CROMWELL_SERVER = '10G'
-    DEFAULT_JAVA_HEAP_CROMWELL_RUN = '3G'
+    DEFAULT_JAVA_HEAP_CROMWELL_RUN = '4G'
     DEFAULT_JAVA_HEAP_WOMTOOL = '1G'
     DEFAULT_SERVER_PORT = 8000
     SERVER_STATUS_STARTED = 'server_started'

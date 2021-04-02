@@ -42,3 +42,20 @@ On your Google Cloud Console, create a service account (`IAM & Admin` -> `Servic
     * Storage Admin (or set it up for an individual bucket)
 
 Create a secret key JSON file for your service account. Make sure that your service account has enough permission for provionsing VM instances and write permission on output/work Google Cloud Storage buckets (`--gcp-out-dir` and `--gcp-work-dir`).
+
+> **IMPORTANT**: Click on the created service account and make sure that `Enable G Suite Domain-wide Delegation` is checked to prevent the following permission error.
+
+```
+400 Bad Request
+POST https://lifesciences.googleapis.com/v2beta/projects/99884963860/locations/us-central1/operations/XXXXXXXXXXXXXXXXXXXX:cancel
+{
+  "code" : 400,
+  "errors" : [ {
+    "domain" : "global",
+    "message" : "Precondition check failed.",
+    "reason" : "failedPrecondition"
+  } ],
+  "message" : "Precondition check failed.",
+  "status" : "FAILED_PRECONDITION"
+}
+```

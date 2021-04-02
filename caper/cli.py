@@ -36,7 +36,7 @@ USER_INTERRUPT_WARNING = (
     '*** OR CAPER WILL NOT BE ABLE TO STOP CROMWELL AND RUNNING WORKFLOWS/TASKS ***'
     '\n\n'
 )
-REGEX_DELIMITER_GCP_PARAMS = r',| '
+REGEX_DELIMITER_PARAMS = r',| '
 PRINT_ROW_DELIMITER = '\t'
 
 
@@ -168,10 +168,10 @@ def check_backend(args):
 
 def runner(args, nonblocking_server=False):
     if args.gcp_zones:
-        args.gcp_zones = re.split(REGEX_DELIMITER_GCP_PARAMS, args.gcp_zones)
-    if args.gcp_memory_retry_error_keys:
-        args.gcp_memory_retry_error_keys = re.split(
-            REGEX_DELIMITER_GCP_PARAMS, args.gcp_memory_retry_error_keys
+        args.gcp_zones = re.split(REGEX_DELIMITER_PARAMS, args.gcp_zones)
+    if args.memory_retry_error_keys:
+        args.memory_retry_error_keys = re.split(
+            REGEX_DELIMITER_PARAMS, args.memory_retry_error_keys
         )
 
     c = CaperRunner(
@@ -185,6 +185,7 @@ def runner(args, nonblocking_server=False):
         womtool=get_abspath(getattr(args, 'womtool', None)),
         disable_call_caching=args.disable_call_caching,
         max_concurrent_workflows=args.max_concurrent_workflows,
+        memory_retry_error_keys=args.memory_retry_error_keys,
         max_concurrent_tasks=args.max_concurrent_tasks,
         soft_glob_output=args.soft_glob_output,
         local_hash_strat=args.local_hash_strat,
@@ -207,8 +208,6 @@ def runner(args, nonblocking_server=False):
         gcp_zones=args.gcp_zones,
         gcp_call_caching_dup_strat=args.gcp_call_caching_dup_strat,
         gcp_out_dir=args.gcp_out_dir,
-        gcp_memory_retry_error_keys=args.gcp_memory_retry_error_keys,
-        gcp_memory_retry_multiplier=args.gcp_memory_retry_multiplier,
         aws_batch_arn=args.aws_batch_arn,
         aws_region=args.aws_region,
         aws_out_dir=args.aws_out_dir,
@@ -241,7 +240,7 @@ def client(args):
         )
     if args.action == 'submit':
         if args.gcp_zones:
-            args.gcp_zones = re.split(REGEX_DELIMITER_GCP_PARAMS, args.gcp_zones)
+            args.gcp_zones = re.split(REGEX_DELIMITER_PARAMS, args.gcp_zones)
 
         c = CaperClientSubmit(
             local_loc_dir=args.local_loc_dir,
@@ -329,10 +328,11 @@ def subcmd_server(caper_runner, args, nonblocking=False):
     with open(cromwell_stdout, 'w') as f:
         try:
             thread = caper_runner.server(fileobj_stdout=f, **args_from_cli)
-            thread.join()
-            thread.stop(wait=True)
-            if thread.returncode:
-                logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
+            if thread:
+                thread.join()
+                thread.stop(wait=True)
+                if thread.returncode:
+                    logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
 
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING, exc_info=True)
@@ -358,6 +358,7 @@ def subcmd_run(caper_runner, args):
                 no_build_singularity=args.no_build_singularity,
                 custom_backend_conf=get_abspath(args.backend_file),
                 max_retries=args.max_retries,
+                memory_retry_multiplier=args.memory_retry_multiplier,
                 gcp_monitoring_script=args.gcp_monitoring_script,
                 ignore_womtool=args.ignore_womtool,
                 no_deepcopy=args.no_deepcopy,
@@ -367,10 +368,11 @@ def subcmd_run(caper_runner, args):
                 java_heap_womtool=args.java_heap_womtool,
                 dry_run=args.dry_run,
             )
-            thread.join()
-            thread.stop(wait=True)
-            if thread.returncode:
-                logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
+            if thread:
+                thread.join()
+                thread.stop(wait=True)
+                if thread.returncode:
+                    logger.error('Check stdout in {file}'.format(file=cromwell_stdout))
 
         except KeyboardInterrupt:
             logger.error(USER_INTERRUPT_WARNING, exc_info=True)
@@ -390,6 +392,7 @@ def subcmd_submit(caper_client, args):
         singularity_cachedir=args.singularity_cachedir,
         no_build_singularity=args.no_build_singularity,
         max_retries=args.max_retries,
+        memory_retry_multiplier=args.memory_retry_multiplier,
         gcp_monitoring_script=args.gcp_monitoring_script,
         ignore_womtool=args.ignore_womtool,
         no_deepcopy=args.no_deepcopy,

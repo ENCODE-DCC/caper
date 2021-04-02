@@ -39,6 +39,7 @@ class CaperRunner(CaperBase):
         womtool=Cromwell.DEFAULT_WOMTOOL,
         disable_call_caching=False,
         max_concurrent_workflows=CromwellBackendCommon.DEFAULT_MAX_CONCURRENT_WORKFLOWS,
+        memory_retry_error_keys=CromwellBackendCommon.DEFAULT_MEMORY_RETRY_ERROR_KEYS,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
         soft_glob_output=False,
         local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
@@ -57,8 +58,6 @@ class CaperRunner(CaperBase):
         file_db=None,
         gcp_prj=None,
         gcp_out_dir=None,
-        gcp_memory_retry_error_keys=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS,
-        gcp_memory_retry_multiplier=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
@@ -87,6 +86,7 @@ class CaperRunner(CaperBase):
                 Womtool JAR URI.
             disable_call_caching:
             max_concurrent_workflows:
+            memory_retry_error_keys
             max_concurrent_tasks:
             soft_glob_output:
             local_hash_strat:
@@ -116,8 +116,6 @@ class CaperRunner(CaperBase):
                 Region for Google Cloud Life Sciences API.
                 Ignored if not use_google_cloud_life_sciences.
             gcp_out_dir:
-            gcp_memory_retry_error_keys:
-            gcp_memory_retry_multiplier:
             aws_batch_arn:
             aws_region:
             aws_out_dir:
@@ -177,8 +175,7 @@ class CaperRunner(CaperBase):
             postgresql_db_name=postgresql_db_name,
             gcp_prj=gcp_prj,
             gcp_out_dir=gcp_out_dir,
-            gcp_memory_retry_error_keys=gcp_memory_retry_error_keys,
-            gcp_memory_retry_multiplier=gcp_memory_retry_multiplier,
+            memory_retry_error_keys=memory_retry_error_keys,
             gcp_call_caching_dup_strat=gcp_call_caching_dup_strat,
             gcp_service_account_key_json=gcp_service_account_key_json,
             use_google_cloud_life_sciences=use_google_cloud_life_sciences,
@@ -249,6 +246,7 @@ class CaperRunner(CaperBase):
         no_build_singularity=False,
         custom_backend_conf=None,
         max_retries=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
+        memory_retry_multiplier=CaperWorkflowOpts.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_monitoring_script=CaperWorkflowOpts.DEFAULT_GCP_MONITORING_SCRIPT,
         ignore_womtool=False,
         no_deepcopy=False,
@@ -325,6 +323,10 @@ class CaperRunner(CaperBase):
                 This applies to every task in a workflow.
                 0 means no retrial. "attemps" attribute in a task's metadata
                 increments from 1 as it is retried. attempts==2 means first retrial.
+            memory_retry_multiplier:
+                Multiplier for the memory retry feature.
+                See https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory/
+                for details.
             ignore_womtool:
                 Disable Womtool validation for WDL/input JSON/imports.
             no_deepcopy:
@@ -407,6 +409,7 @@ class CaperRunner(CaperBase):
             singularity_cachedir=singularity_cachedir,
             backend=backend,
             max_retries=max_retries,
+            memory_retry_multiplier=memory_retry_multiplier,
             gcp_monitoring_script=gcp_monitoring_script,
         )
 

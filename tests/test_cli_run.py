@@ -137,8 +137,8 @@ def test_run_gcp_with_life_sciences_api(
     # --gcp-zones should be ignored
     cmd += ['--gcp-zones', 'us-west1-a,us-west1-b']
     cmd += ['--gcp-prj', gcp_prj]
-    cmd += ['--gcp-memory-retry-error-keys', 'Killed']
-    cmd += ['--gcp-memory-retry-multiplier', '1.5']
+    cmd += ['--memory-retry-error-keys', 'Killed']
+    cmd += ['--memory-retry-multiplier', '1.5']
     cmd += ['--tmp-dir', str(tmp_path / 'tmp_dir')]
     cmd += ['--backend', 'gcp']
     cmd += ['--gcp-out-dir', out_gcs_bucket]
