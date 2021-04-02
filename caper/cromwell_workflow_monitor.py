@@ -98,10 +98,19 @@ class CromwellWorkflowMonitor:
             ),
             auto_write_metadata=True,
         ),
+        WorkflowStatusTransition(
+            regex=r'Workflow actor for (\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b) completed with status',
+            status_transitions=(
+                ('Failed', 'Failed'),
+                ('Aborting', 'Aborted'),
+                (None, 'Succeeded'),
+            ),
+            auto_write_metadata=True,
+        ),
     )
 
     RE_CROMWELL_SERVER_START = r'Cromwell \d+ service started on'
-    RE_TASK_START = r'\[UUID\((\b[0-9a-f]{8})\)(.+):(.+):(\d+)\]: job id: (\d+)'
+    RE_TASK_START = r'\[UUID\((\b[0-9a-f]{8})\)(.+):(.+):(\d+)\]: job id: (.+)'
     RE_TASK_STATUS_CHANGE = (
         r'\[UUID\((\b[0-9a-f]{8})\)(.+):(.+):(\d+)\]: Status change from (.+) to (.+)'
     )
