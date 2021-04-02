@@ -188,8 +188,6 @@ We highly recommend to use a default configuration file described in the section
 	:-----|:-----|:-----
 	gcp-prj|--gcp-prj|Google Cloud project
 	use-google-cloud-life-sciences|--use-google-cloud-life-sciences|Use Google Cloud Life Sciences API instead of (deprecated) Genomics API
-	gcp-memory-retry-error-keys|--gcp-memory-retry-error-keys|If an error caught by these comma-separated keys occurs then increase instance's memory by --gcp-memory-retry-multiplier and retry (controlled by --max-retries).
-	gcp-memory-retry-multiplier|--gcp-memory-retry-multiplier|Multiplier for memory-retry.
 	gcp-zones|--gcp-zones|Comma-delimited Google Cloud Platform zones to provision worker instances (e.g. us-central1-c,us-west1-b)
 	gcp-out-dir, out-gcs-bucket|--gcp-out-dir, --out-gcs-bucket|Output `gs://` directory for GC backend
 	gcp-loc-dir, tmp-gcs-bucket|--gcp-loc-dir, --tmp-gcs-bucket|Tmp. directory for localization on GC backend
@@ -244,13 +242,18 @@ We highly recommend to use a default configuration file described in the section
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
-	cromwell|--cromwell|[cromwell-52.jar](https://github.com/broadinstitute/cromwell/releases/download/52/cromwell-52.jar)|Path or URL for Cromwell JAR file
+	cromwell|--cromwell|[cromwell-59.jar](https://github.com/broadinstitute/cromwell/releases/download/59/cromwell-59.jar)|Path or URL for Cromwell JAR file
 	max-concurrent-tasks|--max-concurrent-tasks|1000|Maximum number of concurrent tasks
 	max-concurrent-workflows|--max-concurrent-workflows|40|Maximum number of concurrent workflows
-	max-retries|--max-retries|1|Maximum number of retries for failing tasks
 	disable-call-caching|--disable-call-caching| |Disable Cromwell's call-caching (re-using outputs)
 	soft-glob-output|--soft-glob-output||Use soft-linking for globbing outputs for a filesystem that does not allow hard-linking: e.g. beeGFS.
 	backend-file|--backend-file| |Custom Cromwell backend conf file. This will override Caper's built-in backends
+
+* Caper run/submit parameters.
+
+	**Conf. file**|**Cmd. line**|**Default**|**Description**
+	:-----|:-----|:-----|:-----
+	max-retries|--max-retries|1|Maximum number of retries for failing tasks
 
 * Caper server/client parameters.
 
@@ -265,7 +268,7 @@ We highly recommend to use a default configuration file described in the section
 
 	**Conf. file**|**Cmd. line**|**Default**|**Description**
 	:-----|:-----|:-----|:-----
-	womtool|--womtool|[womtool-51.jar](https://github.com/broadinstitute/cromwell/releases/download/51/womtool-51.jar)|Path or URL for Womtool JAR file (to validate WDL/inputs).
+	womtool|--womtool|[womtool-59.jar](https://github.com/broadinstitute/cromwell/releases/download/59/womtool-59.jar)|Path or URL for Womtool JAR file (to validate WDL/inputs).
 	ignore-womtool|--ignore-womtool|False|Skip Womtool validation.
 	java-heap-womtool|--java-heap-womtool|1G|Java heap memory for Womtool.
 

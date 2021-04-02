@@ -236,6 +236,7 @@ class CaperClientSubmit(CaperClient):
         singularity_cachedir=Singularity.DEFAULT_SINGULARITY_CACHEDIR,
         no_build_singularity=False,
         max_retries=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
+        memory_retry_multiplier=CaperWorkflowOpts.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_monitoring_script=CaperWorkflowOpts.DEFAULT_GCP_MONITORING_SCRIPT,
         ignore_womtool=False,
         no_deepcopy=False,
@@ -290,6 +291,10 @@ class CaperClientSubmit(CaperClient):
                 Therefore, use this flag if you have already built it.
             max_retries:
                 Max retrial for a failed task. 0 or None means no trial.
+            memory_retry_multiplier:
+                Multiplier for the memory retry feature.
+                See https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory/
+                for details.
             ignore_womtool:
                 Disable Womtool validation for WDL/input JSON/imports.
             no_deepcopy:
@@ -351,6 +356,7 @@ class CaperClientSubmit(CaperClient):
             singularity_cachedir=singularity_cachedir,
             no_build_singularity=no_build_singularity,
             max_retries=max_retries,
+            memory_retry_multiplier=memory_retry_multiplier,
             gcp_monitoring_script=gcp_monitoring_script,
         )
 

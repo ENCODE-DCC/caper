@@ -246,6 +246,16 @@ def get_parser_and_defaults(conf_file=None):
         '"system.max-concurrent-workflows" in backend configuration',
     )
     group_cromwell.add_argument(
+        '--memory-retry-error-keys',
+        default=','.join(CromwellBackendCommon.DEFAULT_MEMORY_RETRY_ERROR_KEYS),
+        help='(CURRENTLY NOT WORKING) '
+        'If an error caught by these comma-separated keys occurs, '
+        'then increase memory by --memory-retry-multiplier '
+        'for retrials controlled by --max-retries. '
+        'See https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory/ '
+        'for details. ',
+    )
+    group_cromwell.add_argument(
         '--disable-call-caching',
         action='store_true',
         help='Disable Cromwell\'s call caching, which re-uses outputs from '
@@ -297,24 +307,6 @@ def get_parser_and_defaults(conf_file=None):
         title='GCP backend arguments for server/runner'
     )
     group_gc.add_argument('--gcp-prj', help='GC project')
-    group_gc.add_argument(
-        '--gcp-memory-retry-error-keys',
-        default=','.join(CromwellBackendGCP.DEFAULT_MEMORY_RETRY_KEYS),
-        help='If an error caught by these comma-separated keys occurs, '
-        'then increase memory by --gcp-memory-retry-multiplier '
-        'for retrials controlled by --max-retries. '
-        'See https://cromwell.readthedocs.io/en/stable/backends/Google/ '
-        'for details. ',
-    )
-    group_gc.add_argument(
-        '--gcp-memory-retry-multiplier',
-        default=CromwellBackendGCP.DEFAULT_MEMORY_RETRY_MULTIPLIER,
-        help='If an error caught by --gcp-memory-retry-error-keys occurs, '
-        'then increase memory by this '
-        'for retrials controlled by --max-retries. '
-        'See https://cromwell.readthedocs.io/en/stable/backends/Google/ '
-        'for details.',
-    )
     group_gc_all.add_argument(
         '--use-google-cloud-life-sciences',
         action='store_true',
@@ -445,6 +437,16 @@ def get_parser_and_defaults(conf_file=None):
         default=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
         help='Number of retries for failing tasks. '
         'equivalent to "maxRetries" in workflow options JSON file.',
+    )
+    parent_submit.add_argument(
+        '--memory-retry-multiplier',
+        default=CaperWorkflowOpts.DEFAULT_MEMORY_RETRY_MULTIPLIER,
+        help='(CURRENTLY NOT WORKING) '
+        'If an error caught by --memory-retry-error-keys occurs, '
+        'then increase memory by this '
+        'for retrials controlled by --max-retries. '
+        'See https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory/ '
+        'for details.',
     )
     parent_submit.add_argument(
         '--gcp-monitoring-script',
