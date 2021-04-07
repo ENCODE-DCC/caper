@@ -99,6 +99,13 @@ def test_merge():
     assert str(hsm) == hs1.merge(d2)
     assert str(hsm) == hs1.merge(s2)
 
+    # merge with update
+    # item 1 should be updated with merged
+    hs1_original_str = str(hs1)
+    assert str(hsm) == hs1.merge(hs2, update=True)
+    assert str(hs1) == str(hsm)
+    assert hs1_original_str != str(hs1)
+
 
 def test_get_include():
     s2 = get_test_hocon_str2()
