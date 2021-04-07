@@ -21,7 +21,7 @@ class HOCONString:
         """
         lines_include = []
         lines_wo_include = []
-        for line in hocon_str.split(NEW_LINE):
+        for line in hocon_str.splitlines():
             if re.findall(HOCONString.RE_INCLUDE_LINE, line):
                 lines_include.append(line)
             else:
