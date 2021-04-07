@@ -355,7 +355,7 @@ class CaperBackendConf:
 
         if custom_backend_conf is not None:
             s = AutoURI(custom_backend_conf).read()
-            hocon_s.merge(s)
+            hocon_s.merge(s, update=True)
 
         final_backend_conf_file = os.path.join(directory, basename)
         AutoURI(final_backend_conf_file).write(str(hocon_s) + '\n')
