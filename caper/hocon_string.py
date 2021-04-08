@@ -9,6 +9,9 @@ from .dict_tool import merge_dict
 logger = logging.getLogger(__name__)
 
 
+NEW_LINE = '\n'
+
+
 class HOCONString:
     RE_INCLUDE_LINE = r'^\s*include\s'
 
@@ -18,14 +21,14 @@ class HOCONString:
         """
         lines_include = []
         lines_wo_include = []
-        for line in hocon_str.split('\n'):
+        for line in hocon_str.splitlines():
             if re.findall(HOCONString.RE_INCLUDE_LINE, line):
                 lines_include.append(line)
             else:
                 lines_wo_include.append(line)
 
-        self._include = '\n'.join(lines_include)
-        self._contents_wo_include = '\n'.join(lines_wo_include)
+        self._include = NEW_LINE.join(lines_include)
+        self._contents_wo_include = NEW_LINE.join(lines_wo_include)
 
     def __str__(self):
         return self.get_contents()
@@ -35,7 +38,7 @@ class HOCONString:
         hocon = ConfigFactory.from_dict(d)
         hocon_str = HOCONConverter.to_hocon(hocon)
         if include:
-            hocon_str = include + '\n' + hocon_str
+            hocon_str = NEW_LINE.join([include, hocon_str])
         return cls(hocon_str=hocon_str)
 
     def to_dict(self):
@@ -45,7 +48,17 @@ class HOCONString:
         j = HOCONConverter.to_json(c)
         return json.loads(j)
 
-    def merge(self, b):
+    def merge(self, b, update=False):
+        """Merge self with b and then returns a plain string of merged.
+        Args:
+            b:
+                HOCONString, dict, str to be merged.
+                b's `include` statement will always be ignored.
+            update:
+                If `update` then replace self with a merged one.
+        Returns:
+            String of merged HOCONs.
+        """
         if isinstance(b, HOCONString):
             d = b.to_dict()
         elif isinstance(b, str):
@@ -59,7 +72,12 @@ class HOCONString:
         merge_dict(self_d, d)
 
         hocon = ConfigFactory.from_dict(self_d)
-        return self._include + '\n' + HOCONConverter.to_hocon(hocon)
+
+        contents_wo_include = HOCONConverter.to_hocon(hocon)
+        if update:
+            self._contents_wo_include = contents_wo_include
+
+        return NEW_LINE.join([self._include, contents_wo_include])
 
     def get_include(self):
         return self._include
@@ -68,4 +86,4 @@ class HOCONString:
         if without_include:
             return self._contents_wo_include
         else:
-            return self._include + '\n' + self._contents_wo_include
+            return NEW_LINE.join([self._include, self._contents_wo_include])
