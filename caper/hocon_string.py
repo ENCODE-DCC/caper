@@ -28,9 +28,14 @@ def unescape_double_quotes(escaped_double_quotes):
     return escaped_double_quotes.replace('\\"', '"')
 
 
-def is_valid_include_key(key):
-    matched = re.findall(RE_HOCONSTRING_INCLUDE, key)
-    return matched and len(matched) == 1
+def is_valid_include(include):
+    is_valid_format = False
+    for regex in RE_HOCON_INCLUDE:
+        if re.findall(regex, include):
+            is_valid_format = True
+            break
+
+    return is_valid_format
 
 
 def get_include_key(include_str):
@@ -78,16 +83,6 @@ def unwrap_includes(key_val_str):
                 )
             )
         return unescape_double_quotes(val[0])
-
-
-def is_valid_include(include):
-    is_valid_format = False
-    for regex in RE_HOCON_INCLUDE:
-        if re.findall(regex, include):
-            is_valid_format = True
-            break
-
-    return is_valid_format
 
 
 class HOCONString:
