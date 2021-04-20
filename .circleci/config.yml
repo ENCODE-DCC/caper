@@ -43,7 +43,7 @@ install_py3_packages: &install_py3_packages
   name: Install Python packages
   command: |
     sudo pip3 install pyOpenSSL pytest requests dateparser filelock autouri miniwdl pyhocon numpy pandas scikit-learn matplotlib "six>=1.13.0"
-    sudo pip3 install --upgrade pyasn1-modules
+    sudo pip3 install --upgrade --ignore-installed pyasn1-modules
 
 
 install_gcs_lib: &install_gcs_lib
