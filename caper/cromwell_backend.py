@@ -46,6 +46,7 @@ class CromwellBackendCommon(UserDict):
             'graceful-server-shutdown': True,
         },
         'call-caching': {'invalidate-bad-cache-results': True},
+        'akka': {'http': {'server': {'request-timeout': '60 seconds'}}},
     }
 
     DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
