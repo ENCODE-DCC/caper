@@ -211,6 +211,7 @@ def runner(args, nonblocking_server=False):
         aws_batch_arn=args.aws_batch_arn,
         aws_region=args.aws_region,
         aws_out_dir=args.aws_out_dir,
+        aws_call_caching_dup_strat=args.aws_call_caching_dup_strat,
         slurm_partition=getattr(args, 'slurm_partition', None),
         slurm_account=getattr(args, 'slurm_account', None),
         slurm_extra_param=getattr(args, 'slurm_extra_param', None),

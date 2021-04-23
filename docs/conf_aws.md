@@ -8,17 +8,27 @@
 
 ## Configuration for AWS backend (`aws`)
 
-1. Follow the above instruction for S3 storage access
-2. Follow [this](https://aws.amazon.com/quickstart/architecture/vpc/) to create a VPC (virtual private network) and its subnets.
+Please follow the above instruction for S3 storage access.
+
+1. Follow [this](https://aws.amazon.com/quickstart/architecture/vpc/) to create a VPC (virtual private network) and its subnets.
+  - Name tag: `vpc-caper`
+  - IPv4 CIDR block: `10.0.0.0/24`
+2. Click on `Subnets` on the left panel. Click on `Create`. Choose the VPC that you just created.
+  - Subnet name: `subnet-caper`
+  - IPv4 CIDR block: `10.0.0.0/24`
 3. Open a web browser and authenticate yourself on [Amazon AWS EC2 console](https://console.aws.amazon.com/ec2).
-4. Choose your region in the top right corner of the page.
+4. Choose your region in the top right corner of the page. Click on `Services` in the top left corner and Choose `EC2`.
 5. Click on `Key pairs` in the left side bar and Create a key pair. This will be later used to create an AWS instance for cromwell server.
-6. Click on [this](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=Cromwell&templateURL=https://caper-data.s3.amazonaws.com/aws-genomics-workflows-dist/templates/gwfcore/gwfcore-root.template.yaml)
+  - Name: `key-caper`
+  - File format: `pem`
+6. Click on [this](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=Cromwell&templateURL=https://caper-data.s3.amazonaws.com/aws-genomics-workflows-dist/templates/gwfcore/gwfcore-root.template.yaml). Choose your region again in the top right corner.
 7. Click on `Next` in the bottom right of the page.
 8. Complete `Specify stack details` form by filling the following items:
-- `Stack name`: Your stack's name. Any unique name.
-- `S3 Bucket Name`: Output bucket name. This should not include `s3://` and it should not exist because it will be automatically created.
-- `Namespace`: Optional namespace (prefix) used for label resources. This will help you identify resources from their labels.
+- `Stack name`: `stack-caper`
+- `S3 Bucket Name`: Output bucket name. This should not include `s3://` and it should not be an existing bucket because it will be automatically created in this stack batch.
+- `VPC ID`: VPC that you just created.
+- `VPC Subnet IDs`: Subnet that you just created.
+- `Namespace`: `caper`
 - `Artifact S3 Bucket Name`: `caper-aws-genomics-workflows`.
 - `Template Root URL`: `https://caper-aws-genomics-workflows.s3.amazonaws.com/templates`.
 
@@ -29,12 +39,11 @@
 13. Go to your [AWS Batch](https://console.aws.amazon.com/batch).
 14. Click on "Job queues" in the left sidebar.
 15. Click on "default-*". Get ARN for your batch under the key "Queue ARN". Write this to Caper's confiugration file at `~/.caper/default.conf`. Also, specify AWS region you got from step 2). Remove trailing letters like `a` and `b` from the region string.
-
 	```bash
 	aws-batch-arn=[PASTE_YOUR_ARN_HERE]
-	aws-region=us-east-1
+	# example: us-east-1
+	aws-region=[YOUR_REGION]
 	```
-
 13. Go back to your [Amazon AWS EC2 console](https://console.aws.amazon.com/ec2).
 14. Click on "Instances" in the left sidebar.
 15. Click on "Launch instance".
