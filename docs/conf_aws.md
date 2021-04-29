@@ -51,15 +51,54 @@ $ sudo yum install -y python3 java git curl
 $ pip3 install caper
 ```
 
-Now you are ready to run Caper on an AWS instance. Specify backend `-b` as `aws`.
+Initialize caper's configuration file. Share it with other users on the instance.
+
+Admins run the following command lines first:
 ```bash
-$ caper run [WDL] -i [INPUT_JSON] -b aws
+$ sudo su
+# this will generate a template conf file
+$ caper init aws
+$ chmod +rx ~/.caper/default.conf
+# make a new directory to store caper stuffs
+$ mkdir -p /opt/caper
+$ cd /opt/caper
+# soft link the conf file to share it with other users
+$ ln -s ~/.caper/default.conf
+$ chmod +rx -R /opt/caper
+```
+
+Users run the following to soft-link the globally shared configuration file:
+```bash
+$ mkdir -p ~/.caper
+$ cd ~/.caper
+$ ln -s /opt/caper/default.conf
+```
+
+Edit the shared configuration file `/opt/caper/default.conf` to define parameters of Caper's `aws` backend. Make sure that `backend=aws` is in the conf.
+
+Now you are ready to run pipelines on an AWS instance.
+```bash
+$ caper run [WDL] -i [INPUT_JSON]
 ```
 
 Or, run a server and submit jobs to the server with `caper submit`.
 ```bash
-$ caper server -b aws
+$ sudo su
+# make a screen to keep the server alive
+$ screen -RD caper_server
+$ cd /opt/caper
+$ caper server
 ```
+
+Then submit jobs to the server
+```bash
+$ caper submit [WDL] -i [INPUT_JSON]
+# check status of workflows
+$ caper list
+# debug workflow if needed
+$ caper debug [WORKFLOW_UUID_FOUND_ON_CAPER_LIST]
+```
+
 
 ## References
 
