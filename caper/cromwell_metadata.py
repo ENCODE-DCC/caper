@@ -71,6 +71,30 @@ class CromwellMetadata:
         return self._metadata.get('status')
 
     @property
+    def workflow_root(self):
+        if 'workflowRoot' in self._metadata:
+            return self._metadata['workflowRoot']
+        else:
+            call_roots = []
+
+            def get_call_root(call_name, call, parent_call_names):
+                nonlocal call_roots
+                call_root = call.get('callRoot')
+                if call_root:
+                    call_roots.append(call_root)
+
+            self.recurse_calls(get_call_root)
+            common = os.path.commonprefix(call_roots).strip('/')
+            if common:
+                guessed_workflow_id = common.split('/')[-1]
+                if guessed_workflow_id == self.workflow_id:
+                    return common
+                logger.warning(
+                    'workflowRoot not found in metadata JSON. '
+                    'Tried to guess from callRoot of each call but failed.'
+                )
+
+    @property
     def failures(self):
         return self._metadata.get('failures')
 
@@ -108,25 +132,16 @@ class CromwellMetadata:
 
     def write_on_workflow_root(self, basename=DEFAULT_METADATA_BASENAME):
         """Update metadata JSON file on metadata's output root directory.
-        If there is a subworkflow, nest its metadata into main workflow's one
-
-        Args:
-            write_subworkflow:
-                Write metadata JSON file for subworkflows.
         """
-        if 'workflowRoot' in self._metadata:
-            root = self._metadata['workflowRoot']
+        root = self.workflow_root
+
+        if root:
             metadata_file = os.path.join(root, basename)
+
             AutoURI(metadata_file).write(json.dumps(self._metadata, indent=4) + '\n')
             logger.info('Wrote metadata file. {f}'.format(f=metadata_file))
-        else:
-            metadata_file = None
-            workflow_id = self._metadata.get('id')
-            logger.warning(
-                'Failed to write metadata file. workflowRoot not found. '
-                'wf_id={i}'.format(i=workflow_id)
-            )
-        return metadata_file
+
+            return metadata_file
 
     def troubleshoot(self, fileobj, show_completed_task=False, show_stdout=False):
         """Troubleshoots a workflow.
@@ -401,10 +416,10 @@ class CromwellMetadata:
             no_lock:
                 No file locking.
         """
-        root = self._metadata.get('workflowRoot')
-        if root is None:
+        root = self.workflow_root
+        if not root:
             logger.error(
-                'workflowRoot not found in metadata JSON. '
+                'workflow\'s root directory cannot be found in metadata JSON. '
                 'Cannot proceed to cleanup outputs.'
             )
             return
