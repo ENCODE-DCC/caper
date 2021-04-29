@@ -430,7 +430,19 @@ class CromwellBackendAWS(CromwellBackendBase):
                     v=call_caching_dup_strat
                 )
             )
-
+        if call_caching_dup_strat == CALL_CACHING_DUP_STRAT_REFERENCE:
+            logger.warning(
+                '"reference" mode for call_caching_dup_strat currently does not work with '
+                'Cromwell<=61. Cromwell will still use the "copy" mode '
+                'It will make cache copies for all call-cached outputs, which will lead to '
+                'unnecessary extra charge for the output S3 bucket. '
+                'See the following link for details. '
+                'https://github.com/broadinstitute/cromwell/issues/6327. '
+                'It is recommend to clean up previous workflow\'s outputs manually '
+                'with "caper cleanup WORKFLOW_ID_OR_METADATA_JSON_FILE" or '
+                'with AWS CLI. e.g. '
+                '"aws s3 rm --recursive s3://some-bucket/a/b/c/WORKFLOW_ID". '
+            )
         super().__init__(
             backend_name=BACKEND_AWS,
             max_concurrent_tasks=max_concurrent_tasks,
