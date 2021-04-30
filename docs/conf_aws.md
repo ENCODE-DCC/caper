@@ -4,7 +4,7 @@
 
 2. Make sure that your account has permission on two services (S3 and EC2).
 - Admin: full permission on both EC2 and output S3 bucket.
-- User: write permission on the output S3 bucket.
+- User: read/write permission on the output S3 bucket.
 
 3. Configure your AWS CLI. Enter key and password obtained from your account's IAM.
 ```bash
