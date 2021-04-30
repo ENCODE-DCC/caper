@@ -15,12 +15,15 @@ from .dict_tool import recurse_dict_value
 logger = logging.getLogger(__name__)
 
 
-def get_workflow_root_from_call_root(call_root):
-    return '/'.join(call_root.split('/')[:-1])
+def get_workflow_root_from_call(call):
+    call_root = call.get('callRoot')
+    if call_root:
+        return '/'.join(call_root.split('/')[:-1])
 
 
-def get_workflow_id_from_root(workflow_root):
-    return workflow_root.split('/')[-1]
+def get_workflow_id_from_workflow_root(workflow_root):
+    if workflow_root:
+        return workflow_root.split('/')[-1]
 
 
 def parse_cromwell_disks(s):
@@ -83,18 +86,12 @@ class CromwellMetadata:
         if 'workflowRoot' in self._metadata:
             return self._metadata['workflowRoot']
         else:
-            workflow_roots = []
-
-            def get_workflow_root(call_name, call, parent_call_names):
-                nonlocal workflow_roots
-                call_root = call.get('callRoot')
-                if call_root:
-                    workflow_roots.append(get_workflow_root_from_call_root(call_root))
-
-            self.recurse_calls(get_workflow_root)
+            workflow_roots = [
+                get_workflow_root_from_call(call) for call in self.recursed_calls
+            ]
             common_root = os.path.commonprefix(workflow_roots)
             if common_root:
-                guessed_workflow_id = get_workflow_id_from_root(common_root)
+                guessed_workflow_id = get_workflow_id_from_workflow_root(common_root)
                 if guessed_workflow_id == self.workflow_id:
                     return common_root
                 logger.error(
@@ -109,6 +106,10 @@ class CromwellMetadata:
     @property
     def calls(self):
         return self._metadata.get('calls')
+
+    @property
+    def recursed_calls(self):
+        return self.recurse_calls(lambda _, call, __: call)
 
     def recurse_calls(self, fn_call, parent_call_names=tuple()):
         """Recurse on tasks in metadata.
@@ -132,11 +133,11 @@ class CromwellMetadata:
                 if 'subWorkflowMetadata' in call:
                     subworkflow = call['subWorkflowMetadata']
                     subworkflow_metadata = CromwellMetadata(subworkflow)
-                    subworkflow_metadata.recurse_calls(
+                    yield from subworkflow_metadata.recurse_calls(
                         fn_call, parent_call_names=parent_call_names + (call_name,)
                     )
                 else:
-                    fn_call(call_name, call, parent_call_names)
+                    yield fn_call(call_name, call, parent_call_names)
 
     def write_on_workflow_root(self, basename=DEFAULT_METADATA_BASENAME):
         """Update metadata JSON file on metadata's output root directory.
