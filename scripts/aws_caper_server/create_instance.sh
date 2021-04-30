@@ -157,7 +157,7 @@ if [[ "$PUBLIC_SUBNET_ID" != subnet-* ]]; then
   echo "[PUBLIC_SUBNET_ID] should start with subnet-."
   exit 1
 fi
-if [[ -z "$AWS_BATCH_ARN" ]]; then
+if [[ "$AWS_BATCH_ARN" != arn* ]]; then
   echo "[AWS_BATCH_ARN] is not valid."
   exit 1
 fi
