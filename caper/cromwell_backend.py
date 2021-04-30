@@ -68,7 +68,7 @@ class CromwellBackendCommon(UserDict):
     }
 
     DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
-    DEFAULT_MEMORY_RETRY_ERROR_KEYS = ['OutOfMemory', 'Killed']
+    DEFAULT_MEMORY_RETRY_ERROR_KEYS = ('OutOfMemory', 'Killed')
 
     def __init__(
         self,
@@ -93,7 +93,10 @@ class CromwellBackendCommon(UserDict):
         self['system']['max-concurrent-workflows'] = max_concurrent_workflows
         # Cromwell's bug in memory-retry feature.
         # Disabled until it's fixed on Cromwell's side.
-        # self['system']['memory-retry-error-keys'] = memory_retry_error_keys
+        # if memory_retry_error_keys:
+        #     if isinstance(memory_retry_error_keys, tuple):
+        #         memory_retry_error_keys = list(memory_retry_error_keys)
+        #     self['system']['memory-retry-error-keys'] = memory_retry_error_keys
 
 
 class CromwellBackendServer(UserDict):
@@ -216,11 +219,11 @@ class CromwellBackendBase(UserDict):
 
     TEMPLATE = {'backend': {'providers': {}}}
     TEMPLATE_BACKEND = {'config': {'default-runtime-attributes': {}, 'filesystems': {}}}
-    DEFAULT_CALL_CACHING_DUP_STRAT = [
+    DEFAULT_CALL_CACHING_DUP_STRAT = (
         CALL_CACHING_DUP_STRAT_SOFTLINK,
         CALL_CACHING_DUP_STRAT_HARDLINK,
         CALL_CACHING_DUP_STRAT_COPY,
-    ]
+    )
     DEFAULT_CONCURRENT_JOB_LIMIT = 1000
 
     def __init__(
@@ -254,6 +257,9 @@ class CromwellBackendBase(UserDict):
         config['concurrent-job-limit'] = max_concurrent_tasks
 
         if filesystem_name:
+            if isinstance(call_caching_dup_strat, tuple):
+                call_caching_dup_strat = list(call_caching_dup_strat)
+
             config['filesystems'][filesystem_name] = {
                 'caching': {'duplication-strategy': call_caching_dup_strat}
             }
