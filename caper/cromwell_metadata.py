@@ -15,6 +15,14 @@ from .dict_tool import recurse_dict_value
 logger = logging.getLogger(__name__)
 
 
+def get_workflow_root_from_call_root(call_root):
+    return '/'.join(call_root.split('/')[:-1])
+
+
+def get_workflow_id_from_root(workflow_root):
+    return workflow_root.split('/')[-1]
+
+
 def parse_cromwell_disks(s):
     """Parses Cromwell's disks in runtime attribute.
     """
@@ -75,21 +83,21 @@ class CromwellMetadata:
         if 'workflowRoot' in self._metadata:
             return self._metadata['workflowRoot']
         else:
-            call_roots = []
+            workflow_roots = []
 
-            def get_call_root(call_name, call, parent_call_names):
-                nonlocal call_roots
+            def get_workflow_root(call_name, call, parent_call_names):
+                nonlocal workflow_roots
                 call_root = call.get('callRoot')
                 if call_root:
-                    call_roots.append(call_root)
+                    workflow_roots.append(get_workflow_root_from_call_root(call_root))
 
-            self.recurse_calls(get_call_root)
-            common = os.path.commonprefix(call_roots).strip('/')
-            if common:
-                guessed_workflow_id = common.split('/')[-1]
+            self.recurse_calls(get_workflow_root)
+            common_root = os.path.commonprefix(workflow_roots)
+            if common_root:
+                guessed_workflow_id = get_workflow_id_from_root(common_root)
                 if guessed_workflow_id == self.workflow_id:
-                    return common
-                logger.warning(
+                    return common_root
+                logger.error(
                     'workflowRoot not found in metadata JSON. '
                     'Tried to guess from callRoot of each call but failed.'
                 )
