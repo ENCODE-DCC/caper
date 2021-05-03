@@ -109,7 +109,7 @@ class CromwellMetadata:
 
     @property
     def recursed_calls(self):
-        return self.recurse_calls(lambda _, call, __: call)
+        return list(self.recurse_calls(lambda _, call, __: call))
 
     def recurse_calls(self, fn_call, parent_call_names=tuple()):
         """Recurse on tasks in metadata.
@@ -125,9 +125,12 @@ class CromwellMetadata:
                     parent_call_names:
                         Tuple of parent call's name.
                         e.g. (..., great grand parent, grand parent, parent, ...)
+        Returns:
+            generator object for all calls.
         """
         if not self.calls:
             return
+
         for call_name, call_list in self.calls.items():
             for call in call_list:
                 if 'subWorkflowMetadata' in call:
@@ -185,7 +188,6 @@ class CromwellMetadata:
             nonlocal fileobj
             nonlocal show_completed_task
             nonlocal show_stdout
-
             status = call.get('executionStatus')
             shard_index = call.get('shardIndex')
             rc = call.get('returnCode')
@@ -230,7 +232,7 @@ class CromwellMetadata:
                     )
 
         fileobj.write('* Recursively finding failures in calls (tasks)...\n')
-        self.recurse_calls(troubleshoot_call)
+        list(self.recurse_calls(troubleshoot_call))
 
     def gcp_monitor(
         self,

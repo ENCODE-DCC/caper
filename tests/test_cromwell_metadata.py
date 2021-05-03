@@ -51,7 +51,7 @@ def test_on_successful_workflow(tmp_path, cromwell, womtool):
         else:
             raise ValueError('Wrong call_name: {name}'.format(name=call_name))
 
-    cm.recurse_calls(fnc)
+    list(cm.recurse_calls(fnc))
 
     # test write_on_workflow_root()
     m_file_on_root = os.path.join(cm.metadata['workflowRoot'], 'metadata.json')
