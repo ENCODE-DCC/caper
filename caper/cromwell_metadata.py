@@ -87,7 +87,7 @@ class CromwellMetadata:
             return self._metadata['workflowRoot']
         else:
             workflow_roots = [
-                get_workflow_root_from_call(call) for call in self.recursed_calls
+                get_workflow_root_from_call(call) for _, call, _ in self.recursed_calls
             ]
             common_root = os.path.commonprefix(workflow_roots)
             if common_root:
@@ -109,9 +109,23 @@ class CromwellMetadata:
 
     @property
     def recursed_calls(self):
-        """Returns a generator for call objects.
+        """Returns a generator for tuples.
+
+        Tuple:
+            call_name:
+                Call's name. i.e. key in the original metadata JSON's `calls` dict.
+            call:
+                Call object. i.e. value in the original metadata JSON's `calls` dict.
+            parent_call_names:
+                Tuple of Parent call's names.
         """
-        return self.recurse_calls(lambda _, call, __: call)
+        return self.recurse_calls(
+            lambda call_name, call, parent_call_names: (
+                call_name,
+                call,
+                parent_call_names,
+            )
+        )
 
     def recurse_calls(self, fn_call, parent_call_names=tuple()):
         """Recurse on tasks in metadata.
@@ -121,14 +135,14 @@ class CromwellMetadata:
                 Function to be called recursively for each call (task).
                 This function should take the following three arguments.
                     call_name:
-                        Cromwell workflow's call (task)'s name.
+                        Call's name. i.e. key in the original metadata JSON's `calls` dict.
                     call:
-                        Cromwell workflow's call (task) itself.
+                        Call object. i.e. value in the original metadata JSON's `calls` dict.
                     parent_call_names:
-                        Tuple of parent call's name.
+                        Tuple of Parent call's names.
                         e.g. (..., great grand parent, grand parent, parent, ...)
         Returns:
-            generator object for all calls.
+            Generator object for all calls.
         """
         if not self.calls:
             return

@@ -36,7 +36,11 @@ def test_on_successful_workflow(tmp_path, cromwell, womtool):
     # no failures for successful workflow's metadata
     assert cm.failures is None
     assert cm.calls == metadata['calls']
-    assert list(cm.recursed_calls) == ['main.t1', 'sub.t2', 'sub_sub.t3']
+    assert [call_name for call_name, _, _ in cm.recursed_calls] == [
+        'main.t1',
+        'sub.t2',
+        'sub_sub.t3',
+    ]
 
     # test recurse_calls(): test with a simple function
     def fnc(call_name, call, parent_call_names):
