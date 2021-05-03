@@ -30,9 +30,9 @@ $ bash create_instance.sh [INSTANCE_NAME] [AWS_REGION] [PUBLIC_SUBNET_ID] [AWS_B
 
 Go to the AWS Console and Click on `Services` on AWS Console and Choose `EC2`. Click on `Instances` on the left sidebar and find the created instance. Click on the instance.
 
-Click on `Security` and find `Security groups`. Click on the security group ID. Add an inbound rule.
+Click on `Security` and find `Security groups`. Click on the security group. Add an inbound rule. Choose type `SSH` and define CIDR for your IP range. Setting it to `0.0.0.0/0` will open the VPC to the world.
 
-Choose type `SSH` and define CIDR for your IP range. Setting it to `0.0.0.0/0` will open the VPC to the world. However, this is a default security group for the VPC so use it at your own risk. It's recommended to calculate CIDR for your computer/company and use it here.
+> **IMPORTANT**: It is a default security group for the VPC so use it at your own risk. It's recommended to calculate CIDR for your computer/company and use it here.
 
 Go back to `Instances` on the console and find the server instance. Get the command line to SSH to it. Make sure that you have the `.pem` key file on your local computer.
 
