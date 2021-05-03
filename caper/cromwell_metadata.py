@@ -200,7 +200,6 @@ class CromwellMetadata:
             def troubleshoot_call(call_name, call, parent_call_names):
                 """Returns troubleshooting help message.
                 """
-                help_msg = ''
                 nonlocal show_completed_task
                 nonlocal show_stdout
                 status = call.get('executionStatus')
@@ -216,35 +215,36 @@ class CromwellMetadata:
                         run_start = event['startTime']
                         run_end = event['endTime']
                         break
-                if not show_completed_task and status in ('Done', 'Succeeded'):
-                    return
-                help_msg += (
-                    '\n==== NAME={name}, STATUS={status}, PARENT={p}\n'
-                    'SHARD_IDX={shard_idx}, RC={rc}, JOB_ID={job_id}\n'
-                    'START={start}, END={end}\n'
-                    'STDOUT={stdout}\nSTDERR={stderr}\n'.format(
-                        name=call_name,
-                        status=status,
-                        p=','.join(parent_call_names),
-                        start=run_start,
-                        end=run_end,
-                        shard_idx=shard_index,
-                        rc=rc,
-                        job_id=job_id,
-                        stdout=stdout,
-                        stderr=stderr,
+
+                help_msg = ''
+                if show_completed_task or status not in ('Done', 'Succeeded'):
+                    help_msg += (
+                        '\n==== NAME={name}, STATUS={status}, PARENT={p}\n'
+                        'SHARD_IDX={shard_idx}, RC={rc}, JOB_ID={job_id}\n'
+                        'START={start}, END={end}\n'
+                        'STDOUT={stdout}\nSTDERR={stderr}\n'.format(
+                            name=call_name,
+                            status=status,
+                            p=','.join(parent_call_names),
+                            start=run_start,
+                            end=run_end,
+                            shard_idx=shard_index,
+                            rc=rc,
+                            job_id=job_id,
+                            stdout=stdout,
+                            stderr=stderr,
+                        )
                     )
-                )
-                if stderr:
-                    if AutoURI(stderr).exists:
-                        help_msg += 'STDERR_CONTENTS=\n{s}\n'.format(
-                            s=AutoURI(stderr).read()
-                        )
-                if show_stdout and stdout:
-                    if AutoURI(stdout).exists:
-                        help_msg += 'STDOUT_CONTENTS=\n{s}\n'.format(
-                            s=AutoURI(stdout).read()
-                        )
+                    if stderr:
+                        if AutoURI(stderr).exists:
+                            help_msg += 'STDERR_CONTENTS=\n{s}\n'.format(
+                                s=AutoURI(stderr).read()
+                            )
+                    if show_stdout and stdout:
+                        if AutoURI(stdout).exists:
+                            help_msg += 'STDOUT_CONTENTS=\n{s}\n'.format(
+                                s=AutoURI(stdout).read()
+                            )
 
                 return help_msg
 
