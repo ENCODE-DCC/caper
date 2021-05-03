@@ -275,7 +275,6 @@ echo "$(date): Created an instance successfully."
 echo "$(date): Deleting the temporary startup script..."
 rm -f tmp_startup_script.sh
 
-echo "$(date): Go to the AWS console and change instance's secrutiy group settings to allow SSH connection (port 22) from your IP (or IP range)."
 echo "$(date): Please allow 20-30 minutes for the startup script installing/configuring Caper."
 echo "$(date): Run \"caper -v\" to check it's installed."
 echo "$(date): Run \"aws configure\" as root so that Cromwell can use your AWS credentials to create instances and write outputs on the bucket."
