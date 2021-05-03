@@ -109,7 +109,9 @@ class CromwellMetadata:
 
     @property
     def recursed_calls(self):
-        return list(self.recurse_calls(lambda _, call, __: call))
+        """Returns a generator for call objects.
+        """
+        return self.recurse_calls(lambda _, call, __: call)
 
     def recurse_calls(self, fn_call, parent_call_names=tuple()):
         """Recurse on tasks in metadata.
