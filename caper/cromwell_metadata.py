@@ -155,84 +155,88 @@ class CromwellMetadata:
 
             return metadata_file
 
-    def troubleshoot(self, fileobj, show_completed_task=False, show_stdout=False):
+    def troubleshoot(self, show_completed_task=False, show_stdout=False):
         """Troubleshoots a workflow.
         Also, finds failure reasons and prints out STDERR and STDOUT.
 
         Args:
-            fileobj:
-                File-like object to write troubleshooting messages to.
             show_completed_task:
                 Show STDERR/STDOUT of completed tasks.
             show_stdout:
                 Show failed task's STDOUT along with STDERR.
+        Return:
+            result:
+                Troubleshooting report as a plain string.
         """
-        fileobj.write(
-            '* Started troubleshooting workflow: id={id}, status={status}\n'.format(
-                id=self.workflow_id, status=self.workflow_status
-            )
+        result = '* Started troubleshooting workflow: id={id}, status={status}\n'.format(
+            id=self.workflow_id, status=self.workflow_status
         )
 
         if self.workflow_status == 'Succeeded':
-            fileobj.write('* Workflow ran Successfully.\n')
-            return
+            result += '* Workflow ran Successfully.\n'
 
-        if self.failures:
-            fileobj.write(
-                '* Found failures JSON object.\n{s}\n'.format(
+        else:
+            if self.failures:
+                result += '* Found failures JSON object.\n{s}\n'.format(
                     s=json.dumps(self.failures, indent=4)
                 )
-            )
 
-        def troubleshoot_call(call_name, call, parent_call_names):
-            nonlocal fileobj
-            nonlocal show_completed_task
-            nonlocal show_stdout
-            status = call.get('executionStatus')
-            shard_index = call.get('shardIndex')
-            rc = call.get('returnCode')
-            job_id = call.get('jobId')
-            stdout = call.get('stdout')
-            stderr = call.get('stderr')
-            run_start = None
-            run_end = None
-            for event in call.get('executionEvents', []):
-                if event['description'].startswith('Running'):
-                    run_start = event['startTime']
-                    run_end = event['endTime']
-                    break
-            if not show_completed_task and status in ('Done', 'Succeeded'):
-                return
-            fileobj.write(
-                '\n==== NAME={name}, STATUS={status}, PARENT={p}\n'
-                'SHARD_IDX={shard_idx}, RC={rc}, JOB_ID={job_id}\n'
-                'START={start}, END={end}\n'
-                'STDOUT={stdout}\nSTDERR={stderr}\n'.format(
-                    name=call_name,
-                    status=status,
-                    p=','.join(parent_call_names),
-                    start=run_start,
-                    end=run_end,
-                    shard_idx=shard_index,
-                    rc=rc,
-                    job_id=job_id,
-                    stdout=stdout,
-                    stderr=stderr,
+            def troubleshoot_call(call_name, call, parent_call_names):
+                """Returns troubleshooting help message.
+                """
+                help_msg = ''
+                nonlocal show_completed_task
+                nonlocal show_stdout
+                status = call.get('executionStatus')
+                shard_index = call.get('shardIndex')
+                rc = call.get('returnCode')
+                job_id = call.get('jobId')
+                stdout = call.get('stdout')
+                stderr = call.get('stderr')
+                run_start = None
+                run_end = None
+                for event in call.get('executionEvents', []):
+                    if event['description'].startswith('Running'):
+                        run_start = event['startTime']
+                        run_end = event['endTime']
+                        break
+                if not show_completed_task and status in ('Done', 'Succeeded'):
+                    return
+                help_msg += (
+                    '\n==== NAME={name}, STATUS={status}, PARENT={p}\n'
+                    'SHARD_IDX={shard_idx}, RC={rc}, JOB_ID={job_id}\n'
+                    'START={start}, END={end}\n'
+                    'STDOUT={stdout}\nSTDERR={stderr}\n'.format(
+                        name=call_name,
+                        status=status,
+                        p=','.join(parent_call_names),
+                        start=run_start,
+                        end=run_end,
+                        shard_idx=shard_index,
+                        rc=rc,
+                        job_id=job_id,
+                        stdout=stdout,
+                        stderr=stderr,
+                    )
                 )
-            )
-            if stderr:
-                if AutoURI(stderr).exists:
-                    fileobj.write(
-                        'STDERR_CONTENTS=\n{s}\n'.format(s=AutoURI(stderr).read())
-                    )
-            if show_stdout and stdout:
-                if AutoURI(stdout).exists:
-                    fileobj.write(
-                        'STDOUT_CONTENTS=\n{s}\n'.format(s=AutoURI(stdout).read())
-                    )
+                if stderr:
+                    if AutoURI(stderr).exists:
+                        help_msg += 'STDERR_CONTENTS=\n{s}\n'.format(
+                            s=AutoURI(stderr).read()
+                        )
+                if show_stdout and stdout:
+                    if AutoURI(stdout).exists:
+                        help_msg += 'STDOUT_CONTENTS=\n{s}\n'.format(
+                            s=AutoURI(stdout).read()
+                        )
 
-        fileobj.write('* Recursively finding failures in calls (tasks)...\n')
-        list(self.recurse_calls(troubleshoot_call))
+                return help_msg
+
+            result += '* Recursively finding failures in calls (tasks)...\n'
+            for help_msg in self.recurse_calls(troubleshoot_call):
+                result += help_msg
+
+        return result
 
     def gcp_monitor(
         self,
@@ -329,12 +333,10 @@ class CromwellMetadata:
                 ...
             ]
         """
-        result = []
         file_size_cache = {}
         workflow_id = self.workflow_id
 
         def gcp_monitor_call(call_name, call, parent_call_names):
-            nonlocal result
             nonlocal excluded_cols
             nonlocal stat_methods
             nonlocal file_size_cache
@@ -404,9 +406,9 @@ class CromwellMetadata:
 
                 recurse_dict_value(input_value, add_to_input_files_if_valid)
 
-            result.append(data)
+            return data
 
-        self.recurse_calls(gcp_monitor_call)
+        result = list(self.recurse_calls(gcp_monitor_call))
 
         # a bit hacky way to recursively convert numpy type into python type
         json_str = json.dumps(result, default=convert_type_np_to_py)

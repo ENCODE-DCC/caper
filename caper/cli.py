@@ -545,10 +545,10 @@ def get_multi_cromwell_metadata_objs(caper_client, args):
 
 def subcmd_troubleshoot(caper_client, args):
     cm = get_single_cromwell_metadata_obj(caper_client, args, 'troubleshoot/debug')
-    cm.troubleshoot(
-        fileobj=sys.stdout,
-        show_completed_task=args.show_completed_task,
-        show_stdout=args.show_stdout,
+    sys.stdout.write(
+        cm.troubleshoot(
+            show_completed_task=args.show_completed_task, show_stdout=args.show_stdout
+        )
     )
 
 
