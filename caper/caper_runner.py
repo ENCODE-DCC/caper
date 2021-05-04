@@ -9,6 +9,7 @@ from .caper_labels import CaperLabels
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
 from .cromwell_backend import (
+    CromwellBackendAWS,
     CromwellBackendBase,
     CromwellBackendCommon,
     CromwellBackendDatabase,
@@ -58,13 +59,14 @@ class CaperRunner(CaperBase):
         file_db=None,
         gcp_prj=None,
         gcp_out_dir=None,
-        gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
+        gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_CALL_CACHING_DUP_STRAT,
         gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
         gcp_region=CromwellBackendGCP.DEFAULT_REGION,
         aws_batch_arn=None,
         aws_region=None,
         aws_out_dir=None,
+        aws_call_caching_dup_strat=CromwellBackendAWS.DEFAULT_CALL_CACHING_DUP_STRAT,
         gcp_zones=None,
         slurm_partition=None,
         slurm_account=None,
@@ -119,6 +121,7 @@ class CaperRunner(CaperBase):
             aws_batch_arn:
             aws_region:
             aws_out_dir:
+            aws_call_caching_dup_strat:
             gcp_zones:
                 For this and all below arguments,
                 see details in CaperWorkflowOpts.__init__.
@@ -183,6 +186,7 @@ class CaperRunner(CaperBase):
             aws_batch_arn=aws_batch_arn,
             aws_region=aws_region,
             aws_out_dir=aws_out_dir,
+            aws_call_caching_dup_strat=aws_call_caching_dup_strat,
             gcp_zones=gcp_zones,
             slurm_partition=slurm_partition,
             slurm_account=slurm_account,

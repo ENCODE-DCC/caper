@@ -551,6 +551,13 @@ Unless you explicitly define `file-db` in your configuration file `~/.caper/defa
 We provide a shell script to create a Caper server instance on Google Cloud.
 See [this](scripts/gcp_caper_server/README.md) for details.
 
+
+## Caper server instance on AWS
+
+We provide a shell script to create a Caper server instance on AWS.
+See [this](scripts/aws_caper_server/README.md) for details.
+
+
 # DETAILS
 
 See [details](DETAILS.md).

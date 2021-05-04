@@ -211,6 +211,7 @@ def runner(args, nonblocking_server=False):
         aws_batch_arn=args.aws_batch_arn,
         aws_region=args.aws_region,
         aws_out_dir=args.aws_out_dir,
+        aws_call_caching_dup_strat=args.aws_call_caching_dup_strat,
         slurm_partition=getattr(args, 'slurm_partition', None),
         slurm_account=getattr(args, 'slurm_account', None),
         slurm_extra_param=getattr(args, 'slurm_extra_param', None),
@@ -544,10 +545,10 @@ def get_multi_cromwell_metadata_objs(caper_client, args):
 
 def subcmd_troubleshoot(caper_client, args):
     cm = get_single_cromwell_metadata_obj(caper_client, args, 'troubleshoot/debug')
-    cm.troubleshoot(
-        fileobj=sys.stdout,
-        show_completed_task=args.show_completed_task,
-        show_stdout=args.show_stdout,
+    sys.stdout.write(
+        cm.troubleshoot(
+            show_completed_task=args.show_completed_task, show_stdout=args.show_stdout
+        )
     )
 
 

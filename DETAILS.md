@@ -191,6 +191,7 @@ We highly recommend to use a default configuration file described in the section
 	gcp-zones|--gcp-zones|Comma-delimited Google Cloud Platform zones to provision worker instances (e.g. us-central1-c,us-west1-b)
 	gcp-out-dir, out-gcs-bucket|--gcp-out-dir, --out-gcs-bucket|Output `gs://` directory for GC backend
 	gcp-loc-dir, tmp-gcs-bucket|--gcp-loc-dir, --tmp-gcs-bucket|Tmp. directory for localization on GC backend
+	gcp-call-caching-dup-strat|--gcp-call-caching-dup-strat|Call-caching duplication strategy. Choose between `copy` and `reference`. `copy` will make a copy for a new workflow, `reference` will make refer to the call-cached output of a previous workflow in `metadata.json`. Defaults to `reference`
 
 * AWS backend settings
 
@@ -200,6 +201,7 @@ We highly recommend to use a default configuration file described in the section
 	aws-region|--aws-region|AWS region (e.g. us-west-1)
 	aws-out-dir, out-s3-bucket|--aws-out-dir, --out-s3-bucket|Output `s3://` directory for AWS backend
 	aws-loc-dir, tmp-s3-bucket|--aws-loc-dir, --tmp-s3-bucket|Tmp. directopy for localization on AWS backend
+	aws-call-caching-dup-strat|--aws-call-caching-dup-strat|Call-caching duplication strategy. Choose between `copy` and `reference`. `copy` will make a copy for a new workflow, `reference` will make refer to the call-cached output of a previous workflow in `metadata.json`. Defaults to `reference`
 
 	DEPREACTED OLD PARAMETERS:
 

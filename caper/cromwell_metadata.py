@@ -15,6 +15,17 @@ from .dict_tool import recurse_dict_value
 logger = logging.getLogger(__name__)
 
 
+def get_workflow_root_from_call(call):
+    call_root = call.get('callRoot')
+    if call_root:
+        return '/'.join(call_root.split('/')[:-1])
+
+
+def get_workflow_id_from_workflow_root(workflow_root):
+    if workflow_root:
+        return workflow_root.split('/')[-1]
+
+
 def parse_cromwell_disks(s):
     """Parses Cromwell's disks in runtime attribute.
     """
@@ -71,12 +82,50 @@ class CromwellMetadata:
         return self._metadata.get('status')
 
     @property
+    def workflow_root(self):
+        if 'workflowRoot' in self._metadata:
+            return self._metadata['workflowRoot']
+        else:
+            workflow_roots = [
+                get_workflow_root_from_call(call) for _, call, _ in self.recursed_calls
+            ]
+            common_root = os.path.commonprefix(workflow_roots)
+            if common_root:
+                guessed_workflow_id = get_workflow_id_from_workflow_root(common_root)
+                if guessed_workflow_id == self.workflow_id:
+                    return common_root
+                logger.error(
+                    'workflowRoot not found in metadata JSON. '
+                    'Tried to guess from callRoot of each call but failed.'
+                )
+
+    @property
     def failures(self):
         return self._metadata.get('failures')
 
     @property
     def calls(self):
         return self._metadata.get('calls')
+
+    @property
+    def recursed_calls(self):
+        """Returns a generator for tuples.
+
+        Tuple:
+            call_name:
+                Call's name. i.e. key in the original metadata JSON's `calls` dict.
+            call:
+                Call object. i.e. value in the original metadata JSON's `calls` dict.
+            parent_call_names:
+                Tuple of Parent call's names.
+        """
+        return self.recurse_calls(
+            lambda call_name, call, parent_call_names: (
+                call_name,
+                call,
+                parent_call_names,
+            )
+        )
 
     def recurse_calls(self, fn_call, parent_call_names=tuple()):
         """Recurse on tasks in metadata.
@@ -86,127 +135,124 @@ class CromwellMetadata:
                 Function to be called recursively for each call (task).
                 This function should take the following three arguments.
                     call_name:
-                        Cromwell workflow's call (task)'s name.
+                        Call's name. i.e. key in the original metadata JSON's `calls` dict.
                     call:
-                        Cromwell workflow's call (task) itself.
+                        Call object. i.e. value in the original metadata JSON's `calls` dict.
                     parent_call_names:
-                        Tuple of parent call's name.
+                        Tuple of Parent call's names.
                         e.g. (..., great grand parent, grand parent, parent, ...)
+        Returns:
+            Generator object for all calls.
         """
         if not self.calls:
             return
+
         for call_name, call_list in self.calls.items():
             for call in call_list:
                 if 'subWorkflowMetadata' in call:
                     subworkflow = call['subWorkflowMetadata']
                     subworkflow_metadata = CromwellMetadata(subworkflow)
-                    subworkflow_metadata.recurse_calls(
+                    yield from subworkflow_metadata.recurse_calls(
                         fn_call, parent_call_names=parent_call_names + (call_name,)
                     )
                 else:
-                    fn_call(call_name, call, parent_call_names)
+                    yield fn_call(call_name, call, parent_call_names)
 
     def write_on_workflow_root(self, basename=DEFAULT_METADATA_BASENAME):
         """Update metadata JSON file on metadata's output root directory.
-        If there is a subworkflow, nest its metadata into main workflow's one
-
-        Args:
-            write_subworkflow:
-                Write metadata JSON file for subworkflows.
         """
-        if 'workflowRoot' in self._metadata:
-            root = self._metadata['workflowRoot']
+        root = self.workflow_root
+
+        if root:
             metadata_file = os.path.join(root, basename)
+
             AutoURI(metadata_file).write(json.dumps(self._metadata, indent=4) + '\n')
             logger.info('Wrote metadata file. {f}'.format(f=metadata_file))
-        else:
-            metadata_file = None
-            workflow_id = self._metadata.get('id')
-            logger.warning(
-                'Failed to write metadata file. workflowRoot not found. '
-                'wf_id={i}'.format(i=workflow_id)
-            )
-        return metadata_file
 
-    def troubleshoot(self, fileobj, show_completed_task=False, show_stdout=False):
+            return metadata_file
+
+    def troubleshoot(self, show_completed_task=False, show_stdout=False):
         """Troubleshoots a workflow.
         Also, finds failure reasons and prints out STDERR and STDOUT.
 
         Args:
-            fileobj:
-                File-like object to write troubleshooting messages to.
             show_completed_task:
                 Show STDERR/STDOUT of completed tasks.
             show_stdout:
                 Show failed task's STDOUT along with STDERR.
+        Return:
+            result:
+                Troubleshooting report as a plain string.
         """
-        fileobj.write(
-            '* Started troubleshooting workflow: id={id}, status={status}\n'.format(
-                id=self.workflow_id, status=self.workflow_status
-            )
+        result = '* Started troubleshooting workflow: id={id}, status={status}\n'.format(
+            id=self.workflow_id, status=self.workflow_status
         )
 
         if self.workflow_status == 'Succeeded':
-            fileobj.write('* Workflow ran Successfully.\n')
-            return
+            result += '* Workflow ran Successfully.\n'
 
-        if self.failures:
-            fileobj.write(
-                '* Found failures JSON object.\n{s}\n'.format(
+        else:
+            if self.failures:
+                result += '* Found failures JSON object.\n{s}\n'.format(
                     s=json.dumps(self.failures, indent=4)
                 )
-            )
 
-        def troubleshoot_call(call_name, call, parent_call_names):
-            nonlocal fileobj
-            nonlocal show_completed_task
-            nonlocal show_stdout
+            def troubleshoot_call(call_name, call, parent_call_names):
+                """Returns troubleshooting help message.
+                """
+                nonlocal show_completed_task
+                nonlocal show_stdout
+                status = call.get('executionStatus')
+                shard_index = call.get('shardIndex')
+                rc = call.get('returnCode')
+                job_id = call.get('jobId')
+                stdout = call.get('stdout')
+                stderr = call.get('stderr')
+                run_start = None
+                run_end = None
+                for event in call.get('executionEvents', []):
+                    if event['description'].startswith('Running'):
+                        run_start = event['startTime']
+                        run_end = event['endTime']
+                        break
 
-            status = call.get('executionStatus')
-            shard_index = call.get('shardIndex')
-            rc = call.get('returnCode')
-            job_id = call.get('jobId')
-            stdout = call.get('stdout')
-            stderr = call.get('stderr')
-            run_start = None
-            run_end = None
-            for event in call.get('executionEvents', []):
-                if event['description'].startswith('Running'):
-                    run_start = event['startTime']
-                    run_end = event['endTime']
-                    break
-            if not show_completed_task and status in ('Done', 'Succeeded'):
-                return
-            fileobj.write(
-                '\n==== NAME={name}, STATUS={status}, PARENT={p}\n'
-                'SHARD_IDX={shard_idx}, RC={rc}, JOB_ID={job_id}\n'
-                'START={start}, END={end}\n'
-                'STDOUT={stdout}\nSTDERR={stderr}\n'.format(
-                    name=call_name,
-                    status=status,
-                    p=','.join(parent_call_names),
-                    start=run_start,
-                    end=run_end,
-                    shard_idx=shard_index,
-                    rc=rc,
-                    job_id=job_id,
-                    stdout=stdout,
-                    stderr=stderr,
-                )
-            )
-            if stderr:
-                if AutoURI(stderr).exists:
-                    fileobj.write(
-                        'STDERR_CONTENTS=\n{s}\n'.format(s=AutoURI(stderr).read())
+                help_msg = ''
+                if show_completed_task or status not in ('Done', 'Succeeded'):
+                    help_msg += (
+                        '\n==== NAME={name}, STATUS={status}, PARENT={p}\n'
+                        'SHARD_IDX={shard_idx}, RC={rc}, JOB_ID={job_id}\n'
+                        'START={start}, END={end}\n'
+                        'STDOUT={stdout}\nSTDERR={stderr}\n'.format(
+                            name=call_name,
+                            status=status,
+                            p=','.join(parent_call_names),
+                            start=run_start,
+                            end=run_end,
+                            shard_idx=shard_index,
+                            rc=rc,
+                            job_id=job_id,
+                            stdout=stdout,
+                            stderr=stderr,
+                        )
                     )
-            if show_stdout and stdout:
-                if AutoURI(stdout).exists:
-                    fileobj.write(
-                        'STDOUT_CONTENTS=\n{s}\n'.format(s=AutoURI(stdout).read())
-                    )
+                    if stderr:
+                        if AutoURI(stderr).exists:
+                            help_msg += 'STDERR_CONTENTS=\n{s}\n'.format(
+                                s=AutoURI(stderr).read()
+                            )
+                    if show_stdout and stdout:
+                        if AutoURI(stdout).exists:
+                            help_msg += 'STDOUT_CONTENTS=\n{s}\n'.format(
+                                s=AutoURI(stdout).read()
+                            )
 
-        fileobj.write('* Recursively finding failures in calls (tasks)...\n')
-        self.recurse_calls(troubleshoot_call)
+                return help_msg
+
+            result += '* Recursively finding failures in calls (tasks)...\n'
+            for help_msg in self.recurse_calls(troubleshoot_call):
+                result += help_msg
+
+        return result
 
     def gcp_monitor(
         self,
@@ -303,12 +349,10 @@ class CromwellMetadata:
                 ...
             ]
         """
-        result = []
         file_size_cache = {}
         workflow_id = self.workflow_id
 
         def gcp_monitor_call(call_name, call, parent_call_names):
-            nonlocal result
             nonlocal excluded_cols
             nonlocal stat_methods
             nonlocal file_size_cache
@@ -378,9 +422,9 @@ class CromwellMetadata:
 
                 recurse_dict_value(input_value, add_to_input_files_if_valid)
 
-            result.append(data)
+            return data
 
-        self.recurse_calls(gcp_monitor_call)
+        result = list(self.recurse_calls(gcp_monitor_call))
 
         # a bit hacky way to recursively convert numpy type into python type
         json_str = json.dumps(result, default=convert_type_np_to_py)
@@ -401,10 +445,10 @@ class CromwellMetadata:
             no_lock:
                 No file locking.
         """
-        root = self._metadata.get('workflowRoot')
-        if root is None:
+        root = self.workflow_root
+        if not root:
             logger.error(
-                'workflowRoot not found in metadata JSON. '
+                'workflow\'s root directory cannot be found in metadata JSON. '
                 'Cannot proceed to cleanup outputs.'
             )
             return
