@@ -1,6 +1,5 @@
 import os
 import sys
-from io import StringIO
 
 from autouri import AutoURI
 
@@ -37,6 +36,9 @@ def test_on_successful_workflow(tmp_path, cromwell, womtool):
     # no failures for successful workflow's metadata
     assert cm.failures is None
     assert cm.calls == metadata['calls']
+    assert sorted([call_name for call_name, _, _ in cm.recursed_calls]) == sorted(
+        ['main.t1', 'sub.t2', 'sub_sub.t3']
+    )
 
     # test recurse_calls(): test with a simple function
     def fnc(call_name, call, parent_call_names):
@@ -51,7 +53,7 @@ def test_on_successful_workflow(tmp_path, cromwell, womtool):
         else:
             raise ValueError('Wrong call_name: {name}'.format(name=call_name))
 
-    cm.recurse_calls(fnc)
+    list(cm.recurse_calls(fnc))
 
     # test write_on_workflow_root()
     m_file_on_root = os.path.join(cm.metadata['workflowRoot'], 'metadata.json')
@@ -90,11 +92,7 @@ def test_on_failed_workflow(tmp_path, cromwell, womtool):
     assert cm.calls == metadata['calls']
 
     # test troubleshoot()
-    fileobj = StringIO()
-    cm.troubleshoot(fileobj=fileobj)
-
-    fileobj.seek(0)
-    s = fileobj.read()
-    assert '* Found failures JSON object' in s
-    assert 'NAME=sub.t2_failing' in s
-    assert 'INTENTED_ERROR: command not found'
+    report = cm.troubleshoot()
+    assert '* Found failures JSON object' in report
+    assert 'NAME=sub.t2_failing' in report
+    assert 'INTENTED_ERROR: command not found' in report

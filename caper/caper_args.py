@@ -9,6 +9,12 @@ from .backward_compatibility import PARAM_KEY_NAME_CHANGE
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
 from .cromwell_backend import (
+    CALL_CACHING_DUP_STRAT_COPY,
+    CALL_CACHING_DUP_STRAT_REFERENCE,
+    LOCAL_HASH_STRAT_FILE,
+    LOCAL_HASH_STRAT_PATH,
+    LOCAL_HASH_STRAT_PATH_MTIME,
+    CromwellBackendAWS,
     CromwellBackendBase,
     CromwellBackendCommon,
     CromwellBackendDatabase,
@@ -279,9 +285,9 @@ def get_parser_and_defaults(conf_file=None):
         '--local-hash-strat',
         default=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
         choices=[
-            CromwellBackendLocal.LOCAL_HASH_STRAT_FILE,
-            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH,
-            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH_MTIME,
+            LOCAL_HASH_STRAT_FILE,
+            LOCAL_HASH_STRAT_PATH,
+            LOCAL_HASH_STRAT_PATH_MTIME,
         ],
         help='File hashing strategy for call caching. '
         'For local backends (local/slurm/sge/pbs) only. '
@@ -332,11 +338,8 @@ def get_parser_and_defaults(conf_file=None):
     )
     group_gc.add_argument(
         '--gcp-call-caching-dup-strat',
-        default=CromwellBackendGCP.DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
-        choices=[
-            CromwellBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
-            CromwellBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
-        ],
+        default=CromwellBackendGCP.DEFAULT_CALL_CACHING_DUP_STRAT,
+        choices=[CALL_CACHING_DUP_STRAT_REFERENCE, CALL_CACHING_DUP_STRAT_COPY],
         help='Duplication strategy for call-cached outputs for GCP backend: '
         'copy: make a copy, reference: refer to old output in metadata.json.',
     )
@@ -354,6 +357,13 @@ def get_parser_and_defaults(conf_file=None):
         '--out-s3-bucket',
         help='Output path on S3 bucket for AWS backend. '
         'e.g. s3://my-bucket/my-output.',
+    )
+    group_aws.add_argument(
+        '--aws-call-caching-dup-strat',
+        default=CromwellBackendAWS.DEFAULT_CALL_CACHING_DUP_STRAT,
+        choices=[CALL_CACHING_DUP_STRAT_REFERENCE, CALL_CACHING_DUP_STRAT_COPY],
+        help='Duplication strategy for call-cached outputs for AWS backend: '
+        'copy: make a copy, reference: refer to old output in metadata.json.',
     )
 
     # run, submit

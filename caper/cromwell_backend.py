@@ -18,6 +18,24 @@ BACKEND_SGE = 'sge'
 BACKEND_PBS = 'pbs'
 DEFAULT_BACKEND = BACKEND_LOCAL
 
+FILESYSTEM_GCS = 'gcs'
+FILESYSTEM_LOCAL = 'local'
+FILESYSTEM_S3 = 's3'
+
+LOCALIZATION_STRAT_COPY = 'copy'
+LOCALIZATION_STRAT_HARDLINK = 'hard-link'
+LOCALIZATION_STRAT_SOFTLINK = 'soft-link'
+
+CALL_CACHING_DUP_STRAT_COPY = 'copy'
+CALL_CACHING_DUP_STRAT_HARDLINK = 'hard-link'
+CALL_CACHING_DUP_STRAT_REFERENCE = 'reference'
+CALL_CACHING_DUP_STRAT_SOFTLINK = 'soft-link'
+
+LOCAL_HASH_STRAT_FILE = 'file'
+LOCAL_HASH_STRAT_PATH = 'path'
+LOCAL_HASH_STRAT_PATH_MTIME = 'path+modtime'
+SOFT_GLOB_OUTPUT_CMD = 'ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null'
+
 
 def get_s3_bucket_name(s3_uri):
     return s3_uri.replace('s3://', '', 1).split('/')[0]
@@ -50,7 +68,7 @@ class CromwellBackendCommon(UserDict):
     }
 
     DEFAULT_MAX_CONCURRENT_WORKFLOWS = 40
-    DEFAULT_MEMORY_RETRY_ERROR_KEYS = ['OutOfMemory', 'Killed']
+    DEFAULT_MEMORY_RETRY_ERROR_KEYS = ('OutOfMemory', 'Killed')
 
     def __init__(
         self,
@@ -75,7 +93,10 @@ class CromwellBackendCommon(UserDict):
         self['system']['max-concurrent-workflows'] = max_concurrent_workflows
         # Cromwell's bug in memory-retry feature.
         # Disabled until it's fixed on Cromwell's side.
-        # self['system']['memory-retry-error-keys'] = memory_retry_error_keys
+        # if memory_retry_error_keys:
+        #     if isinstance(memory_retry_error_keys, tuple):
+        #         memory_retry_error_keys = list(memory_retry_error_keys)
+        #     self['system']['memory-retry-error-keys'] = memory_retry_error_keys
 
 
 class CromwellBackendServer(UserDict):
@@ -197,17 +218,32 @@ class CromwellBackendBase(UserDict):
     """
 
     TEMPLATE = {'backend': {'providers': {}}}
-    TEMPLATE_BACKEND = {'config': {'default-runtime-attributes': {}}}
-
+    TEMPLATE_BACKEND = {'config': {'default-runtime-attributes': {}, 'filesystems': {}}}
+    DEFAULT_CALL_CACHING_DUP_STRAT = (
+        CALL_CACHING_DUP_STRAT_SOFTLINK,
+        CALL_CACHING_DUP_STRAT_HARDLINK,
+        CALL_CACHING_DUP_STRAT_COPY,
+    )
     DEFAULT_CONCURRENT_JOB_LIMIT = 1000
 
-    def __init__(self, backend_name, max_concurrent_tasks=DEFAULT_CONCURRENT_JOB_LIMIT):
+    def __init__(
+        self,
+        backend_name,
+        max_concurrent_tasks=DEFAULT_CONCURRENT_JOB_LIMIT,
+        filesystem_name=None,
+        call_caching_dup_strat=DEFAULT_CALL_CACHING_DUP_STRAT,
+    ):
         """
         Args:
             backend_name:
                 Backend's name.
             max_concurrent_tasks:
                 Maximum number of tasks (regardless of number of workflows).
+            filesystem_name:
+                Filesystem's name to set up call-caching strategy within.
+            call_caching_dup_strat:
+                Call-caching strategy string.
+                This can be either a strategy or a list of strategies.
         """
         super().__init__(deepcopy(CromwellBackendBase.TEMPLATE))
 
@@ -219,6 +255,14 @@ class CromwellBackendBase(UserDict):
 
         config = self.backend_config
         config['concurrent-job-limit'] = max_concurrent_tasks
+
+        if filesystem_name:
+            if isinstance(call_caching_dup_strat, tuple):
+                call_caching_dup_strat = list(call_caching_dup_strat)
+
+            config['filesystems'][filesystem_name] = {
+                'caching': {'duplication-strategy': call_caching_dup_strat}
+            }
 
     @property
     def backend(self):
@@ -254,7 +298,6 @@ class CromwellBackendGCP(CromwellBackendBase):
                 'restrict-metadata-access': False,
                 'compute-service-account': 'default',
             },
-            'filesystems': {'gcs': {'caching': {}}},
         }
     }
     ACTOR_FACTORY_V2ALPHA = (
@@ -266,22 +309,18 @@ class CromwellBackendGCP(CromwellBackendBase):
     GENOMICS_ENDPOINT_V2ALPHA = 'https://genomics.googleapis.com/'
     GENOMICS_ENDPOINT_V2BETA = 'https://lifesciences.googleapis.com/'
     DEFAULT_REGION = 'us-central1'
-
-    CALL_CACHING_DUP_STRAT_REFERENCE = 'reference'
-    CALL_CACHING_DUP_STRAT_COPY = 'copy'
-
-    DEFAULT_GCP_CALL_CACHING_DUP_STRAT = CALL_CACHING_DUP_STRAT_REFERENCE
+    DEFAULT_CALL_CACHING_DUP_STRAT = CALL_CACHING_DUP_STRAT_REFERENCE
 
     def __init__(
         self,
         gcp_prj,
         gcp_out_dir,
-        call_caching_dup_strat=DEFAULT_GCP_CALL_CACHING_DUP_STRAT,
         gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
         gcp_region=DEFAULT_REGION,
         gcp_zones=None,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
+        call_caching_dup_strat=DEFAULT_CALL_CACHING_DUP_STRAT,
     ):
         """
         Args:
@@ -297,8 +336,21 @@ class CromwellBackendGCP(CromwellBackendBase):
                 List of zones for Genomics API.
                 Ignored if use_google_cloud_life_sciences.
         """
+        if call_caching_dup_strat not in (
+            CALL_CACHING_DUP_STRAT_REFERENCE,
+            CALL_CACHING_DUP_STRAT_COPY,
+        ):
+            raise ValueError(
+                'Wrong call_caching_dup_strat for GCP: {v}'.format(
+                    v=call_caching_dup_strat
+                )
+            )
+
         super().__init__(
-            backend_name=BACKEND_GCP, max_concurrent_tasks=max_concurrent_tasks
+            backend_name=BACKEND_GCP,
+            max_concurrent_tasks=max_concurrent_tasks,
+            filesystem_name=FILESYSTEM_GCS,
+            call_caching_dup_strat=call_caching_dup_strat,
         )
         merge_dict(self.data, CromwellBackendGCP.TEMPLATE)
         self.merge_backend(CromwellBackendGCP.TEMPLATE_BACKEND)
@@ -309,7 +361,7 @@ class CromwellBackendGCP(CromwellBackendBase):
 
         if gcp_service_account_key_json:
             genomics['auth'] = 'service-account'
-            filesystems['gcs']['auth'] = 'service-account'
+            filesystems[FILESYSTEM_GCS]['auth'] = 'service-account'
             self['google']['auths'] = [
                 {
                     'name': 'service-account',
@@ -323,7 +375,7 @@ class CromwellBackendGCP(CromwellBackendBase):
             genomics['compute-service-account'] = key_json['client_email']
         else:
             genomics['auth'] = 'application-default'
-            filesystems['gcs']['auth'] = 'application-default'
+            filesystems[FILESYSTEM_GCS]['auth'] = 'application-default'
             self['google']['auths'] = [
                 {'name': 'application-default', 'scheme': 'application_default'}
             ]
@@ -346,16 +398,6 @@ class CromwellBackendGCP(CromwellBackendBase):
             )
         config['root'] = gcp_out_dir
 
-        caching = filesystems['gcs']['caching']
-        if call_caching_dup_strat not in (
-            CromwellBackendGCP.CALL_CACHING_DUP_STRAT_REFERENCE,
-            CromwellBackendGCP.CALL_CACHING_DUP_STRAT_COPY,
-        ):
-            raise ValueError(
-                'Wrong call_caching_dup_strat: {v}'.format(v=call_caching_dup_strat)
-            )
-        caching['duplication-strategy'] = call_caching_dup_strat
-
 
 class CromwellBackendAWS(CromwellBackendBase):
     TEMPLATE = {
@@ -363,7 +405,7 @@ class CromwellBackendAWS(CromwellBackendBase):
             'application-name': 'cromwell',
             'auths': [{'name': 'default', 'scheme': 'default'}],
         },
-        'engine': {'filesystems': {'s3': {'auth': 'default'}}},
+        'engine': {'filesystems': {FILESYSTEM_S3: {'auth': 'default'}}},
     }
     TEMPLATE_BACKEND = {
         'actor-factory': 'cromwell.backend.impl.aws.AwsBatchBackendLifecycleActorFactory',
@@ -372,9 +414,10 @@ class CromwellBackendAWS(CromwellBackendBase):
             'numSubmitAttempts': 6,
             'numCreateDefinitionAttempts': 6,
             'auth': 'default',
-            'filesystems': {'s3': {'auth': 'default'}},
+            'filesystems': {FILESYSTEM_S3: {'auth': 'default'}},
         },
     }
+    DEFAULT_CALL_CACHING_DUP_STRAT = CALL_CACHING_DUP_STRAT_REFERENCE
 
     def __init__(
         self,
@@ -382,9 +425,35 @@ class CromwellBackendAWS(CromwellBackendBase):
         aws_region,
         aws_out_dir,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
+        call_caching_dup_strat=DEFAULT_CALL_CACHING_DUP_STRAT,
     ):
+        if call_caching_dup_strat not in (
+            CALL_CACHING_DUP_STRAT_REFERENCE,
+            CALL_CACHING_DUP_STRAT_COPY,
+        ):
+            raise ValueError(
+                'Wrong call_caching_dup_strat for S3: {v}'.format(
+                    v=call_caching_dup_strat
+                )
+            )
+        if call_caching_dup_strat == CALL_CACHING_DUP_STRAT_REFERENCE:
+            logger.warning(
+                '"reference" mode for call_caching_dup_strat currently does not work with '
+                'Cromwell<=61. Cromwell will still use the "copy" mode '
+                'It will make cache copies for all call-cached outputs, which will lead to '
+                'unnecessary extra charge for the output S3 bucket. '
+                'See the following link for details. '
+                'https://github.com/broadinstitute/cromwell/issues/6327. '
+                'It is recommend to clean up previous workflow\'s outputs manually '
+                'with "caper cleanup WORKFLOW_ID_OR_METADATA_JSON_FILE" or '
+                'with AWS CLI. e.g. '
+                '"aws s3 rm --recursive s3://some-bucket/a/b/c/WORKFLOW_ID". '
+            )
         super().__init__(
-            backend_name=BACKEND_AWS, max_concurrent_tasks=max_concurrent_tasks
+            backend_name=BACKEND_AWS,
+            max_concurrent_tasks=max_concurrent_tasks,
+            filesystem_name=FILESYSTEM_S3,
+            call_caching_dup_strat=call_caching_dup_strat,
         )
         merge_dict(self.data, CromwellBackendAWS.TEMPLATE)
         self.merge_backend(CromwellBackendAWS.TEMPLATE_BACKEND)
@@ -415,12 +484,13 @@ class CromwellBackendLocal(CromwellBackendBase):
         'config': {
             'script-epilogue': 'sleep 5',
             'filesystems': {
-                'local': {
-                    'localization': ['soft-link', 'hard-link', 'copy'],
-                    'caching': {
-                        'check-sibling-md5': True,
-                        'duplication-strategy': ['soft-link', 'hard-link', 'copy'],
-                    },
+                FILESYSTEM_LOCAL: {
+                    'localization': [
+                        LOCALIZATION_STRAT_SOFTLINK,
+                        LOCALIZATION_STRAT_HARDLINK,
+                        LOCALIZATION_STRAT_COPY,
+                    ],
+                    'caching': {'check-sibling-md5': True},
                 }
             },
             'run-in-background': True,
@@ -461,11 +531,6 @@ class CromwellBackendLocal(CromwellBackendBase):
         },
     }
 
-    LOCAL_HASH_STRAT_FILE = 'file'
-    LOCAL_HASH_STRAT_PATH = 'path'
-    LOCAL_HASH_STRAT_PATH_MTIME = 'path+modtime'
-    SOFT_GLOB_OUTPUT_CMD = 'ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null'
-
     DEFAULT_LOCAL_HASH_STRAT = LOCAL_HASH_STRAT_PATH_MTIME
 
     def __init__(
@@ -477,18 +542,20 @@ class CromwellBackendLocal(CromwellBackendBase):
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
     ):
         super().__init__(
-            backend_name=backend_name, max_concurrent_tasks=max_concurrent_tasks
+            backend_name=backend_name,
+            max_concurrent_tasks=max_concurrent_tasks,
+            filesystem_name=FILESYSTEM_LOCAL,
         )
         self.merge_backend(CromwellBackendLocal.TEMPLATE_BACKEND)
 
         config = self.backend_config
-        filesystem_local = config['filesystems']['local']
+        filesystem_local = config['filesystems'][FILESYSTEM_LOCAL]
         caching = filesystem_local['caching']
 
         if local_hash_strat not in (
-            CromwellBackendLocal.LOCAL_HASH_STRAT_FILE,
-            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH,
-            CromwellBackendLocal.LOCAL_HASH_STRAT_PATH_MTIME,
+            LOCAL_HASH_STRAT_FILE,
+            LOCAL_HASH_STRAT_PATH,
+            LOCAL_HASH_STRAT_PATH_MTIME,
         ):
             raise ValueError(
                 'Wrong local_hash_strat: {strat}'.format(strat=local_hash_strat)
@@ -496,7 +563,7 @@ class CromwellBackendLocal(CromwellBackendBase):
         caching['hashing-strategy'] = local_hash_strat
 
         if soft_glob_output:
-            config['glob-link-command'] = CromwellBackendLocal.SOFT_GLOB_OUTPUT_CMD
+            config['glob-link-command'] = SOFT_GLOB_OUTPUT_CMD
 
         if local_out_dir is None:
             raise ValueError('local_out_dir must be provided.')
