@@ -20,7 +20,8 @@ https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=Genomi
 
 2. Choose all available zones in `Availability Zones`. For example, if your region is `us-east-2`, then you will see `us-east-2a`, `us-east-2b` and  `us-east-2c`. Choose all.
 
-3. Click on [this](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=gwfcore&templateURL=https://aws-genomics-workflows.s3.amazonaws.com/src/templates/gwfcore/gwfcore-root.template.yaml) to create a new AWS Batch. Make sure that the region on top right corner of the console page matches with your region of interest. Click on `Next`.
+3. Click on [this](
+https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=gwfcore&templateURL=https://aws-genomics-workflows.s3.amazonaws.com/v3.0.6.1/templates/gwfcore/gwfcore-root.template.yaml) to create a new AWS Batch. Make sure that the region on top right corner of the console page matches with your region of interest. Click on `Next`.
 
 4. There are several required parameters to be specified on this page
 - `S3 Bucket name`: S3 bucket name to store your pipeline outputs. This is not a full path for the output directory. It's just bucket's name.
