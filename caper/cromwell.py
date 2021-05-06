@@ -301,7 +301,7 @@ class Cromwell:
                     if cm.workflow_status != 'Succeeded' and fileobj_troubleshoot:
                         # auto-troubleshoot on terminate if workflow is not successful
                         logger.info('Workflow failed. Auto-troubleshooting...')
-                        cm.troubleshoot(fileobj=fileobj_troubleshoot)
+                        fileobj_troubleshoot.write(cm.troubleshoot())
 
                     # to make it a return value of the thread after it is done (joined)
                     return metadata_dict
