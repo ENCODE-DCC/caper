@@ -3,7 +3,9 @@ import os
 import sys
 import time
 
-from caper.cromwell import Cromwell
+import pytest
+
+from caper.cromwell import Cromwell, WomtoolValidationFailed
 from caper.cromwell_rest_api import CromwellRestAPI
 from caper.wdl_parser import WDLParser
 
@@ -30,12 +32,13 @@ def test_validate(tmp_path, cromwell, womtool):
 
     wdl = tmp_path / 'wrong.wdl'
     wdl.write_text(WRONG_WDL)
-    assert not c.validate(str(wdl))
+    with pytest.raises(WomtoolValidationFailed):
+        c.validate(str(wdl))
 
     make_directory_with_wdls(str(tmp_path / 'successful'))
     wdl = tmp_path / 'successful' / 'main.wdl'
     inputs = tmp_path / 'successful' / 'inputs.json'
-    assert c.validate(str(wdl), str(inputs))
+    c.validate(str(wdl), str(inputs))
 
     # zip subworkflows for later use
     p = WDLParser(str(wdl))
@@ -45,7 +48,7 @@ def test_validate(tmp_path, cromwell, womtool):
     make_directory_with_wdls(str(tmp_path / 'wo_sub_wdls'), no_sub_wdl=True)
     wdl = tmp_path / 'wo_sub_wdls' / 'main.wdl'
     inputs = tmp_path / 'wo_sub_wdls' / 'inputs.json'
-    assert c.validate(str(wdl), str(inputs), imports)
+    c.validate(str(wdl), str(inputs), imports)
 
 
 def test_run(tmp_path, cromwell, womtool):
