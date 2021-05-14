@@ -186,18 +186,17 @@ GLOBAL_CAPER_CONF_FILE="$CAPER_CONF_DIR/default.conf"
 
 # prepend more init commands to the startup-script
 STARTUP_SCRIPT="""#!/bin/bash
-### install gsutil
-sudo apt-get install google-cloud-sdk
-
 ### update apt and install and packages
 sudo apt-get update
-sudo apt-get -y install screen python3 python3-pip default-jre postgresql postgresql-contrib
+sudo apt-get install -y screen python3 python3-pip default-jre postgresql postgresql-contrib
 
 ### install gsutil
-sudo apt-get -y install apt-transport-https ca-certificates gnupg
+echo \"deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main\" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+sudo apt-get install -y apt-transport-https ca-certificates gnupg
+
 curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
 sudo apt-get update
-sudo apt-get -y install google-cloud-sdk
+sudo apt-get install -y google-cloud-sdk
 
 ### make caper's work directory
 sudo mkdir -p $CAPER_CONF_DIR
