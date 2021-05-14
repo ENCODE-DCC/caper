@@ -24,6 +24,10 @@ from .wdl_parser import WDLParser
 logger = logging.getLogger(__name__)
 
 
+class WomtoolValidationFailedException(Exception):
+    pass
+
+
 class CaperRunner(CaperBase):
     ENV_GOOGLE_CLOUD_PROJECT = 'GOOGLE_CLOUD_PROJECT'
     DEFAULT_FILE_DB_PREFIX = 'default_caper_file_db'
@@ -426,8 +430,7 @@ class CaperRunner(CaperBase):
         )
 
         if not ignore_womtool:
-            if not self._cromwell.validate(wdl=wdl, inputs=inputs, imports=imports):
-                return
+            self._cromwell.validate(wdl=wdl, inputs=inputs, imports=imports)
 
         logger.info(
             'launching run: wdl={w}, inputs={i}, backend_conf={b}'.format(
