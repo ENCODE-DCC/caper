@@ -382,13 +382,12 @@ class CaperClientSubmit(CaperClient):
         )
 
         if not ignore_womtool:
-            if not self._cromwell.validate(
+            self._cromwell.validate(
                 wdl=wdl,
                 inputs=inputs,
                 imports=imports,
                 java_heap_womtool=java_heap_womtool,
-            ):
-                return
+            )
 
         if dry_run:
             return

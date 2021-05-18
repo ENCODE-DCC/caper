@@ -438,10 +438,11 @@ class CromwellBackendAWS(CromwellBackendBase):
             )
         if call_caching_dup_strat == CALL_CACHING_DUP_STRAT_REFERENCE:
             logger.warning(
-                '"reference" mode for call_caching_dup_strat currently does not work with '
-                'Cromwell<=61. Cromwell will still use the "copy" mode '
+                'Warning for aws backend: "reference" mode for call_caching_dup_strat currently '
+                'does not work with Cromwell<=61. Cromwell will still use the "copy" mode '
                 'It will make cache copies for all call-cached outputs, which will lead to '
                 'unnecessary extra charge for the output S3 bucket. '
+                '"reference" mode on gcp backend works fine. '
                 'See the following link for details. '
                 'https://github.com/broadinstitute/cromwell/issues/6327. '
                 'It is recommend to clean up previous workflow\'s outputs manually '

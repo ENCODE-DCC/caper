@@ -18,6 +18,10 @@ class PortAlreadyInUseError(Exception):
     pass
 
 
+class WomtoolValidationFailed(Exception):
+    pass
+
+
 def install_file(f, install_dir, label):
     """Install f locally on install_dir.
     If f is already local then skip it.
@@ -147,15 +151,11 @@ class Cromwell:
             th.join()
 
             if th.returncode:
-                logger.error(
-                    'RC={rc}\nSTDERR={stderr}\nWomtool validation failed.'.format(
-                        rc=th.returncode, stderr=stderr
-                    )
+                raise WomtoolValidationFailed(
+                    'RC={rc}\nSTDERR={stderr}'.format(rc=th.returncode, stderr=stderr)
                 )
-                return False
-            else:
-                logger.info('Womtool validation passed.')
-                return True
+
+            logger.info('Passed Womtool validation.')
 
     def run(
         self,
