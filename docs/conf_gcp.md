@@ -1,3 +1,7 @@
+Deprecated. Please see [this](../scripts/gcp_caper_server/README.md) instead.
+
+# DEPRECATED
+
 # Configuration for Google Cloud Platform backend (`gcp`)
 
 1. Sign up for a Google account.

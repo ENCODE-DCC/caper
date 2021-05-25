@@ -4,7 +4,7 @@
 
 > **NOTE**: Google Cloud Life Sciences API is a new API replacing the old deprecating Genomics API (`v2alpha1`). It requires `--gcp-region` to be defined correctly. Check [supported regions](https://cloud.google.com/life-sciences/docs/concepts/locations) for the new API.
 
-## Requirements
+## Install Google Cloud SDK SLI
 
 Make sure that `gcloud` (Google Cloud SDK CLI) is installed on your system.
 
@@ -17,34 +17,12 @@ Go to [APIs & Services](https://console.cloud.google.com/apis/dashboard) on your
 Go to [Service accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) on your project and create a new service account with the following roles:
 * Compute Admin
 * Storage Admin: You can skip this and individually configure permission on each bucket on the project.
-* Cloud Life Sciences Admin
+* Cloud Life Sciences Admin (Cromwell's PAPI v2beta)
 * **Service Account User** (VERY IMPORTANT).
 
 Generate a secret key JSON from the service account and keep it locally on your computer.
 
 > **WARNING**: Such secret JSON file is a master key for important resources on your project. Keep it secure at your own risk. This file will be used for Caper so that it will be trasnferred to the created instance at `/opt/caper/service_account_key.json` visible to all users on the instance.
-
-## Troubleshooting errors
-
-If you see permission errors check if the above roles are correctly configured for your service account.
-
-If you see PAPI errors and Google's HTTP endpoint deprecation warning. Remove Life Sciences API role from your service account and add it back.
-
-If you see the following error then click on your service account on `Service Account` in `IAM` of your Google project and make sure that `Enable G Suite Domain-wide Delegation` is checked.
-```
-400 Bad Request
-POST https://lifesciences.googleapis.com/v2beta/projects/99884963860/locations/us-central1/operations/XXXXXXXXXXXXXXXXXXXX:cancel
-{
-  "code" : 400,
-  "errors" : [ {
-    "domain" : "global",
-    "message" : "Precondition check failed.",
-    "reason" : "failedPrecondition"
-  } ],
-  "message" : "Precondition check failed.",
-  "status" : "FAILED_PRECONDITION"
-}
-```
 
 ## How to create an instance
 
@@ -109,3 +87,8 @@ If users want to have their own configuration at `~/.caper/default.conf`, simply
 $ rm ~/.caper/default.conf
 $ cp /opt/caper/default.conf ~/.caper/default.conf
 ```
+
+
+## Troubleshooting
+
+See [this] for troubleshooting.
