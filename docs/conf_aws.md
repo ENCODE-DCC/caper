@@ -38,4 +38,4 @@ https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=gwfcor
 
 ## References
 
-https://docs.opendata.aws/genomics-workflows/orchestration/cromwell/cromwell-overview/
+https://docs.opendata.aws/genomics-workflows/orchestration/cromwell/cromwell-overview.html
