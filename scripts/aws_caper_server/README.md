@@ -16,19 +16,17 @@ $ aws configure
 
 1. Click on [this](
 https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=GenomicsVPC&templateURL=https://aws-quickstart.s3.amazonaws.com/quickstart-aws-vpc/templates/aws-vpc.template.yaml) to create a new AWS VPC. Make sure that the region on top right corner of the console page matches with your region of interest. Click on `Next` and then `Next` again. Agree to `Capabililties`. Click on `Create stack`.
-2. Choose available zones in `Availability Zones`. For example, if your region is `us-west-2`, then you will see `us-west-2a`, `us-west-2b` and  `us-west-2c`. Caper server will create job instances on selected zones.
+2. Choose available zones in `Availability Zones`. For example, if your region is `us-west-2`, then you will see `us-west-2a`, `us-west-2b` and  `us-west-2c`.
 
 
 ## AWS Batch
 
 1. Click on [this](
-https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=gwfcore&templateURL=https://aws-genomics-workflows.s3.amazonaws.com/v3.0.6.1/templates/gwfcore/gwfcore-root.template.yaml) to create a new AWS Batch. Make sure that the region on top right corner of the console page matches with your region of interest. Click on `Next`.
+https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=gwfcore&templateURL=https://caper-aws-genomics-workflows.s3-us-west-2.amazonaws.com/templates/gwfcore/gwfcore-root.template.yaml) to create a new AWS Batch. Make sure that the region on top right corner of the console page matches with your region of interest. Click on `Next`.
 2. There are several required parameters to be specified on this page
-- `S3 Bucket name`: S3 bucket name to store your pipeline outputs. This is not a full path for the output directory. It's just bucket's name.
-- `Existing Bucket?`: `True` if the above bucket already exists.
+- `S3 Bucket name`: S3 bucket name to store your pipeline outputs. This is not a full path for the output directory. It's just bucket's name without the scheme prefix `s3://`. Make sure that this bucket doesn't exist. If it exists then delete it or try with a different non-existing bucket name.
 - `VPC ID`: Choose the VPC `GenomicsVPC` that you just created.
-- `VPC Subnet IDs`: Choose two private subnets created with the above VPC.
-- (**IMPORTANT**) `Template Root URL`: Change it to `https://caper-aws-genomics-workflows.s3-us-west-1.amazonaws.com/src/templates`.
+- `VPC Subnet IDs`: Choose all private subnets created with the above VPC.
 3. Click on `Next` and then `Next` again. Agree to `Capabililties`. Click on `Create stack`.
 4. Go to your [AWS Batch](https://console.aws.amazon.com/batch) and click on `Job queues` in the left sidebar. Click on `default-*`. Get ARN for your batch under the key `Queue ARN`. This ARN will be used later to create Caper server instance.
 
