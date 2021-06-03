@@ -73,7 +73,12 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 	gcp-prj | Google Cloud Platform Project
 	gcp-out-dir | Output bucket path for Google Cloud Platform. This should start with `gs://`.
 
-7) To use Caper on Google Cloud Platform (GCP), [configure for GCP](docs/conf_gcp.md). To use Caper on Amazon Web Service (AWS), [configure for AWS](docs/conf_aws.md).
+7) To use Caper on Google Cloud Platform (GCP), we provide a shell script to create a Caper server instance on Google Cloud.
+See [this](scripts/gcp_caper_server/README.md) for details.
+
+8) To use Caper on Amazon Web Service (AWS), we provide a shell script to create a Caper server instance on AWS.
+See [this](scripts/aws_caper_server/README.md) for details.
+
 
 ## Output directory
 
@@ -544,18 +549,6 @@ file-db=/YOUR/FILE/DB/PATH/PREFIX
 This file DB is genereted on your working directory by default. Its default filename prefix is `caper_file_db.[INPUT_JSON_BASENAME_WO_EXT]`. A DB is consist of multiple files and directories with the same filename prefix.
 
 Unless you explicitly define `file-db` in your configuration file `~/.caper/default.conf` this file DB name will depend on your input JSON filename. Therefore, you can simply resume a failed workflow with the same command line used for starting a new pipeline.
-
-
-## Caper server instance on Google Cloud
-
-We provide a shell script to create a Caper server instance on Google Cloud.
-See [this](scripts/gcp_caper_server/README.md) for details.
-
-
-## Caper server instance on AWS
-
-We provide a shell script to create a Caper server instance on AWS.
-See [this](scripts/aws_caper_server/README.md) for details.
 
 
 # DETAILS
