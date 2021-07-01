@@ -3,7 +3,12 @@
 Run `caper debug WORKFLOW_ID` to debug/troubleshoot a workflow.
 
 
+
+
+
+
 ### `Could not read from s3...`
+
 
 If you use private S3 URIs in an input JSON then you will see this error. Please don't use any private S3 URIs. Get a presigned HTTP URL of the private bucket file or use `~/.netrc` authentication instead.
 
@@ -25,6 +30,9 @@ If you use private S3 URIs in an input JSON then you will see this error. Please
     }
 ],
 ```
+
+If you still see this error, then please try with the `priority` queue instead of `default` queue. Go to AWS Batch on your AWS Console and click on Job Queues. Get ARN of the `priority-*` queue and define it for `aws-batch-arn=` in your Caper conf (`~/.caper/default.conf`). The `default` queue is based on spot instances and they seem to be interrupted quite often and Cromwell doesn't handle it properly.
+
 
 
 ### `S3Exception: null (Service: S3, Status Code: 301)`

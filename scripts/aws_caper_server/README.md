@@ -28,7 +28,7 @@ https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=gwfcor
 - `VPC ID`: Choose the VPC `GenomicsVPC` that you just created.
 - `VPC Subnet IDs`: Choose all private subnets created with the above VPC.
 3. Click on `Next` and then `Next` again. Agree to `Capabililties`. Click on `Create stack`.
-4. Go to your [AWS Batch](https://console.aws.amazon.com/batch) and click on `Job queues` in the left sidebar. Click on `default-*`. Get ARN for your batch under the key `Queue ARN`. This ARN will be used later to create Caper server instance.
+4. Go to your [AWS Batch](https://console.aws.amazon.com/batch) and click on `Job queues` in the left sidebar. You will see two Job Queues (`priority-*` and `default-*`). There has been some issues with the default one which is based on spot instances. Spot instances are interrupted quite often and Cromwell doesn't seem to handle it properly. We recommend to use `priority-*` queue even though it costs a bit more than spot instances. Click on the chosen job queue and get ARN of it. This ARN will be used later to create Caper server instance.
 
 
 ## How to create a server instance
