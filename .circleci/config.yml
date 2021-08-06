@@ -22,16 +22,12 @@ update_apt: &update_apt
 install_python3: &install_python3_java
   name: Install python3, pip3, java11
   command: |
-    sudo apt-get install software-properties-common git wget curl -y
+    sudo apt-get install software-properties-common git wget curl openjdk-11-jdk -y
     sudo add-apt-repository ppa:deadsnakes/ppa -y
     sudo apt-get update && sudo apt-get install python3.6 -y
     sudo wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py
     sudo python3.6 get-pip.py
     sudo ln -s /usr/bin/python3.6 /usr/local/bin/python3
-
-    sudo add-apt-repository ppa:linuxuprising/java
-    sudo apt-get update && sudo apt-get install oracle-java11-installer
-    sudo apt-get install oracle-java11-set-default
 
 
 install_singularity: &install_singularity
