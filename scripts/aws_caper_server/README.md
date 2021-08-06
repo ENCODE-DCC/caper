@@ -27,6 +27,8 @@ https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=gwfcor
 - `S3 Bucket name`: S3 bucket name to store your pipeline outputs. This is not a full path for the output directory. It's just bucket's name without the scheme prefix `s3://`. Make sure that this bucket doesn't exist. If it exists then delete it or try with a different non-existing bucket name.
 - `VPC ID`: Choose the VPC `GenomicsVPC` that you just created.
 - `VPC Subnet IDs`: Choose all private subnets created with the above VPC.
+- `Max vCPUs for Default Queue`: Maximum total number of CPUs for the spot instance queue. It's 4000 by default, which is  huge already. But if you use more CPUs than this limit then your jobs will be stuck at `RUNNABLE` status.
+- `Max vCPUs for Priority Queue`: Maximum total number of CPUs for the on-demand instance queue. It's 4000 by default, which is huge already. But if you use more CPUs than this limit then your jobs will be stuck at `RUNNABLE` status.
 3. Click on `Next` and then `Next` again. Agree to `Capabililties`. Click on `Create stack`.
 4. Go to your [AWS Batch](https://console.aws.amazon.com/batch) and click on `Job queues` in the left sidebar. You will see two Job Queues (`priority-*` and `default-*`). There has been some issues with the default one which is based on spot instances. Spot instances are interrupted quite often and Cromwell doesn't seem to handle it properly. We recommend to use `priority-*` queue even though it costs a bit more than spot instances. Click on the chosen job queue and get ARN of it. This ARN will be used later to create Caper server instance.
 
