@@ -9,7 +9,7 @@ defaults:
 
 machine_defaults: &machine_defaults
   machine:
-    image: ubuntu-2004:202104-01
+    image: ubuntu-1604:202007-01
   working_directory: ~/caper
 
 
@@ -20,18 +20,27 @@ update_apt: &update_apt
 
 
 install_python3: &install_python3_java
-  name: Install python3, pip3, java
+  name: Install python3, pip3, java11
   command: |
-    sudo apt-get install software-properties-common git wget curl default-jre -y
+    sudo apt-get install software-properties-common git wget curl -y
+    sudo add-apt-repository ppa:deadsnakes/ppa -y
+    sudo apt-get update && sudo apt-get install python3.6 -y
+    sudo wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py
+    sudo python3.6 get-pip.py
+    sudo ln -s /usr/bin/python3.6 /usr/local/bin/python3
+
+    sudo add-apt-repository ppa:linuxuprising/java
+    sudo apt-get update && sudo apt-get install oracle-java11-installer
+    sudo apt-get install oracle-java11-set-default
 
 
 install_singularity: &install_singularity
   name: Install Singularity (container)
   command: |
-    sudo wget -O- https://neuro.debian.net/lists/focal.us-ca.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
+    sudo wget -O- http://neuro.debian.net/lists/xenial.us-ca.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
     # key server is so unstable. commented out for possible later use.
-    sudo apt-key adv --recv-keys --keyserver hkp://pool.sks-keyservers.net:80 0xA5D32F012649A5A9
-    sudo apt-get update && sudo apt-get install singularity-container #--allow-unauthenticated
+    #sudo apt-key adv --recv-keys --keyserver hkp://pool.sks-keyservers.net:80 0xA5D32F012649A5A9
+    sudo apt-get update && sudo apt-get install singularity-container --allow-unauthenticated
 
 
 install_py3_packages: &install_py3_packages
