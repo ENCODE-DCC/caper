@@ -224,6 +224,7 @@ aws-batch-arn=$AWS_BATCH_ARN
 aws-region=$AWS_REGION
 aws-out-dir=$AWS_OUT_DIR
 aws-loc-dir=$AWS_LOC_DIR
+cromwell=https://storage.googleapis.com/caper-data/cromwell/cromwell-65-d16af26-SNAP.jar
 # metadata DB
 db=postgresql
 postgresql-db-ip=$POSTGRESQL_DB_IP
