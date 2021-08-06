@@ -10,7 +10,7 @@ Caper is based on Unix and cloud platform CLIs (`curl`, `gsutil` and `aws`) and 
 
 ## Installation
 
-1) Make sure that you have Java (>= 1.8) installed on your system.
+1) Make sure that you have Java (>= 11) installed on your system.
 
 	```bash
 	$ java -version
