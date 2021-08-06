@@ -19,8 +19,8 @@ update_apt: &update_apt
     sudo apt-get update
 
 
-install_python3: &install_python3_java
-  name: Install python3, pip3, java (openjdk-11)
+install_python3: &install_python3
+  name: Install python3, pip3
   command: |
     sudo apt-get install software-properties-common git wget curl -y
     sudo add-apt-repository ppa:deadsnakes/ppa -y
@@ -28,9 +28,6 @@ install_python3: &install_python3_java
     sudo wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py
     sudo python3.6 get-pip.py
     sudo ln -s /usr/bin/python3.6 /usr/local/bin/python3
-
-    sudo add-apt-repository ppa:openjdk-r/ppa -y
-    sudo apt-get update && sudo apt-get install openjdk-11-jdk -y
 
 
 install_singularity: &install_singularity
@@ -64,17 +61,26 @@ install_aws_lib: &install_aws_lib
     sudo pip3 install boto3 awscli
 
 
+install_java: &install_java
+  name: Install openjdk-11
+  command: |
+    sudo add-apt-repository ppa:openjdk-r/ppa -y
+    sudo apt-get update && sudo apt-get install openjdk-11-jdk -y
+    # automatically set 11 as default java
+    sudo update-java-alternatives -a
+
 jobs:
   pytest:
     <<: *machine_defaults
     steps:
       - checkout
       - run: *update_apt
-      - run: *install_python3_java
+      - run: *install_python3
       - run: *install_singularity
       - run: *install_py3_packages
       - run: *install_gcs_lib
       - run: *install_aws_lib
+      - run: *install_java
       - run:
           no_output_timeout: 60m
           command: |
