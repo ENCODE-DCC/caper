@@ -37,9 +37,9 @@ class Cromwell:
     """Wraps Cromwell/Womtool.
     """
 
-    DEFAULT_CROMWELL = 'https://github.com/broadinstitute/cromwell/releases/download/59/cromwell-59.jar'
+    DEFAULT_CROMWELL = 'https://github.com/broadinstitute/cromwell/releases/download/65/cromwell-65.jar'
     DEFAULT_WOMTOOL = (
-        'https://github.com/broadinstitute/cromwell/releases/download/59/womtool-59.jar'
+        'https://github.com/broadinstitute/cromwell/releases/download/65/womtool-65.jar'
     )
     DEFAULT_CROMWELL_INSTALL_DIR = '~/.caper/cromwell_jar'
     DEFAULT_WOMTOOL_INSTALL_DIR = '~/.caper/womtool_jar'

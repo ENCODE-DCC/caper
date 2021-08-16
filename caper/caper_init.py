@@ -108,6 +108,14 @@ backend=aws
 aws-batch-arn=
 aws-region=
 aws-out-dir=
+
+# use this modified cromwell to fix input file localization failures
+# (104 Connection reset by peer)
+# cromwell uses AWS CLI(aws s3 cp)'s native retry feature which is controlled by
+# several environment variables but it doesn't seem to work for some reason
+# this is an adhoc fix to make cromwell retry up to 5 times in the bash script level
+# https://github.com/ENCODE-DCC/cromwell/commit/d16af26483e0019e14d6f8b158eaf64529f57d98
+cromwell=https://storage.googleapis.com/caper-data/cromwell/cromwell-65-d16af26-SNAP.jar
 """
     + CONF_CONTENTS_TMP_DIR
 )
