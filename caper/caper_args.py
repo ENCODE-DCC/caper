@@ -537,6 +537,13 @@ def get_parser_and_defaults(conf_file=None):
         '--pbs-extra-param', help='PBS extra parameters. Must be double-quoted'
     )
 
+    group_lsf = parent_submit.add_argument_group('LSF arguemnts')
+    group_lsf.add_argument('--lsf-queue',help='LSF queue')
+    group_lsf.add_argument(
+        '--lsf-extra-param', help='LSF extra parameters. Must be double-quoted'
+    )
+
+
     # server
     parent_server = argparse.ArgumentParser(add_help=False)
     parent_server.add_argument(

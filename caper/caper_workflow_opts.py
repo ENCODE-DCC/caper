@@ -34,6 +34,8 @@ class CaperWorkflowOpts:
         sge_extra_param=None,
         pbs_queue=None,
         pbs_extra_param=None,
+        lsf_queue=None,
+        lsf_extra_param=None,
     ):
         """Template for a workflows options JSON file.
         All parameters are optional.

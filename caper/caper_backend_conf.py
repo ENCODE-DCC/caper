@@ -17,6 +17,7 @@ from .cromwell_backend import (
     CromwellBackendPBS,
     CromwellBackendSGE,
     CromwellBackendSLURM,
+    CromwellBackendLSF,
 )
 from .dict_tool import merge_dict
 from .hocon_string import HOCONString
@@ -70,6 +71,8 @@ class CaperBackendConf:
         sge_extra_param=None,
         pbs_queue=None,
         pbs_extra_param=None,
+        lsf_queue=None,
+        lsf_extra_param=None,
     ):
         """Initializes the backend conf's stanzas.
 
@@ -249,6 +252,18 @@ class CaperBackendConf:
                 local_hash_strat=local_hash_strat,
                 pbs_queue=pbs_queue,
                 pbs_extra_param=pbs_extra_param,
+            ),
+        )
+
+        merge_dict(
+            self._template,
+            CromwellBackendLSF(
+                local_out_dir=local_out_dir,
+                max_concurrent_tasks=max_concurrent_tasks,
+                soft_glob_output=soft_glob_output,
+                local_hash_strat=local_hash_strat,
+                lsf_queue=lsf_queue,
+                lsf_extra_param=lsf_extra_param,
             ),
         )
 

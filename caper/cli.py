@@ -220,6 +220,8 @@ def runner(args, nonblocking_server=False):
         sge_extra_param=getattr(args, 'sge_extra_param', None),
         pbs_queue=getattr(args, 'pbs_queue', None),
         pbs_extra_param=getattr(args, 'pbs_extra_param', None),
+        lsf_queue=getattr(arges, 'lsf_qeueu', None),
+        lsf_extra_param=getattr(args, 'pbs_extra_param', None),
     )
 
     if args.action == 'run':
@@ -262,6 +264,8 @@ def client(args):
             sge_extra_param=args.sge_extra_param,
             pbs_queue=args.pbs_queue,
             pbs_extra_param=args.pbs_extra_param,
+            lsf_queue=args.lsf_queue,
+            lsf_extra_param=args.lsf_extra_param,
         )
         subcmd_submit(c, args)
 

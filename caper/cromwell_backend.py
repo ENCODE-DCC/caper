@@ -16,6 +16,7 @@ BACKEND_ALIAS_LOCAL = 'local'
 BACKEND_SLURM = 'slurm'
 BACKEND_SGE = 'sge'
 BACKEND_PBS = 'pbs'
+BACKEND_LSF = 'lsf'
 DEFAULT_BACKEND = BACKEND_LOCAL
 
 FILESYSTEM_GCS = 'gcs'
@@ -837,3 +838,82 @@ class CromwellBackendPBS(CromwellBackendLocal):
             self.default_runtime_attributes['pbs_queue'] = pbs_queue
         if pbs_extra_param:
             self.default_runtime_attributes['pbs_extra_param'] = pbs_extra_param
+
+
+class CromwellBackendLSF(CromwellBackendLocal):
+    TEMPLATE_BACKEND = {
+        'config': {
+            'default-runtime-attributes': {'time': 24},
+            'script-epilogue': 'sleep 5',
+            'runtime-attributes': dedent(
+                """\
+                String? docker
+                String? docker_user
+                Int cpu = 1
+                Int? gpu
+                Int? time
+                Int? memory_mb
+                String? lsf_queue
+                String? lsf_extra_param
+                String? singularity
+                String? singularity_bindpath
+                String? singularity_cachedir
+            """
+            ),
+            'submit': dedent(
+                """\
+                if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
+                if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;
+
+                echo "${if !defined(singularity) then '/bin/bash ' + script
+                        else
+                          'singularity exec --cleanenv ' +
+                          '--home ' + cwd + ' ' +
+                          (if defined(gpu) then '--nv ' else '') +
+                          singularity + ' /bin/bash ' + script}" | \\
+                bsub \\
+                    
+                    -J ${job_name} \\
+                    -o ${out} \\
+                    -e ${err} \\
+                    ${true="-n " false="" defined(cpu)}${cpu} \\
+		            ${true="-M" false="" defined(memory_mb)}${memory_mb}${true="MB" false="" defined(memory_mb)} \\
+		            ${'-W' + time + ':0:0'} \\
+		            ${'-q ' + lsf_queue} \\
+                    ${'-gpu ' + gpu} \\
+                    ${lsf_extra_param} \\
+                    -V
+            """
+            ),
+            'exit-code-timeout-seconds': 180,
+            'kill':'bkill ${job_id}',
+            'check-alive': 'bjobs ${job_id}',
+            'job-id-regex': '(\\d+)',
+
+        }
+    }
+
+    def __init__(
+        self,
+        local_out_dir,
+        max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
+        soft_glob_output=False,
+        local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
+        lsf_queue=None,
+        lsf_extra_param=None,
+    ):
+        super().__init__(
+            local_out_dir=local_out_dir,
+            backend_name=BACKEND_LSF,
+            max_concurrent_tasks=max_concurrent_tasks,
+            soft_glob_output=soft_glob_output,
+            local_hash_strat=local_hash_strat,
+        )
+        self.merge_backend(CromwellBackendLSF.TEMPLATE_BACKEND)
+        self.backend_config.pop('submit-docker')
+
+        if lsf_queue:
+            self.default_runtime_attributes['lsf_queue'] = lsf_queue
+        if lsf_extra_param:
+            self.default_runtime_attributes['lsf_extra_param'] = lsf_extra_param
+

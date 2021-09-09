@@ -165,6 +165,8 @@ class CaperClientSubmit(CaperClient):
         sge_extra_param=None,
         pbs_queue=None,
         pbs_extra_param=None,
+        lsf_queue=None,
+        lsf_extra_param=None,
     ):
         """Submit subcommand needs much more parameters than other client subcommands.
 
@@ -217,6 +219,8 @@ class CaperClientSubmit(CaperClient):
             sge_extra_param=sge_extra_param,
             pbs_queue=pbs_queue,
             pbs_extra_param=pbs_extra_param,
+            lsf_queue=lsf_queue,
+            lsf_extra_param=lsf_extra_param,
         )
 
         self._caper_labels = CaperLabels()

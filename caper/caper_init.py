@@ -9,6 +9,7 @@ from .cromwell_backend import (
     BACKEND_PBS,
     BACKEND_SGE,
     BACKEND_SLURM,
+    BACKEND_LSF,
 )
 
 BACKEND_ALIAS_SHERLOCK = 'sherlock'
@@ -102,6 +103,14 @@ backend=pbs
     + CONF_CONTENTS_TMP_DIR
 )
 
+DEFAULT_CONF_CONTENTS_LSF = (
+        """
+backend=lsf
+"""
+  + CONF_CONTENTS_LOCAL_HASH_STRAT
+  + CONF_CONTENTS_TMP_DIR
+)
+
 DEFAULT_CONF_CONTENTS_AWS = (
     """
 backend=aws
@@ -168,6 +177,8 @@ def init_caper_conf(conf_file, backend):
         contents = DEFAULT_CONF_CONTENTS_SGE
     elif backend == BACKEND_PBS:
         contents = DEFAULT_CONF_CONTENTS_PBS
+    elif backend == BACKEND_LSF:
+        contents = DEFAULT_CONF_CONTENTS_LSF
     elif backend in BACKEND_GCP:
         contents = DEFAULT_CONF_CONTENTS_GCP
     elif backend in BACKEND_AWS:

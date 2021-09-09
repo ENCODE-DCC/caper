@@ -80,6 +80,8 @@ class CaperRunner(CaperBase):
         sge_extra_param=None,
         pbs_queue=None,
         pbs_extra_param=None,
+        lsf_queue=None,
+        lsf_extra_param=None,
     ):
         """See docstring of base class for other arguments.
 
