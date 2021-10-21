@@ -83,6 +83,7 @@ def init_autouri(args):
 def check_flags(args):
     singularity_flag = False
     docker_flag = False
+    conda_flag = False
 
     if hasattr(args, 'singularity') and args.singularity is not None:
         singularity_flag = True
@@ -108,8 +109,18 @@ def check_flags(args):
                 'for soft-linked globbed outputs.'
             )
 
-    if singularity_flag and docker_flag:
-        raise ValueError('--docker and --singularity are mutually exclusive.')
+    if hasattr(args, 'conda') and args.conda is not None:
+        conda_flag = True
+        if args.conda.endswith(('.wdl', '.cwl')):
+            raise ValueError(
+                '--conda ate up positional arguments (e.g. WDL, CWL). '
+                'Define --conda at the end of command line arguments. '
+                'conda={p}'.format(p=args.conda)
+            )
+
+    all_flags = (docker_flag, singularity_flag, conda_flag)
+    if len([flag for flag in all_flags if flag]) > 1:
+        raise ValueError('--docker, --singularity and --conda are mutually exclusive.')
 
 
 def check_dirs(args):
@@ -214,12 +225,15 @@ def runner(args, nonblocking_server=False):
         aws_call_caching_dup_strat=args.aws_call_caching_dup_strat,
         slurm_partition=getattr(args, 'slurm_partition', None),
         slurm_account=getattr(args, 'slurm_account', None),
+        slurm_resource_param=getattr(args, 'slurm_resource_param', None),
         slurm_extra_param=getattr(args, 'slurm_extra_param', None),
         sge_pe=getattr(args, 'sge_pe', None),
         sge_queue=getattr(args, 'sge_queue', None),
         sge_extra_param=getattr(args, 'sge_extra_param', None),
         pbs_queue=getattr(args, 'pbs_queue', None),
         pbs_extra_param=getattr(args, 'pbs_extra_param', None),
+        lsf_queue=getattr(args, 'lsf_queue', None),
+        lsf_extra_param=getattr(args, 'lsf_extra_param', None),
     )
 
     if args.action == 'run':
@@ -262,6 +276,8 @@ def client(args):
             sge_extra_param=args.sge_extra_param,
             pbs_queue=args.pbs_queue,
             pbs_extra_param=args.pbs_extra_param,
+            lsf_queue=args.lsf_queue,
+            lsf_extra_param=args.lsf_extra_param,
         )
         subcmd_submit(c, args)
 
@@ -355,8 +371,7 @@ def subcmd_run(caper_runner, args):
                 str_label=args.str_label,
                 docker=args.docker,
                 singularity=args.singularity,
-                singularity_cachedir=args.singularity_cachedir,
-                no_build_singularity=args.no_build_singularity,
+                conda=args.conda,
                 custom_backend_conf=get_abspath(args.backend_file),
                 max_retries=args.max_retries,
                 memory_retry_multiplier=args.memory_retry_multiplier,
@@ -390,8 +405,7 @@ def subcmd_submit(caper_client, args):
         str_label=args.str_label,
         docker=args.docker,
         singularity=args.singularity,
-        singularity_cachedir=args.singularity_cachedir,
-        no_build_singularity=args.no_build_singularity,
+        conda=args.conda,
         max_retries=args.max_retries,
         memory_retry_multiplier=args.memory_retry_multiplier,
         gcp_monitoring_script=args.gcp_monitoring_script,

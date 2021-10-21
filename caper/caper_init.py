@@ -6,13 +6,39 @@ from .cromwell_backend import (
     BACKEND_AWS,
     BACKEND_GCP,
     BACKEND_LOCAL,
+    BACKEND_LSF,
     BACKEND_PBS,
     BACKEND_SGE,
     BACKEND_SLURM,
+    CromwellBackendLsf,
+    CromwellBackendPbs,
+    CromwellBackendSge,
+    CromwellBackendSlurm,
 )
 
 BACKEND_ALIAS_SHERLOCK = 'sherlock'
 BACKEND_ALIAS_SCG = 'scg'
+
+
+CONF_CONTENTS_DB = """
+# Metadata DB for call-caching (reusing previous outputs):
+# Cromwell supports restarting workflows based on a metadata DB
+# DB is in-memory by default
+db=in-memory
+
+# If you use 'caper run' and want to use call-caching:
+# Make sure to define different 'caper run ... --db file --file-db DB_PATH'
+# for each pipeline run.
+# But if you want to restart then define the same '--db file --file-db DB_PATH'
+# then Caper will collect/re-use previous outputs without running the same task again
+# Previous outputs will be simply hard/soft-linked.
+
+# If you use 'caper server' then you can use one unified '--file-db'
+# for all submitted workflows. In such case, uncomment the following two lines
+# and defined file-db as an absolute path to store metadata of all workflows
+#db=file
+#file-db=
+"""
 
 CONF_CONTENTS_LOCAL_HASH_STRAT = """
 # Hashing strategy for call-caching (3 choices)
@@ -36,17 +62,95 @@ CONF_CONTENTS_TMP_DIR = """
 local-loc-dir=
 """
 
+CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP = """
+# This parameter is NOT for 'caper submit' BUT for 'caper run' and 'caper server' only.
+# This resource parameter string will be passed to sbatch, qsub, bsub, ...
+# You can customize it according to your cluster's configuration.
+
+# Note that Cromwell's implicit type conversion (String to Integer)
+# seems to be buggy for WomLong type memory variables (memory_mb and memory_gb).
+# So be careful about using the + operator between WomLong and other types (String, even Int).
+# For example, ${"--mem=" + memory_mb} will not work since memory_mb is WomLong.
+# Use ${"if defined(memory_mb) then "--mem=" else ""}{memory_mb}${"if defined(memory_mb) then "mb " else " "}
+# See https://github.com/broadinstitute/cromwell/issues/4659 for details
+
+# Cromwell's built-in variables (attributes defined in WDL task's runtime)
+# Use them within ${} notation.
+# - cpu: number of cores for a job (default = 1)
+# - memory_mb, memory_gb: total memory for a job in MB, GB
+#   * these are converted from 'memory' string attribute (including size unit)
+#     defined in WDL task's runtime
+# - time: time limit for a job in hour
+# - gpu: specified gpu name or number of gpus (it's declared as String)
+"""
+
+CONF_CONTENTS_SLURM_PARAM = """
+{help_context}
+slurm-resource-param={slurm_resource_param}
+
+# If needed uncomment and define any extra SLURM sbatch parameters here
+# YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE
+#slurm-extra-param=
+""".format(
+    help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
+    slurm_resource_param=CromwellBackendSlurm.DEFAULT_SLURM_RESOURCE_PARAM,
+)
+
+CONF_CONTENTS_SGE_PARAM = """
+{help_context}
+# Parallel environment of SGE:
+# Find one with `$ qconf -spl` or ask you admin to add one if not exists.
+# If your cluster works without PE then edit the below sge-resource-param
+sge-pe=
+sge-resource-param={sge_resource_param}
+
+# If needed uncomment and define any extra SGE qsub parameters here
+# YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE
+#sge-extra-param=
+""".format(
+    help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
+    sge_resource_param=CromwellBackendSge.DEFAULT_SGE_RESOURCE_PARAM,
+)
+
+CONF_CONTENTS_PBS_PARAM = """
+{help_context}
+pbs-resource-param={pbs_resource_param}
+
+# If needed uncomment and define any extra PBS qsub parameters here
+# YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE
+#pbs-extra-param=
+""".format(
+    help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
+    pbs_resource_param=CromwellBackendPbs.DEFAULT_PBS_RESOURCE_PARAM,
+)
+
+CONF_CONTENTS_LSF_PARAM = """
+{help_context}
+lsf-resource-param={lsf_resource_param}
+
+# If needed uncomment and define any extra LSF bsub parameters here
+# YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE
+#lsf-extra-param=
+""".format(
+    help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
+    lsf_resource_param=CromwellBackendLsf.DEFAULT_LSF_RESOURCE_PARAM,
+)
+
 DEFAULT_CONF_CONTENTS_LOCAL = (
     """
 backend=local
 """
+    + CONF_CONTENTS_DB
     + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
 DEFAULT_CONF_CONTENTS_SHERLOCK = (
     """
 backend=slurm
+
+# SLURM partition. Define only if required by a cluster. You must define it for Stanford Sherlock.
 slurm-partition=
 
 # IMPORTANT warning for Stanford Sherlock cluster
@@ -58,17 +162,22 @@ slurm-partition=
 # It's STILL OKAY to read input data from and write outputs to $SCRATCH or $OAK.
 # ====================================================================
 """
+    + CONF_CONTENTS_SLURM_PARAM
     + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
 DEFAULT_CONF_CONTENTS_SCG = (
     """
 backend=slurm
-slurm-account=
 
+# SLURM account. Define only if required by a cluster. You must define it for Stanford SCG.
+slurm-account=
 """
+    + CONF_CONTENTS_SLURM_PARAM
     + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
@@ -78,19 +187,30 @@ backend=slurm
 
 # define one of the followings (or both) according to your
 # cluster's SLURM configuration.
+
+# SLURM partition. Define only if required by a cluster. You must define it for Stanford Sherlock.
 slurm-partition=
+# SLURM account. Define only if required by a cluster. You must define it for Stanford SCG.
 slurm-account=
 """
+    + CONF_CONTENTS_SLURM_PARAM
     + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
 DEFAULT_CONF_CONTENTS_SGE = (
     """
 backend=sge
+
+# Parallel environement is required, ask your administrator to create one
+# If your cluster doesn't support PE then edit 'sge-resource-param'
+# to fit your cluster's configuration.
 sge-pe=
 """
+    + CONF_CONTENTS_SGE_PARAM
     + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
@@ -98,15 +218,30 @@ DEFAULT_CONF_CONTENTS_PBS = (
     """
 backend=pbs
 """
+    + CONF_CONTENTS_PBS_PARAM
     + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_DB
+    + CONF_CONTENTS_TMP_DIR
+)
+
+DEFAULT_CONF_CONTENTS_LSF = (
+    """
+backend=lsf
+"""
+    + CONF_CONTENTS_LSF_PARAM
+    + CONF_CONTENTS_LOCAL_HASH_STRAT
+    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
 DEFAULT_CONF_CONTENTS_AWS = (
     """
 backend=aws
+# ARN for AWS Batch.
 aws-batch-arn=
+# AWS region (e.g. us-west-1)
 aws-region=
+# Output bucket path for AWS. This should start with `s3://`.
 aws-out-dir=
 
 # use this modified cromwell to fix input file localization failures
@@ -123,7 +258,9 @@ cromwell=https://storage.googleapis.com/caper-data/cromwell/cromwell-65-d16af26-
 DEFAULT_CONF_CONTENTS_GCP = (
     """
 backend=gcp
+# Google Cloud Platform Project
 gcp-prj=
+# Output bucket path for Google Cloud Platform. This should start with `gs://`.
 gcp-out-dir=
 
 # Call-cached outputs will be duplicated by making a copy or reference
@@ -133,7 +270,7 @@ gcp-call-caching-dup-strat=
 
 # Use Google Cloud Life Sciences API instead of Genomics API (deprecating).
 # Make sure to enable Google Cloud Life Sciences API on your Google Cloud Console
-use-google-cloud-life-sciences=false
+use-google-cloud-life-sciences=true
 
 # gcp-region is required for Life Sciences API only.
 # Region is different from zone. Zone is more specific.
@@ -176,6 +313,8 @@ def init_caper_conf(conf_file, backend):
         contents = DEFAULT_CONF_CONTENTS_SGE
     elif backend == BACKEND_PBS:
         contents = DEFAULT_CONF_CONTENTS_PBS
+    elif backend == BACKEND_LSF:
+        contents = DEFAULT_CONF_CONTENTS_LSF
     elif backend in BACKEND_GCP:
         contents = DEFAULT_CONF_CONTENTS_GCP
     elif backend in BACKEND_AWS:

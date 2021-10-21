@@ -11,9 +11,9 @@ class CaperWDLParser(WDLParser):
 
     RE_WDL_COMMENT_DOCKER = r'^\s*\#\s*CAPER\s+docker\s(.+)'
     RE_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CAPER\s+singularity\s(.+)'
-    WDL_WORKFLOW_META_DOCKER = ('default_docker', 'caper_docker')
-    WDL_WORKFLOW_META_SINGULARITY = ('default_singularity', 'caper_singularity')
-    WDL_WORKFLOW_META_CONDA = (
+    WDL_WORKFLOW_META_DOCKER_KEYS = ('default_docker', 'caper_docker')
+    WDL_WORKFLOW_META_SINGULARITY_KEYS = ('default_singularity', 'caper_singularity')
+    WDL_WORKFLOW_META_CONDA_KEYS = (
         'default_conda',
         'default_conda_env',
         'caper_conda',
@@ -25,6 +25,12 @@ class CaperWDLParser(WDLParser):
 
     @property
     def caper_docker(self):
+        """Backward compatibility for property name. See property default_docker.
+        """
+        return self.default_docker
+
+    @property
+    def default_docker(self):
         """Find a default Docker image in WDL for Caper.
 
         Backward compatibililty:
@@ -32,7 +38,7 @@ class CaperWDLParser(WDLParser):
             if WDL_WORKFLOW_META_DOCKER doesn't exist in workflow's meta
         """
         if self.workflow_meta:
-            for docker_key in CaperWDLParser.WDL_WORKFLOW_META_DOCKER:
+            for docker_key in CaperWDLParser.WDL_WORKFLOW_META_DOCKER_KEYS:
                 if docker_key in self.workflow_meta:
                     return self.workflow_meta[docker_key]
 
@@ -42,6 +48,12 @@ class CaperWDLParser(WDLParser):
 
     @property
     def caper_singularity(self):
+        """Backward compatibility for property name. See property default_singularity.
+        """
+        return self.default_singularity
+
+    @property
+    def default_singularity(self):
         """Find a default Singularity image in WDL for Caper.
 
         Backward compatibililty:
@@ -49,7 +61,7 @@ class CaperWDLParser(WDLParser):
             if WDL_WORKFLOW_META_SINGULARITY doesn't exist in workflow's meta
         """
         if self.workflow_meta:
-            for singularity_key in CaperWDLParser.WDL_WORKFLOW_META_SINGULARITY:
+            for singularity_key in CaperWDLParser.WDL_WORKFLOW_META_SINGULARITY_KEYS:
                 if singularity_key in self.workflow_meta:
                     return self.workflow_meta[singularity_key]
 
@@ -58,10 +70,10 @@ class CaperWDLParser(WDLParser):
             return ret[0].strip('"\'')
 
     @property
-    def caper_conda(self):
+    def default_conda(self):
         """Find a default Conda environment name in WDL for Caper.
         """
         if self.workflow_meta:
-            for conda_key in CaperWDLParser.WDL_WORKFLOW_META_CONDA:
+            for conda_key in CaperWDLParser.WDL_WORKFLOW_META_CONDA_KEYS:
                 if conda_key in self.workflow_meta:
                     return self.workflow_meta[conda_key]

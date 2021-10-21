@@ -8,7 +8,6 @@ from .caper_wdl_parser import CaperWDLParser
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
 from .cromwell_rest_api import CromwellRestAPI, has_wildcard, is_valid_uuid
-from .singularity import Singularity
 
 logger = logging.getLogger(__name__)
 
@@ -233,8 +232,7 @@ class CaperClientSubmit(CaperClient):
         user=None,
         docker=None,
         singularity=None,
-        singularity_cachedir=Singularity.DEFAULT_SINGULARITY_CACHEDIR,
-        no_build_singularity=False,
+        conda=None,
         max_retries=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
         memory_retry_multiplier=CaperWorkflowOpts.DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_monitoring_script=CaperWorkflowOpts.DEFAULT_GCP_MONITORING_SCRIPT,
@@ -277,18 +275,9 @@ class CaperClientSubmit(CaperClient):
                 This will be overriden by existing "docker" attr defined in
                 WDL's task's "runtime {} section.
             singularity:
-                Singularity image to run a workflow on.
-                To use this, do not define "docker" attribute in
-                WDL's task's "runtime {} section.
-            singularity_cachedir:
-                Cache directory for local Singularity images.
-                If there is a shell environment variable SINGULARITY_CACHEDIR
-                define then this parameter will be ignored.
-            no_build_singularity:
-                Do not build local singularity image.
-                However, a local singularity image will be eventually built on
-                env var SINGULARITY_CACHEDIR.
-                Therefore, use this flag if you have already built it.
+                Default Singularity image to run a workflow on.
+            conda:
+                Default Conda environment to run a workflow.
             max_retries:
                 Max retrial for a failed task. 0 or None means no trial.
             memory_retry_multiplier:
@@ -353,8 +342,7 @@ class CaperClientSubmit(CaperClient):
             custom_options=options,
             docker=docker,
             singularity=singularity,
-            singularity_cachedir=singularity_cachedir,
-            no_build_singularity=no_build_singularity,
+            conda=conda,
             max_retries=max_retries,
             memory_retry_multiplier=memory_retry_multiplier,
             gcp_monitoring_script=gcp_monitoring_script,
