@@ -485,22 +485,22 @@ class CromwellBackendLocal(CromwellBackendBase):
         SUBMIT_DOCKER:
             Cromwell falls back to 'submit_docker' instead of 'submit' if WDL task has
             'docker' in runtime.
-            Docker and Singularity can map paths between in and out of the container on their own.
-            So this is not an issue for those container environments. But Conda cannot.
+            Docker and Singularity can map paths between inside and outside of the container.
+            So this is not an issue for those container environments.
 
             For Conda, any container paths (/cromwell-executions/**) in the script is simply
             replaced with CWD.
 
-            This also replaces filenames written in write_*.tsv files (grabbed by WDL functions).
+            This also replaces filenames written in write_*.tsv files (globbed by WDL functions).
             e.g. write_lines(), write_tsv(), ...
 
-            See the following for such WDL functions:
+            See the following document for such WDL functions:
             https://github.com/openwdl/wdl/blob/main/versions/development/SPEC.md#file-write_linesarraystring
 
             Possible issue:
             - 'sed' is used here with a delimiter as hash mark (#)
               so hash marks in output path can result in error.
-            - Files grabbed by WDL functions other than write_*() will still have container paths.
+            - Files globbed by WDL functions other than write_*() will still have paths inside a container.
 
     """
 
@@ -576,10 +576,7 @@ class CromwellBackendLocal(CromwellBackendBase):
              [ '${defined(environment)}' == 'false' ] && [ '${defined(conda)}' == 'true' ] && [ ! -z '${conda}' ]
         then
             shopt -s nullglob
-            for file_to_remap_path in ${script} `dirname ${script}`/write_*.tmp
-            do
-                sed -i 's#${docker_cwd}#${cwd}#g' $file_to_remap_path
-            done
+            sed -i 's#${docker_cwd}#${cwd}#g' ${script} `dirname ${script}`/write_*.tmp
 
             conda run --name=${conda} ${job_shell} ${script} & echo $! > ${docker_cid}
             touch ${docker_cid}.not_docker
