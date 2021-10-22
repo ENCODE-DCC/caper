@@ -869,7 +869,7 @@ class CromwellBackendSlurm(CromwellBackendHpc):
             slurm_resource_param=slurm_resource_param,
         )
         submit_docker = CromwellBackendSlurm.TEMPLATE_SLURM_SUBMIT.format(
-            submit=CromwellBackendHpc.HPC_SUBMIT,
+            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
             slurm_resource_param=slurm_resource_param,
         )
 
@@ -960,7 +960,8 @@ class CromwellBackendSge(CromwellBackendHpc):
             submit=CromwellBackendLocal.SUBMIT, sge_resource_param=sge_resource_param
         )
         submit_docker = CromwellBackendSge.TEMPLATE_SGE_SUBMIT.format(
-            submit=CromwellBackendHpc.HPC_SUBMIT, sge_resource_param=sge_resource_param
+            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
+            sge_resource_param=sge_resource_param,
         )
 
         super().__init__(
@@ -1044,7 +1045,8 @@ class CromwellBackendPbs(CromwellBackendHpc):
             submit=CromwellBackendLocal.SUBMIT, pbs_resource_param=pbs_resource_param
         )
         submit_docker = CromwellBackendPbs.TEMPLATE_PBS_SUBMIT.format(
-            submit=CromwellBackendHpc.HPC_SUBMIT, pbs_resource_param=pbs_resource_param
+            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
+            pbs_resource_param=pbs_resource_param,
         )
 
         super().__init__(
@@ -1127,7 +1129,8 @@ class CromwellBackendLsf(CromwellBackendHpc):
             submit=CromwellBackendLocal.SUBMIT, lsf_resource_param=lsf_resource_param
         )
         submit_docker = CromwellBackendLsf.TEMPLATE_LSF_SUBMIT.format(
-            submit=CromwellBackendHpc.HPC_SUBMIT, lsf_resource_param=lsf_resource_param
+            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
+            lsf_resource_param=lsf_resource_param,
         )
 
         super().__init__(
