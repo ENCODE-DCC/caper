@@ -482,10 +482,7 @@ class CromwellBackendAws(CromwellBackendBase):
 class CromwellBackendLocal(CromwellBackendBase):
     """Class constants:
 
-        SUBMIT_DOCKER_PATH_REMAP_FOR_CONDA:
-            These shell script contents will be prepended to 'submit-docker' (docker version of 'submit')
-            when Conda is used.
-
+        SUBMIT_DOCKER:
             Cromwell falls back to 'submit_docker' instead of 'submit' if WDL task has
             'docker' in runtime.
             Docker and Singularity can map paths between in and out of the container on their own.
@@ -578,6 +575,11 @@ class CromwellBackendLocal(CromwellBackendBase):
         elif [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'conda' ] || \\
              [ '${defined(environment)}' == 'false' ] && [ '${defined(conda)}' == 'true' ] && [ ! -z '${conda}' ]
         then
+            for file_to_remap_path in ${script} `dirname ${script}`/write_*.tmp
+            do
+                sed -i 's#${docker_cwd}#${cwd}#g' $file_to_remap_path
+            done
+
             conda run --name=${conda} ${job_shell} ${script} & echo $! > ${docker_cid}
             touch ${docker_cid}.not_docker
             wait `cat ${docker_cid}`
@@ -603,18 +605,6 @@ class CromwellBackendLocal(CromwellBackendBase):
         fi
     """
     )
-    SUBMIT_DOCKER_PATH_REMAP_FOR_CONDA = dedent(
-        """
-        if [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'conda' ] || \\
-             [ '${defined(environment)}' == 'false' ] && [ '${defined(conda)}' == 'true' ] && [ ! -z '${conda}' ]
-        then
-            for file_to_remap_path in ${script} `dirname ${script}`/write_*.tmp
-            do
-                sed -i 's#${docker_cwd}#${cwd}#g' $file_to_remap_path
-            done
-        fi
-    """
-    )
     TEMPLATE_BACKEND = {
         'actor-factory': 'cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory',
         'config': {
@@ -632,9 +622,7 @@ class CromwellBackendLocal(CromwellBackendBase):
             'run-in-background': True,
             'runtime-attributes': RUNTIME_ATTRIBUTES,
             'submit': SUBMIT,
-            'submit-docker': '\n'.join(
-                [SUBMIT_DOCKER_PATH_REMAP_FOR_CONDA, SUBMIT_DOCKER]
-            ),
+            'submit-docker': SUBMIT_DOCKER,
             'kill-docker': KILL_DOCKER,
         },
     }
@@ -802,15 +790,14 @@ class CromwellBackendSlurm(CromwellBackendHpc):
     """
     )
     SLURM_KILL = 'scancel ${job_id}'
-    SLURM_JOB_ID_REGEX = 'Submitted batch job (\\d+).*'
+    SLURM_JOB_ID_REGEX = 'Submitted batch job ([0-9]+).*'
 
     # this is a template that requires formatting
-    # (submit_docker_path_remap_for_conda, submit, slurm_resource_param)
+    # (submit, slurm_resource_param)
     TEMPLATE_SLURM_SUBMIT = dedent(
         """
         cat << EOF > ${{script}}.caper
         #!/bin/bash
-        {submit_docker_path_remap_for_conda}
         {submit}
         EOF
 
@@ -862,13 +849,11 @@ class CromwellBackendSlurm(CromwellBackendHpc):
                 e.g. sbatch ... THIS_RESOURCE_PARAM
         """
         submit = CromwellBackendSlurm.TEMPLATE_SLURM_SUBMIT.format(
-            submit_docker_path_remap_for_conda='',
             submit=CromwellBackendLocal.SUBMIT,
             slurm_resource_param=slurm_resource_param,
         )
         submit_docker = CromwellBackendSlurm.TEMPLATE_SLURM_SUBMIT.format(
-            submit_docker_path_remap_for_conda=CromwellBackendLocal.SUBMIT_DOCKER_PATH_REMAP_FOR_CONDA,
-            submit=CromwellBackendLocal.SUBMIT,
+            submit=CromwellBackendLocal.SUBMIT_DOCKER,
             slurm_resource_param=slurm_resource_param,
         )
 
@@ -906,15 +891,14 @@ class CromwellBackendSge(CromwellBackendHpc):
     SGE_KILL = 'qdel ${job_id}'
 
     # qsub -terse is used to simply this regex
-    SGE_JOB_ID_REGEX = '(\\d+)'
+    SGE_JOB_ID_REGEX = '([0-9]+)'
 
     # this is a template that requires formatting
-    # (submit_docker_path_remap_for_conda, submit, sge_resource_param)
+    # (submit, sge_resource_param)
     TEMPLATE_SGE_SUBMIT = dedent(
         """
         cat << EOF > ${{script}}.caper
         #!/bin/bash
-        {submit_docker_path_remap_for_conda}
         {submit}
         EOF
 
@@ -957,13 +941,10 @@ class CromwellBackendSge(CromwellBackendHpc):
                 e.g. qsub ... THIS_RESOURCE_PARAM
         """
         submit = CromwellBackendSge.TEMPLATE_SGE_SUBMIT.format(
-            submit_docker_path_remap_for_conda='',
-            submit=CromwellBackendLocal.SUBMIT,
-            sge_resource_param=sge_resource_param,
+            submit=CromwellBackendLocal.SUBMIT, sge_resource_param=sge_resource_param
         )
         submit_docker = CromwellBackendSge.TEMPLATE_SGE_SUBMIT.format(
-            submit_docker_path_remap_for_conda=CromwellBackendLocal.SUBMIT_DOCKER_PATH_REMAP_FOR_CONDA,
-            submit=CromwellBackendLocal.SUBMIT,
+            submit=CromwellBackendLocal.SUBMIT_DOCKER,
             sge_resource_param=sge_resource_param,
         )
 
@@ -998,15 +979,14 @@ class CromwellBackendPbs(CromwellBackendHpc):
     )
     PBS_CHECK_ALIVE = 'qstat ${job_id}'
     PBS_KILL = 'qdel ${job_id}'
-    PBS_JOB_ID_REGEX = '(\\d+)'
+    PBS_JOB_ID_REGEX = '([0-9]+)'
 
     # this is a template that requires formatting
-    # (submit_docker_path_remap_for_conda, submit, pbs_resource_param)
+    # (submit, pbs_resource_param)
     TEMPLATE_PBS_SUBMIT = dedent(
         """
         cat << EOF > ${{script}}.caper
         #!/bin/bash
-        {submit_docker_path_remap_for_conda}
         {submit}
         EOF
 
@@ -1046,13 +1026,10 @@ class CromwellBackendPbs(CromwellBackendHpc):
                 e.g. qsub ... THIS_RESOURCE_PARAM
         """
         submit = CromwellBackendPbs.TEMPLATE_PBS_SUBMIT.format(
-            submit_docker_path_remap_for_conda='',
-            submit=CromwellBackendLocal.SUBMIT,
-            pbs_resource_param=pbs_resource_param,
+            submit=CromwellBackendLocal.SUBMIT, pbs_resource_param=pbs_resource_param
         )
         submit_docker = CromwellBackendPbs.TEMPLATE_PBS_SUBMIT.format(
-            submit_docker_path_remap_for_conda=CromwellBackendLocal.SUBMIT_DOCKER_PATH_REMAP_FOR_CONDA,
-            submit=CromwellBackendLocal.SUBMIT,
+            submit=CromwellBackendLocal.SUBMIT_DOCKER,
             pbs_resource_param=pbs_resource_param,
         )
 
@@ -1085,15 +1062,14 @@ class CromwellBackendLsf(CromwellBackendHpc):
     )
     LSF_CHECK_ALIVE = 'bjobs ${job_id}'
     LSF_KILL = 'bkill ${job_id}'
-    LSF_JOB_ID_REGEX = 'Job <(\\d+)>.*'
+    LSF_JOB_ID_REGEX = 'Job <([0-9]+)>.*'
 
     # this is a template that requires formatting
-    # (submit_docker_path_remap_for_conda, submit, lsf_resource_param)
+    # (submit, lsf_resource_param)
     TEMPLATE_LSF_SUBMIT = dedent(
         """
         cat << EOF > ${{script}}.caper
         #!/bin/bash
-        {submit_docker_path_remap_for_conda}
         {submit}
         EOF
 
@@ -1134,13 +1110,10 @@ class CromwellBackendLsf(CromwellBackendHpc):
                 e.g. qsub ... THIS_RESOURCE_PARAM
         """
         submit = CromwellBackendLsf.TEMPLATE_LSF_SUBMIT.format(
-            submit_docker_path_remap_for_conda='',
-            submit=CromwellBackendLocal.SUBMIT,
-            lsf_resource_param=lsf_resource_param,
+            submit=CromwellBackendLocal.SUBMIT, lsf_resource_param=lsf_resource_param
         )
         submit_docker = CromwellBackendLsf.TEMPLATE_LSF_SUBMIT.format(
-            submit_docker_path_remap_for_conda=CromwellBackendLocal.SUBMIT_DOCKER_PATH_REMAP_FOR_CONDA,
-            submit=CromwellBackendLocal.SUBMIT,
+            submit=CromwellBackendLocal.SUBMIT_DOCKER,
             lsf_resource_param=lsf_resource_param,
         )
 
