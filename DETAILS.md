@@ -147,10 +147,9 @@ We highly recommend to use a default configuration file described in the section
 	:-----|:-----
 	--dry-run|Caper generates all temporary files but does not take any action.
 	--str-label, -s|Caper's special label for a workflow. This will be used to identify a workflow submitted by Caper
-	--docker|Docker image URI for a WDL. You can also use this as a flag. You can also use this as a flag to use Docker image defined in your WDL as a special comment `#CAPER docker [IMAGE]`.
-	--singularity|Singularity image URI for a WDL. You can also use this as a flag to use Singularity image defined in your WDL as a special comment `#CAPER singularity [IMAGE]`.
-	--no-build-singularity|Local singularity image will not be built before running/submitting a workflow
-	--singularity-cachedir|Singularity image URI for a WDL
+	--docker|Docker image URI for a WDL. You can also use this as a flag to use Docker image defined in your WDL's `meta` section under the key `default_docker`. THIS WILL BE OVERRIDEN BY `docker` DEFINED IN EACH TASK's `runtime`.
+	--singularity|Singularity image URI for a WDL. You can also use this as a flag to use Singularity image defined in your WDL's `meta` section under the key `default_singularity`. THIS WILL BE OVERRIDEN BY `singularity` DEFINED IN EACH TASK's `runtime`.
+	--conda|Conda environment name to run a WDL task. You can also use this as a flag to use Conda environment defined in your WDL's `meta` section under the key `default_conda`. THIS WILL BE OVERRIDEN BY `conda` DEFINED IN EACH TASK's `runtime`.
 	--db|Metadata DB type (file: not recommended, mysql: recommended, in-memory: no metadata DB)
 	--file-db, -d|File-based metadata DB for Cromwell's built-in HyperSQL database (UNSTABLE)
 	--db-timeout|Milliseconds to wait for DB connection (default: 30000)
