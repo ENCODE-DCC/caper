@@ -164,6 +164,8 @@ class CaperClientSubmit(CaperClient):
         sge_extra_param=None,
         pbs_queue=None,
         pbs_extra_param=None,
+        lsf_queue=None,
+        lsf_extra_param=None,
     ):
         """Submit subcommand needs much more parameters than other client subcommands.
 
@@ -192,6 +194,10 @@ class CaperClientSubmit(CaperClient):
                 PBS queue.
             pbs_extra_param:
                 PBS extra parameter to be appended to qsub command line.
+            lsf_queue:
+                LSF queue.
+            lsf_extra_param:
+                LSF extra parameter to be appended to bsub command line.
         """
         super().__init__(
             local_loc_dir=local_loc_dir,
@@ -216,6 +222,8 @@ class CaperClientSubmit(CaperClient):
             sge_extra_param=sge_extra_param,
             pbs_queue=pbs_queue,
             pbs_extra_param=pbs_extra_param,
+            lsf_queue=lsf_queue,
+            lsf_extra_param=lsf_extra_param,
         )
 
         self._caper_labels = CaperLabels()
