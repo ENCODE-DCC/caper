@@ -6,79 +6,70 @@ Caper (Cromwell Assisted Pipeline ExecutoR) is a wrapper Python package for [Cro
 
 ## Introduction
 
-Caper wraps Cromwell to run pipelines on multiple platforms like GCP (Google Cloud Platform), AWS (Amazon Web Service) and HPCs like SLURM, SGE, PBS/Torque and LSF. It provides easier way of running Cromwell server/run modes by automatically composing necessary input files for Cromwell. Also, Caper can run each task on a specified environment (Docker, Singularity or Conda). Caper automatically localizes all files defined in your input JSON according to the specified backend. For example, if your chosen backend is GCP and files in your input JSON are on S3 buckets (or even URLs) then Caper automatically transfers `s3://` and `http(s)://` files to a specified `gs://` bucket directory. Supported URIs are `s3://`, `gs://`, `http(s)://` and local absolute paths. Private URIs are also accessible if you authenticate using cloud platform CLIs like `gcloud auth`, `aws configure` and using `~/.netrc` for URLs.
+Caper wraps Cromwell to run pipelines on multiple platforms like GCP (Google Cloud Platform), AWS (Amazon Web Service) and HPCs like SLURM, SGE, PBS/Torque and LSF. It provides easier way of running Cromwell server/run modes by automatically composing necessary input files for Cromwell. Also, Caper can run each task on a specified environment (Docker, Singularity or Conda). Caper automatically recursively localizes all files (keeping their directory structure) defined in your input JSON and command line according to the specified backend. For example, if your chosen backend is GCP and files in your input JSON are on S3 buckets (or even URLs) then Caper automatically transfers `s3://` and `http(s)://` files to a specified `gs://` bucket directory. Supported URIs are `s3://`, `gs://`, `http(s)://` and local absolute paths. Private URIs are also accessible if you authenticate using cloud platform CLIs like `gcloud auth`, `aws configure` and using `~/.netrc` for URLs.
+
+
+## Installation for Google Cloud Platform and AWS
+
+See [this](scripts/gcp_caper_server/README.md) for details.
+
+
+## Installation for AWS
+
+See [this](scripts/aws_caper_server/README.md) for details.
+
 
 ## Installation
 
-1) Make sure that you have Java (>= 11) installed on your system.
+1) Make sure that you have Java (>= 11) and Python>=3.6 installed on your system and `pip` to install Caper.
 
 	```bash
 	$ java -version
-	```
 
-2) Make sure that you have `python >= 3.6` installed on your system. Use `pip` to install Caper. If you use a pipeline with its own Conda environment then activate the environment first. i.e. installing Caper inside the environment.
-
-	```bash
+	# Install Caper
 	$ pip install caper
-	```
 
-	If `pip` doesn't work then `git clone` this repo and manually add `bin/` to your environment variable `PATH` in your BASH startup scripts (`~/.bashrc`).
-
-	```bash
-	$ git clone https://github.com/ENCODE-DCC/caper
-	$ echo "export PATH=\"\$PATH:$PWD/caper/bin\"" >> ~/.bashrc
-	```
-
-3) Test-run Caper.
-
-	```bash
+	# Check Caper's version after installation
 	$ caper -v
 	```
 
-4) If you see an error message like `caper: command not found` then add the following line to the bottom of `~/.bashrc` and re-login.
+2) If you see an error message like `caper: command not found` then add the following line to the bottom of `~/.bashrc` and re-login.
 
 	```bash
 	export PATH=$PATH:~/.local/bin
 	```
 
-5) Choose a backend from the following table and initialize Caper. This will create a default Caper configuration file `~/.caper/default.conf`, which have only required parameters for each backend. There are special options (`sherlock` and `scg`) for Stanford Sherlock/SCG users. `caper init` will also install Cromwell/Womtool JARs on `~/.caper/`. Downloading those files can take up to 10 minutes. Once they are installed, Caper can completely work offline with local data files.
+3) Choose a backend from the following table and initialize Caper. This will create a default Caper configuration file `~/.caper/default.conf`, which have only required parameters for each backend. `caper init` will also install Cromwell/Womtool JARs on `~/.caper/`. Downloading those files can take up to 10 minutes. Once they are installed, Caper can completely work offline with local data files.
+
+	**Backend**|**Description**
+	:--------|:-----
+	local | local computer without cluster engine.
+	slurm | SLURM cluster.
+	sge | Sun GridEngine cluster.
+	pbs | PBS cluster.
+	lsf | LSF cluster.
+	sherlock | Stanford Sherlock (based on `slurm` backend).
+	scg | Stanford SCG (based on `slurm` backend).
 
 	```bash
 	$ caper init [BACKEND]
 	```
 
-	**Backend**|**Description**
-	:--------|:-----
-	local | General local computer.
-	slurm | HPC with SLURM cluster engine.
-	sge | HPC with Sun GridEngine cluster engine.
-	pbs | HPC with PBS cluster engine.
-  lsf | HPC with LSF cluster engine.
-	sherlock | Stanford Sherlock (based on `slurm` backend).
-	scg | Stanford SCG (based on `slurm` backend).
-  gcp | Google Cloud Platform. See scripts/gcp_caper_server/README.md instead of running `caper init gcp`.
-  aws | Amazon Web Service. See scripts/aws_caper_server/README.md instead of running `caper init aws`.
+4) Edit `~/.caper/default.conf`. **DO NOT LEAVE ANY PARAMETERS UNDEFINED OR CAPER WILL NOT WORK CORRECTLY**
 
-6) Edit `~/.caper/default.conf`. **DO NOT LEAVE ANY PARAMETERS UNDEFINED OR CAPER WILL NOT WORK CORRECTLY**
-
-
-## Output directory
-
-> **IMPORTANT**: Unless you are running Caper on cloud platforms (`aws`, `gcp`) and `--local-out-dir` is not explicitly defined, all outputs will be written to a current working directory where you run `caper run` or `caper server`.
-
-Therefore, change directory first and run Caper there.
-
-```bash
-$ cd [OUTPUT_DIR]
-```
 
 ## Docker, Singularity and Conda
 
-For local backends (`local`, `slurm`, `sge`, `pbs` and `lsf`), you can use `--docker`, `--singularity` or `--conda` to run pipelines within one of these environment. For example, `caper run ... --singularity docker://ubuntu:latest` will run each task within a Singularity image built from a docker image `ubuntu:latest`. These parameters can also be used as flags. If used as a flag, Caper will try to find a default docker/singularity/conda in WDL. e.g. All ENCODE pipelines have default docker images defined within WDL's meta section (under key `caper_docker` or `default_docker`).
+For local backends (`local`, `slurm`, `sge`, `pbs` and `lsf`), you can use `--docker`, `--singularity` or `--conda` to run WDL tasks in a pipeline within one of these environment. For example, `caper run ... --singularity docker://ubuntu:latest` will run each task within a Singularity image built from a docker image `ubuntu:latest`. These parameters can also be used as flags. If used as a flag, Caper will try to find a default docker/singularity/conda in WDL. e.g. All ENCODE pipelines have default docker/singularity images defined within WDL's meta section (under key `caper_docker` or `default_docker`).
 
-For Conda users, make sure that you have installed pipeline's Conda environments before running pipelines. Caper only knows Conda environment's name to run a task on.
+> **IMPORTANT**: Docker/singularity/conda defined in Caper's configuration file or in CLI (`--docker`, `--singularity` and `--conda`) will be overriden by those defined in WDL task's `runtime`. We provide these parameters to define default/base environment for a pipeline, not to override on WDL task's `runtime`.
 
-For Singularity users, if you provide a Singularity image based on docker `docker://` then Caper will locally build a temporary Singularity image (`*.sif`) under `SINGULARITY_CACHEDIR` (defaulting to `~/.singularity/cache` if not defined). It's synchronized for all tasks, which means that one task will build the image and others will wait and use the built image later. Building can take some time according to the size of the original docker image.
+For Conda users, make sure that you have installed pipeline's Conda environments before running pipelines. Caper only knows Conda environment's name. You don't need to activate any Conda environment before running a pipeline since Caper will internally run `conda run -n ENV_NAME COMMANDS` for each task.
+
+
+## Singularity and Dockerhub pull limit
+
+If you provide a Singularity image based on docker `docker://` then Caper will locally build a temporary Singularity image (`*.sif`) under `SINGULARITY_CACHEDIR` (defaulting to `~/.singularity/cache` if not defined). However, Singularity will blindly pull from DockerHub to quickly reach [a daily pull limit](https://www.docker.com/increase-rate-limits).
 
 
 Take a look at the following examples:
@@ -104,9 +95,12 @@ DO NOT INSTALL CAPER, CONDA AND PIPELINE'S WDL ON `$SCRATCH` OR `$OAK` STORAGES.
 
 ## Running pipelines on HPCs
 
-In order to run a pipeline inside Singularity image or Conda environment use `--singularity` or `--conda` since most HPCs do not allow docker. For example, submit `caper run ... --singularity` as a leader job (with long walltime and enough resources like 1-2 cpus and 4GB of RAM). Then Caper's leader job itself will submit its child jobs to the job engine so that both leader and child jobs can be found with `squeue` or `qstat`.
+Use `--singularity` or `--conda` in CLI to run a pipeline inside Singularity image or Conda environment. Most HPCs do not allow docker. For example, submit `caper run ... --singularity` as a leader job (with long walltime and not-very-big resources like 2 cpus and 5GB of RAM). Then Caper's leader job itself will submit its child jobs to the job engine so that both leader and child jobs can be found with `squeue` or `qstat`.
 
 Here are some example command lines to submit Caper as a leader job. Make sure that you correctly configured Caper with `caper init` and filled all parameters in the conf file `~/.caper/default.conf`.
+
+There are extra parameters `--db file --file-db [METADATA_DB_PATH_FOR_CALL_CACHING]` to use call-caching (restarting workflows by re-using previous outputs). If you want to restart a failed workflow then use the same metadata DB path then pipeline will start from where it left off. It will actually start over but will reuse (soft-link) previous outputs.
+
 ```bash
 # make a separate directory for each workflow.
 $ cd [OUTPUT_DIR]
@@ -123,22 +117,11 @@ $ sbatch -A [SLURM_ACCOUNT] -p [SLURM_PARTITON] -J [WORKFLOW_NAME] --export=ALL 
 # Example for SGE
 $ echo "caper run [WDL] -i [INPUT_JSON] --singularity --db file --file-db [METADATA_DB_PATH_FOR_CALL_CACHING]" | qsub -V -N [JOB_NAME] -l h_rt=144:00:00 -l h_vmem=3G
 
-# Check status of leader/child jobs
-$ squeue -u $USER | grep -v cromwell
-```
+# Check status of leader job
+$ squeue -u $USER | grep -v [WORKFLOW_NAME]
 
-## Running pipelines on cloud platforms (GCP and AWS)
-
-Follow these instructions for [GCP](scripts/gcp_caper_server/README.md) and [AWS](scripts/aws_caper_server/README.md).
-
-
-## Running pipelines on a local machine
-
-Make a separate directory for each workflow. Caper maximizes parallelization (depending on the task tree of a given WDL). So make sure that your local machine has enough resources to run it. You can control number of concurrent tasks in a pipeline. For example, serialize all tasks with `--max-concurrent-tasks 1`.
-
-```bash
-$ cd [OUTPUT_DIR]  # make a separate directory for each workflow
-$ caper run [WDL] -i [INPUT_JSON] --docker
+# Kill the leader job then Caper will gracefully shutdown to kill its children.
+$ scancel [LEADER_JOB_ID]
 ```
 
 
@@ -150,7 +133,7 @@ slurm-resource-parameter=-n 1 --ntasks-per-node=1 --cpus-per-task=${cpu} ${if de
 ```
 This should be a one-liner and WDL syntax and Cromwell's built-in resource variables like `cpu`(number of cores for a task), `memory_mb`(total amount of memory for a task in MB), `time`(walltime for a task in hour) and `gpu`(name of gpu unit or number of gpus) are allowed in `${}` notation. See https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md for WDL syntax.
 
-Note that Cromwell's implicit type conversion (`WomLong` to `String`) seems to be buggy for `WomLong` type memory variables such as `memory_mb` and `memory_gb`. So be careful about using the `+` operator between `WomLong` and other types (`String`, even `Int`). For example, `${"--mem=" + memory_mb}` will not work since `memory_mb` is `WomLong` type. Use `${"if defined(memory_mb) then "--mem=" else ""}{memory_mb}${"if defined(memory_mb) then "mb " else " "}`. See https://github.com/broadinstitute/cromwell/issues/4659 for details.
+Note that Cromwell's implicit type conversion (`WomLong` to `String`) seems to be buggy for `WomLong` type memory variables such as `memory_mb` and `memory_gb`. So be careful about using the `+` operator between `WomLong` and other types (`String`, even `Int`). For example, `${"--mem=" + memory_mb}` will not work since `memory_mb` is `WomLong` type. Use `${"if defined(memory_mb) then "--mem=" else ""}{memory_mb}${"if defined(memory_mb) then "mb " else " "}` instead. See https://github.com/broadinstitute/cromwell/issues/4659 for details.
 
 
 # DETAILS
