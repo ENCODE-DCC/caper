@@ -575,6 +575,7 @@ class CromwellBackendLocal(CromwellBackendBase):
         elif [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'conda' ] || \\
              [ '${defined(environment)}' == 'false' ] && [ '${defined(conda)}' == 'true' ] && [ ! -z '${conda}' ]
         then
+            shopt -s nullglob
             for file_to_remap_path in ${script} `dirname ${script}`/write_*.tmp
             do
                 sed -i 's#${docker_cwd}#${cwd}#g' $file_to_remap_path
