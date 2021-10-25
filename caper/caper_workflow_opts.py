@@ -93,34 +93,36 @@ class CaperWorkflowOpts:
                 This will be appended to "bsub" command line.
         """
         self._template = {CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES: dict()}
-        dra = self._template[CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES]
+        default_runtime_attributes = self._template[
+            CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES
+        ]
 
         if gcp_zones and not use_google_cloud_life_sciences:
-            dra['zones'] = ' '.join(gcp_zones)
+            default_runtime_attributes['zones'] = ' '.join(gcp_zones)
 
         if slurm_partition:
-            dra['slurm_partition'] = slurm_partition
+            default_runtime_attributes['slurm_partition'] = slurm_partition
         if slurm_account:
-            dra['slurm_account'] = slurm_account
+            default_runtime_attributes['slurm_account'] = slurm_account
         if slurm_extra_param:
-            dra['slurm_extra_param'] = slurm_extra_param
+            default_runtime_attributes['slurm_extra_param'] = slurm_extra_param
 
         if sge_pe:
-            dra['sge_pe'] = sge_pe
+            default_runtime_attributes['sge_pe'] = sge_pe
         if sge_queue:
-            dra['sge_queue'] = sge_queue
+            default_runtime_attributes['sge_queue'] = sge_queue
         if sge_extra_param:
-            dra['sge_extra_param'] = sge_extra_param
+            default_runtime_attributes['sge_extra_param'] = sge_extra_param
 
         if pbs_queue:
-            dra['pbs_queue'] = pbs_queue
+            default_runtime_attributes['pbs_queue'] = pbs_queue
         if pbs_extra_param:
-            dra['pbs_extra_param'] = pbs_extra_param
+            default_runtime_attributes['pbs_extra_param'] = pbs_extra_param
 
         if lsf_queue:
-            dra['lsf_queue'] = lsf_queue
+            default_runtime_attributes['lsf_queue'] = lsf_queue
         if lsf_extra_param:
-            dra['lsf_extra_param'] = lsf_extra_param
+            default_runtime_attributes['lsf_extra_param'] = lsf_extra_param
 
     def create_file(
         self,
@@ -187,7 +189,9 @@ class CaperWorkflowOpts:
             raise ValueError('Cannot use both Singularity and Docker.')
 
         template = copy.deepcopy(self._template)
-        dra = template[CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES]
+        default_runtime_attributes = template[
+            CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES
+        ]
 
         if backend:
             template['backend'] = backend
@@ -212,7 +216,7 @@ class CaperWorkflowOpts:
             environment = None
 
         if environment:
-            dra['environment'] = environment
+            default_runtime_attributes['environment'] = environment
 
         if docker == '' or backend in (BACKEND_GCP, BACKEND_AWS) and not docker:
             # if used as a flag or cloud backend is chosen
@@ -230,7 +234,7 @@ class CaperWorkflowOpts:
                 )
 
         if docker:
-            dra['docker'] = docker
+            default_runtime_attributes['docker'] = docker
 
         if singularity == '':
             # if used as a flag
@@ -254,9 +258,11 @@ class CaperWorkflowOpts:
                 )
 
         if singularity:
-            dra['singularity'] = singularity
+            default_runtime_attributes['singularity'] = singularity
             if inputs:
-                dra['singularity_bindpath'] = find_bindpath(inputs)
+                default_runtime_attributes['singularity_bindpath'] = find_bindpath(
+                    inputs
+                )
 
         if conda == '':
             # if used as a flag
@@ -279,10 +285,10 @@ class CaperWorkflowOpts:
                 )
 
         if conda:
-            dra['conda'] = conda
+            default_runtime_attributes['conda'] = conda
 
         if max_retries is not None:
-            dra['maxRetries'] = max_retries
+            default_runtime_attributes['maxRetries'] = max_retries
         # Cromwell's bug in memory-retry feature.
         # Disabled until it's fixed on Cromwell's side.
         # if memory_retry_multiplier is not None:
