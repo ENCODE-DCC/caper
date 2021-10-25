@@ -21,6 +21,8 @@ def test_create_file(tmp_path):
     sge_extra_param = 'my_extra_param'
     pbs_queue = 'my_queue'
     pbs_extra_param = 'my_extra_param'
+    lsf_queue = 'my_queue'
+    lsf_extra_param = 'my_extra_param'
 
     co = CaperWorkflowOpts(
         use_google_cloud_life_sciences=use_google_cloud_life_sciences,
@@ -33,6 +35,8 @@ def test_create_file(tmp_path):
         sge_extra_param=sge_extra_param,
         pbs_queue=pbs_queue,
         pbs_extra_param=pbs_extra_param,
+        lsf_queue=lsf_queue,
+        lsf_extra_param=lsf_extra_param,
     )
 
     wdl = tmp_path / 'test.wdl'
@@ -64,8 +68,6 @@ def test_create_file(tmp_path):
         custom_options=str(custom_options),
         docker=None,
         singularity=None,
-        singularity_cachedir=None,
-        no_build_singularity=False,
         backend=backend,
         max_retries=max_retries,
         memory_retry_multiplier=memory_retry_multiplier,
@@ -86,6 +88,8 @@ def test_create_file(tmp_path):
     assert dra['sge_extra_param'] == sge_extra_param
     assert dra['pbs_queue'] == pbs_queue
     assert dra['pbs_extra_param'] == pbs_extra_param
+    assert dra['lsf_queue'] == lsf_queue
+    assert dra['lsf_extra_param'] == lsf_extra_param
 
     assert d['backend'] == 'world'
     assert dra['maxRetries'] == max_retries
@@ -208,8 +212,8 @@ def test_create_file_singularity(tmp_path):
         version 1.0
         workflow test_singularity {
             meta {
-                caper_docker: "ubuntu:latest"
-                caper_singularity: "docker://ubuntu:latest"
+                default_docker: "ubuntu:latest"
+                default_singularity: "docker://ubuntu:latest"
             }
         }
     """
@@ -291,15 +295,12 @@ def test_create_file_singularity(tmp_path):
         directory=str(tmp_path),
         wdl=str(wdl),
         inputs=str(inputs),
-        singularity='ubuntu:16',
-        singularity_cachedir='/tmp',
-        no_build_singularity=True,
+        singularity='docker://ubuntu:16.04',
         backend='my_backend',
         basename='opts_local2.json',
     )
     with open(f_local2) as fp:
         d_local2 = json.loads(fp.read())
         dra_local2 = d_local2[CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES]
-    assert dra_local2['singularity'] == 'ubuntu:16'
-    assert dra_local2['singularity_cachedir'] == '/tmp'
+    assert dra_local2['singularity'] == 'docker://ubuntu:16.04'
     assert sorted(dra_local2['singularity_bindpath'].split(',')) == ['/a/b', '/f/g']

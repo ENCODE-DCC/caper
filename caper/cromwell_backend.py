@@ -16,7 +16,12 @@ BACKEND_ALIAS_LOCAL = 'local'
 BACKEND_SLURM = 'slurm'
 BACKEND_SGE = 'sge'
 BACKEND_PBS = 'pbs'
+BACKEND_LSF = 'lsf'
 DEFAULT_BACKEND = BACKEND_LOCAL
+
+ENVIRONMENT_DOCKER = 'docker'
+ENVIRONMENT_SINGULARITY = 'singularity'
+ENVIRONMENT_CONDA = 'conda'
 
 FILESYSTEM_GCS = 'gcs'
 FILESYSTEM_LOCAL = 'local'
@@ -286,7 +291,7 @@ class CromwellBackendBase(UserDict):
         return self.backend_config['default-runtime-attributes']
 
 
-class CromwellBackendGCP(CromwellBackendBase):
+class CromwellBackendGcp(CromwellBackendBase):
     TEMPLATE = {'google': {'application-name': 'cromwell'}}
     TEMPLATE_BACKEND = {
         'config': {
@@ -352,8 +357,8 @@ class CromwellBackendGCP(CromwellBackendBase):
             filesystem_name=FILESYSTEM_GCS,
             call_caching_dup_strat=call_caching_dup_strat,
         )
-        merge_dict(self.data, CromwellBackendGCP.TEMPLATE)
-        self.merge_backend(CromwellBackendGCP.TEMPLATE_BACKEND)
+        merge_dict(self.data, CromwellBackendGcp.TEMPLATE)
+        self.merge_backend(CromwellBackendGcp.TEMPLATE_BACKEND)
 
         config = self.backend_config
         genomics = config['genomics']
@@ -381,12 +386,12 @@ class CromwellBackendGCP(CromwellBackendBase):
             ]
 
         if use_google_cloud_life_sciences:
-            self.backend['actor-factory'] = CromwellBackendGCP.ACTOR_FACTORY_V2BETA
-            genomics['endpoint-url'] = CromwellBackendGCP.GENOMICS_ENDPOINT_V2BETA
+            self.backend['actor-factory'] = CromwellBackendGcp.ACTOR_FACTORY_V2BETA
+            genomics['endpoint-url'] = CromwellBackendGcp.GENOMICS_ENDPOINT_V2BETA
             genomics['location'] = gcp_region
         else:
-            self.backend['actor-factory'] = CromwellBackendGCP.ACTOR_FACTORY_V2ALPHA
-            genomics['endpoint-url'] = CromwellBackendGCP.GENOMICS_ENDPOINT_V2ALPHA
+            self.backend['actor-factory'] = CromwellBackendGcp.ACTOR_FACTORY_V2ALPHA
+            genomics['endpoint-url'] = CromwellBackendGcp.GENOMICS_ENDPOINT_V2ALPHA
             if gcp_zones:
                 self.default_runtime_attributes['zones'] = ' '.join(gcp_zones)
 
@@ -399,7 +404,7 @@ class CromwellBackendGCP(CromwellBackendBase):
         config['root'] = gcp_out_dir
 
 
-class CromwellBackendAWS(CromwellBackendBase):
+class CromwellBackendAws(CromwellBackendBase):
     TEMPLATE = {
         'aws': {
             'application-name': 'cromwell',
@@ -456,8 +461,8 @@ class CromwellBackendAWS(CromwellBackendBase):
             filesystem_name=FILESYSTEM_S3,
             call_caching_dup_strat=call_caching_dup_strat,
         )
-        merge_dict(self.data, CromwellBackendAWS.TEMPLATE)
-        self.merge_backend(CromwellBackendAWS.TEMPLATE_BACKEND)
+        merge_dict(self.data, CromwellBackendAws.TEMPLATE)
+        self.merge_backend(CromwellBackendAws.TEMPLATE_BACKEND)
 
         aws = self[BACKEND_AWS]
         aws['region'] = aws_region
@@ -476,10 +481,137 @@ class CromwellBackendAWS(CromwellBackendBase):
 
 class CromwellBackendLocal(CromwellBackendBase):
     """Class constants:
-        MAKE_CMD_SUBMIT:
-            Includes BASH command line for Singularity.
+
+        SUBMIT_DOCKER:
+            Cromwell falls back to 'submit_docker' instead of 'submit' if WDL task has
+            'docker' in runtime.
+            Docker and Singularity can map paths between inside and outside of the container.
+            So this is not an issue for those container environments.
+
+            For Conda, any container paths (/cromwell-executions/**) in the script is simply
+            replaced with CWD.
+
+            This also replaces filenames written in write_*.tsv files (globbed by WDL functions).
+            e.g. write_lines(), write_tsv(), ...
+
+            See the following document for such WDL functions:
+            https://github.com/openwdl/wdl/blob/main/versions/development/SPEC.md#file-write_linesarraystring
+
+            Possible issue:
+            - 'sed' is used here with a delimiter as hash mark (#)
+              so hash marks in output path can result in error.
+            - Files globbed by WDL functions other than write_*() will still have paths inside a container.
+
     """
 
+    RUNTIME_ATTRIBUTES = dedent(
+        """
+        ## Caper custom attributes
+        # Environment choices = (docker, conda, singularity)
+        # If environment is not specified then prioritize docker > singularity > conda
+        # gpu is a plain string (to be able to specify gpu's name)
+        String? environment
+        String? conda
+        String? singularity
+        String? singularity_bindpath
+        String? gpu
+
+        ## Cromwell built-in attributes
+        String? docker
+        String? docker_user
+    """
+    )
+    # Do not define/use any new shell variable in this template (e.g. var=, ${var}).
+    # This template needs formatting (remap_path_for_singularity, remap_path_for_conda)
+    TEMPLATE_SUBMIT = dedent(
+        """
+        if [ '${{defined(environment)}}' == 'true' ] && [ '${{environment}}' == 'singularity' ] || \\
+           [ '${{defined(environment)}}' == 'false' ] && [ '${{defined(singularity)}}' == 'true' ] && [ ! -z '${{singularity}}' ]
+        then
+            mkdir -p $HOME/.singularity/lock/
+            flock --exclusive --timeout 600 \\
+                $HOME/.singularity/lock/`echo -n '${{singularity}}' | md5sum | cut -d' ' -f1` \\
+                singularity exec --containall ${{singularity}} echo 'Successfully pulled ${{singularity}}'
+
+            singularity exec --cleanenv --home=${{cwd}} \\
+                --bind=${{singularity_bindpath}},{bind_param_to_remap_path_for_singularity} \\
+                ${{if defined(gpu) then ' --nv' else ''}} \\
+                ${{singularity}} ${{job_shell}} ${{script}}
+
+        elif [ '${{defined(environment)}}' == 'true' ] && [ '${{environment}}' == 'conda' ] || \\
+             [ '${{defined(environment)}}' == 'false' ] && [ '${{defined(conda)}}' == 'true' ] && [ ! -z '${{conda}}' ]
+        then
+            {cmd_lines_to_remap_path_for_conda}
+            conda run --name=${{conda}} ${{job_shell}} ${{script}}
+
+        else
+            ${{job_shell}} ${{script}}
+        fi
+    """
+    )
+    SUBMIT = TEMPLATE_SUBMIT.format(
+        bind_param_to_remap_path_for_singularity='',
+        cmd_lines_to_remap_path_for_conda='',
+    )
+    SUBMIT_DOCKER = dedent(
+        """
+        rm -f ${docker_cid}
+
+        if [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'docker' ] || \\
+           [ '${defined(environment)}' == 'false' ] && [ '${defined(docker)}' == 'true' ] && [ ! -z '${docker}' ]
+        then
+            docker run -i --cidfile=${docker_cid} --user=${docker_user} --entrypoint=${job_shell} \\
+              --volume=${cwd}:${docker_cwd}:delegated ${docker} ${docker_script}
+            rc=$(docker wait `cat ${docker_cid}`)
+            docker rm `cat ${docker_cid}`
+
+        elif [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'singularity' ] || \\
+             [ '${defined(environment)}' == 'false' ] && [ '${defined(singularity)}' == 'true' ] && [ ! -z '${singularity}' ]
+        then
+            mkdir -p $HOME/.singularity/lock/
+            flock --exclusive --timeout 600 \\
+                $HOME/.singularity/lock/`echo -n '${singularity}' | md5sum | cut -d' ' -f1` \\
+                singularity exec --containall ${singularity} echo 'Successfully pulled ${singularity}'
+
+            singularity exec --cleanenv --home=${cwd} \\
+                --bind=${singularity_bindpath},${cwd}:${docker_cwd} \\
+                ${if defined(gpu) then ' --nv' else ''} \\
+                ${singularity} ${job_shell} ${script} & echo $! > ${docker_cid}
+            touch ${docker_cid}.not_docker
+            wait `cat ${docker_cid}`
+            rc=`echo $?`
+
+        elif [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'conda' ] || \\
+             [ '${defined(environment)}' == 'false' ] && [ '${defined(conda)}' == 'true' ] && [ ! -z '${conda}' ]
+        then
+            shopt -s nullglob
+            sed -i 's#${docker_cwd}#${cwd}#g' ${script} `dirname ${script}`/write_*.tmp
+
+            conda run --name=${conda} ${job_shell} ${script} & echo $! > ${docker_cid}
+            touch ${docker_cid}.not_docker
+            wait `cat ${docker_cid}`
+            rc=`echo $?`
+
+        else
+            ${job_shell} ${script} & echo $! > ${docker_cid}
+            touch ${docker_cid}.not_docker
+            wait `cat ${docker_cid}`
+            rc=`echo $?`
+        fi
+
+        exit $rc
+    """
+    )
+    KILL_DOCKER = dedent(
+        """
+        if [ -f '${docker_cid}.not_docker' ]
+        then
+            kill `cat ${docker_cid}`
+        else
+            docker kill `cat ${docker_cid}`
+        fi
+    """
+    )
     TEMPLATE_BACKEND = {
         'actor-factory': 'cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory',
         'config': {
@@ -495,43 +627,12 @@ class CromwellBackendLocal(CromwellBackendBase):
                 }
             },
             'run-in-background': True,
-            'runtime-attributes': dedent(
-                """\
-                Int? gpu
-                String? docker
-                String? docker_user
-                String? singularity
-                String? singularity_bindpath
-                String? singularity_cachedir
-                """
-            ),
-            'submit': dedent(
-                """\
-                if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
-                if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;
-                ${if !defined(singularity) then '/bin/bash ' + script
-                  else
-                    'singularity exec --cleanenv ' +
-                    '--home ' + cwd + ' ' +
-                    (if defined(gpu) then '--nv ' else '') +
-                    singularity + ' /bin/bash ' + script}
-            """
-            ),
-            'submit-docker': dedent(
-                """\
-                rm -f ${docker_cid}
-                docker run \\
-                  --cidfile ${docker_cid} \\
-                  -i \\
-                  ${'--user ' + docker_user} \\
-                  --entrypoint ${job_shell} \\
-                  -v ${cwd}:${docker_cwd} \\
-                  ${docker} ${docker_script}
-                """
-            ),
+            'runtime-attributes': RUNTIME_ATTRIBUTES,
+            'submit': SUBMIT,
+            'submit-docker': SUBMIT_DOCKER,
+            'kill-docker': KILL_DOCKER,
         },
     }
-
     DEFAULT_LOCAL_HASH_STRAT = LOCAL_HASH_STRAT_PATH_MTIME
 
     def __init__(
@@ -542,6 +643,13 @@ class CromwellBackendLocal(CromwellBackendBase):
         local_hash_strat=DEFAULT_LOCAL_HASH_STRAT,
         max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
     ):
+        """Base class for local backends.
+
+        Used flock to synchronize local Singularity image building.
+        Image building will occur in the first task and other parallel tasks will wait.
+
+        See https://github.com/broadinstitute/cromwell/issues/5063 for details.
+        """
         super().__init__(
             backend_name=backend_name,
             max_concurrent_tasks=max_concurrent_tasks,
@@ -571,84 +679,160 @@ class CromwellBackendLocal(CromwellBackendBase):
         config['root'] = local_out_dir
 
 
-class CromwellBackendSLURM(CromwellBackendLocal):
-    """SLURM backend.
-    Try sbatching up to 3 times every 30 second.
-    Some busy SLURM clusters spit out error, which results in a failure of the whole workflow
-
-    Squeues every 30 second (up to 3 times)
-    Unlike qstat -j JOB_ID, squeue -j JOB_ID doesn't return 1 when there is no such job
-    So we need to use squeue -j JOB_ID --noheader and check if output is empty
-    Try polling up to 3 times since squeue fails on some busy SLURM clusters
-    e.g. on Stanford Sherlock, squeue didn't work when server is busy
+class CromwellBackendHpc(CromwellBackendLocal):
+    HPC_RUNTIME_ATTRIBUTES = dedent(
+        """
+        Int cpu = 1
+        Int? time
+        Int? memory_mb
     """
-
-    TEMPLATE_BACKEND = {
-        'config': {
-            'default-runtime-attributes': {'time': 24},
-            'exit-code-timeout-seconds': 360,
-            'runtime-attributes': dedent(
-                """\
-                String? docker
-                String? docker_user
-                Int cpu = 1
-                Int? gpu
-                Int? time
-                Int? memory_mb
-                String? slurm_partition
-                String? slurm_account
-                String? slurm_extra_param
-                String? singularity
-                String? singularity_bindpath
-                String? singularity_cachedir
+    )
+    HPC_SUBMIT_DOCKER = CromwellBackendLocal.TEMPLATE_SUBMIT.format(
+        bind_param_to_remap_path_for_singularity='${cwd}:${docker_cwd}',
+        cmd_lines_to_remap_path_for_conda=dedent(
             """
-            ),
-            'submit': dedent(
-                """\
-                if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
-                if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;
+            shopt -s nullglob
+            sed -i 's#${docker_cwd}#${cwd}#g' ${script} `dirname ${script}`/write_*.tmp
+        """
+        ),
+    )
 
-                ITER=0
-                until [ $ITER -ge 3 ]; do
-                    sbatch \\
-                        --export=ALL \\
-                        -J ${job_name} \\
-                        -D ${cwd} \\
-                        -o ${out} \\
-                        -e ${err} \\
-                        ${'-t ' + time*60} \\
-                        -n 1 \\
-                        --ntasks-per-node=1 \\
-                        ${'--cpus-per-task=' + cpu} \\
-                        ${true="--mem=" false="" defined(memory_mb)}${memory_mb} \\
-                        ${'-p ' + slurm_partition} \\
-                        ${'--account ' + slurm_account} \\
-                        ${'--gres gpu:' + gpu} \\
-                        ${slurm_extra_param} \\
-                        --wrap "${if !defined(singularity) then '/bin/bash ' + script
-                                  else
-                                    'singularity exec --cleanenv ' +
-                                    '--home ' + cwd + ' ' +
-                                    (if defined(gpu) then '--nv ' else '') +
-                                    singularity + ' /bin/bash ' + script}" \\
-                        && break
-                    ITER=$[$ITER+1]
+    def __init__(
+        self,
+        local_out_dir,
+        backend_name=None,
+        max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
+        soft_glob_output=False,
+        local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
+        check_alive=None,
+        kill=None,
+        job_id_regex=None,
+        submit=None,
+        submit_docker=None,
+        runtime_attributes=None,
+    ):
+        """Base class for HPCs.
+
+        Args:
+            check_alive:
+                Shell command lines to check if a job exists.
+                WDL syntax allowed in ${} notation.
+            kill:
+                Shell command lines to kill a job.
+                WDL syntax allowed in ${} notation.
+                This will be passed to both 'kill' and 'kill-docker'.
+                On HPCs jobs are managed in terms of job ID (not PID).
+            job_id_regex:
+                Regular expression to find job ID.
+                Make sure to escape backslash (\\) since this is directly used in a shell script.
+                WDL syntax NOT allowed.
+            submit:
+                Shell command lines to submit a job.
+                WDL syntax allowed in ${} notation.
+            submit_docker:
+                Shell command lines to submit a job
+                (when docker is defined in WDL task's runtime).
+                WDL syntax allowed in ${} notation.
+            runtime_attributes:
+                Declaration of WDL variables (attributes) used in submit, submit-docker.
+                This is not a shell command line but plain WDL syntax.
+                Make sure that non-Cromwell variables (attributes) used in submit, submit-docker
+                are defined here.
+                e.g. cpu, memory, docker, docker_user are Cromwell's built-in variables
+                so they don't need to be defined but slurm_partition, sge_pe are
+                Caper's custom variables so such variables should be defined there.
+        """
+        super().__init__(
+            local_out_dir=local_out_dir,
+            backend_name=backend_name,
+            max_concurrent_tasks=max_concurrent_tasks,
+            soft_glob_output=soft_glob_output,
+            local_hash_strat=local_hash_strat,
+        )
+        config = self.backend_config
+
+        if not check_alive:
+            raise ValueError('check_alive not defined!')
+        if not kill:
+            raise ValueError('kill not defined!')
+        if not job_id_regex:
+            raise ValueError('job_id_regex not defined!')
+        if not submit:
+            raise ValueError('submit not defined!')
+        if not submit_docker:
+            raise ValueError('submit_docker not defined!')
+
+        config['check-alive'] = check_alive
+        config['kill'] = kill
+        # jobs are managed based on a job ID (not PID or docker_cid) on HPCs
+        config['kill-docker'] = kill
+        config['job-id-regex'] = job_id_regex
+        config['submit'] = submit
+        config['submit-docker'] = submit_docker
+        config['runtime-attributes'] = '\n'.join(
+            [
+                CromwellBackendLocal.RUNTIME_ATTRIBUTES,
+                CromwellBackendHpc.HPC_RUNTIME_ATTRIBUTES,
+                runtime_attributes if runtime_attributes else '',
+            ]
+        )
+
+
+class CromwellBackendSlurm(CromwellBackendHpc):
+    SLURM_RUNTIME_ATTRIBUTES = dedent(
+        """
+        String? slurm_partition
+        String? slurm_account
+        String? slurm_extra_param
+    """
+    )
+    SLURM_CHECK_ALIVE = dedent(
+        """
+        for ITER in 1 2 3; do
+            CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id})
+            if [ -z "$CHK_ALIVE" ]
+            then
+                if [ "$ITER" == 3 ]
+                then
+                    ${job_shell} -c 'exit 1'
+                else
                     sleep 30
-                done
-            """
-            ),
-            'check-alive': dedent(
-                """\
-                for ITER in 1 2 3; do
-                    CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id})
-                    if [ -z "$CHK_ALIVE" ]; then if [ "$ITER" == 3 ]; then /bin/bash -c 'exit 1'; else sleep 30; fi; else echo $CHK_ALIVE; break; fi
-                done
-            """
-            ),
-            'kill': 'scancel ${job_id}',
-            'job-id-regex': 'Submitted batch job (\\d+).*',
-        }
-    }
+                fi
+            else
+                echo $CHK_ALIVE
+                break
+            fi
+        done
+    """
+    )
+    SLURM_KILL = 'scancel ${job_id}'
+    SLURM_JOB_ID_REGEX = 'Submitted batch job ([0-9]+).*'
+
+    # this is a template that requires formatting
+    # (submit, slurm_resource_param)
+    TEMPLATE_SLURM_SUBMIT = dedent(
+        """
+        cat << EOF > ${{script}}.caper
+        #!/bin/bash
+        {submit}
+        EOF
+
+        for ITER in 1 2 3; do
+            sbatch --export=ALL -J ${{job_name}} -D ${{cwd}} -o ${{out}} -e ${{err}} \\
+                ${{'-p ' + slurm_partition}} ${{'--account ' + slurm_account}} \\
+                {slurm_resource_param} \\
+                ${{slurm_extra_param}} \\
+                ${{script}}.caper && break
+            sleep 30
+        done
+    """
+    )
+    DEFAULT_SLURM_RESOURCE_PARAM = (
+        '-n 1 --ntasks-per-node=1 --cpus-per-task=${cpu} '
+        '${if defined(memory_mb) then "--mem=" else ""}${memory_mb}${if defined(memory_mb) then "M" else ""} '
+        '${if defined(time) then "--time=" else ""}${time*60} '
+        '${if defined(gpu) then "--gres=gpu:" else ""}${gpu} '
+    )
 
     def __init__(
         self,
@@ -659,16 +843,49 @@ class CromwellBackendSLURM(CromwellBackendLocal):
         slurm_partition=None,
         slurm_account=None,
         slurm_extra_param=None,
+        slurm_resource_param=DEFAULT_SLURM_RESOURCE_PARAM,
     ):
+        """SLURM backend.
+        Try sbatching up to 3 times every 30 second to prevent Cromwell
+        from halting the whole pipeline immediately after the first failure.
+
+        Example busy server errors:
+            slurm_load_jobs error: Socket timed out on send/recv operation
+            slurm_load_jobs error: Slurm backup controller in standby mode
+
+        Squeues every 30 second up to 3 times for the same reason.
+        Unlike qstat -j JOB_ID, squeue -j JOB_ID doesn't return 1 when there is no such job
+        So 'squeue --noheader -j JOB_ID' is used here and it checks if output is empty
+
+        Args:
+            slurm_resource_param:
+                String of a set of resource parameters for the job submission engine.
+                WDL syntax allowed in ${} notation.
+                This will be appended to the job sumbission command line.
+                e.g. sbatch ... THIS_RESOURCE_PARAM
+        """
+        submit = CromwellBackendSlurm.TEMPLATE_SLURM_SUBMIT.format(
+            submit=CromwellBackendLocal.SUBMIT,
+            slurm_resource_param=slurm_resource_param,
+        )
+        submit_docker = CromwellBackendSlurm.TEMPLATE_SLURM_SUBMIT.format(
+            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
+            slurm_resource_param=slurm_resource_param,
+        )
+
         super().__init__(
             local_out_dir=local_out_dir,
             backend_name=BACKEND_SLURM,
             max_concurrent_tasks=max_concurrent_tasks,
             soft_glob_output=soft_glob_output,
             local_hash_strat=local_hash_strat,
+            check_alive=CromwellBackendSlurm.SLURM_CHECK_ALIVE,
+            kill=CromwellBackendSlurm.SLURM_KILL,
+            job_id_regex=CromwellBackendSlurm.SLURM_JOB_ID_REGEX,
+            submit=submit,
+            submit_docker=submit_docker,
+            runtime_attributes=CromwellBackendSlurm.SLURM_RUNTIME_ATTRIBUTES,
         )
-        self.merge_backend(CromwellBackendSLURM.TEMPLATE_BACKEND)
-        self.backend_config.pop('submit-docker')
 
         if slurm_partition:
             self.default_runtime_attributes['slurm_partition'] = slurm_partition
@@ -678,63 +895,46 @@ class CromwellBackendSLURM(CromwellBackendLocal):
             self.default_runtime_attributes['slurm_extra_param'] = slurm_extra_param
 
 
-class CromwellBackendSGE(CromwellBackendLocal):
-    TEMPLATE_BACKEND = {
-        'config': {
-            'default-runtime-attributes': {'time': 24},
-            'exit-code-timeout-seconds': 180,
-            'runtime-attributes': dedent(
-                """\
-                String? docker
-                String? docker_user
-                String sge_pe = "shm"
-                Int cpu = 1
-                Int? gpu
-                Int? time
-                Int? memory_mb
-                String? sge_queue
-                String? sge_extra_param
-                String? singularity
-                String? singularity_bindpath
-                String? singularity_cachedir
-            """
-            ),
-            'submit': dedent(
-                """\
-                if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
-                if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;
+class CromwellBackendSge(CromwellBackendHpc):
+    SGE_RUNTIME_ATTRIBUTES = dedent(
+        """
+        String? sge_pe
+        String? sge_queue
+        String? sge_extra_param
+    """
+    )
+    SGE_CHECK_ALIVE = 'qstat -j ${job_id}'
+    SGE_KILL = 'qdel ${job_id}'
 
-                echo "${if !defined(singularity) then '/bin/bash ' + script
-                        else
-                          'singularity exec --cleanenv ' +
-                          '--home ' + cwd + ' ' +
-                          (if defined(gpu) then '--nv ' else '') +
-                          singularity + ' /bin/bash ' + script}" | \\
-                qsub \\
-                    -S /bin/sh \\
-                    -terse \\
-                    -b n \\
-                    -N ${job_name} \\
-                    -wd ${cwd} \\
-                    -o ${out} \\
-                    -e ${err} \\
-                    ${if cpu>1 then '-pe ' + sge_pe + ' ' else ''} \\
-                    ${if cpu>1 then cpu else ''} \\
-                    ${true="-l h_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}${true=" / " false="" defined(memory_mb)}${if defined(memory_mb) then cpu else ""}${true=")m" false="" defined(memory_mb)} \\
-                    ${true="-l s_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}${true=" / " false="" defined(memory_mb)}${if defined(memory_mb) then cpu else ""}${true=")m" false="" defined(memory_mb)} \\
-                    ${'-l h_rt=' + time + ':00:00'} \\
-                    ${'-l s_rt=' + time + ':00:00'} \\
-                    ${'-q ' + sge_queue} \\
-                    ${'-l gpu=' + gpu} \\
-                    ${sge_extra_param} \\
-                    -V
-            """
-            ),
-            'check-alive': 'qstat -j ${job_id}',
-            'kill': 'qdel ${job_id}',
-            'job-id-regex': '(\\d+)',
-        }
-    }
+    # qsub -terse is used to simply this regex
+    SGE_JOB_ID_REGEX = '([0-9]+)'
+
+    # this is a template that requires formatting
+    # (submit, sge_resource_param)
+    TEMPLATE_SGE_SUBMIT = dedent(
+        """
+        cat << EOF > ${{script}}.caper
+        #!/bin/bash
+        {submit}
+        EOF
+
+        for ITER in 1 2 3; do
+            qsub -V -terse -S ${{job_shell}} -N ${{job_name}} -wd ${{cwd}} -o ${{out}} -e ${{err}} \\
+                ${{'-q ' + sge_queue}} \\
+                {sge_resource_param} \\
+                ${{sge_extra_param}} \\
+                ${{script}}.caper && break
+            sleep 30
+        done
+    """
+    )
+    DEFAULT_SGE_RESOURCE_PARAM = (
+        '${if cpu > 1 then "-pe " + sge_pe + " " else ""} ${if cpu > 1 then cpu else ""} '
+        '${true="-l h_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}${true=" / " false="" defined(memory_mb)}${if defined(memory_mb) then cpu else ""}${true=")m" false="" defined(memory_mb)} '
+        '${true="-l s_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}${true=" / " false="" defined(memory_mb)}${if defined(memory_mb) then cpu else ""}${true=")m" false="" defined(memory_mb)} '
+        '${"-l h_rt=" + time + ":00:00"} ${"-l s_rt=" + time + ":00:00"} '
+        '${"-l gpu=" + gpu} '
+    )
 
     def __init__(
         self,
@@ -745,16 +945,38 @@ class CromwellBackendSGE(CromwellBackendLocal):
         sge_pe=None,
         sge_queue=None,
         sge_extra_param=None,
+        sge_resource_param=DEFAULT_SGE_RESOURCE_PARAM,
     ):
+        """SGE backend. Try qsubbing up to 3 times every 30 second.
+
+        Args:
+            sge_resource_param:
+                String of a set of resource parameters for the job submission engine.
+                WDL syntax allowed in ${} notation.
+                This will be appended to the job sumbission command line.
+                e.g. qsub ... THIS_RESOURCE_PARAM
+        """
+        submit = CromwellBackendSge.TEMPLATE_SGE_SUBMIT.format(
+            submit=CromwellBackendLocal.SUBMIT, sge_resource_param=sge_resource_param
+        )
+        submit_docker = CromwellBackendSge.TEMPLATE_SGE_SUBMIT.format(
+            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
+            sge_resource_param=sge_resource_param,
+        )
+
         super().__init__(
             local_out_dir=local_out_dir,
             backend_name=BACKEND_SGE,
             max_concurrent_tasks=max_concurrent_tasks,
             soft_glob_output=soft_glob_output,
             local_hash_strat=local_hash_strat,
+            check_alive=CromwellBackendSge.SGE_CHECK_ALIVE,
+            kill=CromwellBackendSge.SGE_KILL,
+            job_id_regex=CromwellBackendSge.SGE_JOB_ID_REGEX,
+            submit=submit,
+            submit_docker=submit_docker,
+            runtime_attributes=CromwellBackendSge.SGE_RUNTIME_ATTRIBUTES,
         )
-        self.merge_backend(CromwellBackendSGE.TEMPLATE_BACKEND)
-        self.backend_config.pop('submit-docker')
 
         if sge_pe:
             self.default_runtime_attributes['sge_pe'] = sge_pe
@@ -764,55 +986,41 @@ class CromwellBackendSGE(CromwellBackendLocal):
             self.default_runtime_attributes['sge_extra_param'] = sge_extra_param
 
 
-class CromwellBackendPBS(CromwellBackendLocal):
-    TEMPLATE_BACKEND = {
-        'config': {
-            'default-runtime-attributes': {'time': 24},
-            'script-epilogue': 'sleep 5',
-            'runtime-attributes': dedent(
-                """\
-                String? docker
-                String? docker_user
-                Int cpu = 1
-                Int? gpu
-                Int? time
-                Int? memory_mb
-                String? pbs_queue
-                String? pbs_extra_param
-                String? singularity
-                String? singularity_bindpath
-                String? singularity_cachedir
-            """
-            ),
-            'submit': dedent(
-                """\
-                if [ -z \\"$SINGULARITY_BINDPATH\\" ]; then export SINGULARITY_BINDPATH=${singularity_bindpath}; fi; \\
-                if [ -z \\"$SINGULARITY_CACHEDIR\\" ]; then export SINGULARITY_CACHEDIR=${singularity_cachedir}; fi;
+class CromwellBackendPbs(CromwellBackendHpc):
+    PBS_RUNTIME_ATTRIBUTES = dedent(
+        """
+        String? pbs_queue
+        String? pbs_extra_param
+    """
+    )
+    PBS_CHECK_ALIVE = 'qstat ${job_id}'
+    PBS_KILL = 'qdel ${job_id}'
+    PBS_JOB_ID_REGEX = '([0-9]+)'
 
-                echo "${if !defined(singularity) then '/bin/bash ' + script
-                        else
-                          'singularity exec --cleanenv ' +
-                          '--home ' + cwd + ' ' +
-                          (if defined(gpu) then '--nv ' else '') +
-                          singularity + ' /bin/bash ' + script}" | \\
-                qsub \\
-                    -N ${job_name} \\
-                    -o ${out} \\
-                    -e ${err} \\
-                    ${true="-lnodes=1:ppn=" false="" defined(cpu)}${cpu}${true=":mem=" false="" defined(memory_mb)}${memory_mb}${true="mb" false="" defined(memory_mb)} \\
-                    ${'-lwalltime=' + time + ':0:0'} \\
-                    ${'-lngpus=' + gpu} \\
-                    ${'-q ' + pbs_queue} \\
-                    ${pbs_extra_param} \\
-                    -V
-            """
-            ),
-            'exit-code-timeout-seconds': 180,
-            'kill': 'qdel ${job_id}',
-            'check-alive': 'qstat ${job_id}',
-            'job-id-regex': '(\\d+)',
-        }
-    }
+    # this is a template that requires formatting
+    # (submit, pbs_resource_param)
+    TEMPLATE_PBS_SUBMIT = dedent(
+        """
+        cat << EOF > ${{script}}.caper
+        #!/bin/bash
+        {submit}
+        EOF
+
+        for ITER in 1 2 3; do
+            qsub -V -N ${{job_name}} -o ${{out}} -e ${{err}} \\
+                ${{'-q ' + pbs_queue}} \\
+                {pbs_resource_param} \\
+                ${{pbs_extra_param}} \\
+                ${{script}}.caper && break
+            sleep 30
+        done
+    """
+    )
+    DEFAULT_PBS_RESOURCE_PARAM = (
+        '${"-lnodes=1:ppn=" + cpu}${if defined(gpu) then ":gpus=" + gpu else ""} '
+        '${if defined(memory_mb) then "-l mem=" else ""}${memory_mb}${if defined(memory_mb) then "mb" else ""} '
+        '${"-lwalltime=" + time + ":0:0"} '
+    )
 
     def __init__(
         self,
@@ -822,18 +1030,124 @@ class CromwellBackendPBS(CromwellBackendLocal):
         local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
         pbs_queue=None,
         pbs_extra_param=None,
+        pbs_resource_param=DEFAULT_PBS_RESOURCE_PARAM,
     ):
+        """PBS backend. Try qsubbing up to 3 times every 30 second.
+
+        Args:
+            pbs_resource_param:
+                String of a set of resource parameters for the job submission engine.
+                WDL syntax allowed in ${} notation.
+                This will be appended to the job sumbission command line.
+                e.g. qsub ... THIS_RESOURCE_PARAM
+        """
+        submit = CromwellBackendPbs.TEMPLATE_PBS_SUBMIT.format(
+            submit=CromwellBackendLocal.SUBMIT, pbs_resource_param=pbs_resource_param
+        )
+        submit_docker = CromwellBackendPbs.TEMPLATE_PBS_SUBMIT.format(
+            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
+            pbs_resource_param=pbs_resource_param,
+        )
+
         super().__init__(
             local_out_dir=local_out_dir,
             backend_name=BACKEND_PBS,
             max_concurrent_tasks=max_concurrent_tasks,
             soft_glob_output=soft_glob_output,
             local_hash_strat=local_hash_strat,
+            check_alive=CromwellBackendPbs.PBS_CHECK_ALIVE,
+            kill=CromwellBackendPbs.PBS_KILL,
+            job_id_regex=CromwellBackendPbs.PBS_JOB_ID_REGEX,
+            submit=submit,
+            submit_docker=submit_docker,
+            runtime_attributes=CromwellBackendPbs.PBS_RUNTIME_ATTRIBUTES,
         )
-        self.merge_backend(CromwellBackendPBS.TEMPLATE_BACKEND)
-        self.backend_config.pop('submit-docker')
 
         if pbs_queue:
             self.default_runtime_attributes['pbs_queue'] = pbs_queue
         if pbs_extra_param:
             self.default_runtime_attributes['pbs_extra_param'] = pbs_extra_param
+
+
+class CromwellBackendLsf(CromwellBackendHpc):
+    LSF_RUNTIME_ATTRIBUTES = dedent(
+        """
+        String? lsf_queue
+        String? lsf_extra_param
+    """
+    )
+    LSF_CHECK_ALIVE = 'bjobs ${job_id}'
+    LSF_KILL = 'bkill ${job_id}'
+    LSF_JOB_ID_REGEX = 'Job <([0-9]+)>.*'
+
+    # this is a template that requires formatting
+    # (submit, lsf_resource_param)
+    TEMPLATE_LSF_SUBMIT = dedent(
+        """
+        cat << EOF > ${{script}}.caper
+        #!/bin/bash
+        {submit}
+        EOF
+
+        for ITER in 1 2 3; do
+            bsub -env "all" -J ${{job_name}} -cwd ${{cwd}} -o ${{out}} -e ${{err}} \\
+                ${{'-q ' + lsf_queue}} \\
+                {lsf_resource_param} \\
+                ${{lsf_extra_param}} \\
+                ${{job_shell}} ${{script}}.caper && break
+            sleep 30
+        done
+    """
+    )
+    DEFAULT_LSF_RESOURCE_PARAM = (
+        '${"-n " + cpu} '
+        '${if defined(gpu) then "-gpu " + gpu else ""} '
+        '${if defined(memory_mb) then "-M " else ""}${memory_mb}${if defined(memory_mb) then "m" else ""} '
+        '${"-W " + 60*time} '
+    )
+
+    def __init__(
+        self,
+        local_out_dir,
+        max_concurrent_tasks=CromwellBackendBase.DEFAULT_CONCURRENT_JOB_LIMIT,
+        soft_glob_output=False,
+        local_hash_strat=CromwellBackendLocal.DEFAULT_LOCAL_HASH_STRAT,
+        lsf_queue=None,
+        lsf_extra_param=None,
+        lsf_resource_param=DEFAULT_LSF_RESOURCE_PARAM,
+    ):
+        """LSF backend. Try bsubbing up to 3 times every 30 second.
+
+        Args:
+            lsf_resource_param:
+                String of a set of resource parameters for the job submission engine.
+                WDL syntax allowed in ${} notation.
+                This will be appended to the job sumbission command line.
+                e.g. qsub ... THIS_RESOURCE_PARAM
+        """
+        submit = CromwellBackendLsf.TEMPLATE_LSF_SUBMIT.format(
+            submit=CromwellBackendLocal.SUBMIT, lsf_resource_param=lsf_resource_param
+        )
+        submit_docker = CromwellBackendLsf.TEMPLATE_LSF_SUBMIT.format(
+            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
+            lsf_resource_param=lsf_resource_param,
+        )
+
+        super().__init__(
+            local_out_dir=local_out_dir,
+            backend_name=BACKEND_LSF,
+            max_concurrent_tasks=max_concurrent_tasks,
+            soft_glob_output=soft_glob_output,
+            local_hash_strat=local_hash_strat,
+            check_alive=CromwellBackendLsf.LSF_CHECK_ALIVE,
+            kill=CromwellBackendLsf.LSF_KILL,
+            job_id_regex=CromwellBackendLsf.LSF_JOB_ID_REGEX,
+            submit=submit,
+            submit_docker=submit_docker,
+            runtime_attributes=CromwellBackendLsf.LSF_RUNTIME_ATTRIBUTES,
+        )
+
+        if lsf_queue:
+            self.default_runtime_attributes['lsf_queue'] = lsf_queue
+        if lsf_extra_param:
+            self.default_runtime_attributes['lsf_extra_param'] = lsf_extra_param
