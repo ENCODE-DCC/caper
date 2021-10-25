@@ -42,7 +42,7 @@ db=in-memory
 
 CONF_CONTENTS_LOCAL_HASH_STRAT = """
 # Hashing strategy for call-caching (3 choices)
-# This parameter is for local (local/slurm/sge/pbs) backend only.
+# This parameter is for local (local/slurm/sge/pbs/lsf) backend only.
 # This is important for call-caching,
 # which means re-using outputs from previous/failed workflows.
 # Cache will miss if different strategy is used.
@@ -140,7 +140,6 @@ DEFAULT_CONF_CONTENTS_LOCAL = (
     """
 backend=local
 """
-    + CONF_CONTENTS_DB
     + CONF_CONTENTS_LOCAL_HASH_STRAT
     + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
