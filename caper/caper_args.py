@@ -14,17 +14,17 @@ from .cromwell_backend import (
     LOCAL_HASH_STRAT_FILE,
     LOCAL_HASH_STRAT_PATH,
     LOCAL_HASH_STRAT_PATH_MTIME,
-    CromwellBackendAWS,
+    CromwellBackendAws,
     CromwellBackendBase,
     CromwellBackendCommon,
     CromwellBackendDatabase,
-    CromwellBackendGCP,
+    CromwellBackendGcp,
     CromwellBackendLocal,
+    CromwellBackendSlurm,
 )
 from .cromwell_rest_api import CromwellRestAPI
 from .resource_analysis import ResourceAnalysis
 from .server_heartbeat import ServerHeartbeat
-from .singularity import Singularity
 
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_LIST_FORMAT = 'id,status,name,str_label,user,parent,submission'
@@ -115,7 +115,7 @@ def get_parser_and_defaults(conf_file=None):
         'localized input JSON files due to deepcopying (recursive localization). '
         'Cromwell\'s MySQL/PostgreSQL DB password can be exposed on backend.conf '
         'on this directory. Therefore, DO NOT USE /tmp HERE. This directory is '
-        'also used for storing cached files for local/slurm/sge/pbs backends.',
+        'also used for storing cached files for local/slurm/sge/pbs/lsf backends.',
     )
     group_loc.add_argument(
         '--gcp-loc-dir',
@@ -278,7 +278,7 @@ def get_parser_and_defaults(conf_file=None):
         'does not allow hard-linking. e.g. beeGFS. '
         'This flag does not work with backends based on a Docker container. '
         'i.e. gcp and aws. Also, '
-        'it does not work with local backends (local/slurm/sge/pbs) '
+        'it does not work with local backends (local/slurm/sge/pbs/lsf) '
         'with --. However, it works fine with --singularity.',
     )
     group_cromwell.add_argument(
@@ -290,7 +290,7 @@ def get_parser_and_defaults(conf_file=None):
             LOCAL_HASH_STRAT_PATH_MTIME,
         ],
         help='File hashing strategy for call caching. '
-        'For local backends (local/slurm/sge/pbs) only. '
+        'For local backends (local/slurm/sge/pbs/lsf) only. '
         'file: use md5sum hash (slow), path: use path only, '
         'path+modtime (default): use path + mtime.',
     )
@@ -304,6 +304,14 @@ def get_parser_and_defaults(conf_file=None):
         'Cloud backends (gcp, aws) use different output directories. '
         'For gcp, define --gcp-out-dir. '
         'For aws, define --aws-out-dir.',
+    )
+    group_local.add_argument(
+        '--slurm-resource-param',
+        help='SLURM resource parameters to be passed to sbatch. '
+        'You can customize this to fit your cluster\'s configuration. '
+        'You can use WDL syntax in ${} notation with Cromwell\'s built-in resource '
+        'variables. See documentation for details. ',
+        default=CromwellBackendSlurm.DEFAULT_SLURM_RESOURCE_PARAM,
     )
 
     group_gc_all = parent_backend.add_argument_group(
@@ -325,7 +333,7 @@ def get_parser_and_defaults(conf_file=None):
     )
     group_gc.add_argument(
         '--gcp-region',
-        default=CromwellBackendGCP.DEFAULT_REGION,
+        default=CromwellBackendGcp.DEFAULT_REGION,
         help='GCP region for Google Cloud Life Sciences API. '
         'This is used only when --use-google-cloud-life-sciences is defined.',
     )
@@ -338,7 +346,7 @@ def get_parser_and_defaults(conf_file=None):
     )
     group_gc.add_argument(
         '--gcp-call-caching-dup-strat',
-        default=CromwellBackendGCP.DEFAULT_CALL_CACHING_DUP_STRAT,
+        default=CromwellBackendGcp.DEFAULT_CALL_CACHING_DUP_STRAT,
         choices=[CALL_CACHING_DUP_STRAT_REFERENCE, CALL_CACHING_DUP_STRAT_COPY],
         help='Duplication strategy for call-cached outputs for GCP backend: '
         'copy: make a copy, reference: refer to old output in metadata.json.',
@@ -360,7 +368,7 @@ def get_parser_and_defaults(conf_file=None):
     )
     group_aws.add_argument(
         '--aws-call-caching-dup-strat',
-        default=CromwellBackendAWS.DEFAULT_CALL_CACHING_DUP_STRAT,
+        default=CromwellBackendAws.DEFAULT_CALL_CACHING_DUP_STRAT,
         choices=[CALL_CACHING_DUP_STRAT_REFERENCE, CALL_CACHING_DUP_STRAT_COPY],
         help='Duplication strategy for call-cached outputs for AWS backend: '
         'copy: make a copy, reference: refer to old output in metadata.json.',
@@ -396,14 +404,6 @@ def get_parser_and_defaults(conf_file=None):
         '--hold',
         action='store_true',
         help='Put a hold on a workflow when submitted to a Cromwell server.',
-    )
-    parent_submit.add_argument(
-        '--singularity-cachedir',
-        default=Singularity.DEFAULT_SINGULARITY_CACHEDIR,
-        help='Singularity cache directory. Equivalent to exporting an '
-        'environment variable SINGULARITY_CACHEDIR. '
-        'Define it to prevent repeatedly building a singularity image '
-        'for every pipeline task',
     )
     parent_submit.add_argument(
         '--use-gsutil-for-s3',
@@ -477,7 +477,7 @@ def get_parser_and_defaults(conf_file=None):
         description='Cloud-based backends (gc and aws) will only use Docker '
         'so that "--docker URI_FOR_DOCKER_IMG" must be specified '
         'in the command line argument or as a comment "#CAPER '
-        'docker URI_FOR_DOCKER_IMG" or value for "workflow.meta.caper_docker"'
+        'docker URI_FOR_DOCKER_IMG" or value for "workflow.meta.default_docker"'
         'in a WDL file',
     )
     group_dep.add_argument(
@@ -486,9 +486,9 @@ def get_parser_and_defaults(conf_file=None):
         const='',
         default=None,
         help='URI for Docker image (e.g. ubuntu:latest). '
-        'This can also be used as a flag to use Docker image address '
+        'This can also be used as a flag to use Docker image URI '
         'defined in your WDL file as a comment ("#CAPER docker") or '
-        'as "workflow.meta.caper_docker" in WDL.',
+        'as "workflow.meta.default_docker" in WDL.',
     )
     group_dep_local = parent_submit.add_argument_group(
         title='dependency resolver for local backend',
@@ -505,21 +505,26 @@ def get_parser_and_defaults(conf_file=None):
         help='URI or path for Singularity image '
         '(e.g. ~/.singularity/ubuntu-latest.simg, '
         'docker://ubuntu:latest, shub://vsoch/hello-world). '
-        'This can also be used as a flag to use Docker image address '
+        'This can also be used as a flag to use Singularity image URI '
         'defined in your WDL file as a comment ("#CAPER singularity") or '
-        'as "workflow.meta.caper_singularity" in WDL.',
+        'as "workflow.meta.default_singularity" in WDL.',
     )
     group_dep_local.add_argument(
-        '--no-build-singularity',
-        action='store_true',
-        help='Do not build singularity image before running a workflow. ',
+        '--conda',
+        nargs='?',
+        const='',
+        default=None,
+        help='Default Conda environment\'s name. '
+        'If defined each task in WDL will be called with conda run -n ENV_NAME.'
+        'This can also be used as a flag to use Conda environment '
+        'defined in your WDL file under "workflow.meta.default_conda".',
     )
 
     group_slurm = parent_submit.add_argument_group('SLURM arguments')
     group_slurm.add_argument('--slurm-partition', help='SLURM partition')
     group_slurm.add_argument('--slurm-account', help='SLURM account')
     group_slurm.add_argument(
-        '--slurm-extra-param', help='SLURM extra parameters. Must be double-quoted'
+        '--slurm-extra-param', help='SLURM extra parameters to be passed to sbatch. '
     )
 
     group_sge = parent_submit.add_argument_group('SGE arguments')
@@ -535,6 +540,12 @@ def get_parser_and_defaults(conf_file=None):
     group_pbs.add_argument('--pbs-queue', help='PBS queue')
     group_pbs.add_argument(
         '--pbs-extra-param', help='PBS extra parameters. Must be double-quoted'
+    )
+
+    group_lsf = parent_submit.add_argument_group('LSF arguments')
+    group_lsf.add_argument('--lsf-queue', help='LSF queue')
+    group_lsf.add_argument(
+        '--lsf-extra-param', help='LSF extra parameters. Must be double-quoted'
     )
 
     # server

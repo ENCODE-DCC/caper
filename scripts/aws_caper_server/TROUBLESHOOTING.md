@@ -63,3 +63,8 @@ If you use S3 URIs in an input JSON which are in a different region, then you wi
 ### `S3Exception: null (Service: S3, Status Code: 400)`
 
 If you see `400` error then please use this shell script `./create_instance.sh` to create an instance instead of running Caper server on your laptop/machine.
+
+
+### Tasks (jobs) are stuck at RUNNABLE status
+
+Go to `Job Queues` in `AWS Batch` on your AWS console and find your job queue (default or priority) that matches with the ARN in your Caper conf. Edit the queue and increase number of maximum vCPUs.

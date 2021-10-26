@@ -9,16 +9,19 @@ from .caper_labels import CaperLabels
 from .caper_workflow_opts import CaperWorkflowOpts
 from .cromwell import Cromwell
 from .cromwell_backend import (
-    CromwellBackendAWS,
+    CromwellBackendAws,
     CromwellBackendBase,
     CromwellBackendCommon,
     CromwellBackendDatabase,
-    CromwellBackendGCP,
+    CromwellBackendGcp,
     CromwellBackendLocal,
+    CromwellBackendLsf,
+    CromwellBackendPbs,
+    CromwellBackendSge,
+    CromwellBackendSlurm,
 )
 from .cromwell_metadata import CromwellMetadata
 from .cromwell_rest_api import CromwellRestAPI
-from .singularity import Singularity
 from .wdl_parser import WDLParser
 
 logger = logging.getLogger(__name__)
@@ -63,23 +66,29 @@ class CaperRunner(CaperBase):
         file_db=None,
         gcp_prj=None,
         gcp_out_dir=None,
-        gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_CALL_CACHING_DUP_STRAT,
+        gcp_call_caching_dup_strat=CromwellBackendGcp.DEFAULT_CALL_CACHING_DUP_STRAT,
         gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
-        gcp_region=CromwellBackendGCP.DEFAULT_REGION,
+        gcp_region=CromwellBackendGcp.DEFAULT_REGION,
         aws_batch_arn=None,
         aws_region=None,
         aws_out_dir=None,
-        aws_call_caching_dup_strat=CromwellBackendAWS.DEFAULT_CALL_CACHING_DUP_STRAT,
+        aws_call_caching_dup_strat=CromwellBackendAws.DEFAULT_CALL_CACHING_DUP_STRAT,
         gcp_zones=None,
         slurm_partition=None,
         slurm_account=None,
         slurm_extra_param=None,
+        slurm_resource_param=CromwellBackendSlurm.DEFAULT_SLURM_RESOURCE_PARAM,
         sge_pe=None,
         sge_queue=None,
         sge_extra_param=None,
+        sge_resource_param=CromwellBackendSge.DEFAULT_SGE_RESOURCE_PARAM,
         pbs_queue=None,
         pbs_extra_param=None,
+        pbs_resource_param=CromwellBackendPbs.DEFAULT_PBS_RESOURCE_PARAM,
+        lsf_queue=None,
+        lsf_extra_param=None,
+        lsf_resource_param=CromwellBackendLsf.DEFAULT_LSF_RESOURCE_PARAM,
     ):
         """See docstring of base class for other arguments.
 
@@ -135,16 +144,28 @@ class CaperRunner(CaperBase):
                 SLURM account if required to sbatch jobs.
             slurm_extra_param:
                 SLURM extra parameter to be appended to sbatch command line.
+            slurm_resource_param:
+                SLURM resource parameters to be passed to sbatch.
             sge_pe:
                 SGE parallel environment (required to run with multiple cpus).
             sge_queue:
                 SGE queue.
             sge_extra_param:
                 SGE extra parameter to be appended to qsub command line.
+            sge_resource_param:
+                SGE resource parameters to be passed to qsub.
             pbs_queue:
                 PBS queue.
             pbs_extra_param:
                 PBS extra parameter to be appended to qsub command line.
+            pbs_resource_param:
+                PBS resource parameters to be passed to qsub.
+            lsf_queue:
+                LSF queue.
+            lsf_extra_param:
+                LSF extra parameter to be appended to qsub command line.
+            lsf_resource_param:
+                LSF resource parameters to be passed to bsub.
         """
         super().__init__(
             local_loc_dir=local_loc_dir,
@@ -195,11 +216,17 @@ class CaperRunner(CaperBase):
             slurm_partition=slurm_partition,
             slurm_account=slurm_account,
             slurm_extra_param=slurm_extra_param,
+            slurm_resource_param=slurm_resource_param,
             sge_pe=sge_pe,
             sge_queue=sge_queue,
             sge_extra_param=sge_extra_param,
+            sge_resource_param=sge_resource_param,
             pbs_queue=pbs_queue,
             pbs_extra_param=pbs_extra_param,
+            pbs_resource_param=pbs_resource_param,
+            lsf_queue=lsf_queue,
+            lsf_extra_param=lsf_extra_param,
+            lsf_resource_param=lsf_resource_param,
         )
 
         self._caper_workflow_opts = CaperWorkflowOpts(
@@ -213,6 +240,8 @@ class CaperRunner(CaperBase):
             sge_extra_param=sge_extra_param,
             pbs_queue=pbs_queue,
             pbs_extra_param=pbs_extra_param,
+            lsf_queue=lsf_queue,
+            lsf_extra_param=lsf_extra_param,
         )
 
         self._caper_labels = CaperLabels()
@@ -250,8 +279,7 @@ class CaperRunner(CaperBase):
         user=None,
         docker=None,
         singularity=None,
-        singularity_cachedir=Singularity.DEFAULT_SINGULARITY_CACHEDIR,
-        no_build_singularity=False,
+        conda=None,
         custom_backend_conf=None,
         max_retries=CaperWorkflowOpts.DEFAULT_MAX_RETRIES,
         memory_retry_multiplier=CaperWorkflowOpts.DEFAULT_MEMORY_RETRY_MULTIPLIER,
@@ -270,7 +298,7 @@ class CaperRunner(CaperBase):
         Args:
             backend:
                 Choose among Caper's built-in backends.
-                (aws, gcp, Local, slurm, sge, pbs).
+                (aws, gcp, Local, slurm, sge, pbs, lsf).
                 Or use a backend defined in your custom backend config file
                 (above "backend_conf" file).
             wdl:
@@ -293,7 +321,7 @@ class CaperRunner(CaperBase):
             user:
                 Username. If not defined, find username from system.
             docker:
-                Docker image to run a workflow on.
+                Default Docker image to run a workflow on.
                 This will be overriden by "docker" attr defined in
                 WDL's task's "runtime {} section.
 
@@ -302,9 +330,9 @@ class CaperRunner(CaperBase):
                 If this is an emtpy string (working like a flag):
                     Docker will be used. Caper will try to find docker image
                     in WDL (from a comment "#CAPER docker" or
-                    from workflow.meta.caper_docker).
+                    from workflow.meta.default_docker).
             singularity:
-                Singularity image to run a workflow on.
+                Default Singularity image to run a workflow on.
                 This will be overriden by "singularity" attr defined in
                 WDL's task's "runtime {} section.
 
@@ -313,16 +341,17 @@ class CaperRunner(CaperBase):
                 If this is an emtpy string:
                     Singularity will be used. Caper will try to find Singularity image
                     in WDL (from a comment "#CAPER singularity" or
-                    from workflow.meta.caper_singularlity).
-            singularity_cachedir:
-                Cache directory for local Singularity images.
-                If there is a shell environment variable SINGULARITY_CACHEDIR
-                define then this parameter will be ignored.
-            no_build_singularity:
-                Do not build local singularity image.
-                However, a local singularity image will be eventually built on
-                env var SINGULARITY_CACHEDIR.
-                Therefore, use this flag if you have already built it.
+                    from workflow.meta.default_singularlity).
+            conda:
+                Default Conda environment name to run a workflow in.
+                This will be overriden by "conda" attr defined in
+                WDL's task's "runtime {} section.
+
+                If this is None:
+                    Conda (conda run -n ENV_NAME script.sh) will not be used for this workflow.
+                If this is an emtpy string:
+                    Conda will be used. Caper will try to find Conda environment image
+                    in WDL (from workflow.meta.default_conda).
             custom_backend_conf:
                 Backend config file (HOCON) to override Caper's
                 auto-generated backend config.
@@ -414,7 +443,7 @@ class CaperRunner(CaperBase):
             custom_options=options,
             docker=docker,
             singularity=singularity,
-            singularity_cachedir=singularity_cachedir,
+            conda=conda,
             backend=backend,
             max_retries=max_retries,
             memory_retry_multiplier=memory_retry_multiplier,
@@ -470,7 +499,7 @@ class CaperRunner(CaperBase):
                 Default backend. If backend is not specified for a submitted workflow
                 then default backend will be used.
                 Choose among Caper's built-in backends.
-                (aws, gcp, Local, slurm, sge, pbs).
+                (aws, gcp, Local, slurm, sge, pbs, lsf).
                 Or use a backend defined in your custom backend config file
                 (above "backend_conf" file).
             server_heartbeat:

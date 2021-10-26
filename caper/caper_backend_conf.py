@@ -8,15 +8,16 @@ from .cromwell_backend import (
     BACKEND_AWS,
     BACKEND_GCP,
     BACKEND_SGE,
-    CromwellBackendAWS,
+    CromwellBackendAws,
     CromwellBackendBase,
     CromwellBackendCommon,
     CromwellBackendDatabase,
-    CromwellBackendGCP,
+    CromwellBackendGcp,
     CromwellBackendLocal,
-    CromwellBackendPBS,
-    CromwellBackendSGE,
-    CromwellBackendSLURM,
+    CromwellBackendLsf,
+    CromwellBackendPbs,
+    CromwellBackendSge,
+    CromwellBackendSlurm,
 )
 from .dict_tool import merge_dict
 from .hocon_string import HOCONString
@@ -53,23 +54,29 @@ class CaperBackendConf:
         file_db=None,
         gcp_prj=None,
         gcp_out_dir=None,
-        gcp_call_caching_dup_strat=CromwellBackendGCP.DEFAULT_CALL_CACHING_DUP_STRAT,
+        gcp_call_caching_dup_strat=CromwellBackendGcp.DEFAULT_CALL_CACHING_DUP_STRAT,
         gcp_service_account_key_json=None,
         use_google_cloud_life_sciences=False,
-        gcp_region=CromwellBackendGCP.DEFAULT_REGION,
+        gcp_region=CromwellBackendGcp.DEFAULT_REGION,
         aws_batch_arn=None,
         aws_region=None,
         aws_out_dir=None,
-        aws_call_caching_dup_strat=CromwellBackendAWS.DEFAULT_CALL_CACHING_DUP_STRAT,
+        aws_call_caching_dup_strat=CromwellBackendAws.DEFAULT_CALL_CACHING_DUP_STRAT,
         gcp_zones=None,
         slurm_partition=None,
         slurm_account=None,
         slurm_extra_param=None,
+        slurm_resource_param=CromwellBackendSlurm.DEFAULT_SLURM_RESOURCE_PARAM,
         sge_pe=None,
         sge_queue=None,
         sge_extra_param=None,
+        sge_resource_param=CromwellBackendSge.DEFAULT_SGE_RESOURCE_PARAM,
         pbs_queue=None,
         pbs_extra_param=None,
+        pbs_resource_param=CromwellBackendPbs.DEFAULT_PBS_RESOURCE_PARAM,
+        lsf_queue=None,
+        lsf_extra_param=None,
+        lsf_resource_param=CromwellBackendLsf.DEFAULT_LSF_RESOURCE_PARAM,
     ):
         """Initializes the backend conf's stanzas.
 
@@ -93,7 +100,7 @@ class CaperBackendConf:
             max_concurrent_tasks:
                 Limit for concurrent number of tasks for each workflow.
             soft_glob_output:
-                Local backends only (Local, sge, pbs, slurm).
+                Local backends only (Local, sge, pbs, slurm, lsf).
                 Glob with ln -s instead of hard-linking (ln alone).
                 Useful for file-system like beeGFS, which does not allow hard-linking.
             local_hash_strat:
@@ -166,11 +173,21 @@ class CaperBackendConf:
             slurm_partition:
             slurm_account:
             slurm_extra_param:
+            slurm_resource_param:
+                For slurm backend only.
+                Resource parameters to be passed to sbatch.
+                You can use WDL syntax and Cromwell's built-in variables in ${} notation.
+                e.g. cpu, time, memory_mb
             sge_pe:
             sge_queue:
             sge_extra_param:
+            sge_resource_param:
             pbs_queue:
             pbs_extra_param:
+            pbs_resource_param:
+            lsf_queue:
+            lsf_extra_param:
+            lsf_resource_param:
         """
         self._template = {}
 
@@ -216,7 +233,7 @@ class CaperBackendConf:
 
         merge_dict(
             self._template,
-            CromwellBackendSLURM(
+            CromwellBackendSlurm(
                 local_out_dir=local_out_dir,
                 max_concurrent_tasks=max_concurrent_tasks,
                 soft_glob_output=soft_glob_output,
@@ -224,12 +241,13 @@ class CaperBackendConf:
                 slurm_partition=slurm_partition,
                 slurm_account=slurm_account,
                 slurm_extra_param=slurm_extra_param,
+                slurm_resource_param=slurm_resource_param,
             ),
         )
 
         merge_dict(
             self._template,
-            CromwellBackendSGE(
+            CromwellBackendSge(
                 local_out_dir=local_out_dir,
                 max_concurrent_tasks=max_concurrent_tasks,
                 soft_glob_output=soft_glob_output,
@@ -242,13 +260,25 @@ class CaperBackendConf:
 
         merge_dict(
             self._template,
-            CromwellBackendPBS(
+            CromwellBackendPbs(
                 local_out_dir=local_out_dir,
                 max_concurrent_tasks=max_concurrent_tasks,
                 soft_glob_output=soft_glob_output,
                 local_hash_strat=local_hash_strat,
                 pbs_queue=pbs_queue,
                 pbs_extra_param=pbs_extra_param,
+            ),
+        )
+
+        merge_dict(
+            self._template,
+            CromwellBackendLsf(
+                local_out_dir=local_out_dir,
+                max_concurrent_tasks=max_concurrent_tasks,
+                soft_glob_output=soft_glob_output,
+                local_hash_strat=local_hash_strat,
+                lsf_queue=lsf_queue,
+                lsf_extra_param=lsf_extra_param,
             ),
         )
 
@@ -267,7 +297,7 @@ class CaperBackendConf:
 
             merge_dict(
                 self._template,
-                CromwellBackendGCP(
+                CromwellBackendGcp(
                     max_concurrent_tasks=max_concurrent_tasks,
                     gcp_prj=gcp_prj,
                     gcp_out_dir=gcp_out_dir,
@@ -282,7 +312,7 @@ class CaperBackendConf:
         if aws_batch_arn and aws_region and aws_out_dir:
             merge_dict(
                 self._template,
-                CromwellBackendAWS(
+                CromwellBackendAws(
                     max_concurrent_tasks=max_concurrent_tasks,
                     aws_batch_arn=aws_batch_arn,
                     aws_region=aws_region,

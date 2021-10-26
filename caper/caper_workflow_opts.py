@@ -6,9 +6,15 @@ import os
 from autouri import GCSURI, AutoURI
 
 from .caper_wdl_parser import CaperWDLParser
-from .cromwell_backend import BACKEND_AWS, BACKEND_GCP
+from .cromwell_backend import (
+    BACKEND_AWS,
+    BACKEND_GCP,
+    ENVIRONMENT_CONDA,
+    ENVIRONMENT_DOCKER,
+    ENVIRONMENT_SINGULARITY,
+)
 from .dict_tool import merge_dict
-from .singularity import Singularity
+from .singularity import find_bindpath
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +40,8 @@ class CaperWorkflowOpts:
         sge_extra_param=None,
         pbs_queue=None,
         pbs_extra_param=None,
+        lsf_queue=None,
+        lsf_extra_param=None,
     ):
         """Template for a workflows options JSON file.
         All parameters are optional.
@@ -76,31 +84,45 @@ class CaperWorkflowOpts:
                 For pbs backend only.
                 Extra parameters for PBS.
                 This will be appended to "qsub" command line.
+            lsf_queue:
+                For lsf backend only.
+                LSF queue to submit tasks to.
+            lsf_extra_param:
+                For lsf backend only.
+                Extra parameters for LSF.
+                This will be appended to "bsub" command line.
         """
         self._template = {CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES: dict()}
-        dra = self._template[CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES]
+        default_runtime_attributes = self._template[
+            CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES
+        ]
 
         if gcp_zones and not use_google_cloud_life_sciences:
-            dra['zones'] = ' '.join(gcp_zones)
+            default_runtime_attributes['zones'] = ' '.join(gcp_zones)
 
         if slurm_partition:
-            dra['slurm_partition'] = slurm_partition
+            default_runtime_attributes['slurm_partition'] = slurm_partition
         if slurm_account:
-            dra['slurm_account'] = slurm_account
+            default_runtime_attributes['slurm_account'] = slurm_account
         if slurm_extra_param:
-            dra['slurm_extra_param'] = slurm_extra_param
+            default_runtime_attributes['slurm_extra_param'] = slurm_extra_param
 
         if sge_pe:
-            dra['sge_pe'] = sge_pe
+            default_runtime_attributes['sge_pe'] = sge_pe
         if sge_queue:
-            dra['sge_queue'] = sge_queue
+            default_runtime_attributes['sge_queue'] = sge_queue
         if sge_extra_param:
-            dra['sge_extra_param'] = sge_extra_param
+            default_runtime_attributes['sge_extra_param'] = sge_extra_param
 
         if pbs_queue:
-            dra['pbs_queue'] = pbs_queue
+            default_runtime_attributes['pbs_queue'] = pbs_queue
         if pbs_extra_param:
-            dra['pbs_extra_param'] = pbs_extra_param
+            default_runtime_attributes['pbs_extra_param'] = pbs_extra_param
+
+        if lsf_queue:
+            default_runtime_attributes['lsf_queue'] = lsf_queue
+        if lsf_extra_param:
+            default_runtime_attributes['lsf_extra_param'] = lsf_extra_param
 
     def create_file(
         self,
@@ -111,8 +133,7 @@ class CaperWorkflowOpts:
         custom_options=None,
         docker=None,
         singularity=None,
-        singularity_cachedir=None,
-        no_build_singularity=False,
+        conda=None,
         max_retries=DEFAULT_MAX_RETRIES,
         memory_retry_multiplier=DEFAULT_MEMORY_RETRY_MULTIPLIER,
         gcp_monitoring_script=DEFAULT_GCP_MONITORING_SCRIPT,
@@ -146,21 +167,12 @@ class CaperWorkflowOpts:
                 This will be merged at the end of this function.
                 Therefore, users can override on Caper's auto-generated
                 workflow options JSON file.
+            conda:
+                Default Conda environemnt name to run a workflow.
             docker:
-                Docker image to run a workflow on.
+                Default Docker image to run a workflow on.
             singularity:
-                Singularity image to run a workflow on.
-            singularity_cachedir:
-                Singularity cache directory to build local images on.
-                This will be overriden by environment variable SINGULARITY_CACHEDIR.
-            no_build_singularity:
-                Caper run "singularity exec IMAGE" to build a local Singularity image
-                before submitting/running a workflow.
-                With this flag on, Caper does not pre-build a local Singularity container.
-                Therefore, Singularity container will be built inside each task,
-                which will result in multiple redundant local image building.
-                Also, trying to build on the same Singularity image file can
-                lead to corruption of the image file.
+                Default Singularity image to run a workflow on.
             max_retries:
                 Maximum number of retirals for each task. 1 means 1 retrial.
             memory_retry_multiplier:
@@ -177,64 +189,106 @@ class CaperWorkflowOpts:
             raise ValueError('Cannot use both Singularity and Docker.')
 
         template = copy.deepcopy(self._template)
-        dra = template[CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES]
+        default_runtime_attributes = template[
+            CaperWorkflowOpts.DEFAULT_RUNTIME_ATTRIBUTES
+        ]
 
         if backend:
             template['backend'] = backend
 
         wdl_parser = CaperWDLParser(wdl)
+
+        # sanity check for environment flags
+        defined_env_flags = [env for env in (docker, singularity, conda) if env]
+        if len(defined_env_flags) > 1:
+            raise ValueError(
+                'docker, singularity and conda are mutually exclusive. '
+                'Define nothing or only one environment.'
+            )
+
+        if docker is not None:
+            environment = ENVIRONMENT_DOCKER
+        elif singularity is not None:
+            environment = ENVIRONMENT_SINGULARITY
+        elif conda is not None:
+            environment = ENVIRONMENT_CONDA
+        else:
+            environment = None
+
+        if environment:
+            default_runtime_attributes['environment'] = environment
+
         if docker == '' or backend in (BACKEND_GCP, BACKEND_AWS) and not docker:
-            # find "caper-docker" from WDL's workflow.meta
-            # or "#CAPER docker" from comments
-            docker = wdl_parser.caper_docker
+            # if used as a flag or cloud backend is chosen
+            # try to find "default_docker" from WDL's workflow.meta or "#CAPER docker" from comments
+            docker = wdl_parser.default_docker
             if docker:
                 logger.info(
-                    'Docker image found in WDL\'s metadata. wdl={wdl}, d={d}'.format(
+                    'Docker image found in WDL metadata. wdl={wdl}, d={d}'.format(
                         wdl=wdl, d=docker
                     )
                 )
             else:
-                logger.warning(
-                    "Docker image not found in WDL's metadata, which means that "
-                    "docker is not defined either as comment (#CAPER docker) or "
-                    "in workflow's meta section (under key caper_docker) in WDL. "
-                    "If your WDL already has docker defined "
-                    "in each task's runtime "
-                    "then it should be okay. wdl={wdl}".format(wdl=wdl)
+                logger.info(
+                    "Docker image not found in WDL metadata. wdl={wdl}".format(wdl=wdl)
                 )
+
         if docker:
-            dra['docker'] = docker
+            default_runtime_attributes['docker'] = docker
 
         if singularity == '':
+            # if used as a flag
             if backend in (BACKEND_GCP, BACKEND_AWS):
                 raise ValueError(
                     'Singularity cannot be used for cloud backend (e.g. aws, gcp).'
                 )
 
-            singularity = wdl_parser.caper_singularity
+            singularity = wdl_parser.default_singularity
             if singularity:
                 logger.info(
-                    'Singularity image found in WDL\'s metadata. wdl={wdl}, s={s}'.format(
+                    'Singularity image found in WDL metadata. wdl={wdl}, s={s}'.format(
                         wdl=wdl, s=singularity
                     )
                 )
             else:
-                raise ValueError(
-                    'Singularity image not found in WDL. wdl={wdl}'.format(wdl=wdl)
+                logger.info(
+                    'Singularity image not found in WDL metadata. wdl={wdl}.'.format(
+                        wdl=wdl
+                    )
                 )
-        if singularity:
-            dra['singularity'] = singularity
-            if singularity_cachedir:
-                dra['singularity_cachedir'] = singularity_cachedir
 
-            s = Singularity(singularity, singularity_cachedir)
+        if singularity:
+            default_runtime_attributes['singularity'] = singularity
             if inputs:
-                dra['singularity_bindpath'] = s.find_bindpath(inputs)
-            if not no_build_singularity:
-                s.build_local_image()
+                default_runtime_attributes['singularity_bindpath'] = find_bindpath(
+                    inputs
+                )
+
+        if conda == '':
+            # if used as a flag
+            if backend in (BACKEND_GCP, BACKEND_AWS):
+                raise ValueError(
+                    'Conda cannot be used for cloud backend (e.g. aws, gcp).'
+                )
+            conda = wdl_parser.default_conda
+            if conda:
+                logger.info(
+                    'Conda environment name found in WDL metadata. wdl={wdl}, s={s}'.format(
+                        wdl=wdl, s=conda
+                    )
+                )
+            else:
+                logger.info(
+                    'Conda environment name not found in WDL metadata. wdl={wdl}'.format(
+                        wdl=wdl
+                    )
+                )
+
+        if conda:
+            default_runtime_attributes['conda'] = conda
 
         if max_retries is not None:
-            dra['maxRetries'] = max_retries
+            default_runtime_attributes['maxRetries'] = max_retries
         # Cromwell's bug in memory-retry feature.
         # Disabled until it's fixed on Cromwell's side.
         # if memory_retry_multiplier is not None:
