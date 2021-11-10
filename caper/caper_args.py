@@ -148,7 +148,9 @@ def get_parser_and_defaults(conf_file=None):
         '--cromwell-stdout',
         default=DEFAULT_CROMWELL_STDOUT,
         help='Local file to write STDOUT of Cromwell Java process to. '
-        'This is for Cromwell (not for Caper\'s logging system).',
+        'This is for Cromwell (not for Caper\'s logging system). '
+        'If this file already exists then Caper will make a new file suffixed with '
+        'incremented index. e.g. cromwell.out.1 ',
     )
     group_db = parent_runner.add_argument_group(
         title='General DB settings (for both file DB and MySQL DB)'
