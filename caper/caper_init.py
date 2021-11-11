@@ -154,7 +154,7 @@ slurm-partition=
 
 # IMPORTANT warning for Stanford Sherlock cluster
 # ====================================================================
-# DO NOT install any codes/executables
+# DO NOT install any codes/executables/Miniconda
 # (java, conda, python, caper, pipeline's WDL, pipeline's Conda env, ...) on $SCRATCH or $OAK.
 # You will see Segmentation Fault errors.
 # Install all executables on $HOME or $PI_HOME instead.
@@ -173,6 +173,16 @@ backend=slurm
 
 # SLURM account. Define only if required by a cluster. You must define it for Stanford SCG.
 slurm-account=
+
+# IMPORTANT warning for Stanford SCG cluster
+# ====================================================================
+# DO NOT install any codes/executables/Miniconda
+# (java, conda, python, caper, pipeline's WDL, pipeline's Conda env, ...) on your home (/home/$USER).
+# Pipelines will get stuck due to slow filesystem.
+# ALSO DO NOT USE /local/scratch to run pipelines. This directory is not static.
+# Use $OAK storage to run pipelines, and to store codes/WDLs/executables.
+# ====================================================================
+
 """
     + CONF_CONTENTS_SLURM_PARAM
     + CONF_CONTENTS_LOCAL_HASH_STRAT

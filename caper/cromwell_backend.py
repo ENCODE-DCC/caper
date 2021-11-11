@@ -484,12 +484,13 @@ class CromwellBackendLocal(CromwellBackendBase):
 
         SUBMIT_DOCKER:
             Cromwell falls back to 'submit_docker' instead of 'submit' if WDL task has
-            'docker' in runtime.
+            'docker' in runtime and runtime-attributes are declared in backend's config.
+
             Docker and Singularity can map paths between inside and outside of the container.
             So this is not an issue for those container environments.
 
-            For Conda, any container paths (/cromwell-executions/**) in the script is simply
-            replaced with CWD.
+            For Conda, any container paths (docker_cwd, e.g. /cromwell-executions/**)
+            in the script is simply replaced with CWD.
 
             This also replaces filenames written in write_*.tsv files (globbed by WDL functions).
             e.g. write_lines(), write_tsv(), ...
@@ -501,7 +502,6 @@ class CromwellBackendLocal(CromwellBackendBase):
             - 'sed' is used here with a delimiter as hash mark (#)
               so hash marks in output path can result in error.
             - Files globbed by WDL functions other than write_*() will still have paths inside a container.
-
     """
 
     RUNTIME_ATTRIBUTES = dedent(
@@ -515,43 +515,41 @@ class CromwellBackendLocal(CromwellBackendBase):
         String? singularity
         String? singularity_bindpath
         String? gpu
-
-        ## Cromwell built-in attributes
+    """
+    )
+    # need to separate docker-related attributes
+    # to be able ignore docker in WDL task's runtime
+    RUNTIME_ATTRIBUTES_DOCKER = dedent(
+        """
+        ## Cromwell built-in attributes for docker
         String? docker
         String? docker_user
     """
     )
-    # Do not define/use any new shell variable in this template (e.g. var=, ${var}).
-    # This template needs formatting (remap_path_for_singularity, remap_path_for_conda)
-    TEMPLATE_SUBMIT = dedent(
+    SUBMIT = dedent(
         """
-        if [ '${{defined(environment)}}' == 'true' ] && [ '${{environment}}' == 'singularity' ] || \\
-           [ '${{defined(environment)}}' == 'false' ] && [ '${{defined(singularity)}}' == 'true' ] && [ ! -z '${{singularity}}' ]
+        if [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'singularity' ] || \\
+           [ '${defined(environment)}' == 'false' ] && [ '${defined(singularity)}' == 'true' ] && [ ! -z '${singularity}' ]
         then
             mkdir -p $HOME/.singularity/lock/
             flock --exclusive --timeout 600 \\
-                $HOME/.singularity/lock/`echo -n '${{singularity}}' | md5sum | cut -d' ' -f1` \\
-                singularity exec --containall ${{singularity}} echo 'Successfully pulled ${{singularity}}'
+                $HOME/.singularity/lock/`echo -n '${singularity}' | md5sum | cut -d' ' -f1` \\
+                singularity exec --containall ${singularity} echo 'Successfully pulled ${singularity}'
 
-            singularity exec --cleanenv --home=${{cwd}} \\
-                --bind=${{singularity_bindpath}},{bind_param_to_remap_path_for_singularity} \\
-                ${{if defined(gpu) then ' --nv' else ''}} \\
-                ${{singularity}} ${{job_shell}} ${{script}}
+            singularity exec --cleanenv --home=`dirname ${cwd}` \\
+                --bind=${singularity_bindpath}, \\
+                ${if defined(gpu) then ' --nv' else ''} \\
+                ${singularity} ${job_shell} ${script}
 
-        elif [ '${{defined(environment)}}' == 'true' ] && [ '${{environment}}' == 'conda' ] || \\
-             [ '${{defined(environment)}}' == 'false' ] && [ '${{defined(conda)}}' == 'true' ] && [ ! -z '${{conda}}' ]
+        elif [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'conda' ] || \\
+             [ '${defined(environment)}' == 'false' ] && [ '${defined(conda)}' == 'true' ] && [ ! -z '${conda}' ]
         then
-            {cmd_lines_to_remap_path_for_conda}
-            conda run --name=${{conda}} ${{job_shell}} ${{script}}
+            conda run --name=${conda} ${job_shell} ${script}
 
         else
-            ${{job_shell}} ${{script}}
+            ${job_shell} ${script}
         fi
     """
-    )
-    SUBMIT = TEMPLATE_SUBMIT.format(
-        bind_param_to_remap_path_for_singularity='',
-        cmd_lines_to_remap_path_for_conda='',
     )
     SUBMIT_DOCKER = dedent(
         """
@@ -564,36 +562,37 @@ class CromwellBackendLocal(CromwellBackendBase):
               --volume=${cwd}:${docker_cwd}:delegated ${docker} ${docker_script}
             rc=$(docker wait `cat ${docker_cid}`)
             docker rm `cat ${docker_cid}`
-
-        elif [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'singularity' ] || \\
-             [ '${defined(environment)}' == 'false' ] && [ '${defined(singularity)}' == 'true' ] && [ ! -z '${singularity}' ]
-        then
-            mkdir -p $HOME/.singularity/lock/
-            flock --exclusive --timeout 600 \\
-                $HOME/.singularity/lock/`echo -n '${singularity}' | md5sum | cut -d' ' -f1` \\
-                singularity exec --containall ${singularity} echo 'Successfully pulled ${singularity}'
-
-            singularity exec --cleanenv --home=${cwd} \\
-                --bind=${singularity_bindpath},${cwd}:${docker_cwd} \\
-                ${if defined(gpu) then ' --nv' else ''} \\
-                ${singularity} ${job_shell} ${script} & echo $! > ${docker_cid}
-            touch ${docker_cid}.not_docker
-            wait `cat ${docker_cid}`
-            rc=`echo $?`
-
-        elif [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'conda' ] || \\
-             [ '${defined(environment)}' == 'false' ] && [ '${defined(conda)}' == 'true' ] && [ ! -z '${conda}' ]
-        then
-            shopt -s nullglob
-            sed -i 's#${docker_cwd}#${cwd}#g' ${script} `dirname ${script}`/write_*.tmp
-
-            conda run --name=${conda} ${job_shell} ${script} & echo $! > ${docker_cid}
-            touch ${docker_cid}.not_docker
-            wait `cat ${docker_cid}`
-            rc=`echo $?`
-
         else
-            ${job_shell} ${script} & echo $! > ${docker_cid}
+            # recover GID lost due to Cromwell running chmod 777 on CWD
+            chown :`stat -c '%G' ${cwd}` -R ${cwd}
+            chmod g+s ${cwd}
+
+            if [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'singularity' ] || \\
+               [ '${defined(environment)}' == 'false' ] && [ '${defined(singularity)}' == 'true' ] && [ ! -z '${singularity}' ]
+            then
+                mkdir -p $HOME/.singularity/lock/
+                flock --exclusive --timeout 600 \\
+                    $HOME/.singularity/lock/`echo -n '${singularity}' | md5sum | cut -d' ' -f1` \\
+                    singularity exec --containall ${singularity} echo 'Successfully pulled ${singularity}'
+
+                singularity exec --cleanenv --home=`dirname ${cwd}` \\
+                    --bind=${singularity_bindpath},${cwd}:${docker_cwd} \\
+                    ${if defined(gpu) then ' --nv' else ''} \\
+                    ${singularity} ${job_shell} ${script} & echo $! > ${docker_cid}
+            else
+                # remap paths between inside and outside of a docker container
+                shopt -s nullglob
+                sed -i 's#${docker_cwd}#${cwd}#g' ${script} `dirname ${script}`/write_*.tmp
+
+                if [ '${defined(environment)}' == 'true' ] && [ '${environment}' == 'conda' ] || \\
+                   [ '${defined(environment)}' == 'false' ] && [ '${defined(conda)}' == 'true' ] && [ ! -z '${conda}' ]
+                then
+                    conda run --name=${conda} ${job_shell} ${script} & echo $! > ${docker_cid}
+                else
+                    ${job_shell} ${script} & echo $! > ${docker_cid}
+                fi
+            fi
+
             touch ${docker_cid}.not_docker
             wait `cat ${docker_cid}`
             rc=`echo $?`
@@ -627,7 +626,7 @@ class CromwellBackendLocal(CromwellBackendBase):
                 }
             },
             'run-in-background': True,
-            'runtime-attributes': RUNTIME_ATTRIBUTES,
+            'runtime-attributes': RUNTIME_ATTRIBUTES + RUNTIME_ATTRIBUTES_DOCKER,
             'submit': SUBMIT,
             'submit-docker': SUBMIT_DOCKER,
             'kill-docker': KILL_DOCKER,
@@ -687,15 +686,6 @@ class CromwellBackendHpc(CromwellBackendLocal):
         Int? memory_mb
     """
     )
-    HPC_SUBMIT_DOCKER = CromwellBackendLocal.TEMPLATE_SUBMIT.format(
-        bind_param_to_remap_path_for_singularity='${cwd}:${docker_cwd}',
-        cmd_lines_to_remap_path_for_conda=dedent(
-            """
-            shopt -s nullglob
-            sed -i 's#${docker_cwd}#${cwd}#g' ${script} `dirname ${script}`/write_*.tmp
-        """
-        ),
-    )
 
     def __init__(
         self,
@@ -708,10 +698,10 @@ class CromwellBackendHpc(CromwellBackendLocal):
         kill=None,
         job_id_regex=None,
         submit=None,
-        submit_docker=None,
         runtime_attributes=None,
     ):
         """Base class for HPCs.
+        No docker support. docker attribute in WDL task's runtime will be just ignored.
 
         Args:
             check_alive:
@@ -728,10 +718,6 @@ class CromwellBackendHpc(CromwellBackendLocal):
                 WDL syntax NOT allowed.
             submit:
                 Shell command lines to submit a job.
-                WDL syntax allowed in ${} notation.
-            submit_docker:
-                Shell command lines to submit a job
-                (when docker is defined in WDL task's runtime).
                 WDL syntax allowed in ${} notation.
             runtime_attributes:
                 Declaration of WDL variables (attributes) used in submit, submit-docker.
@@ -759,16 +745,14 @@ class CromwellBackendHpc(CromwellBackendLocal):
             raise ValueError('job_id_regex not defined!')
         if not submit:
             raise ValueError('submit not defined!')
-        if not submit_docker:
-            raise ValueError('submit_docker not defined!')
 
         config['check-alive'] = check_alive
         config['kill'] = kill
         # jobs are managed based on a job ID (not PID or docker_cid) on HPCs
-        config['kill-docker'] = kill
+        config['kill-docker'] = None
         config['job-id-regex'] = job_id_regex
         config['submit'] = submit
-        config['submit-docker'] = submit_docker
+        config['submit-docker'] = None
         config['runtime-attributes'] = '\n'.join(
             [
                 CromwellBackendLocal.RUNTIME_ATTRIBUTES,
@@ -868,10 +852,6 @@ class CromwellBackendSlurm(CromwellBackendHpc):
             submit=CromwellBackendLocal.SUBMIT,
             slurm_resource_param=slurm_resource_param,
         )
-        submit_docker = CromwellBackendSlurm.TEMPLATE_SLURM_SUBMIT.format(
-            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
-            slurm_resource_param=slurm_resource_param,
-        )
 
         super().__init__(
             local_out_dir=local_out_dir,
@@ -883,7 +863,6 @@ class CromwellBackendSlurm(CromwellBackendHpc):
             kill=CromwellBackendSlurm.SLURM_KILL,
             job_id_regex=CromwellBackendSlurm.SLURM_JOB_ID_REGEX,
             submit=submit,
-            submit_docker=submit_docker,
             runtime_attributes=CromwellBackendSlurm.SLURM_RUNTIME_ATTRIBUTES,
         )
 
@@ -959,10 +938,6 @@ class CromwellBackendSge(CromwellBackendHpc):
         submit = CromwellBackendSge.TEMPLATE_SGE_SUBMIT.format(
             submit=CromwellBackendLocal.SUBMIT, sge_resource_param=sge_resource_param
         )
-        submit_docker = CromwellBackendSge.TEMPLATE_SGE_SUBMIT.format(
-            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
-            sge_resource_param=sge_resource_param,
-        )
 
         super().__init__(
             local_out_dir=local_out_dir,
@@ -974,7 +949,6 @@ class CromwellBackendSge(CromwellBackendHpc):
             kill=CromwellBackendSge.SGE_KILL,
             job_id_regex=CromwellBackendSge.SGE_JOB_ID_REGEX,
             submit=submit,
-            submit_docker=submit_docker,
             runtime_attributes=CromwellBackendSge.SGE_RUNTIME_ATTRIBUTES,
         )
 
@@ -1044,10 +1018,6 @@ class CromwellBackendPbs(CromwellBackendHpc):
         submit = CromwellBackendPbs.TEMPLATE_PBS_SUBMIT.format(
             submit=CromwellBackendLocal.SUBMIT, pbs_resource_param=pbs_resource_param
         )
-        submit_docker = CromwellBackendPbs.TEMPLATE_PBS_SUBMIT.format(
-            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
-            pbs_resource_param=pbs_resource_param,
-        )
 
         super().__init__(
             local_out_dir=local_out_dir,
@@ -1059,7 +1029,6 @@ class CromwellBackendPbs(CromwellBackendHpc):
             kill=CromwellBackendPbs.PBS_KILL,
             job_id_regex=CromwellBackendPbs.PBS_JOB_ID_REGEX,
             submit=submit,
-            submit_docker=submit_docker,
             runtime_attributes=CromwellBackendPbs.PBS_RUNTIME_ATTRIBUTES,
         )
 
@@ -1128,10 +1097,6 @@ class CromwellBackendLsf(CromwellBackendHpc):
         submit = CromwellBackendLsf.TEMPLATE_LSF_SUBMIT.format(
             submit=CromwellBackendLocal.SUBMIT, lsf_resource_param=lsf_resource_param
         )
-        submit_docker = CromwellBackendLsf.TEMPLATE_LSF_SUBMIT.format(
-            submit=CromwellBackendHpc.HPC_SUBMIT_DOCKER,
-            lsf_resource_param=lsf_resource_param,
-        )
 
         super().__init__(
             local_out_dir=local_out_dir,
@@ -1143,7 +1108,6 @@ class CromwellBackendLsf(CromwellBackendHpc):
             kill=CromwellBackendLsf.LSF_KILL,
             job_id_regex=CromwellBackendLsf.LSF_JOB_ID_REGEX,
             submit=submit,
-            submit_docker=submit_docker,
             runtime_attributes=CromwellBackendLsf.LSF_RUNTIME_ATTRIBUTES,
         )
 
