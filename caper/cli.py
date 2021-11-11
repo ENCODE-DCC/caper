@@ -57,6 +57,15 @@ def get_abspath(path):
     return path
 
 
+def check_local_file_and_rename_if_exists(path, index=0):
+    org_path = path
+    if index:
+        path = '.'.join([path, str(index)])
+    if os.path.exists(path):
+        return check_local_file_and_rename_if_exists(org_path, index + 1)
+    return path
+
+
 def print_version(parser, args):
     if args.version:
         print(version)
@@ -341,7 +350,11 @@ def subcmd_server(caper_runner, args, nonblocking=False):
     if nonblocking:
         return caper_runner.server(fileobj_stdout=sys.stdout, **args_from_cli)
 
-    cromwell_stdout = get_abspath(args.cromwell_stdout)
+    cromwell_stdout = check_local_file_and_rename_if_exists(
+        get_abspath(args.cromwell_stdout)
+    )
+    logger.info('Cromwell stdout: {stdout}'.format(stdout=cromwell_stdout))
+
     with open(cromwell_stdout, 'w') as f:
         try:
             thread = caper_runner.server(fileobj_stdout=f, **args_from_cli)
@@ -356,7 +369,10 @@ def subcmd_server(caper_runner, args, nonblocking=False):
 
 
 def subcmd_run(caper_runner, args):
-    cromwell_stdout = get_abspath(args.cromwell_stdout)
+    cromwell_stdout = check_local_file_and_rename_if_exists(
+        get_abspath(args.cromwell_stdout)
+    )
+    logger.info('Cromwell stdout: {stdout}'.format(stdout=cromwell_stdout))
 
     with open(cromwell_stdout, 'w') as f:
         try:
