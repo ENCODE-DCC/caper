@@ -24,7 +24,13 @@ CONF_CONTENTS_DB = """
 # Metadata DB for call-caching (reusing previous outputs):
 # Cromwell supports restarting workflows based on a metadata DB
 # DB is in-memory by default
-db=in-memory
+#db=in-memory
+
+# If you use 'caper server' then you can use one unified '--file-db'
+# for all submitted workflows. In such case, uncomment the following two lines
+# and defined file-db as an absolute path to store metadata of all workflows
+#db=file
+#file-db=
 
 # If you use 'caper run' and want to use call-caching:
 # Make sure to define different 'caper run ... --db file --file-db DB_PATH'
@@ -33,11 +39,6 @@ db=in-memory
 # then Caper will collect/re-use previous outputs without running the same task again
 # Previous outputs will be simply hard/soft-linked.
 
-# If you use 'caper server' then you can use one unified '--file-db'
-# for all submitted workflows. In such case, uncomment the following two lines
-# and defined file-db as an absolute path to store metadata of all workflows
-#db=file
-#file-db=
 """
 
 CONF_CONTENTS_LOCAL_HASH_STRAT = """
