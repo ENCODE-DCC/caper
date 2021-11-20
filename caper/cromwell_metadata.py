@@ -208,6 +208,7 @@ class CromwellMetadata:
                 job_id = call.get('jobId')
                 stdout = call.get('stdout')
                 stderr = call.get('stderr')
+                strerr_background = stderr + '.background'
                 run_start = None
                 run_end = None
                 for event in call.get('executionEvents', []):
@@ -244,6 +245,11 @@ class CromwellMetadata:
                         if AutoURI(stdout).exists:
                             help_msg += 'STDOUT_CONTENTS=\n{s}\n'.format(
                                 s=AutoURI(stdout).read()
+                            )
+                    if strerr_background:
+                        if AutoURI(strerr_background).exists:
+                            help_msg += 'STDERR_BACKGROUND_CONTENTS=\n{s}\n'.format(
+                                s=AutoURI(strerr_background).read()
                             )
 
                 return help_msg
