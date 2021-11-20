@@ -772,7 +772,8 @@ class CromwellBackendSlurm(CromwellBackendHpc):
     )
     SLURM_CHECK_ALIVE = dedent(
         """
-        for ITER in 1 2 3; do
+        for ITER in 1 2 3
+        do
             CHK_ALIVE=$(squeue --noheader -j ${job_id} --format=%i | grep ${job_id})
             if [ -z "$CHK_ALIVE" ]
             then
@@ -801,14 +802,16 @@ class CromwellBackendSlurm(CromwellBackendHpc):
         {submit}
         EOF
 
-        for ITER in 1 2 3; do
+        for ITER in 1 2 3
+        do
             sbatch --export=ALL -J ${{job_name}} -D ${{cwd}} -o ${{out}} -e ${{err}} \\
                 ${{'-p ' + slurm_partition}} ${{'--account ' + slurm_account}} \\
                 {slurm_resource_param} \\
                 ${{slurm_extra_param}} \\
-                ${{script}}.caper && break
+                ${{script}}.caper && exit 0
             sleep 30
         done
+        exit 1
     """
     )
     DEFAULT_SLURM_RESOURCE_PARAM = (
