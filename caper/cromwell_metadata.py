@@ -208,7 +208,7 @@ class CromwellMetadata:
                 job_id = call.get('jobId')
                 stdout = call.get('stdout')
                 stderr = call.get('stderr')
-                strerr_background = stderr + '.background'
+                strerr_background = (stderr + '.background') if stderr else None
                 run_start = None
                 run_end = None
                 for event in call.get('executionEvents', []):
