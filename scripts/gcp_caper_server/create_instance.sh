@@ -286,7 +286,7 @@ sudo psql -d $POSTGRESQL_DB_NAME -c \"create role $POSTGRESQL_DB_USER with super
 
 ### upgrade pip and install caper croo
 sudo python3 -m pip install --upgrade pip
-sudo pip install caper croo
+sudo pip install --ignore-installed caper croo
 """
 
 echo "$(date): Google auth with service account key file."
