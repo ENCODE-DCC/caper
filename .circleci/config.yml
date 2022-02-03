@@ -40,7 +40,10 @@ install_singularity: &install_singularity
 install_py3_packages: &install_py3_packages
   name: Install Python packages
   command: |
-    sudo pip3 install pyOpenSSL pytest requests dateparser filelock autouri miniwdl pyhocon numpy pandas scikit-learn matplotlib "six>=1.13.0" "PyYAML==3.11"
+    sudo python3 -m pip install --upgrade pip
+    sudo pip install PyYAML --ignore-installed
+    sudo pip3 install pyOpenSSL pytest requests dateparser filelock autouri miniwdl pyhocon numpy pandas scikit-learn matplotlib six
+    #sudo pip3 install pyOpenSSL pytest requests dateparser filelock autouri miniwdl pyhocon numpy pandas scikit-learn matplotlib "six>=1.13.0" "PyYAML==3.11"
     sudo pip3 install --upgrade pyasn1-modules
 
 
