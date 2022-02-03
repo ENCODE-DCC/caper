@@ -9,7 +9,7 @@ defaults:
 
 machine_defaults: &machine_defaults
   machine:
-    image: ubuntu-1604:202007-01
+    image: ubuntu-2004:202010-01
   working_directory: ~/caper
 
 
@@ -22,12 +22,7 @@ update_apt: &update_apt
 install_python3: &install_python3
   name: Install python3, pip3
   command: |
-    sudo apt-get install software-properties-common git wget curl -y
-    sudo add-apt-repository ppa:deadsnakes/ppa -y
-    sudo apt-get update && sudo apt-get install python3.6 -y
-    sudo wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py
-    sudo python3.6 get-pip.py
-    sudo ln -s /usr/bin/python3.6 /usr/local/bin/python3
+    sudo apt-get install software-properties-common git wget curl python3 python3-pip
 
 
 install_singularity: &install_singularity
