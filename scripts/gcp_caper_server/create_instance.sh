@@ -27,8 +27,9 @@ if [[ $# -lt 1 ]]; then
   echo "  -z, --zone: Zone. Check available zones: gcloud compute zones list. us-central1-a by default."
   echo "  -m, --machine-type: Machine type. Check available machine-types: gcloud compute machine-types list. n1-standard-4 by default."
   echo "  -b, --boot-disk-size: Boot disk size. Use a suffix for unit. e.g. GB and MB. 100GB by default."
+  echo "  -u, --username: Username (super user) used for transferring key file to the instance. ubuntu by default."
   echo "  --boot-disk-type: Boot disk type. pd-standard (Standard persistent disk) by default."
-  echo "  --image: Image. Check available images: gcloud compute images list. ubuntu-1804-bionic-v20200716 by default."
+  echo "  --image: Image. Check available images: gcloud compute images list. ubuntu-2004-focal-v20220118 by default."
   echo "  --image-project: Image project. ubuntu-os-cloud by default."
   echo "  --tags: Tags to apply to the new instance. caper-server by default."
   echo "  --startup-script: Startup script CONTENTS (NOT A FILE). These command lines should sudo-install screen, Java, PostgreSQL, Python3 and pip3. DO NOT INSTALL CAPER HERE. some apt-get command lines by default."
@@ -92,6 +93,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     -b|--boot-disk-size)
       BOOT_DISK_SIZE="$2"
+      shift
+      shift
+      ;;
+    -u|--username)
+      USERNAME="$2"
       shift
       shift
       ;;
@@ -174,11 +180,14 @@ fi
 if [[ -z "$BOOT_DISK_SIZE" ]]; then
   BOOT_DISK_SIZE=100GB
 fi
+if [[ -z "$USERNAME" ]]; then
+  USERNAME=ubuntu
+fi
 if [[ -z "$BOOT_DISK_TYPE" ]]; then
   BOOT_DISK_TYPE=pd-standard
 fi
 if [[ -z "$IMAGE" ]]; then
-  IMAGE=ubuntu-1804-bionic-v20200908
+  IMAGE=ubuntu-2004-focal-v20220118
 fi
 if [[ -z "$IMAGE_PROJECT" ]]; then
   IMAGE_PROJECT=ubuntu-os-cloud
@@ -189,7 +198,7 @@ fi
 if [[ -z "$STARTUP_SCRIPT" ]]; then
   STARTUP_SCRIPT="""
 sudo apt-get update
-sudo apt-get -y install screen python3 python3-pip default-jre postgresql postgresql-contrib
+sudo apt-get -y install screen python3 python3-pip default-jre postgresql postgresql-contrib acl
 """
 fi
 
@@ -224,15 +233,15 @@ REMOTE_KEY_FILE="$CAPER_CONF_DIR/service_account_key.json"
 
 # prepend more init commands to the startup-script
 STARTUP_SCRIPT="""#!/bin/bash
-### make caper's work directory
+### make caper's directories
 sudo mkdir -p $CAPER_CONF_DIR
-sudo chmod 777 -R $CAPER_CONF_DIR
-sudo setfacl -d -m u::rwX $CAPER_CONF_DIR
-sudo setfacl -d -m g::rwX $CAPER_CONF_DIR
-sudo setfacl -d -m o::rwX $CAPER_CONF_DIR
-
-### make caper's out/localization directory
 sudo mkdir -p $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
+
+### set default permission on caper's directories
+sudo chmod 777 -R $CAPER_CONF_DIR
+sudo setfacl -R -d -m u::rwX $CAPER_CONF_DIR
+sudo setfacl -R -d -m g::rwX $CAPER_CONF_DIR
+sudo setfacl -R -d -m o::rwX $CAPER_CONF_DIR
 
 ### make caper conf file
 cat <<EOF > $GLOBAL_CAPER_CONF_FILE
@@ -286,6 +295,7 @@ sudo psql -d $POSTGRESQL_DB_NAME -c \"create role $POSTGRESQL_DB_USER with super
 
 ### upgrade pip and install caper croo
 sudo python3 -m pip install --upgrade pip
+sudo pip install PyYAML --ignore-installed
 sudo pip install caper croo
 """
 
@@ -319,28 +329,32 @@ done
 
 echo "$(date): If key file transfer fails for several times then manually transfer it to $REMOTE_KEY_FILE on the instance."
 echo "$(date): Transferring service account key file to the instance..."
-until gcloud --project "$GCP_PRJ" compute scp "$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE" root@"$INSTANCE_NAME":"$REMOTE_KEY_FILE" --zone="$ZONE"; do
+until gcloud --project "$GCP_PRJ" compute scp "$GCP_SERVICE_ACCOUNT_KEY_JSON_FILE" "$USERNAME"@"$INSTANCE_NAME":"$REMOTE_KEY_FILE" --zone="$ZONE"; do
   echo "$(date): Key file transfer failed. Retrying in 20 seconds..."
   sleep 20
 done
 echo "$(date): Transferred a key file to instance successfully."
 
 echo "$(date): Waiting for the instance finishing up installing Caper..."
-until gcloud --project "$GCP_PRJ" compute ssh --zone="$ZONE" root@"$INSTANCE_NAME" --command="caper -v"; do
+until gcloud --project "$GCP_PRJ" compute ssh --zone="$ZONE" "$USERNAME"@"$INSTANCE_NAME" --command="caper -v"; do
   echo "$(date): Caper has not been installed yet. Retrying in 40 seconds..."
   sleep 40
 done
 echo "$(date): Finished installing Caper on the instance. Ready to run Caper server."
 
 echo "$(date): Spinning up Caper server..."
-gcloud --project "$GCP_PRJ" compute ssh --zone="$ZONE" root@"$INSTANCE_NAME" --command="cd $CAPER_CONF_DIR && screen -dmS caper_server bash -c \"caper server > caper_server.log 2>&1\""
+gcloud --project "$GCP_PRJ" compute ssh --zone="$ZONE" "$USERNAME"@"$INSTANCE_NAME" --command="cd $CAPER_CONF_DIR && sudo screen -dmS caper_server bash -c \"sudo caper server > caper_server.log 2>&1\""
 sleep 60
-until gcloud --project "$GCP_PRJ" compute ssh --zone="$ZONE" root@"$INSTANCE_NAME" --command="caper list"; do
+until gcloud --project "$GCP_PRJ" compute ssh --zone="$ZONE" "$USERNAME"@"$INSTANCE_NAME" --command="caper list"; do
   echo "$(date): Caper server has not been started yet. Retrying in 60 seconds..."
   sleep 60
 done
-echo "$(date): Caper server is up and ready to take submissions. You can find Caper server's log file at $CAPER_CONF_DIR/caper_server.log. Cromwell's STDERR will be written to cromwell.out."
-
+echo
+echo "$(date): Caper server is up and ready to take submissions."
+echo "$(date): You can find Caper server log file at $CAPER_CONF_DIR/caper_server.log."
+echo "$(date): Cromwell's STDERR will be written to $CAPER_CONF_DIR/cromwell.out*."
+echo
 echo "$(date): Use the following command line to SSH to the instance."
 echo
 echo "gcloud beta compute ssh --zone $ZONE $INSTANCE_NAME --project $GCP_PRJ"
+echo
