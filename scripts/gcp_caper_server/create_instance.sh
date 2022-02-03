@@ -198,7 +198,7 @@ fi
 if [[ -z "$STARTUP_SCRIPT" ]]; then
   STARTUP_SCRIPT="""
 sudo apt-get update
-sudo apt-get -y install screen python3 python3-pip default-jre postgresql postgresql-contrib
+sudo apt-get -y install screen python3 python3-pip default-jre postgresql postgresql-contrib acl
 """
 fi
 
@@ -233,15 +233,15 @@ REMOTE_KEY_FILE="$CAPER_CONF_DIR/service_account_key.json"
 
 # prepend more init commands to the startup-script
 STARTUP_SCRIPT="""#!/bin/bash
-### make caper's work directory
+### make caper's directories
 sudo mkdir -p $CAPER_CONF_DIR
-sudo chmod 777 -R $CAPER_CONF_DIR
-sudo setfacl -d -m u::rwX $CAPER_CONF_DIR
-sudo setfacl -d -m g::rwX $CAPER_CONF_DIR
-sudo setfacl -d -m o::rwX $CAPER_CONF_DIR
-
-### make caper's out/localization directory
 sudo mkdir -p $CAPER_CONF_DIR/local_loc_dir $CAPER_CONF_DIR/local_out_dir
+
+### set default permission on caper's directories
+sudo chmod 777 -R $CAPER_CONF_DIR
+sudo setfacl -R -d -m u::rwX $CAPER_CONF_DIR
+sudo setfacl -R -d -m g::rwX $CAPER_CONF_DIR
+sudo setfacl -R -d -m o::rwX $CAPER_CONF_DIR
 
 ### make caper conf file
 cat <<EOF > $GLOBAL_CAPER_CONF_FILE
