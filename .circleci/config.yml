@@ -16,22 +16,25 @@ machine_defaults: &machine_defaults
 update_apt: &update_apt
   name: Update apt
   command: |
-    sudo apt-get update
+    sudo apt-get update -y
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
 
 
 install_python3: &install_python3
-  name: Install python3, pip3
+  name: Install python3, pip3, java
   command: |
-    sudo apt-get install software-properties-common git wget curl python3 python3-pip
+    sudo apt-get install -y software-properties-common git wget curl python3 python3-pip default-jre
 
 
 install_singularity: &install_singularity
   name: Install Singularity (container)
   command: |
-    sudo wget -O- http://neuro.debian.net/lists/xenial.us-ca.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
-    # key server is so unstable. commented out for possible later use.
-    #sudo apt-key adv --recv-keys --keyserver hkp://pool.sks-keyservers.net:80 0xA5D32F012649A5A9
-    sudo apt-get update && sudo apt-get install singularity-container --allow-unauthenticated
+    sudo apt-get install -y alien
+    sudo wget https://kojipkgs.fedoraproject.org//packages/singularity/3.8.5/2.el8/x86_64/singularity-3.8.5-2.el8.x86_64.rpm
+    sudo alien -d singularity-3.8.5-2.el8.x86_64.rpm
+    sudo apt-get install -y ./singularity_3.8.5-3_amd64.deb
+    sudo apt-get install -y squashfs-tools
+    singularity --version
 
 
 install_py3_packages: &install_py3_packages
@@ -56,14 +59,6 @@ install_aws_lib: &install_aws_lib
     sudo pip3 install boto3 awscli
 
 
-install_java: &install_java
-  name: Install openjdk-11
-  command: |
-    sudo add-apt-repository ppa:openjdk-r/ppa -y
-    sudo apt-get update && sudo apt-get install openjdk-11-jdk -y
-    # automatically set 11 as default java
-    sudo update-java-alternatives -a
-
 jobs:
   pytest:
     <<: *machine_defaults
@@ -75,7 +70,6 @@ jobs:
       - run: *install_py3_packages
       - run: *install_gcs_lib
       - run: *install_aws_lib
-      - run: *install_java
       - run:
           no_output_timeout: 60m
           command: |
