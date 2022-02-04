@@ -295,7 +295,6 @@ sudo psql -d $POSTGRESQL_DB_NAME -c \"create role $POSTGRESQL_DB_USER with super
 
 ### upgrade pip and install caper croo
 sudo python3 -m pip install --upgrade pip
-sudo pip install PyYAML --ignore-installed
 sudo pip install caper croo
 """
 
