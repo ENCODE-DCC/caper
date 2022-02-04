@@ -24,6 +24,7 @@ See [this](scripts/aws_caper_server/README.md) for details.
 1) Make sure that you have Java (>= 11) and Python>=3.6 installed on your system and `pip` to install Caper.
 
 	```bash
+        $ pip install pip --upgrade
 	$ pip install caper
 	```
 
