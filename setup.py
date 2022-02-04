@@ -69,5 +69,6 @@ setuptools.setup(
         'scikit-learn>=0.19.2',
         'matplotlib>=1.5',
         'six>=1.13.0',
+        'pyyaml<=5.5',
     ],
 )
