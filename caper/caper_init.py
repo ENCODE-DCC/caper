@@ -216,7 +216,6 @@ backend=sge
 # Parallel environement is required, ask your administrator to create one
 # If your cluster doesn't support PE then edit 'sge-resource-param'
 # to fit your cluster's configuration.
-sge-pe=
 """
     + CONF_CONTENTS_SGE_PARAM
     + CONF_CONTENTS_LOCAL_HASH_STRAT
