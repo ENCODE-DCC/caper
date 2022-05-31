@@ -185,7 +185,7 @@ class Cromwell:
         You can simply get it by thread.returnvalue after thread is done.
 
         Args:
-            inputs:.
+            inputs:
                 input JSON file (-i).
             options:
                 workflow options JSON file (-o).

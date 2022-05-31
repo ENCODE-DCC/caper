@@ -16,133 +16,101 @@ from .cromwell_backend import (
     CromwellBackendSlurm,
 )
 
-BACKEND_ALIAS_SHERLOCK = 'sherlock'
-BACKEND_ALIAS_SCG = 'scg'
+from .hpc import (
+    SlurmWrapper,
+    SgeWrapper,
+    PbsWrapper,
+    LsfWrapper,
+)
 
-
-CONF_CONTENTS_DB = """
-# Metadata DB for call-caching (reusing previous outputs):
-# Cromwell supports restarting workflows based on a metadata DB
-# DB is in-memory by default
-#db=in-memory
-
-# If you use 'caper server' then you can use one unified '--file-db'
-# for all submitted workflows. In such case, uncomment the following two lines
-# and defined file-db as an absolute path to store metadata of all workflows
-#db=file
-#file-db=
-
-# If you use 'caper run' and want to use call-caching:
-# Make sure to define different 'caper run ... --db file --file-db DB_PATH'
-# for each pipeline run.
-# But if you want to restart then define the same '--db file --file-db DB_PATH'
-# then Caper will collect/re-use previous outputs without running the same task again
-# Previous outputs will be simply hard/soft-linked.
-
-"""
-
-CONF_CONTENTS_LOCAL_HASH_STRAT = """
-# Hashing strategy for call-caching (3 choices)
-# This parameter is for local (local/slurm/sge/pbs/lsf) backend only.
-# This is important for call-caching,
-# which means re-using outputs from previous/failed workflows.
-# Cache will miss if different strategy is used.
-# "file" method has been default for all old versions of Caper<1.0.
-# "path+modtime" is a new default for Caper>=1.0,
-#   file: use md5sum hash (slow).
-#   path: use path.
-#   path+modtime: use path and modification time.
-local-hash-strat=path+modtime
-"""
 
 CONF_CONTENTS_TMP_DIR = """
-# Local directory for localized files and Cromwell's intermediate files
-# If not defined, Caper will make .caper_tmp/ on local-out-dir or CWD.
+# Local directory for localized files and Cromwell's intermediate files.
+# If not defined then Caper will make .caper_tmp/ on `local-out-dir` or CWD.
 # /tmp is not recommended here since Caper store all localized data files
 # on this directory (e.g. input FASTQs defined as URLs in input JSON).
 local-loc-dir=
 """
 
 CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP = """
-# This parameter is NOT for 'caper submit' BUT for 'caper run' and 'caper server' only.
-# This resource parameter string will be passed to sbatch, qsub, bsub, ...
-# You can customize it according to your cluster's configuration.
-
-# Note that Cromwell's implicit type conversion (String to Integer)
-# seems to be buggy for WomLong type memory variables (memory_mb and memory_gb).
-# So be careful about using the + operator between WomLong and other types (String, even Int).
-# For example, ${"--mem=" + memory_mb} will not work since memory_mb is WomLong.
-# Use ${"if defined(memory_mb) then "--mem=" else ""}{memory_mb}${"if defined(memory_mb) then "mb " else " "}
-# See https://github.com/broadinstitute/cromwell/issues/4659 for details
-
-# Cromwell's built-in variables (attributes defined in WDL task's runtime)
-# Use them within ${} notation.
-# - cpu: number of cores for a job (default = 1)
-# - memory_mb, memory_gb: total memory for a job in MB, GB
-#   * these are converted from 'memory' string attribute (including size unit)
-#     defined in WDL task's runtime
-# - time: time limit for a job in hour
-# - gpu: specified gpu name or number of gpus (it's declared as String)
+# This parameter is for HPC backends only (slurm, sge, pbs, lsf).
+# It is not recommended to change it unless your cluster has custom resource settings.
+# See https://github.com/ENCODE-DCC/caper/blob/master/docs/resource_param.md for details.
 """
 
 CONF_CONTENTS_SLURM_PARAM = """
 {help_context}
 slurm-resource-param={slurm_resource_param}
 
+# This parameter is used for `caper hpc submit` command only.
+slurm-leader-job-resource-param={slurm_leader_job_resource_param}
+
 # If needed uncomment and define any extra SLURM sbatch parameters here
-# YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE
+# (YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE)
 #slurm-extra-param=
 """.format(
     help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
     slurm_resource_param=CromwellBackendSlurm.DEFAULT_SLURM_RESOURCE_PARAM,
+    slurm_leader_job_resource_param=' '.join(SlurmWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
 )
 
 CONF_CONTENTS_SGE_PARAM = """
 {help_context}
+sge-resource-param={sge_resource_param}
+
+# This parameter is used for `caper hpc submit` command only.
+sge-leader-job-resource-param={sge_leader_job_resource_param}
+
 # Parallel environment of SGE:
 # Find one with `$ qconf -spl` or ask you admin to add one if not exists.
 # If your cluster works without PE then edit the below sge-resource-param
 sge-pe=
-sge-resource-param={sge_resource_param}
 
 # If needed uncomment and define any extra SGE qsub parameters here
-# YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE
+# (YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE)
 #sge-extra-param=
 """.format(
     help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
     sge_resource_param=CromwellBackendSge.DEFAULT_SGE_RESOURCE_PARAM,
+    sge_leader_job_resource_param=' '.join(SgeWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
 )
 
 CONF_CONTENTS_PBS_PARAM = """
 {help_context}
 pbs-resource-param={pbs_resource_param}
 
+# This parameter is used for `caper hpc submit` command only.
+pbs-leader-job-resource-param={pbs_leader_job_resource_param}
+
 # If needed uncomment and define any extra PBS qsub parameters here
-# YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE
+# (YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE)
 #pbs-extra-param=
 """.format(
     help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
     pbs_resource_param=CromwellBackendPbs.DEFAULT_PBS_RESOURCE_PARAM,
+    pbs_leader_job_resource_param=' '.join(PbsWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
 )
 
 CONF_CONTENTS_LSF_PARAM = """
 {help_context}
 lsf-resource-param={lsf_resource_param}
 
+# This parameter is used for `caper hpc submit` command only.
+lsf-leader-job-resource-param={lsf_leader_job_resource_param}
+
 # If needed uncomment and define any extra LSF bsub parameters here
-# YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE
+# (YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE)
 #lsf-extra-param=
 """.format(
     help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
     lsf_resource_param=CromwellBackendLsf.DEFAULT_LSF_RESOURCE_PARAM,
+    lsf_leader_job_resource_param=' '.join(LsfWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
 )
 
 DEFAULT_CONF_CONTENTS_LOCAL = (
     """
 backend=local
 """
-    + CONF_CONTENTS_LOCAL_HASH_STRAT
-    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
@@ -163,8 +131,6 @@ slurm-partition=
 # ====================================================================
 """
     + CONF_CONTENTS_SLURM_PARAM
-    + CONF_CONTENTS_LOCAL_HASH_STRAT
-    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
@@ -186,8 +152,6 @@ slurm-account=
 
 """
     + CONF_CONTENTS_SLURM_PARAM
-    + CONF_CONTENTS_LOCAL_HASH_STRAT
-    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
@@ -204,8 +168,6 @@ slurm-partition=
 slurm-account=
 """
     + CONF_CONTENTS_SLURM_PARAM
-    + CONF_CONTENTS_LOCAL_HASH_STRAT
-    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
@@ -218,8 +180,6 @@ backend=sge
 # to fit your cluster's configuration.
 """
     + CONF_CONTENTS_SGE_PARAM
-    + CONF_CONTENTS_LOCAL_HASH_STRAT
-    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
@@ -228,8 +188,6 @@ DEFAULT_CONF_CONTENTS_PBS = (
 backend=pbs
 """
     + CONF_CONTENTS_PBS_PARAM
-    + CONF_CONTENTS_LOCAL_HASH_STRAT
-    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
@@ -238,8 +196,6 @@ DEFAULT_CONF_CONTENTS_LSF = (
 backend=lsf
 """
     + CONF_CONTENTS_LSF_PARAM
-    + CONF_CONTENTS_LOCAL_HASH_STRAT
-    + CONF_CONTENTS_DB
     + CONF_CONTENTS_TMP_DIR
 )
 
@@ -312,10 +268,6 @@ def init_caper_conf(conf_file, backend):
     """
     if backend in (BACKEND_LOCAL, BACKEND_ALIAS_LOCAL):
         contents = DEFAULT_CONF_CONTENTS_LOCAL
-    elif backend == BACKEND_ALIAS_SHERLOCK:
-        contents = DEFAULT_CONF_CONTENTS_SHERLOCK
-    elif backend == BACKEND_ALIAS_SCG:
-        contents = DEFAULT_CONF_CONTENTS_SCG
     elif backend == BACKEND_SLURM:
         contents = DEFAULT_CONF_CONTENTS_SLURM
     elif backend == BACKEND_SGE:

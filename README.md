@@ -24,7 +24,7 @@ See [this](scripts/aws_caper_server/README.md) for details.
 1) Make sure that you have Java (>= 11) and Python>=3.6 installed on your system and `pip` to install Caper.
 
 	```bash
-        $ pip install pip --upgrade
+	$ pip install pip --upgrade
 	$ pip install caper
 	```
 
@@ -39,12 +39,12 @@ See [this](scripts/aws_caper_server/README.md) for details.
 	**Backend**|**Description**
 	:--------|:-----
 	local | local computer without cluster engine.
-	slurm | SLURM cluster.
+	slurm | SLURM cluster (e.g. Stanford Sherlock and SCG).
 	sge | Sun GridEngine cluster.
 	pbs | PBS cluster.
 	lsf | LSF cluster.
-	sherlock | Stanford Sherlock (based on `slurm` backend).
-	scg | Stanford SCG (based on `slurm` backend).
+
+	> **IMPORTANT**: `sherlock` and `scg` backends have been deprecated. Use `slurm` backend instead and define `slurm-partition=` for Sherlock or `slurm-account=` in Caper's configuration file.
 
 	```bash
 	$ caper init [BACKEND]
