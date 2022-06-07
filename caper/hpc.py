@@ -37,12 +37,7 @@ class HpcWrapper(ABC):
         self,
         leader_job_resource_param=[],
     ):
-        """Base class for HPC job engines.
-
-        Args:
-            leader_job_resource_param:
-                List of command line parameters to be passed to
-                subprocess.Popen(leader_job_resource_param, shell=False, ...).
+        """Base class for HPC job engine wrapper.
         """
         self.leader_job_resource_param = leader_job_resource_param
 
@@ -54,7 +49,8 @@ class HpcWrapper(ABC):
         """
         home_dir = f'{str(Path.home())}{os.sep}'
         with NamedTemporaryFile(prefix=home_dir, suffix='.sh') as shell_script:
-            shell_script.write(make_bash_script_contents(caper_run_command).encode())
+            contents = make_bash_script_contents(' '.join(caper_run_command))
+            shell_script.write(contents.encode())
             shell_script.flush()
 
             return self._submit(job_name, shell_script.name)
@@ -70,11 +66,12 @@ class HpcWrapper(ABC):
         result.append(lines[0])
 
         # filter out non-caper lines
+        logger.info('Filtering out non-caper leader jobs...')
         for line in lines[1:]:
             if CAPER_LEADER_JOB_NAME_PREFIX in line:
-                lines.append(line)
+                result.append(line)
 
-        return '\n'.join(lines)
+        return '\n'.join(result)
 
     def abort(self, job_ids):
         """Returns output STDOUT from job engine's abort command (e.g. scancel, qdel).
@@ -90,6 +87,8 @@ class HpcWrapper(ABC):
 
     @abstractmethod
     def _abort(self, job_ids):
+        """Sends SIGINT to Caper for a graceful shutdown.
+        """
         pass
 
     def _run_command(self, command):
@@ -128,11 +127,13 @@ class SlurmWrapper(HpcWrapper):
 
     def _list(self):
         return self._run_command([
-            'squeue', '-u', get_user_from_os_environ(), '--Format=JobID,Name,SubmitTime'
+            'squeue', '-u', get_user_from_os_environ(), '--Format=JobID,Name,State,SubmitTime'
         ])
 
     def _abort(self, job_ids):
-        return self._run_command(['scancel', '--signal=SIGTERM', '-j'] + job_ids)
+        """Notes: --full is necessary to correctly send SIGINT to the leader job (Cromwell process).
+        """
+        return self._run_command(['scancel', '--full', '--signal=SIGINT'] + job_ids)
 
 
 class SgeWrapper(HpcWrapper):
