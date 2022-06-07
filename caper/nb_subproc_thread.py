@@ -1,8 +1,9 @@
 import logging
 import time
-from signal import SIGTERM
+import signal
 from subprocess import PIPE, Popen
 from threading import Thread
+
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ def is_fileobj_open(fileobj):
 class NBSubprocThread(Thread):
     DEFAULT_POLL_INTERVAL_SEC = 0.01
     DEFAULT_SUBPROCESS_NAME = 'Subprocess'
-    DEFAULT_STOP_SIGNAL = SIGTERM
+    DEFAULT_STOP_SIGNAL = signal.SIGINT
 
     def __init__(
         self,
@@ -141,7 +142,7 @@ class NBSubprocThread(Thread):
         if wait:
             if self._returncode is None:
                 logger.info(
-                    '{name} stopped but waiting for graceful shutdown...'.format(
+                    '{name}: waiting for a graceful shutdown...'.format(
                         name=self._subprocess_name
                     )
                 )
@@ -162,7 +163,6 @@ class NBSubprocThread(Thread):
     ):
         """Wrapper for subprocess.Popen().
         """
-
         def read_stdout(stdout_bytes):
             text = stdout_bytes.decode()
             if text:
@@ -212,16 +212,19 @@ class NBSubprocThread(Thread):
                 if p.poll() is not None:
                     self._returncode = p.poll()
                     break
+
                 if self._stop_it and self._stop_signal:
                     p.send_signal(self._stop_signal)
+                    self._returncode = p.returncode
                     break
                 time.sleep(self._poll_interval)
 
         except Exception as e:
             if not self._quiet:
                 logger.error(e, exc_info=True)
+            self._returncode = 127
 
-        finally:
+        else:
             stdout_bytes, stderr_bytes = p.communicate()
             read_stdout(stdout_bytes)
             read_stderr(stderr_bytes)
