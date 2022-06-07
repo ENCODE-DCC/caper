@@ -625,7 +625,6 @@ class CromwellBackendLocal(CromwellBackendBase):
                     'caching': {'check-sibling-md5': True},
                 }
             },
-            'run-in-background': True,
             'runtime-attributes': RUNTIME_ATTRIBUTES + RUNTIME_ATTRIBUTES_DOCKER,
             'submit': SUBMIT,
             'submit-docker': SUBMIT_DOCKER,
