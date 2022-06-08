@@ -131,9 +131,9 @@ class SlurmWrapper(HpcWrapper):
         ])
 
     def _abort(self, job_ids):
-        """Notes: --full is necessary to correctly send SIGINT to the leader job (Cromwell process).
+        """Notes: --full is necessary to correctly send SIGTERM to the leader job (Cromwell process).
         """
-        return self._run_command(['scancel', '--full', '--signal=SIGINT'] + job_ids)
+        return self._run_command(['scancel', '--full', '--signal=SIGTERM'] + job_ids)
 
 
 class SgeWrapper(HpcWrapper):
