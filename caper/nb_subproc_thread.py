@@ -15,7 +15,7 @@ def is_fileobj_open(fileobj):
 class NBSubprocThread(Thread):
     DEFAULT_POLL_INTERVAL_SEC = 0.01
     DEFAULT_SUBPROCESS_NAME = 'Subprocess'
-    DEFAULT_STOP_SIGNAL = signal.SIGINT
+    DEFAULT_STOP_SIGNAL = signal.SIGTERM
 
     def __init__(
         self,
