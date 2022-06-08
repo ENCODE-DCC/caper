@@ -6,6 +6,24 @@ from threading import Thread
 
 
 logger = logging.getLogger(__name__)
+interrupted = False
+terminated = False
+
+
+def sigterm_handler(signo, frame):
+    global terminated
+    logger.info('Received SIGTERM.')
+    terminated = True
+
+
+def sigint_handler(signo, frame):
+    global interrupted
+    logger.info('Received SIGINT.')
+    interrupted = True
+
+
+signal.signal(signal.SIGTERM, sigterm_handler)
+signal.signal(signal.SIGINT, sigint_handler)
 
 
 def is_fileobj_open(fileobj):
@@ -81,6 +99,8 @@ class NBSubprocThread(Thread):
                 No logging.
             subprocess_name:
                 Subprocess name for logging.
+            signal_handler:
+                Signal handler for a graceful shutdown.
         """
         super().__init__(
             target=self._popen,
@@ -163,6 +183,9 @@ class NBSubprocThread(Thread):
     ):
         """Wrapper for subprocess.Popen().
         """
+        global terminated
+        global interrupted
+
         def read_stdout(stdout_bytes):
             text = stdout_bytes.decode()
             if text:
@@ -213,10 +236,22 @@ class NBSubprocThread(Thread):
                     self._returncode = p.poll()
                     break
 
-                if self._stop_it and self._stop_signal:
-                    p.send_signal(self._stop_signal)
+                if terminated or interrupted or self._stop_it and self._stop_signal:
+                    if terminated:
+                        stop_signal = signal.SIGTERM
+                    elif interrupted:
+                        stop_signal = signal.SIGINT
+                    else:
+                        stop_signal = self._stop_signal
+
+                    logger.info(
+                        f'Sending signal {stop_signal} to subprocess {p.pid}'
+                    )
+                    p.send_signal(stop_signal)
+
                     self._returncode = p.returncode
                     break
+
                 time.sleep(self._poll_interval)
 
         except Exception as e:
