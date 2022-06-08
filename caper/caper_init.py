@@ -26,28 +26,22 @@ from .hpc import (
 
 CONF_CONTENTS_TMP_DIR = """
 # Local directory for localized files and Cromwell's intermediate files.
-# If not defined then Caper will make .caper_tmp/ on `local-out-dir` or CWD.
-# /tmp is not recommended here since Caper store all localized data files
-# on this directory (e.g. input FASTQs defined as URLs in input JSON).
+# If not defined then Caper will make .caper_tmp/ on CWD or `local-out-dir`.
+# /tmp is not recommended since Caper store localized data files here.
 local-loc-dir=
 """
 
 CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP = """
-# This parameter is for HPC backends only (slurm, sge, pbs, lsf).
+# This parameter defines resource parameters for submitting WDL task to job engine.
+# It is for HPC backends only (slurm, sge, pbs and lsf).
 # It is not recommended to change it unless your cluster has custom resource settings.
-# See https://github.com/ENCODE-DCC/caper/blob/master/docs/resource_param.md for details.
-"""
+# See https://github.com/ENCODE-DCC/caper/blob/master/docs/resource_param.md for details."""
 
 CONF_CONTENTS_SLURM_PARAM = """
+# This parameter defines resource parameters for Caper's leader job only.
+slurm-leader-job-resource-param={slurm_leader_job_resource_param}
 {help_context}
 slurm-resource-param={slurm_resource_param}
-
-# This parameter is used for `caper hpc submit` command only.
-slurm-leader-job-resource-param={slurm_leader_job_resource_param}
-
-# If needed uncomment and define any extra SLURM sbatch parameters here
-# (YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE)
-#slurm-extra-param=
 """.format(
     help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
     slurm_resource_param=CromwellBackendSlurm.DEFAULT_SLURM_RESOURCE_PARAM,
@@ -55,20 +49,15 @@ slurm-leader-job-resource-param={slurm_leader_job_resource_param}
 )
 
 CONF_CONTENTS_SGE_PARAM = """
-{help_context}
-sge-resource-param={sge_resource_param}
-
-# This parameter is used for `caper hpc submit` command only.
+# This parameter defines resource parameters for Caper's leader job only.
 sge-leader-job-resource-param={sge_leader_job_resource_param}
 
 # Parallel environment of SGE:
 # Find one with `$ qconf -spl` or ask you admin to add one if not exists.
 # If your cluster works without PE then edit the below sge-resource-param
 sge-pe=
-
-# If needed uncomment and define any extra SGE qsub parameters here
-# (YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE)
-#sge-extra-param=
+{help_context}
+sge-resource-param={sge_resource_param}
 """.format(
     help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
     sge_resource_param=CromwellBackendSge.DEFAULT_SGE_RESOURCE_PARAM,
@@ -76,15 +65,10 @@ sge-pe=
 )
 
 CONF_CONTENTS_PBS_PARAM = """
+# This parameter defines resource parameters for Caper's leader job only.
+pbs-leader-job-resource-param={pbs_leader_job_resource_param}
 {help_context}
 pbs-resource-param={pbs_resource_param}
-
-# This parameter is used for `caper hpc submit` command only.
-pbs-leader-job-resource-param={pbs_leader_job_resource_param}
-
-# If needed uncomment and define any extra PBS qsub parameters here
-# (YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE)
-#pbs-extra-param=
 """.format(
     help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
     pbs_resource_param=CromwellBackendPbs.DEFAULT_PBS_RESOURCE_PARAM,
@@ -92,15 +76,10 @@ pbs-leader-job-resource-param={pbs_leader_job_resource_param}
 )
 
 CONF_CONTENTS_LSF_PARAM = """
+# This parameter defines resource parameters for Caper's leader job only.
+lsf-leader-job-resource-param={lsf_leader_job_resource_param}
 {help_context}
 lsf-resource-param={lsf_resource_param}
-
-# This parameter is used for `caper hpc submit` command only.
-lsf-leader-job-resource-param={lsf_leader_job_resource_param}
-
-# If needed uncomment and define any extra LSF bsub parameters here
-# (YOU CANNOT USE WDL SYNTAX AND CROMWELL BUILT-IN VARIABLES HERE)
-#lsf-extra-param=
 """.format(
     help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
     lsf_resource_param=CromwellBackendLsf.DEFAULT_LSF_RESOURCE_PARAM,
@@ -108,100 +87,54 @@ lsf-leader-job-resource-param={lsf_leader_job_resource_param}
 )
 
 DEFAULT_CONF_CONTENTS_LOCAL = (
-    """
-backend=local
+    """backend=local
 """
-    + CONF_CONTENTS_TMP_DIR
-)
-
-DEFAULT_CONF_CONTENTS_SHERLOCK = (
-    """
-backend=slurm
-
-# SLURM partition. Define only if required by a cluster. You must define it for Stanford Sherlock.
-slurm-partition=
-
-# IMPORTANT warning for Stanford Sherlock cluster
-# ====================================================================
-# DO NOT install any codes/executables/Miniconda
-# (java, conda, python, caper, pipeline's WDL, pipeline's Conda env, ...) on $SCRATCH or $OAK.
-# You will see Segmentation Fault errors.
-# Install all executables on $HOME or $PI_HOME instead.
-# It's STILL OKAY to read input data from and write outputs to $SCRATCH or $OAK.
-# ====================================================================
-"""
-    + CONF_CONTENTS_SLURM_PARAM
-    + CONF_CONTENTS_TMP_DIR
-)
-
-DEFAULT_CONF_CONTENTS_SCG = (
-    """
-backend=slurm
-
-# SLURM account. Define only if required by a cluster. You must define it for Stanford SCG.
-slurm-account=
-
-# IMPORTANT warning for Stanford SCG cluster
-# ====================================================================
-# DO NOT install any codes/executables/Miniconda
-# (java, conda, python, caper, pipeline's WDL, pipeline's Conda env, ...) on your home (/home/$USER).
-# Pipelines will get stuck due to slow filesystem.
-# ALSO DO NOT USE /local/scratch to run pipelines. This directory is not static.
-# Use $OAK storage to run pipelines, and to store codes/WDLs/executables.
-# ====================================================================
-
-"""
-    + CONF_CONTENTS_SLURM_PARAM
     + CONF_CONTENTS_TMP_DIR
 )
 
 DEFAULT_CONF_CONTENTS_SLURM = (
-    """
-backend=slurm
+    """backend=slurm
 
-# define one of the followings (or both) according to your
-# cluster's SLURM configuration.
-
-# SLURM partition. Define only if required by a cluster. You must define it for Stanford Sherlock.
+# SLURM partition. DEFINE ONLY IF REQUIRED BY YOUR CLUSTER'S POLICY.
+# You must define it for Stanford Sherlock.
 slurm-partition=
-# SLURM account. Define only if required by a cluster. You must define it for Stanford SCG.
+
+# SLURM account. DEFINE ONLY IF REQUIRED BY YOUR CLUSTER'S POLICY.
+# You must define it for Stanford SCG.
 slurm-account=
 """
-    + CONF_CONTENTS_SLURM_PARAM
     + CONF_CONTENTS_TMP_DIR
+    + CONF_CONTENTS_SLURM_PARAM
 )
 
 DEFAULT_CONF_CONTENTS_SGE = (
-    """
-backend=sge
+    """backend=sge
 
 # Parallel environement is required, ask your administrator to create one
 # If your cluster doesn't support PE then edit 'sge-resource-param'
 # to fit your cluster's configuration.
 """
-    + CONF_CONTENTS_SGE_PARAM
     + CONF_CONTENTS_TMP_DIR
+    + CONF_CONTENTS_SGE_PARAM
 )
 
 DEFAULT_CONF_CONTENTS_PBS = (
-    """
-backend=pbs
+    """backend=pbs
 """
-    + CONF_CONTENTS_PBS_PARAM
     + CONF_CONTENTS_TMP_DIR
+    + CONF_CONTENTS_PBS_PARAM
 )
 
 DEFAULT_CONF_CONTENTS_LSF = (
-    """
-backend=lsf
+    """backend=lsf
 """
-    + CONF_CONTENTS_LSF_PARAM
     + CONF_CONTENTS_TMP_DIR
+    + CONF_CONTENTS_LSF_PARAM
 )
 
 DEFAULT_CONF_CONTENTS_AWS = (
-    """
-backend=aws
+    """backend=aws
+
 # ARN for AWS Batch.
 aws-batch-arn=
 # AWS region (e.g. us-west-1)
@@ -221,8 +154,8 @@ cromwell=https://storage.googleapis.com/caper-data/cromwell/cromwell-65-d16af26-
 )
 
 DEFAULT_CONF_CONTENTS_GCP = (
-    """
-backend=gcp
+    """backend=gcp
+
 # Google Cloud Platform Project
 gcp-prj=
 # Output bucket path for Google Cloud Platform. This should start with `gs://`.
@@ -248,9 +181,6 @@ gcp-region=
 # This is ignored if use-google-cloud-life-sciences.
 # e.g. us-west1-a,us-west1-b,us-west1-c
 gcp-zones=
-
-# Increase instance's memory when retrying upon OOM (out of memory) error.
-gcp-memory-retry-multiplier=1.2
 
 # Number of retrials. This parameter also applies to non-OOM failures.
 max-retries=1
