@@ -87,7 +87,7 @@ class HpcWrapper(ABC):
 
     @abstractmethod
     def _abort(self, job_ids):
-        """Sends SIGINT to Caper for a graceful shutdown.
+        """Sends SIGINT (or SIGTERM) to Caper for a graceful shutdown.
         """
         pass
 
@@ -131,9 +131,11 @@ class SlurmWrapper(HpcWrapper):
         ])
 
     def _abort(self, job_ids):
-        """Notes: --full is necessary to correctly send SIGTERM to the leader job (Cromwell process).
+        """Notes: --full is necessary to correctly send SIGINT to the leader job (Cromwell process).
+        Sending SIGTERM may result in an immediate shutdown of the leaderjob on some clusters.
+        SIGINT is much better to trigger a graceful shutdown.
         """
-        return self._run_command(['scancel', '--full', '--signal=SIGTERM'] + job_ids)
+        return self._run_command(['scancel', '--full', '--signal=SIGINT'] + job_ids)
 
 
 class SgeWrapper(HpcWrapper):
