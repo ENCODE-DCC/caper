@@ -39,7 +39,7 @@ class HpcWrapper(ABC):
     ):
         """Base class for HPC job engine wrapper.
         """
-        self.leader_job_resource_param = leader_job_resource_param
+        self._leader_job_resource_param = leader_job_resource_param
 
     def submit(self, job_name, caper_run_command):
         """Submits a caper leader job to HPC (e.g. sbatch, qsub).
@@ -116,10 +116,10 @@ class SlurmWrapper(HpcWrapper):
         )
         slurm_partition_param = ['-p', slurm_partition] if slurm_partition else []
         slurm_account_param = ['-A', slurm_account] if slurm_account else []
-        self.slurm_extra_param = slurm_partition_param + slurm_account_param
+        self._slurm_extra_param = slurm_partition_param + slurm_account_param
 
     def _submit(self, job_name, shell_script):
-        command = ['sbatch'] + self.leader_job_resource_param + self.slurm_extra_param + [
+        command = ['sbatch'] + self._leader_job_resource_param + self._slurm_extra_param + [
             '--export=ALL', '-J', make_caper_leader_job_name(job_name),
             shell_script,
         ]
@@ -149,10 +149,10 @@ class SgeWrapper(HpcWrapper):
         super().__init__(
             leader_job_resource_param=leader_job_resource_param,
         )
-        self.sge_queue_param = ['-q', sge_queue] if sge_queue else []
+        self._sge_queue_param = ['-q', sge_queue] if sge_queue else []
 
     def _submit(self, job_name, shell_script):
-        command = ['qsub'] + self.leader_job_resource_param + self.sge_queue_param + [
+        command = ['qsub'] + self._leader_job_resource_param + self._sge_queue_param + [
             '-V', '-terse', '-N', make_caper_leader_job_name(job_name),
             shell_script
         ]
@@ -178,10 +178,10 @@ class PbsWrapper(HpcWrapper):
         super().__init__(
             leader_job_resource_param=leader_job_resource_param,
         )
-        self.pbs_queue_param = ['-q', pbs_queue] if pbs_queue else []
+        self._pbs_queue_param = ['-q', pbs_queue] if pbs_queue else []
 
     def _submit(self, job_name, shell_script):
-        command = ['qsub'] + self.leader_job_resource_param + self.pbs_queue_param + [
+        command = ['qsub'] + self._leader_job_resource_param + self._pbs_queue_param + [
             '-V', '-N', make_caper_leader_job_name(job_name),
             shell_script
         ]
@@ -193,7 +193,7 @@ class PbsWrapper(HpcWrapper):
         ])
 
     def abort(self, job_ids):
-        return self._run_command(['qdel'] + job_ids)
+        return self._run_command(['qdel', '-W', '30'] + job_ids)
 
 
 class LsfWrapper(HpcWrapper):
@@ -207,10 +207,10 @@ class LsfWrapper(HpcWrapper):
         super().__init__(
             leader_job_resource_param=leader_job_resource_param,
         )
-        self.lsf_queue_param = ['-q', lsf_queue] if lsf_queue else []
+        self._lsf_queue_param = ['-q', lsf_queue] if lsf_queue else []
 
     def _submit(self, job_name, shell_script):
-        command = ['bsub'] + self.leader_job_resource_param + self.lsf_queue_param + [
+        command = ['bsub'] + self._leader_job_resource_param + self._lsf_queue_param + [
             '-env', 'all', '-J', make_caper_leader_job_name(job_name),
             shell_script
         ]
