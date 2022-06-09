@@ -87,19 +87,32 @@ Use `caper hpc list` to list all leader jobs. Use `caper hpc abort JOB_ID` to ab
 
 Here are some example command lines to submit Caper as a leader job. Make sure that you correctly configured Caper with `caper init` and filled all parameters in the conf file `~/.caper/default.conf`.
 
-There is an extra set of parameters `--db file --file-db [METADATA_DB_PATH_FOR_CALL_CACHING]` to use call-caching (restarting workflows by re-using previous outputs). If you want to restart a failed workflow then use the same metadata DB path then pipeline will start from where it left off. It will actually start over but will reuse (soft-link) previous outputs.
+There is an extra set of parameters `--file-db [METADATA_DB_PATH_FOR_CALL_CACHING]` to use call-caching (restarting workflows by re-using previous outputs). If you want to restart a failed workflow then use the same metadata DB path then pipeline will start from where it left off. It will actually start over but will reuse (soft-link) previous outputs.
 
 ```bash
 # make a new output directory for a workflow.
 $ cd [OUTPUT_DIR]
 
-# Example for SLURM (e.gl Stanford Sherlock and SCG) and SGE
-$ caper hpc submit [WDL] -i [INPUT_JSON] --singularity --db file --file-db [METADATA_DB_PATH_FOR_CALL_CACHING]
+# Example with Singularity without using call-caching.
+$ caper hpc submit [WDL] -i [INPUT_JSON] --singularity --leader-job-name GOOD_NAME1
 
-# Check status of leader jobs
+# Example with Conda and using call-caching (restarting a workflow from where it left off)
+# Use the same --file-db PATH for next re-run then Caper will collect and softlink previous outputs.
+$ caper hpc submit [WDL] -i [INPUT_JSON] --conda --leader-job-name GOOD_NAME2 --db file --file-db [METADATA_DB_PATH] 
+
+# List all leader jobs.
 $ caper hpc list
 
+# Check leader job's STDOUT file to monitor workflow's status.
+# Example for SLURM
+$ tail -f slurm-[JOB_ID].out
+
+# Cromwell's log will be written to cromwell.out* on the same directory.
+# It will be helpful for monitoring your workflow in detail.
+$ ls -l cromwell.out*
+
 # Abort a leader job (this will cascade-kill all its child jobs)
+# If you directly use job engine's command like scancel or qdel then child jobs will still remain running.
 $ caper hpc abort [JOB_ID]
 ```
 
