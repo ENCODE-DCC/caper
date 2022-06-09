@@ -245,7 +245,8 @@ class NBSubprocThread(Thread):
                         stop_signal = self._stop_signal
 
                     logger.info(
-                        f'Sending signal {stop_signal} to subprocess {p.pid}'
+                        f'Sending signal {stop_signal} to subprocess. '
+                        f'name: {self._subprocess_name}, pid: {p.pid}'
                     )
                     p.send_signal(stop_signal)
 
