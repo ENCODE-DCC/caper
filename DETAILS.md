@@ -40,13 +40,14 @@ unhold   | WF_ID or STR_LABEL |Release hold of workflows on a Cromwell server
 list     | WF_ID or STR_LABEL |List submitted workflows on a Cromwell server
 metadata | WF_ID or STR_LABEL |Retrieve metadata JSONs for workflows
 debug, troubleshoot | WF_ID, STR_LABEL or<br>METADATA_JSON_FILE |Analyze reason for errors
+hpc submit| WDL  | Submit a Caper leader job to HPC's job engine
+hpc list|        | List all Caper leader jobs
+hpc abort | JOB_ID | Abort a Caper leader job. This will cascade kill all child jobs.
 
 * `init`: To initialize Caper on a given platform. This command also downloads Cromwell/Womtool JARs so that Caper can work completely offline with local data files.
 
 	**Platform**|**Description**
 	:--------|:-----
-	sherlock | Stanford Sherlock cluster (SLURM)
-	scg | Stanford SCG cluster (SLURM)
 	gcp | Google Cloud Platform
 	aws | Amazon Web Service
 	local | General local computer
@@ -458,7 +459,6 @@ Example:
 	```
 
 
-
 ## How to override Caper's built-in backend
 
 If Caper's built-in backends don't work as expected on your clusters (e.g. due to different resource settings), then you can override built-in backends with your own configuration file (e.g. `your.backend.conf`). Caper generates a `backend.conf` for built-in backends on a temporary directory.
@@ -808,9 +808,6 @@ This file DB is genereted on your working directory by default. Its default file
 Unless you explicitly define `file-db` in your configuration file `~/.caper/default.conf` this file DB name will depend on your input JSON filename. Therefore, you can simply resume a failed workflow with the same command line used for starting a new pipeline.
 
 
-
-
-
 ## Profiling/monitoring resources on Google Cloud
 
 A workflow ran with Caper>=1.2.0 on `gcp` backend has a monitoring log (`monitoring.log`) by default on each task's execution directory. This log file includes useful resources data on an instance like used memory, used disk space and total cpu percentage.
@@ -833,3 +830,20 @@ Define task's input file variables to limit analysis on specific tasks and input
 
 Example plots:
 - ENCODE ATAC-seq pipeline: [Plot PDF](https://storage.googleapis.com/caper-data/gcp_resource_analysis/example_plot/atac.pdf)
+
+
+## Singularity and Docker Hub pull limit
+
+If you provide a Singularity image based on docker `docker://` then Caper will locally build a temporary Singularity image (`*.sif`) under `SINGULARITY_CACHEDIR` (defaulting to `~/.singularity/cache` if not defined). However, Singularity will blindly pull from DockerHub to quickly reach [a daily pull limit](https://www.docker.com/increase-rate-limits). It's recommended to use Singularity images from `shub://` (Singularity Hub) or `library://` (Sylabs Cloud).
+
+
+
+## How to customize resource parameters for HPCs
+
+Each HPC backend (`slurm`, `sge`, `pbs` and `lsf`) has its own resource parameter. e.g. `slurm-resource-param`. Find it in Caper's configuration file (`~/.caper/default.conf`) and edit it. For example, the default resource parameter for SLURM looks like the following:
+```
+slurm-resource-param=-n 1 --ntasks-per-node=1 --cpus-per-task=${cpu} ${if defined(memory_mb) then "--mem=" else ""}${memory_mb}${if defined(memory_mb) then "M" else ""} ${if defined(time) then "--time=" else ""}${time*60} ${if defined(gpu) then "--gres=gpu:" else ""}${gpu}
+```
+This should be a one-liner with WDL syntax allowed in `${}` notation. i.e. Cromwell's built-in resource variables like `cpu`(number of cores for a task), `memory_mb`(total amount of memory for a task in MB), `time`(walltime for a task in hour) and `gpu`(name of gpu unit or number of gpus) in `${}`. See https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md for WDL syntax. This line will be formatted with actual resource values by Cromwell and then passed to the submission command such as `sbatch` and `qsub`.
+
+Note that Cromwell's implicit type conversion (`WomLong` to `String`) seems to be buggy for `WomLong` type memory variables such as `memory_mb` and `memory_gb`. So be careful about using the `+` operator between `WomLong` and other types (`String`, even `Int`). For example, `${"--mem=" + memory_mb}` will not work since `memory_mb` is `WomLong` type. Use `${"if defined(memory_mb) then "--mem=" else ""}{memory_mb}${"if defined(memory_mb) then "mb " else " "}` instead. See https://github.com/broadinstitute/cromwell/issues/4659 for details.

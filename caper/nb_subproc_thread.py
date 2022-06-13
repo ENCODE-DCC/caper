@@ -1,10 +1,29 @@
 import logging
 import time
-from signal import SIGTERM
+import signal
 from subprocess import PIPE, Popen
 from threading import Thread
 
+
 logger = logging.getLogger(__name__)
+interrupted = False
+terminated = False
+
+
+def sigterm_handler(signo, frame):
+    global terminated
+    logger.info('Received SIGTERM.')
+    terminated = True
+
+
+def sigint_handler(signo, frame):
+    global interrupted
+    logger.info('Received SIGINT.')
+    interrupted = True
+
+
+signal.signal(signal.SIGTERM, sigterm_handler)
+signal.signal(signal.SIGINT, sigint_handler)
 
 
 def is_fileobj_open(fileobj):
@@ -14,7 +33,7 @@ def is_fileobj_open(fileobj):
 class NBSubprocThread(Thread):
     DEFAULT_POLL_INTERVAL_SEC = 0.01
     DEFAULT_SUBPROCESS_NAME = 'Subprocess'
-    DEFAULT_STOP_SIGNAL = SIGTERM
+    DEFAULT_STOP_SIGNAL = signal.SIGTERM
 
     def __init__(
         self,
@@ -80,6 +99,8 @@ class NBSubprocThread(Thread):
                 No logging.
             subprocess_name:
                 Subprocess name for logging.
+            signal_handler:
+                Signal handler for a graceful shutdown.
         """
         super().__init__(
             target=self._popen,
@@ -141,7 +162,7 @@ class NBSubprocThread(Thread):
         if wait:
             if self._returncode is None:
                 logger.info(
-                    '{name} stopped but waiting for graceful shutdown...'.format(
+                    '{name}: waiting for a graceful shutdown...'.format(
                         name=self._subprocess_name
                     )
                 )
@@ -162,6 +183,8 @@ class NBSubprocThread(Thread):
     ):
         """Wrapper for subprocess.Popen().
         """
+        global terminated
+        global interrupted
 
         def read_stdout(stdout_bytes):
             text = stdout_bytes.decode()
@@ -212,16 +235,32 @@ class NBSubprocThread(Thread):
                 if p.poll() is not None:
                     self._returncode = p.poll()
                     break
-                if self._stop_it and self._stop_signal:
-                    p.send_signal(self._stop_signal)
+
+                if terminated or interrupted or self._stop_it and self._stop_signal:
+                    if terminated:
+                        stop_signal = signal.SIGTERM
+                    elif interrupted:
+                        stop_signal = signal.SIGINT
+                    else:
+                        stop_signal = self._stop_signal
+
+                    logger.info(
+                        f'Sending signal {stop_signal} to subprocess. '
+                        f'name: {self._subprocess_name}, pid: {p.pid}'
+                    )
+                    p.send_signal(stop_signal)
+
+                    self._returncode = p.returncode
                     break
+
                 time.sleep(self._poll_interval)
 
         except Exception as e:
             if not self._quiet:
                 logger.error(e, exc_info=True)
+            self._returncode = 127
 
-        finally:
+        else:
             stdout_bytes, stderr_bytes = p.communicate()
             read_stdout(stdout_bytes)
             read_stderr(stderr_bytes)
