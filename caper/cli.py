@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import sys
 
 from autouri import GCSURI, AutoURI
@@ -24,6 +25,8 @@ from .cromwell_metadata import CromwellMetadata
 from .dict_tool import flatten_dict
 from .resource_analysis import LinearResourceAnalysis
 from .server_heartbeat import ServerHeartbeat
+from .cli_hpc import subcmd_hpc
+
 
 logger = logging.getLogger(__name__)
 
@@ -318,6 +321,7 @@ def client(args):
             subcmd_cleanup(c, args)
         else:
             raise ValueError('Unsupported client action {act}'.format(act=args.action))
+
 
 
 def subcmd_server(caper_runner, args, nonblocking=False):
@@ -700,7 +704,8 @@ def main(args=None, nonblocking_server=False):
 
     if parsed_args.action == 'init':
         init_caper_conf(parsed_args.conf, parsed_args.platform)
-
+    elif parsed_args.action in ('hpc'):
+        return subcmd_hpc(parsed_args)
     elif parsed_args.action in ('run', 'server'):
         return runner(parsed_args, nonblocking_server=nonblocking_server)
     else:

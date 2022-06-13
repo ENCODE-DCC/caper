@@ -146,14 +146,20 @@ class Cromwell:
                 nonlocal stderr
                 stderr += s
 
-            th = NBSubprocThread(cmd, cwd=tmp_d, on_stderr=on_stderr, quiet=True)
+            th = NBSubprocThread(cmd, cwd=tmp_d, on_stderr=on_stderr, quiet=False)
             th.start()
             th.join()
 
             if th.returncode:
-                raise WomtoolValidationFailed(
-                    'RC={rc}\nSTDERR={stderr}'.format(rc=th.returncode, stderr=stderr)
-                )
+                if th.returncode == 127:
+                    raise FileNotFoundError(
+                        'Java executable not found on your system? '
+                        'Please install Java and try again.'
+                    )
+                else:
+                    raise WomtoolValidationFailed(
+                        'RC={rc}\nSTDERR={stderr}'.format(rc=th.returncode, stderr=stderr)
+                    )
 
             logger.info('Passed Womtool validation.')
 
@@ -185,7 +191,7 @@ class Cromwell:
         You can simply get it by thread.returnvalue after thread is done.
 
         Args:
-            inputs:.
+            inputs:
                 input JSON file (-i).
             options:
                 workflow options JSON file (-o).
