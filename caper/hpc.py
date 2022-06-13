@@ -163,7 +163,7 @@ class SgeWrapper(HpcWrapper):
             'qstat', '-u', get_user_from_os_environ()
         ])
 
-    def abort(self, job_ids):
+    def _abort(self, job_ids):
         return self._run_command(['qdel'] + job_ids)
 
 
@@ -192,7 +192,7 @@ class PbsWrapper(HpcWrapper):
             'qstat', '-u', get_user_from_os_environ()
         ])
 
-    def abort(self, job_ids):
+    def _abort(self, job_ids):
         return self._run_command(['qdel', '-W', '30'] + job_ids)
 
 
@@ -221,5 +221,5 @@ class LsfWrapper(HpcWrapper):
             'bjobs', '-u', get_user_from_os_environ()
         ])
 
-    def abort(self, job_ids):
+    def _abort(self, job_ids):
         return self._run_command(['bkill'] + job_ids)
