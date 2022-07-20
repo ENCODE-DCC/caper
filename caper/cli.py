@@ -241,10 +241,13 @@ def runner(args, nonblocking_server=False):
         slurm_extra_param=getattr(args, 'slurm_extra_param', None),
         sge_pe=getattr(args, 'sge_pe', None),
         sge_queue=getattr(args, 'sge_queue', None),
+        sge_resource_param=getattr(args, 'sge_resource_param', None),
         sge_extra_param=getattr(args, 'sge_extra_param', None),
         pbs_queue=getattr(args, 'pbs_queue', None),
+        pbs_resource_param=getattr(args, 'pbs_resource_param', None),
         pbs_extra_param=getattr(args, 'pbs_extra_param', None),
         lsf_queue=getattr(args, 'lsf_queue', None),
+        lsf_resource_param=getattr(args, 'lsf_resource_param', None),
         lsf_extra_param=getattr(args, 'lsf_extra_param', None),
     )
 
