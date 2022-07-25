@@ -255,6 +255,7 @@ class CaperBackendConf:
                 sge_pe=sge_pe,
                 sge_queue=sge_queue,
                 sge_extra_param=sge_extra_param,
+                sge_resource_param=sge_resource_param,
             ),
         )
 
@@ -267,6 +268,7 @@ class CaperBackendConf:
                 local_hash_strat=local_hash_strat,
                 pbs_queue=pbs_queue,
                 pbs_extra_param=pbs_extra_param,
+                pbs_resource_param=pbs_resource_param,
             ),
         )
 
@@ -279,6 +281,7 @@ class CaperBackendConf:
                 local_hash_strat=local_hash_strat,
                 lsf_queue=lsf_queue,
                 lsf_extra_param=lsf_extra_param,
+                lsf_resource_param=lsf_resource_param,
             ),
         )
 
