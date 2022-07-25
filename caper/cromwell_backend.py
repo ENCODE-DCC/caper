@@ -292,7 +292,12 @@ class CromwellBackendBase(UserDict):
 
 
 class CromwellBackendGcp(CromwellBackendBase):
-    TEMPLATE = {'google': {'application-name': 'cromwell'}}
+    TEMPLATE = {
+        'google': {
+            'application-name': 'cromwell'
+        },
+        'engine': {'filesystems': {FILESYSTEM_GCS: {'auth': 'default'}}},
+    }
     TEMPLATE_BACKEND = {
         'config': {
             'default-runtime-attributes': {},
@@ -378,12 +383,14 @@ class CromwellBackendGcp(CromwellBackendBase):
             with open(gcp_service_account_key_json) as fp:
                 key_json = json.loads(fp.read())
             genomics['compute-service-account'] = key_json['client_email']
+            self['engine']['filesystems'][FILESYSTEM_GCS]['auth'] = 'service-account'
         else:
             genomics['auth'] = 'application-default'
             filesystems[FILESYSTEM_GCS]['auth'] = 'application-default'
             self['google']['auths'] = [
                 {'name': 'application-default', 'scheme': 'application_default'}
             ]
+            self['engine']['filesystems'][FILESYSTEM_GCS]['auth'] = 'application-default'
 
         if use_google_cloud_life_sciences:
             self.backend['actor-factory'] = CromwellBackendGcp.ACTOR_FACTORY_V2BETA
@@ -396,6 +403,7 @@ class CromwellBackendGcp(CromwellBackendBase):
                 self.default_runtime_attributes['zones'] = ' '.join(gcp_zones)
 
         config['project'] = gcp_prj
+        self['engine']['filesystems'][FILESYSTEM_GCS]['project'] = gcp_prj
 
         if not gcp_out_dir.startswith('gs://'):
             raise ValueError(
