@@ -37,54 +37,15 @@ CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP = """
 # It is not recommended to change it unless your cluster has custom resource settings.
 # See https://github.com/ENCODE-DCC/caper/blob/master/docs/resource_param.md for details."""
 
-CONF_CONTENTS_SLURM_PARAM = """
-# This parameter defines resource parameters for Caper's leader job only.
-slurm-leader-job-resource-param={slurm_leader_job_resource_param}
-{help_context}
-slurm-resource-param={slurm_resource_param}
-""".format(
-    help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
-    slurm_resource_param=CromwellBackendSlurm.DEFAULT_SLURM_RESOURCE_PARAM,
-    slurm_leader_job_resource_param=' '.join(SlurmWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
-)
-
+CONF_CONTENTS_SLURM_PARAM = ""
 CONF_CONTENTS_SGE_PARAM = """
-# This parameter defines resource parameters for Caper's leader job only.
-sge-leader-job-resource-param={sge_leader_job_resource_param}
-
 # Parallel environment of SGE:
 # Find one with `$ qconf -spl` or ask you admin to add one if not exists.
-# If your cluster works without PE then edit the below sge-resource-param
 sge-pe=
-{help_context}
-sge-resource-param={sge_resource_param}
-""".format(
-    help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
-    sge_resource_param=CromwellBackendSge.DEFAULT_SGE_RESOURCE_PARAM,
-    sge_leader_job_resource_param=' '.join(SgeWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
-)
+"""
 
-CONF_CONTENTS_PBS_PARAM = """
-# This parameter defines resource parameters for Caper's leader job only.
-pbs-leader-job-resource-param={pbs_leader_job_resource_param}
-{help_context}
-pbs-resource-param={pbs_resource_param}
-""".format(
-    help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
-    pbs_resource_param=CromwellBackendPbs.DEFAULT_PBS_RESOURCE_PARAM,
-    pbs_leader_job_resource_param=' '.join(PbsWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
-)
-
-CONF_CONTENTS_LSF_PARAM = """
-# This parameter defines resource parameters for Caper's leader job only.
-lsf-leader-job-resource-param={lsf_leader_job_resource_param}
-{help_context}
-lsf-resource-param={lsf_resource_param}
-""".format(
-    help_context=CONF_CONTENTS_COMMON_RESOURCE_PARAM_HELP,
-    lsf_resource_param=CromwellBackendLsf.DEFAULT_LSF_RESOURCE_PARAM,
-    lsf_leader_job_resource_param=' '.join(LsfWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
-)
+CONF_CONTENTS_PBS_PARAM = ""
+CONF_CONTENTS_LSF_PARAM = ""
 
 DEFAULT_CONF_CONTENTS_LOCAL = (
     """backend=local
@@ -109,10 +70,6 @@ slurm-account=
 
 DEFAULT_CONF_CONTENTS_SGE = (
     """backend=sge
-
-# Parallel environement is required, ask your administrator to create one
-# If your cluster doesn't support PE then edit 'sge-resource-param'
-# to fit your cluster's configuration.
 """
     + CONF_CONTENTS_TMP_DIR
     + CONF_CONTENTS_SGE_PARAM
