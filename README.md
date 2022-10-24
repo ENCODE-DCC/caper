@@ -116,8 +116,10 @@ $ ls -l cromwell.out*
 $ caper hpc abort [JOB_ID]
 ```
 
+## Customize resource parameters on HPCs
+
+If default settings of Caper does not work with your HPC, then see [this document](docs/resource_param.md) to manually customize resource command line (e.g. `sbatch ... [YOUR_CUSTOM_PARAMETER]`) for your chosen backend.
 
 # DETAILS
 
 See [details](DETAILS.md).
-
