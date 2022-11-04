@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import re
-import subprocess
 import sys
 
 from autouri import GCSURI, AutoURI
@@ -16,6 +15,7 @@ from .caper_client import CaperClient, CaperClientSubmit
 from .caper_init import init_caper_conf
 from .caper_labels import CaperLabels
 from .caper_runner import CaperRunner
+from .cli_hpc import subcmd_hpc
 from .cromwell_backend import (
     BACKEND_ALIAS_LOCAL,
     BACKEND_LOCAL,
@@ -25,8 +25,6 @@ from .cromwell_metadata import CromwellMetadata
 from .dict_tool import flatten_dict
 from .resource_analysis import LinearResourceAnalysis
 from .server_heartbeat import ServerHeartbeat
-from .cli_hpc import subcmd_hpc
-
 
 logger = logging.getLogger(__name__)
 
@@ -326,7 +324,6 @@ def client(args):
             raise ValueError('Unsupported client action {act}'.format(act=args.action))
 
 
-
 def subcmd_server(caper_runner, args, nonblocking=False):
     """
     Args:
@@ -541,8 +538,7 @@ def get_single_cromwell_metadata_obj(caper_client, args, subcmd):
 
 
 def split_list_into_file_and_non_file(lst):
-    """Returns tuple of (list of existing files, list of non-file strings)
-    """
+    """Returns tuple of (list of existing files, list of non-file strings)"""
     files = []
     non_files = []
 
@@ -666,8 +662,7 @@ def subcmd_gcp_res_analysis(caper_client, args):
 
 
 def subcmd_cleanup(caper_client, args):
-    """Cleanup outputs of a workflow.
-    """
+    """Cleanup outputs of a workflow."""
     cm = get_single_cromwell_metadata_obj(caper_client, args, 'cleanup')
     cm.cleanup(dry_run=not args.delete, num_threads=args.num_threads, no_lock=True)
     if not args.delete:

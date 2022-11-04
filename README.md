@@ -98,7 +98,7 @@ $ caper hpc submit [WDL] -i [INPUT_JSON] --singularity --leader-job-name GOOD_NA
 
 # Example with Conda and using call-caching (restarting a workflow from where it left off)
 # Use the same --file-db PATH for next re-run then Caper will collect and softlink previous outputs.
-$ caper hpc submit [WDL] -i [INPUT_JSON] --conda --leader-job-name GOOD_NAME2 --db file --file-db [METADATA_DB_PATH] 
+$ caper hpc submit [WDL] -i [INPUT_JSON] --conda --leader-job-name GOOD_NAME2 --db file --file-db [METADATA_DB_PATH]
 
 # List all leader jobs.
 $ caper hpc list

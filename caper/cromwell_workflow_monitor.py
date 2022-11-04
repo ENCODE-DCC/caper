@@ -224,8 +224,7 @@ class CromwellWorkflowMonitor:
                     break
 
     def _update_workflows(self, stderr):
-        """Updates workflow status by parsing Cromwell's stderr lines.
-        """
+        """Updates workflow status by parsing Cromwell's stderr lines."""
         updated_workflows = set()
         workflows_to_write_metadata = set()
         for line in stderr.split('\n'):
@@ -251,8 +250,7 @@ class CromwellWorkflowMonitor:
                 self._subworkflows.add(subworkflow_id)
 
     def _update_tasks(self, stderr):
-        """Check if workflow's task status changed by parsing Cromwell's stderr lines.
-        """
+        """Check if workflow's task status changed by parsing Cromwell's stderr lines."""
         for line in stderr.split('\n'):
             r_common = None
             r_start = re.findall(CromwellWorkflowMonitor.RE_TASK_START, line)
@@ -303,8 +301,7 @@ class CromwellWorkflowMonitor:
                 return w
 
     def _write_metadata(self, workflow_id):
-        """Update metadata on Cromwell'e exec root.
-        """
+        """Update metadata on Cromwell'e exec root."""
         if not self._is_server or not self._auto_write_metadata:
             return
         if workflow_id in self._subworkflows and self._embed_subworkflow:

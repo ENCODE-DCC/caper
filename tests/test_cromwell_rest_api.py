@@ -49,8 +49,7 @@ def test_has_wildcard(test_input, expected):
 
 
 def test_all(tmp_path, cromwell, womtool):
-    """Test Cromwell.server() method, which returns a Thread object.
-    """
+    """Test Cromwell.server() method, which returns a Thread object."""
     server_port = 8010
     fileobj_stdout = sys.stdout
     test_label = 'test_label'

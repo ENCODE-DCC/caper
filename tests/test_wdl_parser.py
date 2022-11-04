@@ -23,10 +23,10 @@ from .example_wdl import (
 
 def test_properties(tmp_path):
     """Test the following properties.
-        - contents
-        - workflow_meta
-        - workflow_parameter_meta
-        - imports
+    - contents
+    - workflow_meta
+    - workflow_parameter_meta
+    - imports
     """
     wdl = tmp_path / 'main.wdl'
     wdl.write_text(MAIN_WDL)

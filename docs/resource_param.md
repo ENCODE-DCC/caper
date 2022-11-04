@@ -25,7 +25,7 @@ slurm-leader-job-resource-param=-t 48:00:00 --mem 4G
 # It is for HPC backends only (slurm, sge, pbs and lsf).
 # It is not recommended to change it unless your cluster has custom resource settings.
 # See https://github.com/ENCODE-DCC/caper/blob/master/docs/resource_param.md for details.
-slurm-resource-param=-n 1 --ntasks-per-node=1 --cpus-per-task=${cpu} ${if defined(memory_mb) then "--mem=" else ""}${memory_mb}${if defined(memory_mb) then "M" else ""} ${if defined(time) then "--time=" else ""}${time*60} ${if defined(gpu) then "--gres=gpu:" else ""}${gpu} 
+slurm-resource-param=-n 1 --ntasks-per-node=1 --cpus-per-task=${cpu} ${if defined(memory_mb) then "--mem=" else ""}${memory_mb}${if defined(memory_mb) then "M" else ""} ${if defined(time) then "--time=" else ""}${time*60} ${if defined(gpu) then "--gres=gpu:" else ""}${gpu}
 
 ```
 
@@ -44,7 +44,7 @@ sge-pe=
 # It is for HPC backends only (slurm, sge, pbs and lsf).
 # It is not recommended to change it unless your cluster has custom resource settings.
 # See https://github.com/ENCODE-DCC/caper/blob/master/docs/resource_param.md for details.
-sge-resource-param=${if cpu > 1 then "-pe " + sge_pe + " " else ""} ${if cpu > 1 then cpu else ""} ${true="-l h_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}${true=" / " false="" defined(memory_mb)}${if defined(memory_mb) then cpu else ""}${true=")m" false="" defined(memory_mb)} ${true="-l s_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}${true=" / " false="" defined(memory_mb)}${if defined(memory_mb) then cpu else ""}${true=")m" false="" defined(memory_mb)} ${"-l h_rt=" + time + ":00:00"} ${"-l s_rt=" + time + ":00:00"} ${"-l gpu=" + gpu} 
+sge-resource-param=${if cpu > 1 then "-pe " + sge_pe + " " else ""} ${if cpu > 1 then cpu else ""} ${true="-l h_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}${true=" / " false="" defined(memory_mb)}${if defined(memory_mb) then cpu else ""}${true=")m" false="" defined(memory_mb)} ${true="-l s_vmem=$(expr " false="" defined(memory_mb)}${memory_mb}${true=" / " false="" defined(memory_mb)}${if defined(memory_mb) then cpu else ""}${true=")m" false="" defined(memory_mb)} ${"-l h_rt=" + time + ":00:00"} ${"-l s_rt=" + time + ":00:00"} ${"-l gpu=" + gpu}
 ```
 
 ## PBS
@@ -57,7 +57,7 @@ pbs-leader-job-resource-param=-l walltime=48:00:00,mem=4gb
 # It is for HPC backends only (slurm, sge, pbs and lsf).
 # It is not recommended to change it unless your cluster has custom resource settings.
 # See https://github.com/ENCODE-DCC/caper/blob/master/docs/resource_param.md for details.
-pbs-resource-param=${"-lnodes=1:ppn=" + cpu}${if defined(gpu) then ":gpus=" + gpu else ""} ${if defined(memory_mb) then "-l mem=" else ""}${memory_mb}${if defined(memory_mb) then "mb" else ""} ${"-lwalltime=" + time + ":0:0"} 
+pbs-resource-param=${"-lnodes=1:ppn=" + cpu}${if defined(gpu) then ":gpus=" + gpu else ""} ${if defined(memory_mb) then "-l mem=" else ""}${memory_mb}${if defined(memory_mb) then "mb" else ""} ${"-lwalltime=" + time + ":0:0"}
 ```
 
 ## LSF
@@ -70,5 +70,5 @@ lsf-leader-job-resource-param=-W 2880 -M 4g
 # It is for HPC backends only (slurm, sge, pbs and lsf).
 # It is not recommended to change it unless your cluster has custom resource settings.
 # See https://github.com/ENCODE-DCC/caper/blob/master/docs/resource_param.md for details.
-lsf-resource-param=${"-n " + cpu} ${if defined(gpu) then "-gpu " + gpu else ""} ${if defined(memory_mb) then "-M " else ""}${memory_mb}${if defined(memory_mb) then "m" else ""} ${"-W " + 60*time} 
+lsf-resource-param=${"-n " + cpu} ${if defined(gpu) then "-gpu " + gpu else ""} ${if defined(memory_mb) then "-M " else ""}${memory_mb}${if defined(memory_mb) then "m" else ""} ${"-W " + 60*time}
 ```

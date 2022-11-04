@@ -34,8 +34,7 @@ def install_file(f, install_dir, label):
 
 
 class Cromwell:
-    """Wraps Cromwell/Womtool.
-    """
+    """Wraps Cromwell/Womtool."""
 
     DEFAULT_CROMWELL = 'https://github.com/broadinstitute/cromwell/releases/download/82/cromwell-82.jar'
     DEFAULT_WOMTOOL = (
@@ -158,7 +157,9 @@ class Cromwell:
                     )
                 else:
                     raise WomtoolValidationFailed(
-                        'RC={rc}\nSTDERR={stderr}'.format(rc=th.returncode, stderr=stderr)
+                        'RC={rc}\nSTDERR={stderr}'.format(
+                            rc=th.returncode, stderr=stderr
+                        )
                     )
 
             logger.info('Passed Womtool validation.')

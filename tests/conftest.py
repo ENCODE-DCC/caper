@@ -45,8 +45,7 @@ def ci_prefix(request):
 
 @pytest.fixture(scope='session')
 def gcs_root(request):
-    """GCS root to generate test GCS URIs on.
-    """
+    """GCS root to generate test GCS URIs on."""
     return request.config.getoption('--gcs-root').rstrip('/')
 
 

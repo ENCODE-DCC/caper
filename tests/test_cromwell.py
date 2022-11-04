@@ -115,8 +115,7 @@ def test_run(tmp_path, cromwell, womtool):
 
 
 def test_server(tmp_path, cromwell, womtool):
-    """Test Cromwell.server() method, which returns a Thread object.
-    """
+    """Test Cromwell.server() method, which returns a Thread object."""
     server_port = 8005
     fileobj_stdout = sys.stdout
 

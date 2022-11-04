@@ -6,8 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 class CaperWDLParser(WDLParser):
-    """WDL parser for Caper.
-    """
+    """WDL parser for Caper."""
 
     RE_WDL_COMMENT_DOCKER = r'^\s*\#\s*CAPER\s+docker\s(.+)'
     RE_WDL_COMMENT_SINGULARITY = r'^\s*\#\s*CAPER\s+singularity\s(.+)'
@@ -25,8 +24,7 @@ class CaperWDLParser(WDLParser):
 
     @property
     def caper_docker(self):
-        """Backward compatibility for property name. See property default_docker.
-        """
+        """Backward compatibility for property name. See property default_docker."""
         return self.default_docker
 
     @property
@@ -48,8 +46,7 @@ class CaperWDLParser(WDLParser):
 
     @property
     def caper_singularity(self):
-        """Backward compatibility for property name. See property default_singularity.
-        """
+        """Backward compatibility for property name. See property default_singularity."""
         return self.default_singularity
 
     @property
@@ -71,8 +68,7 @@ class CaperWDLParser(WDLParser):
 
     @property
     def default_conda(self):
-        """Find a default Conda environment name in WDL for Caper.
-        """
+        """Find a default Conda environment name in WDL for Caper."""
         if self.workflow_meta:
             for conda_key in CaperWDLParser.WDL_WORKFLOW_META_CONDA_KEYS:
                 if conda_key in self.workflow_meta:
