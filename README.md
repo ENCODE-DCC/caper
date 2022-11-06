@@ -98,7 +98,8 @@ $ caper hpc submit [WDL] -i [INPUT_JSON] --singularity --leader-job-name GOOD_NA
 
 # Example with Conda and using call-caching (restarting a workflow from where it left off)
 # Use the same --file-db PATH for next re-run then Caper will collect and softlink previous outputs.
-$ caper hpc submit [WDL] -i [INPUT_JSON] --conda --leader-job-name GOOD_NAME2 --db file --file-db [METADATA_DB_PATH]
+# If you see any DB connection error then replace it with "--db in-memory" then call-cahing will be disabled
+$ caper hpc submit [WDL] -i [INPUT_JSON] --conda --leader-job-name GOOD_NAME2 --file-db [METADATA_DB_PATH]
 
 # List all leader jobs.
 $ caper hpc list
@@ -118,12 +119,20 @@ $ caper hpc abort [JOB_ID]
 
 ## Restarting a pipeline on local machine (and HPCs)
 
-Caper uses Cromwell's call-caching to restart a pipeline from where it left off. Such database is automatically generated on `local_out_dir` defined in the configuration file `~/.caper/default.conf`. The DB file name is consist of WDL's basename and input JSON file's basename so you can simply run the same `caper run` command line on the same working directory to restart a workflow.
+Caper uses Cromwell's call-caching to restart a pipeline from where it left off. Such database is automatically generated on `local_out_dir` defined in the configuration file `~/.caper/default.conf`. The DB file name is simply consist of WDL's basename and input JSON file's basename so you can simply run the same `caper run` command line on the same working directory to restart a workflow.
+
+```bash
+# for standalone/client
+$ caper run ... --db in-memory
+
+# for server
+$ caper server ... --db in-memory
+````
 
 
 ## DB connection timeout
 
-If you see any DB connection timeout error, that means you have multiple caper/Cromwell processes trying to connect to the same file DB. Check any running Cromwell processes with `ps aux | grep cromwell` and close them. If that does not fix the problem, then use `caper run ... --db in-memory` to disable Cromwell's metadata DB. You will not be able to use call-caching.
+If you see any DB connection timeout error, that means you have multiple caper/Cromwell processes trying to connect to the same file DB. Check any running Cromwell processes with `ps aux | grep cromwell` and close them with `kill         PID`. If that does not fix the problem, then use `caper run ... --db in-memory` to disable Cromwell's metadata DB. You will not be able to use call-caching.
 
 
 ## Customize resource parameters on HPCs
