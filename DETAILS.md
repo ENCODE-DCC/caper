@@ -794,7 +794,7 @@ $ psql -d $DB_NAME -c "create role $DB_USER with superuser login password $DB_PA
 
 ## File database
 
-Caper defaults to use file database to store workflow's metadata. Such metadata database is necessary for restarting a workflow from where it left off (Cromwell's call-caching feature). Default database location is on `local_out_dir` in the configuration file `~/.caper/default.conf` or CWD where you run Caper run/server command line. Its default filename prefix is `caper-db_[WDL_BASENAME].[INPUT_JSON_BASENAME]`. Therefore, 
+Caper defaults to use file database to store workflow's metadata. Such metadata database is necessary for restarting a workflow from where it left off (Cromwell's call-caching feature). Default database location is on `local_out_dir` in the configuration file `~/.caper/default.conf` or CWD where you run Caper run/server command line. Its default filename prefix is `caper-db_[WDL_BASENAME].[INPUT_JSON_BASENAME]`. Therefore,
 unless you explicitly define `file-db` in your configuration file you can simply resume a failed workflow with the same command line used for starting a new pipeline.
 
 File database cannot be accessed with multiple processes. So defining `file-db` in  `~/.caper/default.conf` can result in DB connection timeout error. Define `file-db` in  `~/.caper/default.conf` only when you run a Caper server (with `caper server`) and submit workflows to it.
