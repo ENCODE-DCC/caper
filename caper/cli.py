@@ -29,7 +29,7 @@ from .server_heartbeat import ServerHeartbeat
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
+DEFAULT_DB_FILE_PREFIX = 'caper-db'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 USER_INTERRUPT_WARNING = (
     '\n\n'
@@ -170,11 +170,13 @@ def check_db_path(args):
         args.file_db = get_abspath(args.file_db)
 
         if not args.file_db:
-            prefix = DEFAULT_DB_FILE_PREFIX
+            db_filename_list = [DEFAULT_DB_FILE_PREFIX]
+            if hasattr(args, 'wdl') and args.wdl:
+                db_filename_list.append(os.path.basename(args.wdl))
             if hasattr(args, 'inputs') and args.inputs:
-                prefix += '_' + os.path.splitext(os.path.basename(args.inputs))[0]
-
-            args.file_db = os.path.join(args.local_out_dir, prefix)
+                db_filename_list.append(os.path.basename(args.inputs))
+            db_filename = '_'.join(db_filename_list)
+            args.file_db = os.path.join(args.local_out_dir, db_filename)
 
 
 def check_backend(args):
