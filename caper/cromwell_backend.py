@@ -39,6 +39,7 @@ CALL_CACHING_DUP_STRAT_SOFTLINK = 'soft-link'
 LOCAL_HASH_STRAT_FILE = 'file'
 LOCAL_HASH_STRAT_PATH = 'path'
 LOCAL_HASH_STRAT_PATH_MTIME = 'path+modtime'
+LOCAL_HASH_START_XXH64 = 'xxh64'
 SOFT_GLOB_OUTPUT_CMD = 'ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null'
 
 
@@ -634,7 +635,7 @@ class CromwellBackendLocal(CromwellBackendBase):
             'kill-docker': KILL_DOCKER,
         },
     }
-    DEFAULT_LOCAL_HASH_STRAT = LOCAL_HASH_STRAT_PATH_MTIME
+    DEFAULT_LOCAL_HASH_STRAT = LOCAL_HASH_START_XXH64
 
     def __init__(
         self,
@@ -666,6 +667,7 @@ class CromwellBackendLocal(CromwellBackendBase):
             LOCAL_HASH_STRAT_FILE,
             LOCAL_HASH_STRAT_PATH,
             LOCAL_HASH_STRAT_PATH_MTIME,
+            LOCAL_HASH_START_XXH64,
         ):
             raise ValueError(
                 'Wrong local_hash_strat: {strat}'.format(strat=local_hash_strat)
