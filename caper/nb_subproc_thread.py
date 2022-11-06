@@ -1,9 +1,8 @@
 import logging
-import time
 import signal
+import time
 from subprocess import PIPE, Popen
 from threading import Thread
-
 
 logger = logging.getLogger(__name__)
 interrupted = False
@@ -181,8 +180,7 @@ class NBSubprocThread(Thread):
         on_stderr=None,
         on_finish=None,
     ):
-        """Wrapper for subprocess.Popen().
-        """
+        """Wrapper for subprocess.Popen()."""
         global terminated
         global interrupted
 

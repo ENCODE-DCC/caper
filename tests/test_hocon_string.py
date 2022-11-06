@@ -93,8 +93,7 @@ def get_test_dict(with_include=False):
 
 
 def get_test_dict2():
-    """Without "include" lines.
-    """
+    """Without "include" lines."""
     return {'backend': {'providers': {'gcp': {'actor-factory': 'GOOGLE'}}}}
 
 

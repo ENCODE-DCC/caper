@@ -48,8 +48,7 @@ def test_mutually_exclusive_params(tmp_path, cmd):
 
 @pytest.mark.integration
 def test_run(tmp_path, cromwell, womtool, debug_caper):
-    """Will test most local parameters (run only) here.
-    """
+    """Will test most local parameters (run only) here."""
     make_directory_with_wdls(str(tmp_path))
     wdl = tmp_path / 'main.wdl'
     inputs = tmp_path / 'inputs.json'
@@ -116,8 +115,7 @@ def test_run_gcp_with_life_sciences_api(
     gcp_service_account_key_json,
     debug_caper,
 ):
-    """Test run with Google Cloud Life Sciences API
-    """
+    """Test run with Google Cloud Life Sciences API"""
     out_gcs_bucket = os.path.join(gcs_root, 'caper_out', ci_prefix)
     tmp_gcs_bucket = os.path.join(gcs_root, 'caper_tmp')
 

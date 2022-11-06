@@ -8,8 +8,7 @@ from caper.cromwell_backend import CromwellBackendBase
 
 
 def test_cromwell_backend_base_backend():
-    """Test a property backend's getter, setter
-    """
+    """Test a property backend's getter, setter"""
     bb1 = CromwellBackendBase('test1')
     backend_dict = {'a': 1, 'b': '2'}
 

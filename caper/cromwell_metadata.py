@@ -27,8 +27,7 @@ def get_workflow_id_from_workflow_root(workflow_root):
 
 
 def parse_cromwell_disks(s):
-    """Parses Cromwell's disks in runtime attribute.
-    """
+    """Parses Cromwell's disks in runtime attribute."""
     if s:
         m = re.findall(r'(\d+)', s)
         if m:
@@ -36,15 +35,13 @@ def parse_cromwell_disks(s):
 
 
 def parse_cromwell_memory(s):
-    """Parses Cromwell's memory runtime attribute.
-    """
+    """Parses Cromwell's memory runtime attribute."""
     if s:
         return humanfriendly.parse_size(s)
 
 
 def convert_type_np_to_py(o):
-    """Convert numpy type to Python type.
-    """
+    """Convert numpy type to Python type."""
     if isinstance(o, np.generic):
         return o.item()
     raise TypeError
@@ -55,8 +52,7 @@ class CromwellMetadata:
     DEFAULT_GCP_MONITOR_STAT_METHODS = ('mean', 'std', 'max', 'min', 'last')
 
     def __init__(self, metadata):
-        """Parses metadata JSON (dict) object or file.
-        """
+        """Parses metadata JSON (dict) object or file."""
         if isinstance(metadata, dict):
             self._metadata = metadata
         elif isinstance(metadata, CromwellMetadata):
@@ -159,8 +155,7 @@ class CromwellMetadata:
                     yield fn_call(call_name, call, parent_call_names)
 
     def write_on_workflow_root(self, basename=DEFAULT_METADATA_BASENAME):
-        """Update metadata JSON file on metadata's output root directory.
-        """
+        """Update metadata JSON file on metadata's output root directory."""
         root = self.workflow_root
 
         if root:
@@ -184,8 +179,10 @@ class CromwellMetadata:
             result:
                 Troubleshooting report as a plain string.
         """
-        result = '* Started troubleshooting workflow: id={id}, status={status}\n'.format(
-            id=self.workflow_id, status=self.workflow_status
+        result = (
+            '* Started troubleshooting workflow: id={id}, status={status}\n'.format(
+                id=self.workflow_id, status=self.workflow_status
+            )
         )
 
         if self.workflow_status == 'Succeeded':
@@ -198,8 +195,7 @@ class CromwellMetadata:
                 )
 
             def troubleshoot_call(call_name, call, parent_call_names):
-                """Returns troubleshooting help message.
-                """
+                """Returns troubleshooting help message."""
                 nonlocal show_completed_task
                 nonlocal show_stdout
                 status = call.get('executionStatus')

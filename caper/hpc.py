@@ -5,7 +5,6 @@ import logging
 import os
 import subprocess
 from abc import ABC, abstractmethod
-from collections import namedtuple
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -18,17 +17,22 @@ ILLEGAL_CHARS_IN_JOB_NAME = [',', ' ', '\t']
 def get_user_from_os_environ():
     return os.environ['USER']
 
+
 def make_bash_script_contents(contents):
     return f'#!/bin/bash\n{contents}\n'
+
 
 def make_caper_leader_job_name(job_name):
     """Check if job name contains Comma, TAB or whitespace.
     They are not allowed since they can be used as separators.
     """
-    if any(illegal_char in job_name for illegal_char in ILLEGAL_CHARS_IN_JOB_NAME):
-        raise ValueError('Illegal character {chr} in job name {job}'.format(
-            chr=illegal_chr, job=job_name
-        ))
+    for illegal_char in ILLEGAL_CHARS_IN_JOB_NAME:
+        if illegal_char in job_name:
+            raise ValueError(
+                'Illegal character {chr} in job name {job}'.format(
+                    chr=illegal_char, job=job_name
+                )
+            )
     return CAPER_LEADER_JOB_NAME_PREFIX + job_name
 
 
@@ -37,8 +41,7 @@ class HpcWrapper(ABC):
         self,
         leader_job_resource_param=[],
     ):
-        """Base class for HPC job engine wrapper.
-        """
+        """Base class for HPC job engine wrapper."""
         self._leader_job_resource_param = leader_job_resource_param
 
     def submit(self, job_name, caper_run_command):
@@ -74,12 +77,11 @@ class HpcWrapper(ABC):
         return '\n'.join(result)
 
     def abort(self, job_ids):
-        """Returns output STDOUT from job engine's abort command (e.g. scancel, qdel).
-        """
+        """Returns output STDOUT from job engine's abort command (e.g. scancel, qdel)."""
         return self._abort(job_ids)
 
     @abstractmethod
-    def _submit(self, job_name, shell_script):        
+    def _submit(self, job_name, shell_script):
         pass
 
     def _list(self):
@@ -87,19 +89,21 @@ class HpcWrapper(ABC):
 
     @abstractmethod
     def _abort(self, job_ids):
-        """Sends SIGINT (or SIGTERM) to Caper for a graceful shutdown.
-        """
+        """Sends SIGINT (or SIGTERM) to Caper for a graceful shutdown."""
         pass
 
     def _run_command(self, command):
-        """Runs a shell command line and returns STDOUT.
-        """
+        """Runs a shell command line and returns STDOUT."""
         logger.info(f'Running shell command: {" ".join(command)}')
-        return subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            env=os.environ,
-        ).stdout.decode().strip()
+        return (
+            subprocess.run(
+                command,
+                stdout=subprocess.PIPE,
+                env=os.environ,
+            )
+            .stdout.decode()
+            .strip()
+        )
 
 
 class SlurmWrapper(HpcWrapper):
@@ -119,16 +123,28 @@ class SlurmWrapper(HpcWrapper):
         self._slurm_extra_param = slurm_partition_param + slurm_account_param
 
     def _submit(self, job_name, shell_script):
-        command = ['sbatch'] + self._leader_job_resource_param + self._slurm_extra_param + [
-            '--export=ALL', '-J', make_caper_leader_job_name(job_name),
-            shell_script,
-        ]
+        command = (
+            ['sbatch']
+            + self._leader_job_resource_param
+            + self._slurm_extra_param
+            + [
+                '--export=ALL',
+                '-J',
+                make_caper_leader_job_name(job_name),
+                shell_script,
+            ]
+        )
         return self._run_command(command)
 
     def _list(self):
-        return self._run_command([
-            'squeue', '-u', get_user_from_os_environ(), '--Format=JobID,Name,State,SubmitTime'
-        ])
+        return self._run_command(
+            [
+                'squeue',
+                '-u',
+                get_user_from_os_environ(),
+                '--Format=JobID,Name,State,SubmitTime',
+            ]
+        )
 
     def _abort(self, job_ids):
         """Notes: --full is necessary to correctly send SIGINT to the leader job (Cromwell process).
@@ -152,16 +168,16 @@ class SgeWrapper(HpcWrapper):
         self._sge_queue_param = ['-q', sge_queue] if sge_queue else []
 
     def _submit(self, job_name, shell_script):
-        command = ['qsub'] + self._leader_job_resource_param + self._sge_queue_param + [
-            '-V', '-terse', '-N', make_caper_leader_job_name(job_name),
-            shell_script
-        ]
+        command = (
+            ['qsub']
+            + self._leader_job_resource_param
+            + self._sge_queue_param
+            + ['-V', '-terse', '-N', make_caper_leader_job_name(job_name), shell_script]
+        )
         return self._run_command(command)
 
     def _list(self):
-        return self._run_command([
-            'qstat', '-u', get_user_from_os_environ()
-        ])
+        return self._run_command(['qstat', '-u', get_user_from_os_environ()])
 
     def _abort(self, job_ids):
         return self._run_command(['qdel'] + job_ids)
@@ -181,16 +197,16 @@ class PbsWrapper(HpcWrapper):
         self._pbs_queue_param = ['-q', pbs_queue] if pbs_queue else []
 
     def _submit(self, job_name, shell_script):
-        command = ['qsub'] + self._leader_job_resource_param + self._pbs_queue_param + [
-            '-V', '-N', make_caper_leader_job_name(job_name),
-            shell_script
-        ]
+        command = (
+            ['qsub']
+            + self._leader_job_resource_param
+            + self._pbs_queue_param
+            + ['-V', '-N', make_caper_leader_job_name(job_name), shell_script]
+        )
         return self._run_command(command)
 
     def _list(self):
-        return self._run_command([
-            'qstat', '-u', get_user_from_os_environ()
-        ])
+        return self._run_command(['qstat', '-u', get_user_from_os_environ()])
 
     def _abort(self, job_ids):
         return self._run_command(['qdel', '-W', '30'] + job_ids)
@@ -210,16 +226,16 @@ class LsfWrapper(HpcWrapper):
         self._lsf_queue_param = ['-q', lsf_queue] if lsf_queue else []
 
     def _submit(self, job_name, shell_script):
-        command = ['bsub'] + self._leader_job_resource_param + self._lsf_queue_param + [
-            '-env', 'all', '-J', make_caper_leader_job_name(job_name),
-            shell_script
-        ]
+        command = (
+            ['bsub']
+            + self._leader_job_resource_param
+            + self._lsf_queue_param
+            + ['-env', 'all', '-J', make_caper_leader_job_name(job_name), shell_script]
+        )
         return self._run_command(command)
 
     def _list(self):
-        return self._run_command([
-            'bjobs', '-u', get_user_from_os_environ()
-        ])
+        return self._run_command(['bjobs', '-u', get_user_from_os_environ()])
 
     def _abort(self, job_ids):
         return self._run_command(['bkill'] + job_ids)

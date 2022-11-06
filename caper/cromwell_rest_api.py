@@ -493,8 +493,7 @@ class CromwellRestAPI:
         return result
 
     def __init_auth(self):
-        """Init auth object
-        """
+        """Init auth object"""
         if self._user is not None and self._password is not None:
             self._auth = (self._user, self._password)
         else:

@@ -72,8 +72,7 @@ def recurse_dict_value(d, fnc):
 
 
 def unflatten_dict(d_flat):
-    """Unflattens single-level-tuple-keyed dict into dict
-    """
+    """Unflattens single-level-tuple-keyed dict into dict"""
     result = type(d_flat)()
     for k_tuple, v in d_flat.items():
         d_curr = result

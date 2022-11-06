@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from .hpc import (SlurmWrapper, SgeWrapper, PbsWrapper, LsfWrapper)
+from .hpc import LsfWrapper, PbsWrapper, SgeWrapper, SlurmWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -34,25 +34,22 @@ def subcmd_hpc(args):
             stdout = SlurmWrapper(
                 args.slurm_leader_job_resource_param.split(),
                 args.slurm_partition,
-                args.slurm_account
+                args.slurm_account,
             ).submit(args.leader_job_name, caper_run_command)
 
         elif args.backend == 'sge':
             stdout = SgeWrapper(
-                args.sge_leader_job_resource_param.split(),
-                args.sge_queue
+                args.sge_leader_job_resource_param.split(), args.sge_queue
             ).submit(args.leader_job_name, caper_run_command)
-            
+
         elif args.backend == 'pbs':
             stdout = PbsWrapper(
-                args.pbs_leader_job_resource_param.split(),
-                args.pbs_queue
+                args.pbs_leader_job_resource_param.split(), args.pbs_queue
             ).submit(args.leader_job_name, caper_run_command)
 
         elif args.backend == 'lsf':
             stdout = LsfWrapper(
-                args.lsf_leader_job_resource_param.split(),
-                args.lsf_queue
+                args.lsf_leader_job_resource_param.split(), args.lsf_queue
             ).submit(args.leader_job_name, caper_run_command)
 
         else:

@@ -16,8 +16,7 @@ class WDLParser:
     BASENAME_IMPORTS = 'imports.zip'
 
     def __init__(self, wdl):
-        """Wraps miniwdl's parse_document().
-        """
+        """Wraps miniwdl's parse_document()."""
         u = AutoURI(wdl)
         if not u.exists:
             raise FileNotFoundError('WDL does not exist: wdl={wdl}'.format(wdl=wdl))
