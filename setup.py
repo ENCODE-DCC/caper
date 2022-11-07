@@ -61,7 +61,7 @@ setuptools.setup(
         'pyhocon>=0.3.53',
         'requests>=2.20',
         'pyopenssl',
-        'autouri>=0.4.0',
+        'autouri>=0.4.1',
         'miniwdl>=0.7.0',
         'humanfriendly',
         'numpy>=1.8.2',
