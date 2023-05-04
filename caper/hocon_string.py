@@ -39,8 +39,7 @@ def is_valid_include(include):
 
 
 def get_include_key(include_str):
-    """Use md5sum hash of the whole include statement string for a key.
-    """
+    """Use md5sum hash of the whole include statement string for a key."""
     return hashlib.md5(include_str.encode()).hexdigest()
 
 

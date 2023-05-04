@@ -185,8 +185,7 @@ class CaperBase:
         return work_dir
 
     def get_loc_dir(self, backend):
-        """Get localization directory for a backend.
-        """
+        """Get localization directory for a backend."""
         if backend == BACKEND_GCP:
             return self._gcp_loc_dir
         elif backend == BACKEND_AWS:

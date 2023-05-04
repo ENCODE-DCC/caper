@@ -9,8 +9,7 @@ from caper.cromwell_backend import BACKEND_AWS, BACKEND_GCP
 
 
 def test_create_file(tmp_path):
-    """Test without docker/singularity.
-    """
+    """Test without docker/singularity."""
     use_google_cloud_life_sciences = False
     gcp_zones = ['us-west-1', 'us-west-2']
     slurm_partition = 'my_partition'
@@ -135,8 +134,7 @@ def test_create_file_with_google_cloud_life_sciences(tmp_path):
 
 
 def test_create_file_docker(tmp_path):
-    """Test with docker and docker defined in WDL.
-    """
+    """Test with docker and docker defined in WDL."""
     wdl_contents = dedent(
         """\
         version 1.0
@@ -205,8 +203,7 @@ def test_create_file_docker(tmp_path):
 
 
 def test_create_file_singularity(tmp_path):
-    """Test with singularity and singularity defined in WDL.
-    """
+    """Test with singularity and singularity defined in WDL."""
     wdl_contents = dedent(
         """\
         version 1.0

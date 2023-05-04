@@ -39,6 +39,7 @@ CALL_CACHING_DUP_STRAT_SOFTLINK = 'soft-link'
 LOCAL_HASH_STRAT_FILE = 'file'
 LOCAL_HASH_STRAT_PATH = 'path'
 LOCAL_HASH_STRAT_PATH_MTIME = 'path+modtime'
+LOCAL_HASH_START_XXH64 = 'xxh64'
 SOFT_GLOB_OUTPUT_CMD = 'ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null'
 
 
@@ -47,8 +48,7 @@ def get_s3_bucket_name(s3_uri):
 
 
 class CromwellBackendCommon(UserDict):
-    """Basic stanzas for Cromwell backend conf.
-    """
+    """Basic stanzas for Cromwell backend conf."""
 
     TEMPLATE = {
         'backend': {},
@@ -105,8 +105,7 @@ class CromwellBackendCommon(UserDict):
 
 
 class CromwellBackendServer(UserDict):
-    """Stanzas for Cromwell server.
-    """
+    """Stanzas for Cromwell server."""
 
     TEMPLATE = {'webservice': {}}
 
@@ -119,8 +118,7 @@ class CromwellBackendServer(UserDict):
 
 
 class CromwellBackendDatabase(UserDict):
-    """Common stanzas for Cromwell's metadata database.
-    """
+    """Common stanzas for Cromwell's metadata database."""
 
     TEMPLATE = {'database': {'db': {'connectionTimeout': 5000, 'numThreads': 1}}}
 
@@ -219,8 +217,7 @@ class CromwellBackendDatabase(UserDict):
 
 
 class CromwellBackendBase(UserDict):
-    """Base skeleton backend for all backends
-    """
+    """Base skeleton backend for all backends"""
 
     TEMPLATE = {'backend': {'providers': {}}}
     TEMPLATE_BACKEND = {'config': {'default-runtime-attributes': {}, 'filesystems': {}}}
@@ -286,16 +283,13 @@ class CromwellBackendBase(UserDict):
 
     @property
     def default_runtime_attributes(self):
-        """Backend's default runtime attributes in self.backend_config.
-        """
+        """Backend's default runtime attributes in self.backend_config."""
         return self.backend_config['default-runtime-attributes']
 
 
 class CromwellBackendGcp(CromwellBackendBase):
     TEMPLATE = {
-        'google': {
-            'application-name': 'cromwell'
-        },
+        'google': {'application-name': 'cromwell'},
         'engine': {'filesystems': {FILESYSTEM_GCS: {'auth': 'default'}}},
     }
     TEMPLATE_BACKEND = {
@@ -390,7 +384,9 @@ class CromwellBackendGcp(CromwellBackendBase):
             self['google']['auths'] = [
                 {'name': 'application-default', 'scheme': 'application_default'}
             ]
-            self['engine']['filesystems'][FILESYSTEM_GCS]['auth'] = 'application-default'
+            self['engine']['filesystems'][FILESYSTEM_GCS][
+                'auth'
+            ] = 'application-default'
 
         if use_google_cloud_life_sciences:
             self.backend['actor-factory'] = CromwellBackendGcp.ACTOR_FACTORY_V2BETA
@@ -490,26 +486,26 @@ class CromwellBackendAws(CromwellBackendBase):
 class CromwellBackendLocal(CromwellBackendBase):
     """Class constants:
 
-        SUBMIT_DOCKER:
-            Cromwell falls back to 'submit_docker' instead of 'submit' if WDL task has
-            'docker' in runtime and runtime-attributes are declared in backend's config.
+    SUBMIT_DOCKER:
+        Cromwell falls back to 'submit_docker' instead of 'submit' if WDL task has
+        'docker' in runtime and runtime-attributes are declared in backend's config.
 
-            Docker and Singularity can map paths between inside and outside of the container.
-            So this is not an issue for those container environments.
+        Docker and Singularity can map paths between inside and outside of the container.
+        So this is not an issue for those container environments.
 
-            For Conda, any container paths (docker_cwd, e.g. /cromwell-executions/**)
-            in the script is simply replaced with CWD.
+        For Conda, any container paths (docker_cwd, e.g. /cromwell-executions/**)
+        in the script is simply replaced with CWD.
 
-            This also replaces filenames written in write_*.tsv files (globbed by WDL functions).
-            e.g. write_lines(), write_tsv(), ...
+        This also replaces filenames written in write_*.tsv files (globbed by WDL functions).
+        e.g. write_lines(), write_tsv(), ...
 
-            See the following document for such WDL functions:
-            https://github.com/openwdl/wdl/blob/main/versions/development/SPEC.md#file-write_linesarraystring
+        See the following document for such WDL functions:
+        https://github.com/openwdl/wdl/blob/main/versions/development/SPEC.md#file-write_linesarraystring
 
-            Possible issue:
-            - 'sed' is used here with a delimiter as hash mark (#)
-              so hash marks in output path can result in error.
-            - Files globbed by WDL functions other than write_*() will still have paths inside a container.
+        Possible issue:
+        - 'sed' is used here with a delimiter as hash mark (#)
+          so hash marks in output path can result in error.
+        - Files globbed by WDL functions other than write_*() will still have paths inside a container.
     """
 
     RUNTIME_ATTRIBUTES = dedent(
@@ -639,7 +635,7 @@ class CromwellBackendLocal(CromwellBackendBase):
             'kill-docker': KILL_DOCKER,
         },
     }
-    DEFAULT_LOCAL_HASH_STRAT = LOCAL_HASH_STRAT_PATH_MTIME
+    DEFAULT_LOCAL_HASH_STRAT = LOCAL_HASH_START_XXH64
 
     def __init__(
         self,
@@ -671,6 +667,7 @@ class CromwellBackendLocal(CromwellBackendBase):
             LOCAL_HASH_STRAT_FILE,
             LOCAL_HASH_STRAT_PATH,
             LOCAL_HASH_STRAT_PATH_MTIME,
+            LOCAL_HASH_START_XXH64,
         ):
             raise ValueError(
                 'Wrong local_hash_strat: {strat}'.format(strat=local_hash_strat)

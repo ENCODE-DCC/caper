@@ -63,8 +63,7 @@ def test_resource_analysis_analyze_task(gcp_res_analysis_metadata):
 
 
 def test_resource_analysis_analyze(gcp_res_analysis_metadata):
-    """Test method analyze() which analyze all tasks defined in in_file_vars.
-    """
+    """Test method analyze() which analyze all tasks defined in in_file_vars."""
     analysis = LinearResourceAnalysis()
     analysis.collect_resource_data([gcp_res_analysis_metadata])
 

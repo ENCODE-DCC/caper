@@ -23,14 +23,9 @@ from .cromwell_backend import (
     CromwellBackendSlurm,
 )
 from .cromwell_rest_api import CromwellRestAPI
+from .hpc import LsfWrapper, PbsWrapper, SgeWrapper, SlurmWrapper
 from .resource_analysis import ResourceAnalysis
 from .server_heartbeat import ServerHeartbeat
-from .hpc import (
-    SlurmWrapper,
-    SgeWrapper,
-    PbsWrapper,
-    LsfWrapper,
-)
 
 DEFAULT_CAPER_CONF = '~/.caper/default.conf'
 DEFAULT_LIST_FORMAT = 'id,status,name,str_label,user,parent,submission'
@@ -163,7 +158,7 @@ def get_parser_and_defaults(conf_file=None):
     )
     group_db.add_argument(
         '--db',
-        default=CromwellBackendDatabase.DEFAULT_DB,
+        default=CromwellBackendDatabase.DB_FILE,
         help='Cromwell metadata database type',
     )
     group_db.add_argument(
@@ -534,31 +529,31 @@ def get_parser_and_defaults(conf_file=None):
         '--leader-job-name',
         help='Leader job name for a submitted workflow.'
         'This name will be appended to the prefix "CAPER_LEADER_" and then '
-        'submitted to HPC. Such prefix is used to identify Caper leader jobs.'
+        'submitted to HPC. Such prefix is used to identify Caper leader jobs.',
     )
     group_hpc_submit.add_argument(
         '--slurm-leader-job-resource-param',
         help='Resource parameters to submit a Caper leader job to SLURM. '
         'Make sure to quote if you use it in the command line arguments.',
-        default=' '.join(SlurmWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM)
+        default=' '.join(SlurmWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
     )
     group_hpc_submit.add_argument(
         '--sge-leader-job-resource-param',
         help='Resource parameters to submit a Caper leader job to SGE'
         'Make sure to quote if you use it in the command line arguments.',
-        default=' '.join(SgeWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM)
+        default=' '.join(SgeWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
     )
     group_hpc_submit.add_argument(
         '--pbs-leader-job-resource-param',
         help='Resource parameters to submit a Caper leader job to PBS'
         'Make sure to quote if you use it in the command line arguments.',
-        default=' '.join(PbsWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM)
+        default=' '.join(PbsWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
     )
     group_hpc_submit.add_argument(
         '--lsf-leader-job-resource-param',
         help='Resource parameters to submit a Caper leader job to LSF'
         'Make sure to quote if you use it in the command line arguments.',
-        default=' '.join(LsfWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM)
+        default=' '.join(LsfWrapper.DEFAULT_LEADER_JOB_RESOURCE_PARAM),
     )
 
     group_slurm = parent_submit.add_argument_group('SLURM arguments')
@@ -771,7 +766,7 @@ def get_parser_and_defaults(conf_file=None):
     parent_hpc_abort.add_argument(
         'job_ids',
         nargs='+',
-        help='Job ID or list of job IDs to abort matching Caper leader jobs.'
+        help='Job ID or list of job IDs to abort matching Caper leader jobs.',
     )
 
     # all subcommands
@@ -864,18 +859,18 @@ def get_parser_and_defaults(conf_file=None):
         parents=[parent_all],
     )
     subparser_hpc = p_hpc.add_subparsers(dest='hpc_action')
-    p_hpc_submit = subparser_hpc.add_parser(
+    subparser_hpc.add_parser(
         'submit',
         help='Submit a single workflow to HPC.',
         parents=[parent_all, parent_submit, parent_run, parent_runner, parent_backend],
     )
 
-    p_hpc_list = subparser_hpc.add_parser(
+    subparser_hpc.add_parser(
         'list',
         help='List all workflows submitted to HPC.',
         parents=[parent_all, parent_backend],
     )
-    p_hpc_abort = subparser_hpc.add_parser(
+    subparser_hpc.add_parser(
         'abort',
         help='Abort a workflow submitted to HPC.',
         parents=[parent_all, parent_backend, parent_hpc_abort],

@@ -29,8 +29,7 @@ def test_server_client(
     gcp_service_account_key_json,
     debug_caper,
 ):
-    """Test server, client stuffs
-    """
+    """Test server, client stuffs"""
     # server command line
     server_port = 8015
 

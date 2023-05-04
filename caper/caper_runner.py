@@ -495,47 +495,47 @@ class CaperRunner(CaperBase):
         dry_run=False,
     ):
         """Run a Cromwell server.
-            default_backend:
-                Default backend. If backend is not specified for a submitted workflow
-                then default backend will be used.
-                Choose among Caper's built-in backends.
-                (aws, gcp, Local, slurm, sge, pbs, lsf).
-                Or use a backend defined in your custom backend config file
-                (above "backend_conf" file).
-            server_heartbeat:
-                Server heartbeat to write hostname/port of a server.
-            server_port:
-                Server port to run Cromwell server.
-                Make sure to use different port for multiple Cromwell servers on the same
-                machine.
-            server_hostname:
-                Server hostname. If not defined then socket.gethostname() will be used.
-                If server_heartbeat is given, then this hostname will be written to
-                the server heartbeat file defined in server_heartbeat.
-            custom_backend_conf:
-                Backend config file (HOCON) to override Caper's auto-generated backend config.
-            fileobj_stdout:
-                File-like object to write Cromwell's STDOUT.
-            embed_subworkflow:
-                Caper stores/updates metadata.JSON file on
-                each workflow's root directory whenever there is status change
-                of workflow (or its tasks).
-                This flag ensures that any subworkflow's metadata JSON will be
-                embedded in main (this) workflow's metadata JSON.
-                This is to mimic behavior of Cromwell run mode's -m parameter.
-            java_heap_server:
-                Java heap (java -Xmx) for Cromwell server mode.
-            auto_write_metadata:
-                Automatic retrieval/writing of metadata.json upon workflow/task's status change.
-            work_dir:
-                Local temporary directory to store all temporary files.
-                Temporary files mean intermediate files used for running Cromwell.
-                For example, auto-generated backend config file and workflow options file.
-                If this is not defined, then cache directory self._local_loc_dir with a timestamp
-                will be used.
-                However, Cromwell Java process itself will run on CWD instead of this directory.
-            dry_run:
-                Stop before running Java command line for Cromwell.
+        default_backend:
+            Default backend. If backend is not specified for a submitted workflow
+            then default backend will be used.
+            Choose among Caper's built-in backends.
+            (aws, gcp, Local, slurm, sge, pbs, lsf).
+            Or use a backend defined in your custom backend config file
+            (above "backend_conf" file).
+        server_heartbeat:
+            Server heartbeat to write hostname/port of a server.
+        server_port:
+            Server port to run Cromwell server.
+            Make sure to use different port for multiple Cromwell servers on the same
+            machine.
+        server_hostname:
+            Server hostname. If not defined then socket.gethostname() will be used.
+            If server_heartbeat is given, then this hostname will be written to
+            the server heartbeat file defined in server_heartbeat.
+        custom_backend_conf:
+            Backend config file (HOCON) to override Caper's auto-generated backend config.
+        fileobj_stdout:
+            File-like object to write Cromwell's STDOUT.
+        embed_subworkflow:
+            Caper stores/updates metadata.JSON file on
+            each workflow's root directory whenever there is status change
+            of workflow (or its tasks).
+            This flag ensures that any subworkflow's metadata JSON will be
+            embedded in main (this) workflow's metadata JSON.
+            This is to mimic behavior of Cromwell run mode's -m parameter.
+        java_heap_server:
+            Java heap (java -Xmx) for Cromwell server mode.
+        auto_write_metadata:
+            Automatic retrieval/writing of metadata.json upon workflow/task's status change.
+        work_dir:
+            Local temporary directory to store all temporary files.
+            Temporary files mean intermediate files used for running Cromwell.
+            For example, auto-generated backend config file and workflow options file.
+            If this is not defined, then cache directory self._local_loc_dir with a timestamp
+            will be used.
+            However, Cromwell Java process itself will run on CWD instead of this directory.
+        dry_run:
+            Stop before running Java command line for Cromwell.
         """
         if work_dir is None:
             work_dir = self.create_timestamped_work_dir(

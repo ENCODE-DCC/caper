@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import re
-import subprocess
 import sys
 
 from autouri import GCSURI, AutoURI
@@ -16,6 +15,7 @@ from .caper_client import CaperClient, CaperClientSubmit
 from .caper_init import init_caper_conf
 from .caper_labels import CaperLabels
 from .caper_runner import CaperRunner
+from .cli_hpc import subcmd_hpc
 from .cromwell_backend import (
     BACKEND_ALIAS_LOCAL,
     BACKEND_LOCAL,
@@ -25,13 +25,11 @@ from .cromwell_metadata import CromwellMetadata
 from .dict_tool import flatten_dict
 from .resource_analysis import LinearResourceAnalysis
 from .server_heartbeat import ServerHeartbeat
-from .cli_hpc import subcmd_hpc
-
 
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_DB_FILE_PREFIX = 'caper_file_db'
+DEFAULT_DB_FILE_PREFIX = 'caper-db'
 DEFAULT_SERVER_HEARTBEAT_FILE = '~/.caper/default_server_heartbeat'
 USER_INTERRUPT_WARNING = (
     '\n\n'
@@ -172,11 +170,13 @@ def check_db_path(args):
         args.file_db = get_abspath(args.file_db)
 
         if not args.file_db:
-            prefix = DEFAULT_DB_FILE_PREFIX
+            db_filename_list = [DEFAULT_DB_FILE_PREFIX]
+            if hasattr(args, 'wdl') and args.wdl:
+                db_filename_list.append(os.path.basename(args.wdl))
             if hasattr(args, 'inputs') and args.inputs:
-                prefix += '_' + os.path.splitext(os.path.basename(args.inputs))[0]
-
-            args.file_db = os.path.join(args.local_out_dir, prefix)
+                db_filename_list.append(os.path.basename(args.inputs))
+            db_filename = '_'.join(db_filename_list)
+            args.file_db = os.path.join(args.local_out_dir, db_filename)
 
 
 def check_backend(args):
@@ -324,7 +324,6 @@ def client(args):
             subcmd_cleanup(c, args)
         else:
             raise ValueError('Unsupported client action {act}'.format(act=args.action))
-
 
 
 def subcmd_server(caper_runner, args, nonblocking=False):
@@ -541,8 +540,7 @@ def get_single_cromwell_metadata_obj(caper_client, args, subcmd):
 
 
 def split_list_into_file_and_non_file(lst):
-    """Returns tuple of (list of existing files, list of non-file strings)
-    """
+    """Returns tuple of (list of existing files, list of non-file strings)"""
     files = []
     non_files = []
 
@@ -666,8 +664,7 @@ def subcmd_gcp_res_analysis(caper_client, args):
 
 
 def subcmd_cleanup(caper_client, args):
-    """Cleanup outputs of a workflow.
-    """
+    """Cleanup outputs of a workflow."""
     cm = get_single_cromwell_metadata_obj(caper_client, args, 'cleanup')
     cm.cleanup(dry_run=not args.delete, num_threads=args.num_threads, no_lock=True)
     if not args.delete:

@@ -29,8 +29,8 @@ OLD_WDL_CONTENTS = dedent(
 
 def test_properties(tmp_path):
     """Test the following properties.
-        - caper_docker
-        - caper_singularity
+    - caper_docker
+    - caper_singularity
     """
     main_wdl = tmp_path / 'main.wdl'
     main_wdl.write_text(WDL_CONTENTS)
