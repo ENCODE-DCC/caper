@@ -29,7 +29,7 @@ install_python3: &install_python3
 install_singularity: &install_singularity
   name: Install Singularity (container)
   command: |
-    sudo apt-get install -y alien squashfs-tools libseccomp-devel
+    sudo apt-get install -y alien squashfs-tools libseccomp-dev
     sudo wget https://github.com/sylabs/singularity/releases/download/v3.11.3/singularity-ce-3.11.3-1.el8.x86_64.rpm
     sudo alien -d singularity-ce-3.11.3-1.el8.x86_64.rpm
     sudo apt-get install -y ./singularity-ce_3.11.3-2_amd64.deb
