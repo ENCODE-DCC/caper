@@ -2,8 +2,6 @@ import os
 from argparse import ArgumentParser
 from configparser import ConfigParser, MissingSectionHeaderError
 
-from distutils.util import strtobool
-
 
 def read_from_conf(
     conf_file, conf_section='defaults', conf_key_map=None, no_strip_quote=False
@@ -145,6 +143,12 @@ def update_parsers_defaults_with_conf(
         if v is None and guessed_default is not None:
             v = guessed_default
             defaults[k] = v
+
+        def strtobool(value: str) -> bool:
+            value = value.lower()
+            if value in ('y', 'yes', 'on', '1', 'true', 't'):
+                return True
+            return False
 
         if guessed_type:
             if guessed_type is bool and isinstance(v, str):
